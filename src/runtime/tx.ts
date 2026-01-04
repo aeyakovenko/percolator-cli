@@ -136,6 +136,10 @@ export function formatResult(result: TxResult, jsonMode: boolean): string {
 
   if (result.err) {
     lines.push(`Error: ${result.err}`);
+    if (result.logs.length > 0) {
+      lines.push("Logs:");
+      result.logs.forEach((log) => lines.push(`  ${log}`));
+    }
   } else {
     lines.push(`Signature: ${result.signature}`);
     lines.push(`Slot: ${result.slot}`);
