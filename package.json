@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "build": "tsup",
-    "dev": "pnpm build && node dist/index.js"
+    "dev": "pnpm build && node dist/index.js",
+    "test": "tsx test/abi.test.ts && tsx test/pda.test.ts && tsx test/slab.test.ts"
   },
   "dependencies": {
     "@solana/spl-token": "^0.3.11",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/node": "^20.17.10",
     "tsup": "^8.3.5",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.2"
   },
   "engines": {
