@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "pnpm build && node dist/index.js",
-    "test": "tsx test/abi.test.ts && tsx test/pda.test.ts && tsx test/slab.test.ts"
+    "test": "tsx test/abi.test.ts && tsx test/pda.test.ts && tsx test/slab.test.ts && tsx test/validation.test.ts"
   },
   "dependencies": {
     "@solana/spl-token": "^0.3.11",

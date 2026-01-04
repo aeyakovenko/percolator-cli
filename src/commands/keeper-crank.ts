@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -10,6 +9,11 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import {
+  validatePublicKey,
+  validateIndex,
+  validateI64,
+} from "../validation.js";
 
 export function registerKeeperCrank(program: Command): void {
   program
@@ -25,9 +29,11 @@ export function registerKeeperCrank(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
-      const oracle = new PublicKey(opts.oracle);
-      const callerIdx = parseInt(opts.callerIdx, 10);
+      // Validate inputs
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      const oracle = validatePublicKey(opts.oracle, "--oracle");
+      const callerIdx = validateIndex(opts.callerIdx, "--caller-idx");
+      validateI64(opts.fundingRateBpsPerSlot, "--funding-rate-bps-per-slot");
       const allowPanic = opts.allowPanic === true;
 
       // Build instruction data

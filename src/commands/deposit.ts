@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -12,6 +11,11 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import {
+  validatePublicKey,
+  validateIndex,
+  validateAmount,
+} from "../validation.js";
 
 export function registerDeposit(program: Command): void {
   program
@@ -25,8 +29,10 @@ export function registerDeposit(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
-      const userIdx = parseInt(opts.userIdx, 10);
+      // Validate inputs
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      const userIdx = validateIndex(opts.userIdx, "--user-idx");
+      validateAmount(opts.amount, "--amount");
       const amount = opts.amount;
 
       // Fetch slab config for vault

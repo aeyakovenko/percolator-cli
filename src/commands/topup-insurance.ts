@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -12,6 +11,7 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validatePublicKey, validateU128 } from "../validation.js";
 
 export function registerTopupInsurance(program: Command): void {
   program
@@ -24,7 +24,9 @@ export function registerTopupInsurance(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
+      // Validate inputs
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      validateU128(opts.amount, "--amount");
 
       // Fetch slab config for vault
       const data = await fetchSlab(ctx.connection, slabPk);

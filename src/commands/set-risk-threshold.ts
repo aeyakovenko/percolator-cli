@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -9,6 +8,7 @@ import {
   buildAccountMetas,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validatePublicKey, validateU128 } from "../validation.js";
 
 export function registerSetRiskThreshold(program: Command): void {
   program
@@ -21,7 +21,9 @@ export function registerSetRiskThreshold(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
+      // Validate inputs
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      validateU128(opts.newThreshold, "--new-threshold");
 
       // Build instruction data
       const ixData = encodeSetRiskThreshold({ newThreshold: opts.newThreshold });

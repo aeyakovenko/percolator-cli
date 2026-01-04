@@ -31,6 +31,7 @@ export interface TxResult {
   signature: string;
   slot: number;
   err: string | null;
+  hint?: string;
   logs: string[];
 }
 
@@ -61,16 +62,23 @@ export async function simulateOrSend(
     const result = await connection.simulateTransaction(tx, signers);
     const logs = result.value.logs ?? [];
     let err: string | null = null;
+    let hint: string | undefined;
 
     if (result.value.err) {
       const parsed = parseErrorFromLogs(logs);
-      err = parsed ? `${parsed.name} (${parsed.code})` : JSON.stringify(result.value.err);
+      if (parsed) {
+        err = `${parsed.name} (0x${parsed.code.toString(16)})`;
+        hint = parsed.hint;
+      } else {
+        err = JSON.stringify(result.value.err);
+      }
     }
 
     return {
       signature: "(simulated)",
       slot: result.context.slot,
       err,
+      hint,
       logs,
     };
   }
@@ -101,16 +109,23 @@ export async function simulateOrSend(
 
     const logs = txInfo?.meta?.logMessages ?? [];
     let err: string | null = null;
+    let hint: string | undefined;
 
     if (confirmation.value.err) {
       const parsed = parseErrorFromLogs(logs);
-      err = parsed ? `${parsed.name} (${parsed.code})` : JSON.stringify(confirmation.value.err);
+      if (parsed) {
+        err = `${parsed.name} (0x${parsed.code.toString(16)})`;
+        hint = parsed.hint;
+      } else {
+        err = JSON.stringify(confirmation.value.err);
+      }
     }
 
     return {
       signature,
       slot: txInfo?.slot ?? 0,
       err,
+      hint,
       logs,
     };
   } catch (e: unknown) {
@@ -136,6 +151,9 @@ export function formatResult(result: TxResult, jsonMode: boolean): string {
 
   if (result.err) {
     lines.push(`Error: ${result.err}`);
+    if (result.hint) {
+      lines.push(`Hint: ${result.hint}`);
+    }
     if (result.logs.length > 0) {
       lines.push("Logs:");
       result.logs.forEach((log) => lines.push(`  ${log}`));

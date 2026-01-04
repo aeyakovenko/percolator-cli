@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { PublicKey, Keypair } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -13,6 +13,11 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import {
+  validatePublicKey,
+  validateIndex,
+  validateI128,
+} from "../validation.js";
 
 export function registerTradeCpi(program: Command): void {
   program
@@ -30,11 +35,13 @@ export function registerTradeCpi(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
-      const matcherProgram = new PublicKey(opts.matcherProgram);
-      const matcherContext = new PublicKey(opts.matcherContext);
-      const lpIdx = parseInt(opts.lpIdx, 10);
-      const userIdx = parseInt(opts.userIdx, 10);
+      // Validate inputs
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      const matcherProgram = validatePublicKey(opts.matcherProgram, "--matcher-program");
+      const matcherContext = validatePublicKey(opts.matcherContext, "--matcher-context");
+      const lpIdx = validateIndex(opts.lpIdx, "--lp-idx");
+      const userIdx = validateIndex(opts.userIdx, "--user-idx");
+      validateI128(opts.size, "--size");
 
       // Fetch slab config for oracle
       const data = await fetchSlab(ctx.connection, slabPk);

@@ -1,9 +1,9 @@
 import { Command } from "commander";
-import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
 import { fetchSlab, parseConfig, parseHeader } from "../solana/slab.js";
+import { validatePublicKey } from "../validation.js";
 
 export function registerSlabConfig(program: Command): void {
   program
@@ -15,7 +15,7 @@ export function registerSlabConfig(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
+      const slabPk = validatePublicKey(opts.slab, "--slab");
       const data = await fetchSlab(ctx.connection, slabPk);
       const header = parseHeader(data);
       const mktConfig = parseConfig(data);

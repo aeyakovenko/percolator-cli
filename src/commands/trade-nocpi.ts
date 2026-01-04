@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { PublicKey, Keypair } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -11,6 +11,11 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import {
+  validatePublicKey,
+  validateIndex,
+  validateI128,
+} from "../validation.js";
 
 export function registerTradeNocpi(program: Command): void {
   program
@@ -27,10 +32,12 @@ export function registerTradeNocpi(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
-      const oracle = new PublicKey(opts.oracle);
-      const lpIdx = parseInt(opts.lpIdx, 10);
-      const userIdx = parseInt(opts.userIdx, 10);
+      // Validate inputs
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      const oracle = validatePublicKey(opts.oracle, "--oracle");
+      const lpIdx = validateIndex(opts.lpIdx, "--lp-idx");
+      const userIdx = validateIndex(opts.userIdx, "--user-idx");
+      validateI128(opts.size, "--size");
 
       // Load LP keypair if provided, otherwise use payer
       const lpKeypair = opts.lpWallet ? loadKeypair(opts.lpWallet) : ctx.payer;

@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -12,6 +11,7 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validatePublicKey, validateU128 } from "../validation.js";
 
 export function registerInitLp(program: Command): void {
   program
@@ -26,9 +26,11 @@ export function registerInitLp(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
-      const matcherProgram = new PublicKey(opts.matcherProgram);
-      const matcherContext = new PublicKey(opts.matcherContext);
+      // Validate inputs
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      const matcherProgram = validatePublicKey(opts.matcherProgram, "--matcher-program");
+      const matcherContext = validatePublicKey(opts.matcherContext, "--matcher-context");
+      validateU128(opts.fee, "--fee");
 
       // Fetch slab config for mint, vault, oracle
       const data = await fetchSlab(ctx.connection, slabPk);

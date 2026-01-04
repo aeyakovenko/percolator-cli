@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -9,6 +8,7 @@ import {
   buildAccountMetas,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validatePublicKey } from "../validation.js";
 
 export function registerUpdateAdmin(program: Command): void {
   program
@@ -21,8 +21,9 @@ export function registerUpdateAdmin(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
-      const newAdmin = new PublicKey(opts.newAdmin);
+      // Validate inputs
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      const newAdmin = validatePublicKey(opts.newAdmin, "--new-admin");
 
       // Build instruction data
       const ixData = encodeUpdateAdmin({ newAdmin });
