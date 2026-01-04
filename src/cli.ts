@@ -19,6 +19,11 @@ import { registerSlabGet } from "./commands/slab-get.js";
 import { registerSlabHeader } from "./commands/slab-header.js";
 import { registerSlabConfig } from "./commands/slab-config.js";
 import { registerSlabNonce } from "./commands/slab-nonce.js";
+import { registerSlabEngine } from "./commands/slab-engine.js";
+import { registerSlabParams } from "./commands/slab-params.js";
+import { registerSlabAccount } from "./commands/slab-account.js";
+import { registerSlabAccounts } from "./commands/slab-accounts.js";
+import { registerSlabBitmap } from "./commands/slab-bitmap.js";
 
 export function createCli(): Command {
   const program = new Command();
@@ -59,6 +64,11 @@ export function createCli(): Command {
   registerSlabHeader(program);
   registerSlabConfig(program);
   registerSlabNonce(program);
+  registerSlabEngine(program);
+  registerSlabParams(program);
+  registerSlabAccount(program);
+  registerSlabAccounts(program);
+  registerSlabBitmap(program);
 
   return program;
 }

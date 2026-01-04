@@ -463,6 +463,19 @@ expect_read "slab:config" $CLI slab:config --slab $SLAB
 echo "slab:nonce..."
 expect_read "slab:nonce" $CLI slab:nonce --slab $SLAB
 
+echo "slab:engine..."
+expect_read "slab:engine" $CLI slab:engine --slab $SLAB
+
+echo "slab:params..."
+expect_read "slab:params" $CLI slab:params --slab $SLAB
+
+echo "slab:bitmap..."
+expect_read "slab:bitmap" $CLI slab:bitmap --slab $SLAB
+
+# Note: slab:account and slab:accounts require properly sized slab
+# The devnet slab was created with incorrect size (1094736 vs 1193088)
+# so account data reading may not work on this specific slab
+
 # ==========================================
 # SUMMARY
 # ==========================================
