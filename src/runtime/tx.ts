@@ -33,6 +33,7 @@ export interface TxResult {
   err: string | null;
   hint?: string;
   logs: string[];
+  unitsConsumed?: number;
 }
 
 export interface SimulateOrSendParams {
@@ -80,6 +81,7 @@ export async function simulateOrSend(
       err,
       hint,
       logs,
+      unitsConsumed: result.value.unitsConsumed ?? undefined,
     };
   }
 
@@ -154,6 +156,9 @@ export function formatResult(result: TxResult, jsonMode: boolean): string {
     if (result.hint) {
       lines.push(`Hint: ${result.hint}`);
     }
+    if (result.unitsConsumed !== undefined) {
+      lines.push(`Compute Units: ${result.unitsConsumed.toLocaleString()}`);
+    }
     if (result.logs.length > 0) {
       lines.push("Logs:");
       result.logs.forEach((log) => lines.push(`  ${log}`));
@@ -161,6 +166,9 @@ export function formatResult(result: TxResult, jsonMode: boolean): string {
   } else {
     lines.push(`Signature: ${result.signature}`);
     lines.push(`Slot: ${result.slot}`);
+    if (result.unitsConsumed !== undefined) {
+      lines.push(`Compute Units: ${result.unitsConsumed.toLocaleString()}`);
+    }
     if (result.signature !== "(simulated)") {
       lines.push(`Explorer: https://explorer.solana.com/tx/${result.signature}`);
     }
