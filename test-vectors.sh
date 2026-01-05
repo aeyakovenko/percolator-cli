@@ -153,17 +153,22 @@ expect_success "D8: Withdraw zero succeeds" \
 echo ""
 echo "=== E. KEEPER CRANK ==="
 
-# E1: Crank by owner
+# E1: Crank by owner (explicit caller index)
 echo "E1: Keeper crank by owner..."
 expect_success "E1: Keeper crank succeeds" \
     $CLI keeper-crank --slab $SLAB --caller-idx 0 --funding-rate-bps-per-slot 0 \
     --allow-panic --oracle $ORACLE_INDEX
 
-# E2: Crank with high caller index (seems to work - crank may not require caller account to exist)
-echo "E2: Crank permissionless..."
-# Keeper crank appears to be permissionless - anyone can call it
-expect_success "E2: Crank with any caller succeeds" \
-    $CLI keeper-crank --slab $SLAB --caller-idx 999 --funding-rate-bps-per-slot 0 \
+# E2: Permissionless crank (default mode, no caller-idx specified)
+echo "E2: Permissionless crank (default)..."
+expect_success "E2: Permissionless crank succeeds" \
+    $CLI keeper-crank --slab $SLAB --funding-rate-bps-per-slot 0 \
+    --allow-panic --oracle $ORACLE_INDEX
+
+# E2b: Crank with explicit u16::MAX (same as default)
+echo "E2b: Crank with caller-idx 65535..."
+expect_success "E2b: Explicit permissionless succeeds" \
+    $CLI keeper-crank --slab $SLAB --caller-idx 65535 --funding-rate-bps-per-slot 0 \
     --allow-panic --oracle $ORACLE_INDEX
 
 # E3: Crank with invalid oracle (wrong pubkey)

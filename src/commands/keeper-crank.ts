@@ -15,14 +15,17 @@ import {
   validateI64,
 } from "../validation.js";
 
+// Sentinel value for permissionless crank (no caller account required)
+const CRANK_NO_CALLER = 65535; // u16::MAX
+
 export function registerKeeperCrank(program: Command): void {
   program
     .command("keeper-crank")
-    .description("Execute keeper crank operation")
+    .description("Execute keeper crank operation (permissionless by default)")
     .requiredOption("--slab <pubkey>", "Slab account public key")
-    .requiredOption("--caller-idx <number>", "Caller account index")
+    .option("--caller-idx <number>", "Caller account index (default: 65535 for permissionless)")
     .requiredOption("--funding-rate-bps-per-slot <string>", "Funding rate (bps per slot, signed)")
-    .requiredOption("--allow-panic", "Allow panic mode")
+    .option("--allow-panic", "Allow panic mode")
     .requiredOption("--oracle <pubkey>", "Price oracle account")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
@@ -32,7 +35,12 @@ export function registerKeeperCrank(program: Command): void {
       // Validate inputs
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const oracle = validatePublicKey(opts.oracle, "--oracle");
-      const callerIdx = validateIndex(opts.callerIdx, "--caller-idx");
+
+      // Default to permissionless mode (caller_idx = 65535)
+      const callerIdx = opts.callerIdx !== undefined
+        ? validateIndex(opts.callerIdx, "--caller-idx")
+        : CRANK_NO_CALLER;
+
       validateI64(opts.fundingRateBpsPerSlot, "--funding-rate-bps-per-slot");
       const allowPanic = opts.allowPanic === true;
 
