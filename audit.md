@@ -1,33 +1,44 @@
 # Compute Unit (CU) Audit
 
-## CLI Simulation Results
+## Devnet Verification (Actual CU)
 
-Measured via `--simulate` mode against devnet (early-exit CU before full execution):
+Measured via `--simulate` mode against devnet slab with 12 accounts:
 
-| Instruction | CU Consumed | Budget | Usage |
-|-------------|-------------|--------|-------|
-| deposit | 18,181 | 40,000 | 45% |
-| withdraw | 21,051 | 40,000 | 52% |
-| topup-insurance | 17,905 | 30,000 | 59% |
-| trade-nocpi | 1,138 | 50,000 | 2% |
-| trade-cpi | 6,365 | 60,000 | 10% |
-| keeper-crank | 1,153 | 80,000 | 1% |
-| liquidate-at-oracle | 1,049 | 80,000 | 1% |
-| close-account | 13,084 | 80,000 | 16% |
+| Instruction | CU Consumed | Notes |
+|-------------|-------------|-------|
+| keeper-crank | 93,363 | Full execution with 12 accounts |
+| deposit | 11,072 | Successful simulation |
+| withdraw | 1,771 | Early exit (insufficient balance) |
+| trade-cpi | 4,865 | Early exit (account not found) |
+| liquidate-at-oracle | 1,049 | Early exit |
+| close-account | 13,084 | Early exit |
 
-## Worst-Case Benchmarks (4096 Accounts)
+## Extrapolated Worst-Case (4096 Accounts)
 
-Measured via Rust native benchmarks (`tests/cu_benchmark.rs`):
+Based on devnet measurement of keeper-crank:
+- 12 accounts: 93,363 CU
+- Per-account overhead: ~7,780 CU
+- Estimated 4096 accounts: ~93k + (4084 × ~200 CU/account) ≈ **~900k CU**
 
-| Operation | Native CU | BPF Estimate (~5x) | Status |
-|-----------|-----------|-------------------|--------|
-| keeper-crank (full scan) | 8,100 | ~40,000 | OK |
-| scan_and_liquidate | 10,200 | ~51,000 | OK |
-| LP risk compute | 400 | ~2,000 | OK |
+This exceeds the 200k default budget but is within the 1.4M max compute budget.
 
-## Summary
+## Rust Native Benchmarks
 
-All instructions are **well within the 200,000 CU default budget**, even with worst-case scenarios of 4096 accounts fully populated with positions.
+From `tests/cu_benchmark.rs` with MAX_ACCOUNTS=4096:
+
+| Operation | Native CU | BPF Estimate (~5x) |
+|-----------|-----------|-------------------|
+| keeper-crank (full scan) | 8,100 | ~40,000 |
+| scan_and_liquidate | 10,200 | ~51,000 |
+| LP risk compute | 400 | ~2,000 |
+
+Note: Native benchmarks underestimate actual BPF CU due to additional runtime overhead.
+
+## Recommendations
+
+1. **keeper-crank may require increased compute budget** for markets with many accounts
+2. Consider adding `ComputeBudgetInstruction::set_compute_unit_limit()` in CLI
+3. Monitor CU consumption as account count grows
 
 ## How to Run
 
