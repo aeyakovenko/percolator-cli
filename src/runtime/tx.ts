@@ -7,6 +7,7 @@ import {
   SendOptions,
   Commitment,
   AccountMeta,
+  ComputeBudgetProgram,
 } from "@solana/web3.js";
 import { parseErrorFromLogs } from "../abi/errors.js";
 
@@ -42,6 +43,7 @@ export interface SimulateOrSendParams {
   signers: Keypair[];
   simulate: boolean;
   commitment?: Commitment;
+  computeUnitLimit?: number; // Custom compute unit limit (default: 200,000, max: 1,400,000)
 }
 
 /**
@@ -51,9 +53,20 @@ export interface SimulateOrSendParams {
 export async function simulateOrSend(
   params: SimulateOrSendParams
 ): Promise<TxResult> {
-  const { connection, ix, signers, simulate, commitment = "confirmed" } = params;
+  const { connection, ix, signers, simulate, commitment = "confirmed", computeUnitLimit } = params;
 
-  const tx = new Transaction().add(ix);
+  const tx = new Transaction();
+
+  // Add compute budget instruction if custom limit is specified
+  if (computeUnitLimit !== undefined) {
+    tx.add(
+      ComputeBudgetProgram.setComputeUnitLimit({
+        units: computeUnitLimit,
+      })
+    );
+  }
+
+  tx.add(ix);
   const latestBlockhash = await connection.getLatestBlockhash(commitment);
   tx.recentBlockhash = latestBlockhash.blockhash;
   tx.feePayer = signers[0].publicKey;

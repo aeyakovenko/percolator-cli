@@ -116,7 +116,7 @@ echo "--- High Risk Instructions ---"
 
 test_cu "keeper-crank" \
     $CLI --simulate keeper-crank --slab $SLAB \
-    --funding-rate-bps-per-slot 0 --oracle $ORACLE
+    --oracle $ORACLE --compute-units 1400000
 
 test_cu "liquidate-at-oracle" \
     $CLI --simulate liquidate-at-oracle --slab $SLAB \

@@ -141,19 +141,23 @@ export function encodeWithdrawCollateral(args: WithdrawCollateralArgs): Buffer {
 }
 
 /**
- * KeeperCrank instruction data (12 bytes)
+ * KeeperCrank instruction data
+ * Note: fundingRateBpsPerSlot is deprecated - new program computes it on-chain.
+ * Include 0 for compatibility with both old and new program versions.
  */
 export interface KeeperCrankArgs {
   callerIdx: number;
-  fundingRateBpsPerSlot: bigint | string;
+  fundingRateBpsPerSlot?: bigint | string; // deprecated, defaults to 0
   allowPanic: boolean;
 }
 
 export function encodeKeeperCrank(args: KeeperCrankArgs): Buffer {
+  // Old format (12 bytes) for compatibility with current devnet
+  // New program will ignore the funding rate parameter
   return Buffer.concat([
     encU8(IX_TAG.KeeperCrank),
     encU16(args.callerIdx),
-    encI64(args.fundingRateBpsPerSlot),
+    encI64(args.fundingRateBpsPerSlot ?? "0"),
     encBool(args.allowPanic),
   ]);
 }
