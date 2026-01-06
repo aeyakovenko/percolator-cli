@@ -20,8 +20,8 @@ measure_crank_cu() {
     local count=$1
     local cu=$($CLI keeper-crank \
         --slab $SLAB \
-        --funding-rate-bps-per-slot 0 \
         --oracle $ORACLE \
+        --compute-units 1400000 \
         --simulate 2>&1 | grep -v "bigint:" | grep "Compute Units" | awk '{print $3}' | tr -d ',')
     echo "$count,$cu"
 }
