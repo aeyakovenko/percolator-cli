@@ -3,11 +3,9 @@ import {
   encU8,
   encU16,
   encU64,
-  encI64,
   encU128,
   encI128,
   encPubkey,
-  encBool,
 } from "./encode.js";
 
 /**
@@ -141,12 +139,8 @@ export function encodeWithdrawCollateral(args: WithdrawCollateralArgs): Buffer {
 }
 
 /**
- * KeeperCrank instruction data
- *
- * NEW FORMAT (after program redeploy): 4 bytes - caller_idx(u16) + allow_panic(u8)
- * OLD FORMAT (current devnet): 12 bytes - caller_idx(u16) + funding_rate(i64) + allow_panic(u8)
- *
- * Set KEEPER_CRANK_NEW_FORMAT=1 env var after program is redeployed.
+ * KeeperCrank instruction data (4 bytes)
+ * Funding rate is computed on-chain from LP inventory.
  */
 export interface KeeperCrankArgs {
   callerIdx: number;
@@ -154,20 +148,10 @@ export interface KeeperCrankArgs {
 }
 
 export function encodeKeeperCrank(args: KeeperCrankArgs): Buffer {
-  if (process.env.KEEPER_CRANK_NEW_FORMAT === "1") {
-    // New format: 4 bytes (no funding rate - computed on-chain)
-    return Buffer.concat([
-      encU8(IX_TAG.KeeperCrank),
-      encU16(args.callerIdx),
-      encU8(args.allowPanic ? 1 : 0),
-    ]);
-  }
-  // Old format: 12 bytes (funding rate = 0, ignored by new program)
   return Buffer.concat([
     encU8(IX_TAG.KeeperCrank),
     encU16(args.callerIdx),
-    encI64("0"),
-    encBool(args.allowPanic),
+    encU8(args.allowPanic ? 1 : 0),
   ]);
 }
 
