@@ -39,7 +39,7 @@ export const ACCOUNTS_INIT_MARKET: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * InitUser: 7 accounts
+ * InitUser: 5 accounts
  */
 export const ACCOUNTS_INIT_USER: readonly AccountSpec[] = [
   { name: "user", signer: true, writable: false },
@@ -47,12 +47,10 @@ export const ACCOUNTS_INIT_USER: readonly AccountSpec[] = [
   { name: "userAta", signer: false, writable: true },
   { name: "vault", signer: false, writable: true },
   { name: "tokenProgram", signer: false, writable: false },
-  { name: "clock", signer: false, writable: false },
-  { name: "oracle", signer: false, writable: false },
 ] as const;
 
 /**
- * InitLP: 7 accounts
+ * InitLP: 5 accounts
  */
 export const ACCOUNTS_INIT_LP: readonly AccountSpec[] = [
   { name: "user", signer: true, writable: false },
@@ -60,8 +58,6 @@ export const ACCOUNTS_INIT_LP: readonly AccountSpec[] = [
   { name: "userAta", signer: false, writable: true },
   { name: "vault", signer: false, writable: true },
   { name: "tokenProgram", signer: false, writable: false },
-  { name: "clock", signer: false, writable: false },
-  { name: "oracle", signer: false, writable: false },
 ] as const;
 
 /**
