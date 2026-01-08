@@ -165,10 +165,14 @@ export class TestHarness {
     maxAccounts?: number;
     oracle?: PublicKey;
     decimals?: number;
+    invert?: number;
+    unitScale?: number;
   } = {}): Promise<TestContext> {
     const maxAccounts = options.maxAccounts ?? DEFAULT_MAX_ACCOUNTS;
     const oracle = options.oracle ?? PYTH_BTC_USD;
     const decimals = options.decimals ?? DEFAULT_DECIMALS;
+    const invert = options.invert ?? 0;
+    const unitScale = options.unitScale ?? 0;
 
     // Create new keypairs for this market
     const slab = Keypair.generate();
@@ -220,8 +224,8 @@ export class TestHarness {
       pythCollateral: oracle,
       maxStalenessSlots: "100",
       confFilterBps: 200,        // 2%
-      invert: 0,                 // No oracle inversion
-      unitScale: 0,              // No unit scaling
+      invert,                    // Oracle inversion (0=no, 1=yes)
+      unitScale,                 // Lamports per unit (0=no scaling)
       warmupPeriodSlots: "10",
       maintenanceMarginBps: "500",   // 5%
       initialMarginBps: "1000",      // 10%
@@ -687,6 +691,18 @@ export class TestHarness {
       throw new Error("Slab account not found");
     }
     return accountInfo.data;
+  }
+
+  /**
+   * Get token balance for an ATA.
+   */
+  async getTokenBalance(_ctx: TestContext, ata: PublicKey): Promise<bigint> {
+    try {
+      const balance = await this.connection.getTokenAccountBalance(ata);
+      return BigInt(balance.value.amount);
+    } catch {
+      return 0n;
+    }
   }
 
   // ==========================================================================
