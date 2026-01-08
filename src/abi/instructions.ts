@@ -2,6 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import {
   encU8,
   encU16,
+  encU32,
   encU64,
   encU128,
   encI128,
@@ -28,7 +29,10 @@ export const IX_TAG = {
 } as const;
 
 /**
- * InitMarket instruction data (283 bytes total)
+ * InitMarket instruction data (288 bytes total)
+ * Layout: tag(1) + admin(32) + mint(32) + pythIdx(32) + pythCol(32) +
+ *         maxStale(8) + confFilter(2) + invert(1) + unitScale(4) +
+ *         RiskParams(144)
  */
 export interface InitMarketArgs {
   admin: PublicKey | string;
@@ -37,6 +41,8 @@ export interface InitMarketArgs {
   pythCollateral: PublicKey | string;
   maxStalenessSlots: bigint | string;
   confFilterBps: number;
+  invert: number;              // 0 = no inversion, 1 = invert oracle price (USD/SOL -> SOL/USD)
+  unitScale: number;           // Lamports per unit (0 = no scaling, e.g. 1000 = 1 SOL = 1,000,000 units)
   warmupPeriodSlots: bigint | string;
   maintenanceMarginBps: bigint | string;
   initialMarginBps: bigint | string;
@@ -61,6 +67,8 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encPubkey(args.pythCollateral),
     encU64(args.maxStalenessSlots),
     encU16(args.confFilterBps),
+    encU8(args.invert),
+    encU32(args.unitScale),
     encU64(args.warmupPeriodSlots),
     encU64(args.maintenanceMarginBps),
     encU64(args.initialMarginBps),

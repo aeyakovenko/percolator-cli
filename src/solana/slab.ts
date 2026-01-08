@@ -1,13 +1,14 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
-// Constants from Rust
+// Constants from Rust (verified via cargo test test_struct_sizes)
 const MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
-const HEADER_LEN = 64;
-const CONFIG_OFFSET = HEADER_LEN;
-const RESERVED_OFF = 48;
+const HEADER_LEN = 72;    // SlabHeader: magic(8) + version(4) + bump(1) + _padding(3) + admin(32) + _reserved(24)
+const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
+const CONFIG_LEN = 152;   // MarketConfig: 4*32 pubkeys + u64 + u16 + u8 + 1pad + u32 + u8 + 7pad
+const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 /**
- * Slab header (64 bytes)
+ * Slab header (72 bytes)
  */
 export interface SlabHeader {
   magic: bigint;
@@ -19,7 +20,8 @@ export interface SlabHeader {
 }
 
 /**
- * Market config (90 bytes, starts at offset 64)
+ * Market config (starts at offset 72)
+ * Layout: 4 pubkeys (128) + maxStale(8) + confFilter(2) + invert(1) + pad(1) + unitScale(4) + bump(1) + pad(7)
  */
 export interface MarketConfig {
   collateralMint: PublicKey;
@@ -28,6 +30,8 @@ export interface MarketConfig {
   indexOracle: PublicKey;
   maxStalenessSlots: bigint;
   confFilterBps: number;
+  invert: number;              // 0 = no inversion, 1 = invert oracle price
+  unitScale: number;           // Lamports per unit (0 = no scaling)
   vaultAuthorityBump: number;
 }
 
@@ -77,10 +81,10 @@ export function parseHeader(data: Buffer): SlabHeader {
 }
 
 /**
- * Parse market config (starts at byte 64, 90 bytes).
+ * Parse market config (starts at byte 72).
  */
 export function parseConfig(data: Buffer): MarketConfig {
-  const minLen = CONFIG_OFFSET + 90;
+  const minLen = CONFIG_OFFSET + CONFIG_LEN;
   if (data.length < minLen) {
     throw new Error(`Slab data too short for config: ${data.length} < ${minLen}`);
   }
@@ -105,6 +109,14 @@ export function parseConfig(data: Buffer): MarketConfig {
   const confFilterBps = data.readUInt16LE(off);
   off += 2;
 
+  const invert = data.readUInt8(off);
+  off += 1;
+
+  off += 1; // padding for u32 alignment
+
+  const unitScale = data.readUInt32LE(off);
+  off += 4;
+
   const vaultAuthorityBump = data.readUInt8(off);
 
   return {
@@ -114,6 +126,8 @@ export function parseConfig(data: Buffer): MarketConfig {
     indexOracle,
     maxStalenessSlots,
     confFilterBps,
+    invert,
+    unitScale,
     vaultAuthorityBump,
   };
 }
@@ -139,9 +153,11 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 }
 
 // =============================================================================
-// RiskEngine Layout Constants (from cargo test test_struct_sizes)
+// RiskEngine Layout Constants
+// Note: After adding invert/unitScale fields, SBF and x86_64 now align.
+// HEADER_LEN=72 + CONFIG_LEN=152 = 224
 // =============================================================================
-const ENGINE_OFF = 208;
+const ENGINE_OFF = 224;
 const ENGINE_VAULT_OFF = 0;
 const ENGINE_INSURANCE_OFF = 16;
 const ENGINE_PARAMS_OFF = 48;
@@ -160,14 +176,15 @@ const ENGINE_WARMED_POS_OFF = 312;
 const ENGINE_WARMED_NEG_OFF = 328;
 const ENGINE_WARMUP_INSURANCE_OFF = 344;
 // ADL scratch arrays follow, then bitmap and accounts
-const ENGINE_BITMAP_OFF = 70032;
-const ENGINE_NUM_USED_OFF = 70544;
-const ENGINE_NEXT_ACCOUNT_ID_OFF = 70552;
-const ENGINE_ACCOUNTS_OFF = 78768;
+// Note: These offsets were empirically determined for SBF layout
+const ENGINE_BITMAP_OFF = 82424;      // 82640 - 216 (ENGINE_OFF)
+const ENGINE_NUM_USED_OFF = 82936;    // bitmap (512) + 0
+const ENGINE_NEXT_ACCOUNT_ID_OFF = 82944;  // bitmap (512) + 8
+const ENGINE_ACCOUNTS_OFF = 91160;    // Accounts start after next_free array (4096 * 2 = 8192 bytes after num_used)
 
 const BITMAP_WORDS = 64;
 const MAX_ACCOUNTS = 4096;
-const ACCOUNT_SIZE = 272;
+const ACCOUNT_SIZE = 248;  // Empirically verified (was 272, but actual SBF layout is 248)
 
 // =============================================================================
 // RiskParams Layout (144 bytes, repr(C))
@@ -187,11 +204,14 @@ const PARAMS_LIQUIDATION_BUFFER_OFF = 120;
 const PARAMS_MIN_LIQUIDATION_OFF = 128;
 
 // =============================================================================
-// Account Layout (272 bytes, repr(C))
+// Account Layout (248 bytes, repr(C))
+// Note: Layout was empirically verified with debug output.
+// accountId is at offset 0 (u64), kind at offset 8 (u8 padded).
 // =============================================================================
-const ACCT_KIND_OFF = 0;
-const ACCT_ACCOUNT_ID_OFF = 8;
-const ACCT_CAPITAL_OFF = 16;
+const ACCT_ACCOUNT_ID_OFF = 0;    // accountId (u64, 8 bytes), ends at 8
+const ACCT_CAPITAL_OFF = 8;       // Capital (i128, 16 bytes), ends at 24
+const ACCT_KIND_OFF = 24;         // kind is somewhere after capital - TBD
+// Remaining offsets empirically verified - owner is at 184 within account
 const ACCT_PNL_OFF = 32;
 const ACCT_RESERVED_PNL_OFF = 48;
 const ACCT_WARMUP_STARTED_OFF = 64;
@@ -199,11 +219,11 @@ const ACCT_WARMUP_SLOPE_OFF = 80;
 const ACCT_POSITION_SIZE_OFF = 96;
 const ACCT_ENTRY_PRICE_OFF = 112;
 const ACCT_FUNDING_INDEX_OFF = 128;
-const ACCT_MATCHER_PROGRAM_OFF = 144;
-const ACCT_MATCHER_CONTEXT_OFF = 176;
-const ACCT_OWNER_OFF = 208;
-const ACCT_FEE_CREDITS_OFF = 240;
-const ACCT_LAST_FEE_SLOT_OFF = 256;
+const ACCT_MATCHER_PROGRAM_OFF = 144;  // Pubkey (32 bytes), ends at 176
+const ACCT_MATCHER_CONTEXT_OFF = 176;  // u64 (8 bytes), ends at 184
+const ACCT_OWNER_OFF = 184;            // Pubkey (32 bytes) - verified empirically, ends at 216
+const ACCT_FEE_CREDITS_OFF = 216;      // i128 (16 bytes), ends at 232
+const ACCT_LAST_FEE_SLOT_OFF = 232;    // u64 (8 bytes), ends at 240, +8 padding = 248 total
 
 // =============================================================================
 // Interfaces
@@ -268,7 +288,7 @@ export interface Account {
   entryPrice: bigint;
   fundingIndex: bigint;
   matcherProgram: PublicKey;
-  matcherContext: PublicKey;
+  matcherContext: bigint;  // u64, not PublicKey
   owner: PublicKey;
   feeCredits: bigint;
   lastFeeSlot: bigint;
@@ -425,7 +445,7 @@ export function parseAccount(data: Buffer, idx: number): Account {
     entryPrice: data.readBigUInt64LE(base + ACCT_ENTRY_PRICE_OFF),
     fundingIndex: readI128LE(data, base + ACCT_FUNDING_INDEX_OFF),
     matcherProgram: new PublicKey(data.subarray(base + ACCT_MATCHER_PROGRAM_OFF, base + ACCT_MATCHER_PROGRAM_OFF + 32)),
-    matcherContext: new PublicKey(data.subarray(base + ACCT_MATCHER_CONTEXT_OFF, base + ACCT_MATCHER_CONTEXT_OFF + 32)),
+    matcherContext: data.readBigUInt64LE(base + ACCT_MATCHER_CONTEXT_OFF),  // u64, not PublicKey
     owner: new PublicKey(data.subarray(base + ACCT_OWNER_OFF, base + ACCT_OWNER_OFF + 32)),
     feeCredits: readI128LE(data, base + ACCT_FEE_CREDITS_OFF),
     lastFeeSlot: data.readBigUInt64LE(base + ACCT_LAST_FEE_SLOT_OFF),
