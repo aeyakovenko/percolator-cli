@@ -1,10 +1,10 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
-// Constants from Rust (verified via cargo test test_struct_sizes)
+// Constants from Rust (verified via verify-layout.cjs against devnet 2024-01)
 const MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
 const HEADER_LEN = 72;    // SlabHeader: magic(8) + version(4) + bump(1) + _padding(3) + admin(32) + _reserved(24)
 const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
-const CONFIG_LEN = 144;   // MarketConfig: 4*32 pubkeys + u64 + u16 + u8 + 5pad (invert/unitScale in RiskParams)
+const CONFIG_LEN = 144;   // MarketConfig: collateral_mint(32) + vault_pubkey(32) + _reserved(32) + index_feed_id(32) + max_staleness_secs(8) + conf_filter_bps(2) + bump(1) + invert(1) + unit_scale(4)
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 /**
@@ -21,17 +21,19 @@ export interface SlabHeader {
 
 /**
  * Market config (starts at offset 72, 144 bytes)
- * Layout: 4 pubkeys (128) + maxStale(8) + confFilter(2) + bump(1) + pad(5)
- * Note: invert/unitScale are in RiskParams, not here.
+ * Layout: collateral_mint(32) + vault_pubkey(32) + _reserved(32) + index_feed_id(32)
+ *         + max_staleness_secs(8) + conf_filter_bps(2) + bump(1) + invert(1) + unit_scale(4)
  */
 export interface MarketConfig {
   collateralMint: PublicKey;
   vaultPubkey: PublicKey;
-  collateralOracle: PublicKey;
-  indexOracle: PublicKey;
-  maxStalenessSlots: bigint;
+  collateralOracle: PublicKey;  // _reserved field, kept for backwards compat
+  indexOracle: PublicKey;       // index_feed_id
+  maxStalenessSlots: bigint;    // max_staleness_secs
   confFilterBps: number;
   vaultAuthorityBump: number;
+  invert: number;               // 0 = no inversion, 1 = invert oracle price
+  unitScale: number;            // Lamports per unit (0 = no scaling)
 }
 
 /**
@@ -80,7 +82,9 @@ export function parseHeader(data: Buffer): SlabHeader {
 }
 
 /**
- * Parse market config (starts at byte 72).
+ * Parse market config (starts at byte 72, 144 bytes).
+ * Layout: collateral_mint(32) + vault_pubkey(32) + _reserved(32) + index_feed_id(32)
+ *         + max_staleness_secs(8) + conf_filter_bps(2) + bump(1) + invert(1) + unit_scale(4)
  */
 export function parseConfig(data: Buffer): MarketConfig {
   const minLen = CONFIG_OFFSET + CONFIG_LEN;
@@ -96,9 +100,11 @@ export function parseConfig(data: Buffer): MarketConfig {
   const vaultPubkey = new PublicKey(data.subarray(off, off + 32));
   off += 32;
 
+  // _reserved field (32 bytes) - was collateralOracle in old layout
   const collateralOracle = new PublicKey(data.subarray(off, off + 32));
   off += 32;
 
+  // index_feed_id (32 bytes) - Pyth feed ID, not a pubkey but stored as 32 bytes
   const indexOracle = new PublicKey(data.subarray(off, off + 32));
   off += 32;
 
@@ -109,6 +115,12 @@ export function parseConfig(data: Buffer): MarketConfig {
   off += 2;
 
   const vaultAuthorityBump = data.readUInt8(off);
+  off += 1;
+
+  const invert = data.readUInt8(off);
+  off += 1;
+
+  const unitScale = data.readUInt32LE(off);
 
   return {
     collateralMint,
@@ -118,6 +130,8 @@ export function parseConfig(data: Buffer): MarketConfig {
     maxStalenessSlots,
     confFilterBps,
     vaultAuthorityBump,
+    invert,
+    unitScale,
   };
 }
 
@@ -142,14 +156,18 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 }
 
 // =============================================================================
-// RiskEngine Layout Constants
-// Note: invert/unitScale are stored at start of RiskParams, not in MarketConfig.
+// RiskEngine Layout Constants (verified via verify-layout.cjs against devnet 2024-01)
 // ENGINE_OFF = HEADER_LEN + CONFIG_LEN = 72 + 144 = 216
 // =============================================================================
 const ENGINE_OFF = 216;
+// RiskEngine struct layout (repr(C), SBF uses 8-byte alignment for u128):
+// - vault: u128 (16 bytes) at offset 0
+// - insurance_fund: InsuranceFund { balance: u128, fee_revenue: u128 } (32 bytes) at offset 16
+// - params: RiskParams (144 bytes) at offset 48
 const ENGINE_VAULT_OFF = 0;
 const ENGINE_INSURANCE_OFF = 16;
-const ENGINE_PARAMS_OFF = 48;
+const ENGINE_PARAMS_OFF = 48;         // RiskParams starts here (after vault+insurance_fund)
+// After RiskParams (at engine offset 48 + 144 = 192):
 const ENGINE_CURRENT_SLOT_OFF = 192;
 const ENGINE_FUNDING_INDEX_OFF = 200;
 const ENGINE_LAST_FUNDING_SLOT_OFF = 216;
@@ -165,35 +183,35 @@ const ENGINE_WARMED_POS_OFF = 312;
 const ENGINE_WARMED_NEG_OFF = 328;
 const ENGINE_WARMUP_INSURANCE_OFF = 344;
 // ADL scratch arrays follow, then bitmap and accounts
-// Note: These offsets were empirically determined for SBF layout
-const ENGINE_BITMAP_OFF = 82424;      // 82640 - 216 (ENGINE_OFF)
-const ENGINE_NUM_USED_OFF = 82936;    // bitmap (512) + 0
-const ENGINE_NEXT_ACCOUNT_ID_OFF = 82944;  // bitmap (512) + 8
-const ENGINE_ACCOUNTS_OFF = 91160;    // Accounts start after next_free array (4096 * 2 = 8192 bytes after num_used)
+// Need to recalculate based on ENGINE_OFF change (was 160, now 216, delta = 56)
+// Old values were verified at ENGINE_OFF=160, so subtract 56 for new base
+const ENGINE_BITMAP_OFF = 69984;      // 70040 - 56 = 69984 (bitmap at slab offset 216 + 69984 = 70200)
+const ENGINE_NUM_USED_OFF = 70496;    // bitmap (512) + 0
+const ENGINE_NEXT_ACCOUNT_ID_OFF = 70504;  // bitmap (512) + 8
+const ENGINE_ACCOUNTS_OFF = 78712;    // 78768 - 56 = 78712
 
 const BITMAP_WORDS = 64;
 const MAX_ACCOUNTS = 4096;
 const ACCOUNT_SIZE = 248;  // Empirically verified (was 272, but actual SBF layout is 248)
 
 // =============================================================================
-// RiskParams Layout (149 bytes with invert/unitScale prepended, packed)
-// invert(1) + unitScale(4) = 5 bytes added at start
+// RiskParams Layout (144 bytes, repr(C) with 8-byte alignment on SBF)
+// Note: SBF target uses 8-byte alignment for u128, not 16-byte
+// Verified via verify-layout.cjs against devnet 2024-01
 // =============================================================================
-const PARAMS_INVERT_OFF = 0;
-const PARAMS_UNITSCALE_OFF = 1;
-const PARAMS_WARMUP_PERIOD_OFF = 5;        // was 0
-const PARAMS_MAINTENANCE_MARGIN_OFF = 13;  // was 8
-const PARAMS_INITIAL_MARGIN_OFF = 21;      // was 16
-const PARAMS_TRADING_FEE_OFF = 29;         // was 24
-const PARAMS_MAX_ACCOUNTS_OFF = 37;        // was 32
-const PARAMS_NEW_ACCOUNT_FEE_OFF = 45;     // was 40
-const PARAMS_RISK_THRESHOLD_OFF = 61;      // was 56
-const PARAMS_MAINTENANCE_FEE_OFF = 77;     // was 72
-const PARAMS_MAX_CRANK_STALENESS_OFF = 93; // was 88
-const PARAMS_LIQUIDATION_FEE_BPS_OFF = 101; // was 96
-const PARAMS_LIQUIDATION_FEE_CAP_OFF = 109; // was 104
-const PARAMS_LIQUIDATION_BUFFER_OFF = 125; // was 120
-const PARAMS_MIN_LIQUIDATION_OFF = 133;    // was 128
+const PARAMS_WARMUP_PERIOD_OFF = 0;        // u64
+const PARAMS_MAINTENANCE_MARGIN_OFF = 8;   // u64
+const PARAMS_INITIAL_MARGIN_OFF = 16;      // u64
+const PARAMS_TRADING_FEE_OFF = 24;         // u64
+const PARAMS_MAX_ACCOUNTS_OFF = 32;        // u64
+const PARAMS_NEW_ACCOUNT_FEE_OFF = 40;     // u128 (no padding, 8-byte aligned)
+const PARAMS_RISK_THRESHOLD_OFF = 56;      // u128
+const PARAMS_MAINTENANCE_FEE_OFF = 72;     // u128
+const PARAMS_MAX_CRANK_STALENESS_OFF = 88; // u64
+const PARAMS_LIQUIDATION_FEE_BPS_OFF = 96; // u64
+const PARAMS_LIQUIDATION_FEE_CAP_OFF = 104;// u128
+const PARAMS_LIQUIDATION_BUFFER_OFF = 120; // u64
+const PARAMS_MIN_LIQUIDATION_OFF = 128;    // u128 (total = 144 bytes)
 
 // =============================================================================
 // Account Layout (248 bytes, repr(C))
@@ -227,8 +245,6 @@ export interface InsuranceFund {
 }
 
 export interface RiskParams {
-  invert: number;              // 0 = no inversion, 1 = invert oracle price
-  unitScale: number;           // Lamports per unit (0 = no scaling)
   warmupPeriodSlots: bigint;
   maintenanceMarginBps: bigint;
   initialMarginBps: bigint;
@@ -309,16 +325,15 @@ function readU128LE(buf: Buffer, offset: number): bigint {
 
 /**
  * Parse RiskParams from engine data.
+ * Note: invert/unitScale are in MarketConfig, not RiskParams.
  */
 export function parseParams(data: Buffer): RiskParams {
   const base = ENGINE_OFF + ENGINE_PARAMS_OFF;
-  if (data.length < base + 149) {
+  if (data.length < base + 160) {  // RiskParams is 160 bytes with repr(C) padding
     throw new Error("Slab data too short for RiskParams");
   }
 
   return {
-    invert: data.readUInt8(base + PARAMS_INVERT_OFF),
-    unitScale: data.readUInt32LE(base + PARAMS_UNITSCALE_OFF),
     warmupPeriodSlots: data.readBigUInt64LE(base + PARAMS_WARMUP_PERIOD_OFF),
     maintenanceMarginBps: data.readBigUInt64LE(base + PARAMS_MAINTENANCE_MARGIN_OFF),
     initialMarginBps: data.readBigUInt64LE(base + PARAMS_INITIAL_MARGIN_OFF),
