@@ -219,27 +219,33 @@ const PARAMS_MIN_LIQUIDATION_OFF = 128;    // u128 (total = 144 bytes)
 
 // =============================================================================
 // Account Layout (248 bytes, repr(C))
-// Verified via T12 raw byte dumps (2026-01-09):
-// - offset 0: accountId (u64, value=1 for user)
-// - offset 8: capital (u128, value=9,911,648 = ~9.9 USDC)
-// - offset 80: position_size (i128, value=0xe803 = 1000 after trade)
-// Note: kind field location TBD - may be at offset 24 or elsewhere.
+// Verified via dump-bytes.ts empirical testing (2026-01-10):
+// - account_id at offset 0 (u64)
+// - capital at offset 8 (u128) - value 10000000 found
+// - kind at offset 24 (u8) - after capital
+// - warmup_started at offset 56 - slot value 434248143 found (not 64!)
+// - position_size at offset 80 - T12 verified
+// - matcher_program at offset 120 - correct pubkey found
+// - matcher_context at offset 152 - correct pubkey found (32 bytes!)
+// - owner at offset 184 - correct admin pubkey found
+// - last_fee_slot at offset 232 - slot value 434248143 found
 // =============================================================================
-const ACCT_ACCOUNT_ID_OFF = 0;    // accountId (u64, 8 bytes), ends at 8
-const ACCT_CAPITAL_OFF = 8;       // capital (i128, 16 bytes), ends at 24
-const ACCT_KIND_OFF = 24;         // kind (u8) - location TBD, needs verification
-const ACCT_PNL_OFF = 32;          // pnl (i128, 16 bytes), ends at 48
-const ACCT_RESERVED_PNL_OFF = 48; // reserved_pnl (u128, 16 bytes), ends at 64
-const ACCT_WARMUP_STARTED_OFF = 64;  // warmup_started (u64, 8 bytes), ends at 72
-const ACCT_WARMUP_SLOPE_OFF = 72;    // warmup_slope (u64, 8 bytes), ends at 80
-const ACCT_POSITION_SIZE_OFF = 80;   // position_size (i128, 16 bytes), ends at 96 ← VERIFIED
-const ACCT_ENTRY_PRICE_OFF = 96;     // entry_price (u64, 8 bytes), ends at 104
-const ACCT_FUNDING_INDEX_OFF = 104;  // funding_index (i128, 16 bytes), ends at 120
-const ACCT_MATCHER_PROGRAM_OFF = 120; // matcher_program (Pubkey, 32 bytes), ends at 152
-const ACCT_MATCHER_CONTEXT_OFF = 152; // matcher_context (u64, 8 bytes), ends at 160
-const ACCT_OWNER_OFF = 160;           // owner (Pubkey, 32 bytes), ends at 192
-const ACCT_FEE_CREDITS_OFF = 192;     // fee_credits (i128, 16 bytes), ends at 208
-const ACCT_LAST_FEE_SLOT_OFF = 208;   // last_fee_slot (u64, 8 bytes), ends at 216
+const ACCT_ACCOUNT_ID_OFF = 0;        // accountId (u64, 8 bytes), ends at 8
+const ACCT_CAPITAL_OFF = 8;           // capital (u128, 16 bytes), ends at 24
+const ACCT_KIND_OFF = 24;             // kind (u8, 1 byte + 7 padding), ends at 32
+const ACCT_PNL_OFF = 32;              // pnl (i128, 16 bytes), ends at 48
+const ACCT_RESERVED_PNL_OFF = 48;     // reserved_pnl (u64, 8 bytes), ends at 56
+const ACCT_WARMUP_STARTED_OFF = 56;   // warmup_started (u64, 8 bytes), ends at 64
+const ACCT_WARMUP_SLOPE_OFF = 64;     // warmup_slope (u64, 8 bytes), ends at 72
+// Note: bytes 72-79 may be padding or an unknown field
+const ACCT_POSITION_SIZE_OFF = 80;    // position_size (i128, 16 bytes), ends at 96 ← VERIFIED
+const ACCT_ENTRY_PRICE_OFF = 96;      // entry_price (u64, 8 bytes), ends at 104
+const ACCT_FUNDING_INDEX_OFF = 104;   // funding_index (i128, 16 bytes), ends at 120
+const ACCT_MATCHER_PROGRAM_OFF = 120; // matcher_program (Pubkey, 32 bytes), ends at 152 ← VERIFIED
+const ACCT_MATCHER_CONTEXT_OFF = 152; // matcher_context (Pubkey, 32 bytes), ends at 184 ← VERIFIED
+const ACCT_OWNER_OFF = 184;           // owner (Pubkey, 32 bytes), ends at 216 ← VERIFIED
+const ACCT_FEE_CREDITS_OFF = 216;     // fee_credits (i128, 16 bytes), ends at 232
+const ACCT_LAST_FEE_SLOT_OFF = 232;   // last_fee_slot (u64, 8 bytes), ends at 240
 
 // =============================================================================
 // Interfaces
@@ -304,7 +310,7 @@ export interface Account {
   entryPrice: bigint;
   fundingIndex: bigint;
   matcherProgram: PublicKey;
-  matcherContext: bigint;  // u64, not PublicKey
+  matcherContext: PublicKey;  // Pubkey (32 bytes)
   owner: PublicKey;
   feeCredits: bigint;
   lastFeeSlot: bigint;
@@ -455,14 +461,14 @@ export function parseAccount(data: Buffer, idx: number): Account {
     accountId: data.readBigUInt64LE(base + ACCT_ACCOUNT_ID_OFF),
     capital: readU128LE(data, base + ACCT_CAPITAL_OFF),
     pnl: readI128LE(data, base + ACCT_PNL_OFF),
-    reservedPnl: readU128LE(data, base + ACCT_RESERVED_PNL_OFF),
+    reservedPnl: data.readBigUInt64LE(base + ACCT_RESERVED_PNL_OFF),  // u64, not u128
     warmupStartedAtSlot: data.readBigUInt64LE(base + ACCT_WARMUP_STARTED_OFF),
-    warmupSlopePerStep: readU128LE(data, base + ACCT_WARMUP_SLOPE_OFF),
+    warmupSlopePerStep: data.readBigUInt64LE(base + ACCT_WARMUP_SLOPE_OFF),
     positionSize: readI128LE(data, base + ACCT_POSITION_SIZE_OFF),
     entryPrice: data.readBigUInt64LE(base + ACCT_ENTRY_PRICE_OFF),
     fundingIndex: readI128LE(data, base + ACCT_FUNDING_INDEX_OFF),
     matcherProgram: new PublicKey(data.subarray(base + ACCT_MATCHER_PROGRAM_OFF, base + ACCT_MATCHER_PROGRAM_OFF + 32)),
-    matcherContext: data.readBigUInt64LE(base + ACCT_MATCHER_CONTEXT_OFF),  // u64, not PublicKey
+    matcherContext: new PublicKey(data.subarray(base + ACCT_MATCHER_CONTEXT_OFF, base + ACCT_MATCHER_CONTEXT_OFF + 32)),
     owner: new PublicKey(data.subarray(base + ACCT_OWNER_OFF, base + ACCT_OWNER_OFF + 32)),
     feeCredits: readI128LE(data, base + ACCT_FEE_CREDITS_OFF),
     lastFeeSlot: data.readBigUInt64LE(base + ACCT_LAST_FEE_SLOT_OFF),

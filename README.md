@@ -2,6 +2,12 @@
 
 Command-line interface for interacting with the Percolator perpetuals protocol on Solana.
 
+## Disclaimer
+
+**FOR EDUCATIONAL PURPOSES ONLY**
+
+This code has **NOT been audited**. Do NOT use in production or with real funds. The percolator program is experimental software provided for learning and testing purposes only. Use at your own risk.
+
 ## Installation
 
 ```bash
@@ -28,7 +34,171 @@ Or use command-line flags:
 - `--json` - Output in JSON format
 - `--simulate` - Simulate transaction without sending
 
-## Commands
+## Devnet Test Market
+
+A live inverted SOL/USD market is available on devnet for testing. This market uses Chainlink's live SOL/USD oracle and has a funded LP with a 50bps passive matcher.
+
+### Market Details
+
+```
+Slab:           9kcSAbQPzqui1uDt7iZAYHmrUB4bVfnAr4UZPmWMc91T
+Mint:           DLhLEruYbq4mxbazSMWYsRAk1pvgAMc1j9TFYQP23v3w
+Vault:          DNqVAibMXqUYuCKNKJgkZn5n6p8Li2Rxp3D4uxp3w8YJ
+Oracle:         99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (Chainlink SOL/USD)
+Type:           INVERTED (price = 1/SOL in USD terms)
+
+LP (50bps Passive Matcher):
+  Index:        0
+  PDA:          5eKzt2aoTwTatgvLg8sbUTHF8HGAv9qKSGLireL2e63z
+  Matcher Ctx:  EoTftmATkhkvonufshJidvAtzJb13GkpxVaqYWNxUxyk
+  Collateral:   10 tokens
+
+Insurance Fund: 100 tokens
+```
+
+### Known Issues
+
+**LP Kind Bug**: There is a known issue where the on-chain `init_lp` instruction does not correctly set the account kind to LP. This causes trade instructions (`trade-cpi` and `trade-nocpi`) to fail with `EngineUnauthorized` error. User initialization, deposits, withdrawals, and the keeper crank work correctly.
+
+### Working Features
+
+The following operations work on the test market:
+
+1. **Initialize user account**: Create a new trading account
+2. **Deposit collateral**: Add tokens to your account
+3. **Withdraw collateral**: Remove tokens (if no open positions)
+4. **Keeper crank**: Update funding and mark prices
+
+### Testing User Operations
+
+#### Step 1: Get devnet SOL
+
+```bash
+solana airdrop 2 --url devnet
+```
+
+#### Step 2: Get collateral tokens
+
+The test market uses a custom mint. To get tokens, you'll need to request them from the market admin or use the test scripts.
+
+#### Step 3: Initialize your user account
+
+```bash
+# Initialize user account (costs 1 token fee)
+percolator-cli init-user --slab 9kcSAbQPzqui1uDt7iZAYHmrUB4bVfnAr4UZPmWMc91T
+```
+
+#### Step 4: Deposit collateral
+
+```bash
+# Deposit 5 tokens (5000000 in 6 decimal format)
+percolator-cli deposit \
+  --slab 9kcSAbQPzqui1uDt7iZAYHmrUB4bVfnAr4UZPmWMc91T \
+  --user-idx <your-idx> \
+  --amount 5000000
+```
+
+### Trading (Currently Blocked)
+
+Trading is currently blocked due to the LP kind bug mentioned above. Once the on-chain program is updated, you can trade using:
+
+```bash
+# Trade via the 50bps matcher (long 0.1 contracts)
+percolator-cli trade-cpi \
+  --slab 9kcSAbQPzqui1uDt7iZAYHmrUB4bVfnAr4UZPmWMc91T \
+  --user-idx <your-idx> \
+  --lp-idx 0 \
+  --size 100000 \
+  --matcher-program 4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy \
+  --matcher-ctx EoTftmATkhkvonufshJidvAtzJb13GkpxVaqYWNxUxyk \
+  --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
+```
+
+## Adding Your Own Matcher
+
+Matchers are programs that determine trade pricing. The 50bps passive matcher accepts all trades at oracle price ± 50bps spread. You can create custom matchers with different pricing logic.
+
+### Matcher Interface
+
+A matcher program must implement:
+
+1. **Init instruction** (discriminator: `0x01`): Initialize matcher context
+2. **Match instruction** (discriminator: `0x00`): Called by percolator during `trade-cpi`
+
+### Creating a Custom Matcher
+
+#### Step 1: Write the matcher program
+
+```rust
+// Example: Simple spread matcher
+use solana_program::{account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey};
+
+entrypoint!(process_instruction);
+
+fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> Result<(), ProgramError> {
+    match data[0] {
+        0x00 => {
+            // Match instruction - verify LP PDA and accept trade
+            // LP PDA is accounts[0], context is accounts[1]
+            // Return Ok(()) to accept, Err to reject
+            Ok(())
+        }
+        0x01 => {
+            // Init instruction - set up context
+            // LP PDA is accounts[0], context is accounts[1]
+            Ok(())
+        }
+        _ => Err(ProgramError::InvalidInstructionData),
+    }
+}
+```
+
+#### Step 2: Deploy and create context account
+
+```bash
+# Deploy your matcher program
+solana program deploy target/deploy/my_matcher.so --url devnet
+
+# Create context account (owned by your matcher program)
+# Size depends on your matcher's needs (minimum 320 bytes recommended)
+```
+
+#### Step 3: Initialize LP with your matcher
+
+```bash
+# Initialize LP with custom matcher
+percolator-cli init-lp \
+  --slab <slab-pubkey> \
+  --matcher-program <your-matcher-program> \
+  --matcher-ctx <your-context-account>
+```
+
+#### Step 4: Deposit collateral to LP
+
+```bash
+percolator-cli deposit \
+  --slab <slab-pubkey> \
+  --user-idx <lp-idx> \
+  --amount <amount>
+```
+
+### Matcher Context Layout (50bps Passive Matcher)
+
+The standard 50bps passive matcher uses this context layout:
+
+```
+Offset  Size  Field
+0       32    LP PDA (set during init)
+32      32    Slab pubkey (set during init)
+64      8     Spread BPS (50 = 0.5%)
+...
+```
+
+## Commands Reference
 
 ### Market Operations
 
@@ -106,7 +276,44 @@ pnpm test
 
 # Run devnet integration tests
 ./test-vectors.sh
+
+# Run live trading test (with PnL validation)
+npx tsx tests/t21-live-trading.ts 3           # 3 minutes, normal market
+npx tsx tests/t21-live-trading.ts 3 --inverted # 3 minutes, inverted market
 ```
+
+## Scripts
+
+```bash
+# Setup a new devnet market with funded LP and insurance
+npx tsx scripts/setup-devnet-market.ts
+
+# Post fresh Pyth prices to devnet
+node scripts/post-pyth-price.cjs btc
+```
+
+## Architecture
+
+### Price Oracles
+
+Percolator supports two oracle types:
+
+1. **Pyth** - Uses Pyth Network price feeds via PriceUpdateV2 accounts
+2. **Chainlink** - Uses Chainlink OCR2 aggregator accounts
+
+The program auto-detects oracle type by checking the account owner.
+
+### Inverted Markets
+
+Inverted markets use `1/price` internally. This is useful for markets like SOL/USD where you want to trade SOL-denominated positions with USD-denominated collateral.
+
+### Matchers
+
+Matchers are external programs that determine trade pricing. They enable:
+- Custom spread logic
+- Order book matching
+- AMM-style pricing
+- Limit orders
 
 ## License
 
