@@ -183,7 +183,10 @@ async function runT9Tests(): Promise<void> {
       console.log(`  - ${r.name}: ${r.error}`);
     }
   }
-  console.log("----------------------------------------\n");
+  console.log("----------------------------------------");
+
+  // Cleanup slab accounts to reclaim rent
+  await harness.cleanup();
 }
 
 runT9Tests().catch(console.error);

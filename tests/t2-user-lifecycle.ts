@@ -290,20 +290,36 @@ async function runT2Tests(): Promise<void> {
   await harness.runTest("T2.7: Conservation after multiple users", async () => {
     ctx = await harness.createFreshMarket({ maxAccounts: 64 });
 
-    // Create multiple users with default init fee, then deposit different amounts
+    // Create multiple users with explicit 1M init fee (= params.newAccountFee), then deposit different amounts
+    // IMPORTANT: feePayment must equal newAccountFee for conservation to hold.
+    // The program transfers feePayment to vault but only credits newAccountFee to insurance.
     const depositAmounts = [1_000_000n, 5_000_000n, 10_000_000n, 2_500_000n];
-    const feePerUser = 1_000_000n; // Default fee = params.newAccountFee
+    const feePerUser = 1_000_000n; // Must match params.newAccountFee
     let totalInVault = 0n;
 
     for (let i = 0; i < depositAmounts.length; i++) {
       const user = await harness.createUser(ctx, `user${i}`, depositAmounts[i] + feePerUser * 2n);
-      await harness.initUser(ctx, user); // Default fee
+      await harness.initUser(ctx, user, feePerUser.toString()); // Explicit 1M fee
       totalInVault += feePerUser; // Init fee goes to insurance
 
       // Deposit additional collateral to user's capital
       await harness.deposit(ctx, user, depositAmounts[i].toString());
       totalInVault += depositAmounts[i];
     }
+
+    // Print debug info
+    const snapshot = await harness.snapshot(ctx);
+    let totalCapital = 0n;
+    for (const acct of snapshot.accounts) {
+      totalCapital += acct.account.capital;
+    }
+
+    console.log(`    Total capital: ${totalCapital}`);
+    console.log(`    Insurance balance: ${snapshot.engine.insuranceFund.balance}`);
+    console.log(`    Engine vault: ${snapshot.engine.vault}`);
+    console.log(`    Users: ${depositAmounts.length}`);
+    console.log(`    Expected in vault: ${totalInVault}`);
+    console.log(`    Slab total (capital + insurance): ${totalCapital + snapshot.engine.insuranceFund.balance}`);
 
     // Check invariants
     const checker = new InvariantChecker(ctx.connection);
@@ -322,15 +338,12 @@ async function runT2Tests(): Promise<void> {
       }
     }
 
-    TestHarness.assert(report.passed, "Conservation should hold");
-
-    console.log(`    Total in vault: ${totalInVault}`);
-    console.log(`    Users: ${depositAmounts.length}`);
     console.log(`    Invariants: ${report.passed ? "PASS" : "FAIL"}`);
+    TestHarness.assert(report.passed, "Conservation should hold");
   });
 
   // -------------------------------------------------------------------------
-  // Summary
+  // Summary & Cleanup
   // -------------------------------------------------------------------------
   const summary = harness.getSummary();
   console.log("\n----------------------------------------");
@@ -341,7 +354,10 @@ async function runT2Tests(): Promise<void> {
       console.log(`  - ${r.name}: ${r.error}`);
     }
   }
-  console.log("----------------------------------------\n");
+  console.log("----------------------------------------");
+
+  // Cleanup slab accounts to reclaim rent
+  await harness.cleanup();
 }
 
 // Run if executed directly

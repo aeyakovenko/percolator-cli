@@ -205,23 +205,17 @@ console.log("\nTesting instruction encoders...\n");
   console.log("✓ encodeWithdrawCollateral");
 }
 
-// Test KeeperCrank encoding (12 bytes: tag + u16 + i64 + u8)
+// Test KeeperCrank encoding (4 bytes: tag + u16 + u8)
+// Note: fundingRate is now computed on-chain, no longer passed in instruction
 {
   const data = encodeKeeperCrank({
     callerIdx: 1,
-    fundingRateBpsPerSlot: "-100",
     allowPanic: true,
   });
-  assert(data.length === 12, "KeeperCrank length");
+  assert(data.length === 4, "KeeperCrank length");
   assert(data[0] === IX_TAG.KeeperCrank, "KeeperCrank tag byte");
   assertBuf(data.subarray(1, 3), [1, 0], "KeeperCrank callerIdx");
-  // -100 in i64 LE
-  assertBuf(
-    data.subarray(3, 11),
-    [156, 255, 255, 255, 255, 255, 255, 255],
-    "KeeperCrank fundingRate"
-  );
-  assert(data[11] === 1, "KeeperCrank allowPanic");
+  assert(data[3] === 1, "KeeperCrank allowPanic");
   console.log("✓ encodeKeeperCrank");
 }
 
@@ -321,21 +315,25 @@ console.log("\nTesting instruction encoders...\n");
   console.log("✓ encodeInitLP");
 }
 
-// Test InitMarket encoding (283 bytes total)
+// Test InitMarket encoding (256 bytes total)
+// Layout: tag(1) + admin(32) + mint(32) + indexFeedId(32) +
+//         maxStaleSecs(8) + confFilter(2) + invert(1) + unitScale(4) +
+//         RiskParams(144)
 {
   // Use keypair-generated valid pubkeys
   const admin = PublicKey.unique();
   const mint = PublicKey.unique();
-  const pythIdx = PublicKey.unique();
-  const pythCol = PublicKey.unique();
+  // Pyth feed ID for BTC/USD (example)
+  const indexFeedId = "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43";
 
   const data = encodeInitMarket({
     admin,
     collateralMint: mint,
-    pythIndex: pythIdx,
-    pythCollateral: pythCol,
-    maxStalenessSlots: "100",
+    indexFeedId,
+    maxStalenessSecs: "60",
     confFilterBps: 50,
+    invert: 0,
+    unitScale: 0,
     warmupPeriodSlots: "1000",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",
@@ -350,7 +348,7 @@ console.log("\nTesting instruction encoders...\n");
     liquidationBufferBps: "50",
     minLiquidationAbs: "1000000",
   });
-  assert(data.length === 283, `InitMarket length: expected 283, got ${data.length}`);
+  assert(data.length === 256, `InitMarket length: expected 256, got ${data.length}`);
   assert(data[0] === IX_TAG.InitMarket, "InitMarket tag byte");
   console.log("✓ encodeInitMarket");
 }

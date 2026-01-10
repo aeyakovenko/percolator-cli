@@ -43,13 +43,13 @@ async function runT11Tests(): Promise<void> {
 
     const snapshot = await harness.snapshot(ctx);
 
-    // Verify market params (invert/unitScale are in RiskParams, not config)
-    TestHarness.assertEqual(snapshot.params.invert, 1, "Market should be inverted");
-    TestHarness.assertEqual(snapshot.params.unitScale, 0, "unitScale should be 0");
+    // Verify market config (invert/unitScale are in MarketConfig, not RiskParams)
+    TestHarness.assertEqual(snapshot.config.invert, 1, "Market should be inverted");
+    TestHarness.assertEqual(snapshot.config.unitScale, 0, "unitScale should be 0");
 
     console.log(`    Oracle: ${ctx.oracle.toBase58()}`);
-    console.log(`    Invert: ${snapshot.params.invert}`);
-    console.log(`    UnitScale: ${snapshot.params.unitScale}`);
+    console.log(`    Invert: ${snapshot.config.invert}`);
+    console.log(`    UnitScale: ${snapshot.config.unitScale}`);
     console.log(`    Collateral decimals: ${WSOL_DECIMALS}`);
   });
 
@@ -248,11 +248,11 @@ async function runT11Tests(): Promise<void> {
 
     const snapshot = await harness.snapshot(ctx);
 
-    TestHarness.assertEqual(snapshot.params.invert, 1, "Invert should be 1");
-    TestHarness.assertEqual(snapshot.params.unitScale, 1000, "UnitScale should be 1000");
+    TestHarness.assertEqual(snapshot.config.invert, 1, "Invert should be 1");
+    TestHarness.assertEqual(snapshot.config.unitScale, 1000, "UnitScale should be 1000");
 
-    console.log(`    Invert: ${snapshot.params.invert}`);
-    console.log(`    UnitScale: ${snapshot.params.unitScale}`);
+    console.log(`    Invert: ${snapshot.config.invert}`);
+    console.log(`    UnitScale: ${snapshot.config.unitScale}`);
     console.log(`    MaxStaleness: ${snapshot.config.maxStalenessSlots}`);
     console.log(`    ConfFilter: ${snapshot.config.confFilterBps}`);
   });
@@ -269,7 +269,10 @@ async function runT11Tests(): Promise<void> {
       console.log(`  - ${r.name}: ${r.error}`);
     }
   }
-  console.log("----------------------------------------\n");
+  console.log("----------------------------------------");
+
+  // Cleanup slab accounts to reclaim rent
+  await harness.cleanup();
 }
 
 runT11Tests().catch(console.error);

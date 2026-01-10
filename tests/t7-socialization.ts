@@ -26,12 +26,12 @@ async function runT7Tests(): Promise<void> {
 
     // Fresh market should have 0 insurance fund
     TestHarness.assertBigIntEqual(
-      snapshot.engine.insuranceFund,
+      snapshot.engine.insuranceFund.balance,
       0n,
       "Fresh market should have 0 insurance"
     );
 
-    console.log(`    Insurance fund: ${snapshot.engine.insuranceFund}`);
+    console.log(`    Insurance fund balance: ${snapshot.engine.insuranceFund.balance}`);
   });
 
   // -------------------------------------------------------------------------
@@ -52,15 +52,16 @@ async function runT7Tests(): Promise<void> {
 
     const snapshot = await harness.snapshot(ctx);
 
-    console.log(`    Insurance fund: ${snapshot.engine.insuranceFund}`);
-    console.log(`    Total users: ${snapshot.header.numUsed}`);
+    console.log(`    Insurance fund balance: ${snapshot.engine.insuranceFund.balance}`);
+    console.log(`    Insurance fund fee revenue: ${snapshot.engine.insuranceFund.feeRevenue}`);
+    console.log(`    Total accounts: ${snapshot.engine.numUsedAccounts}`);
 
-    // Sum all collateral
-    let totalCollateral = 0n;
-    for (const idx of snapshot.usedIndices) {
-      totalCollateral += snapshot.accounts[idx].collateralBalance;
+    // Sum all capital from accounts
+    let totalCapital = 0n;
+    for (const acct of snapshot.accounts) {
+      totalCapital += acct.account.capital;
     }
-    console.log(`    Total collateral: ${totalCollateral}`);
+    console.log(`    Total capital: ${totalCapital}`);
   });
 
   // -------------------------------------------------------------------------
@@ -92,7 +93,7 @@ async function runT7Tests(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
-  // Summary
+  // Summary & Cleanup
   // -------------------------------------------------------------------------
   const summary = harness.getSummary();
   console.log("\n----------------------------------------");
@@ -103,7 +104,10 @@ async function runT7Tests(): Promise<void> {
       console.log(`  - ${r.name}: ${r.error}`);
     }
   }
-  console.log("----------------------------------------\n");
+  console.log("----------------------------------------");
+
+  // Cleanup slab accounts to reclaim rent
+  await harness.cleanup();
 }
 
 runT7Tests().catch(console.error);

@@ -38,15 +38,13 @@ export function registerInitUser(program: Command): void {
       // Build instruction data
       const ixData = encodeInitUser({ feePayment: opts.fee });
 
-      // Build account metas (order matches ACCOUNTS_INIT_USER)
+      // Build account metas (order matches ACCOUNTS_INIT_USER: 5 accounts)
       const keys = buildAccountMetas(ACCOUNTS_INIT_USER, [
-        ctx.payer.publicKey, // user
-        slabPk, // slab
-        userAta, // userAta
-        mktConfig.vaultPubkey, // vault
+        ctx.payer.publicKey, // user (signer)
+        slabPk, // slab (writable)
+        userAta, // userAta (writable)
+        mktConfig.vaultPubkey, // vault (writable)
         WELL_KNOWN.tokenProgram, // tokenProgram
-        WELL_KNOWN.clock, // clock
-        mktConfig.collateralOracle, // oracle
       ]);
 
       const ix = buildIx({

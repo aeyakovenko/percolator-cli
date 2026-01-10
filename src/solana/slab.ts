@@ -183,12 +183,16 @@ const ENGINE_WARMED_POS_OFF = 312;
 const ENGINE_WARMED_NEG_OFF = 328;
 const ENGINE_WARMUP_INSURANCE_OFF = 344;
 // ADL scratch arrays follow, then bitmap and accounts
-// Need to recalculate based on ENGINE_OFF change (was 160, now 216, delta = 56)
-// Old values were verified at ENGINE_OFF=160, so subtract 56 for new base
-const ENGINE_BITMAP_OFF = 69984;      // 70040 - 56 = 69984 (bitmap at slab offset 216 + 69984 = 70200)
-const ENGINE_NUM_USED_OFF = 70496;    // bitmap (512) + 0
-const ENGINE_NEXT_ACCOUNT_ID_OFF = 70504;  // bitmap (512) + 8
-const ENGINE_ACCOUNTS_OFF = 78712;    // 78768 - 56 = 78712
+// Verified via scan-multi-user.cjs against devnet 2025-01:
+// - Created 3 users and found: bitmap=7 (bits 0,1,2 set), numUsed=3, nextAccountId=3
+// - bitmap (u64=7) at slab 82640 = engine 82424
+// - numUsed (u16=3) at slab 83152 = engine 82936
+// - nextAccountId (u64=3) at slab 83160 = engine 82944
+// - accounts start at slab 91376 = engine 91160 (owner pubkeys verified)
+const ENGINE_BITMAP_OFF = 82424;          // slab 82640 = 216 + 82424 (bitmap word 0)
+const ENGINE_NUM_USED_OFF = 82936;        // slab 83152 = 216 + 82936 (u16)
+const ENGINE_NEXT_ACCOUNT_ID_OFF = 82944; // slab 83160 = 216 + 82944 (u64)
+const ENGINE_ACCOUNTS_OFF = 91160;        // slab 91376 = 216 + 91160
 
 const BITMAP_WORDS = 64;
 const MAX_ACCOUNTS = 4096;
@@ -215,25 +219,27 @@ const PARAMS_MIN_LIQUIDATION_OFF = 128;    // u128 (total = 144 bytes)
 
 // =============================================================================
 // Account Layout (248 bytes, repr(C))
-// Note: Layout was empirically verified with debug output.
-// accountId is at offset 0 (u64), kind at offset 8 (u8 padded).
+// Verified via T12 raw byte dumps (2026-01-09):
+// - offset 0: accountId (u64, value=1 for user)
+// - offset 8: capital (u128, value=9,911,648 = ~9.9 USDC)
+// - offset 80: position_size (i128, value=0xe803 = 1000 after trade)
+// Note: kind field location TBD - may be at offset 24 or elsewhere.
 // =============================================================================
 const ACCT_ACCOUNT_ID_OFF = 0;    // accountId (u64, 8 bytes), ends at 8
-const ACCT_CAPITAL_OFF = 8;       // Capital (i128, 16 bytes), ends at 24
-const ACCT_KIND_OFF = 24;         // kind is somewhere after capital - TBD
-// Remaining offsets empirically verified - owner is at 184 within account
-const ACCT_PNL_OFF = 32;
-const ACCT_RESERVED_PNL_OFF = 48;
-const ACCT_WARMUP_STARTED_OFF = 64;
-const ACCT_WARMUP_SLOPE_OFF = 80;
-const ACCT_POSITION_SIZE_OFF = 96;
-const ACCT_ENTRY_PRICE_OFF = 112;
-const ACCT_FUNDING_INDEX_OFF = 128;
-const ACCT_MATCHER_PROGRAM_OFF = 144;  // Pubkey (32 bytes), ends at 176
-const ACCT_MATCHER_CONTEXT_OFF = 176;  // u64 (8 bytes), ends at 184
-const ACCT_OWNER_OFF = 184;            // Pubkey (32 bytes) - verified empirically, ends at 216
-const ACCT_FEE_CREDITS_OFF = 216;      // i128 (16 bytes), ends at 232
-const ACCT_LAST_FEE_SLOT_OFF = 232;    // u64 (8 bytes), ends at 240, +8 padding = 248 total
+const ACCT_CAPITAL_OFF = 8;       // capital (i128, 16 bytes), ends at 24
+const ACCT_KIND_OFF = 24;         // kind (u8) - location TBD, needs verification
+const ACCT_PNL_OFF = 32;          // pnl (i128, 16 bytes), ends at 48
+const ACCT_RESERVED_PNL_OFF = 48; // reserved_pnl (u128, 16 bytes), ends at 64
+const ACCT_WARMUP_STARTED_OFF = 64;  // warmup_started (u64, 8 bytes), ends at 72
+const ACCT_WARMUP_SLOPE_OFF = 72;    // warmup_slope (u64, 8 bytes), ends at 80
+const ACCT_POSITION_SIZE_OFF = 80;   // position_size (i128, 16 bytes), ends at 96 ← VERIFIED
+const ACCT_ENTRY_PRICE_OFF = 96;     // entry_price (u64, 8 bytes), ends at 104
+const ACCT_FUNDING_INDEX_OFF = 104;  // funding_index (i128, 16 bytes), ends at 120
+const ACCT_MATCHER_PROGRAM_OFF = 120; // matcher_program (Pubkey, 32 bytes), ends at 152
+const ACCT_MATCHER_CONTEXT_OFF = 152; // matcher_context (u64, 8 bytes), ends at 160
+const ACCT_OWNER_OFF = 160;           // owner (Pubkey, 32 bytes), ends at 192
+const ACCT_FEE_CREDITS_OFF = 192;     // fee_credits (i128, 16 bytes), ends at 208
+const ACCT_LAST_FEE_SLOT_OFF = 208;   // last_fee_slot (u64, 8 bytes), ends at 216
 
 // =============================================================================
 // Interfaces

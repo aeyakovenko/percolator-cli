@@ -142,7 +142,10 @@ async function runT4Tests(): Promise<void> {
       console.log(`  - ${r.name}: ${r.error}`);
     }
   }
-  console.log("----------------------------------------\n");
+  console.log("----------------------------------------");
+
+  // Cleanup slab accounts to reclaim rent
+  await harness.cleanup();
 }
 
 runT4Tests().catch(console.error);

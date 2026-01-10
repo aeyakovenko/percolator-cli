@@ -46,15 +46,13 @@ export function registerInitLp(program: Command): void {
         feePayment: opts.fee,
       });
 
-      // Build account metas (order matches ACCOUNTS_INIT_LP)
+      // Build account metas (order matches ACCOUNTS_INIT_LP: 5 accounts)
       const keys = buildAccountMetas(ACCOUNTS_INIT_LP, [
         ctx.payer.publicKey, // user
         slabPk, // slab
         userAta, // userAta
         mktConfig.vaultPubkey, // vault
         WELL_KNOWN.tokenProgram, // tokenProgram
-        WELL_KNOWN.clock, // clock
-        mktConfig.collateralOracle, // oracle
       ]);
 
       const ix = buildIx({

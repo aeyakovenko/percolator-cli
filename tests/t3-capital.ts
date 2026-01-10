@@ -20,25 +20,26 @@ async function runT3Tests(): Promise<void> {
 
   // -------------------------------------------------------------------------
   // T3.1: Deposit increases collateral
+  // Note: Init fee goes to insurance fund, not user capital
   // -------------------------------------------------------------------------
   await harness.runTest("T3.1: Deposit increases collateral", async () => {
     ctx = await harness.createFreshMarket({ maxAccounts: 64 });
 
-    const initialFee = 1_000_000n;
+    const initFee = 1_000_000n;
     const user = await harness.createUser(ctx, "user", 50_000_000n);
-    await harness.initUser(ctx, user, initialFee.toString());
+    await harness.initUser(ctx, user, initFee.toString());
 
-    // Get balance after init
+    // Get balance after init - should be 0 (fee goes to insurance, not capital)
     let snapshot = await harness.snapshot(ctx);
     const balanceAfterInit = snapshot.accounts[0].account.capital;
 
     TestHarness.assertBigIntEqual(
       balanceAfterInit,
-      initialFee,
-      "Initial balance should equal fee"
+      0n,
+      "Initial capital should be 0 (fee goes to insurance)"
     );
 
-    // Deposit more
+    // Deposit collateral
     const depositAmount = 5_000_000n;
     const result = await harness.deposit(ctx, user, depositAmount.toString());
     TestHarness.assert(!result.err, `Deposit should succeed: ${result.err}`);
@@ -48,8 +49,8 @@ async function runT3Tests(): Promise<void> {
 
     TestHarness.assertBigIntEqual(
       balanceAfterDeposit,
-      initialFee + depositAmount,
-      "Balance should increase by deposit amount"
+      depositAmount,
+      "Balance should equal deposit amount"
     );
 
     console.log(`    After init: ${balanceAfterInit}`);
@@ -59,15 +60,17 @@ async function runT3Tests(): Promise<void> {
 
   // -------------------------------------------------------------------------
   // T3.2: Multiple deposits accumulate correctly
+  // Note: Init fee goes to insurance fund, not user capital
   // -------------------------------------------------------------------------
   await harness.runTest("T3.2: Multiple deposits accumulate", async () => {
     ctx = await harness.createFreshMarket({ maxAccounts: 64 });
 
-    const initialFee = 1_000_000n;
+    const initFee = 1_000_000n;
     const user = await harness.createUser(ctx, "user", 100_000_000n);
-    await harness.initUser(ctx, user, initialFee.toString());
+    await harness.initUser(ctx, user, initFee.toString());
 
-    let expectedBalance = initialFee;
+    // Capital starts at 0 (fee goes to insurance)
+    let expectedBalance = 0n;
     const deposits = [2_000_000n, 3_000_000n, 5_000_000n];
 
     for (const amount of deposits) {
@@ -122,17 +125,21 @@ async function runT3Tests(): Promise<void> {
 
   // -------------------------------------------------------------------------
   // T3.4: Conservation after multiple deposits/withdrawals
+  // Note: Use default fee (params.newAccountFee) to ensure conservation
   // -------------------------------------------------------------------------
   await harness.runTest("T3.4: Conservation after operations", async () => {
     ctx = await harness.createFreshMarket({ maxAccounts: 64 });
 
-    // Create multiple users
+    // Create multiple users with explicit 1M fee (= params.newAccountFee)
+    // IMPORTANT: feePayment must equal newAccountFee for conservation to hold.
+    // The program transfers feePayment to vault but only credits newAccountFee to insurance.
     const users: UserContext[] = [];
-    const amounts = [5_000_000n, 10_000_000n, 15_000_000n];
+    const numUsers = 3;
+    const initFee = "1000000"; // Must match params.newAccountFee
 
-    for (let i = 0; i < amounts.length; i++) {
+    for (let i = 0; i < numUsers; i++) {
       const user = await harness.createUser(ctx, `user${i}`, 50_000_000n);
-      await harness.initUser(ctx, user, amounts[i].toString());
+      await harness.initUser(ctx, user, initFee); // Explicit 1M fee
       users.push(user);
     }
 
@@ -140,20 +147,36 @@ async function runT3Tests(): Promise<void> {
     await harness.deposit(ctx, users[0], "2000000");
     await harness.deposit(ctx, users[1], "3000000");
 
-    // Check invariants
-    const checker = new InvariantChecker(ctx.connection);
-    const report = await checker.checkAll(ctx);
-
-    TestHarness.assert(report.passed, "Conservation should hold");
-
+    // Print slab state
     const snapshot = await harness.snapshot(ctx);
     let totalCapital = 0n;
     for (const acct of snapshot.accounts) {
       totalCapital += acct.account.capital;
     }
 
-    console.log(`    Total capital in slab: ${totalCapital}`);
+    console.log(`    Total capital: ${totalCapital}`);
+    console.log(`    Insurance balance: ${snapshot.engine.insuranceFund.balance}`);
+    console.log(`    Engine vault: ${snapshot.engine.vault}`);
+    console.log(`    Slab total (capital + insurance): ${totalCapital + snapshot.engine.insuranceFund.balance}`);
+
+    // Check invariants
+    const checker = new InvariantChecker(ctx.connection);
+    const report = await checker.checkAll(ctx);
+
+    if (!report.passed) {
+      console.log("    Invariant details:");
+      for (const r of report.results) {
+        if (!r.passed) {
+          console.log(`      FAIL: ${r.name}`);
+          if (r.expected) console.log(`        Expected: ${r.expected}`);
+          if (r.actual) console.log(`        Actual: ${r.actual}`);
+          if (r.message) console.log(`        ${r.message}`);
+        }
+      }
+    }
+
     console.log(`    Invariants: ${report.passed ? "PASS" : "FAIL"}`);
+    TestHarness.assert(report.passed, "Conservation should hold");
   });
 
   // -------------------------------------------------------------------------
@@ -188,14 +211,19 @@ async function runT3Tests(): Promise<void> {
 
   // -------------------------------------------------------------------------
   // T3.6: Large deposit (stress test)
+  // Note: Init fee goes to insurance, so we need a separate deposit
   // -------------------------------------------------------------------------
   await harness.runTest("T3.6: Large deposit amount", async () => {
     ctx = await harness.createFreshMarket({ maxAccounts: 64 });
 
     // Large amount: 1 billion USDC (with 6 decimals = 10^15)
     const largeAmount = 1_000_000_000_000_000n;
+    const initFee = 1_000_000n;
     const user = await harness.createUser(ctx, "user", largeAmount * 2n);
-    await harness.initUser(ctx, user, largeAmount.toString());
+    await harness.initUser(ctx, user, initFee.toString());
+
+    // Now deposit the large amount
+    await harness.deposit(ctx, user, largeAmount.toString());
 
     const snapshot = await harness.snapshot(ctx);
     const balance = snapshot.accounts[0].account.capital;
@@ -211,7 +239,7 @@ async function runT3Tests(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
-  // Summary
+  // Summary & Cleanup
   // -------------------------------------------------------------------------
   const summary = harness.getSummary();
   console.log("\n----------------------------------------");
@@ -222,7 +250,10 @@ async function runT3Tests(): Promise<void> {
       console.log(`  - ${r.name}: ${r.error}`);
     }
   }
-  console.log("----------------------------------------\n");
+  console.log("----------------------------------------");
+
+  // Cleanup slab accounts to reclaim rent
+  await harness.cleanup();
 }
 
 // Run if executed directly

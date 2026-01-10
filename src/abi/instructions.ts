@@ -26,20 +26,23 @@ export const IX_TAG = {
   TradeCpi: 10,
   SetRiskThreshold: 11,
   UpdateAdmin: 12,
+  CloseSlab: 13,
 } as const;
 
 /**
- * InitMarket instruction data (288 bytes total)
- * Layout: tag(1) + admin(32) + mint(32) + pythIdx(32) + pythCol(32) +
- *         maxStale(8) + confFilter(2) + invert(1) + unitScale(4) +
+ * InitMarket instruction data (256 bytes total)
+ * Layout: tag(1) + admin(32) + mint(32) + indexFeedId(32) +
+ *         maxStaleSecs(8) + confFilter(2) + invert(1) + unitScale(4) +
  *         RiskParams(144)
+ *
+ * Note: indexFeedId is the Pyth Pull feed ID (32 bytes hex), NOT an oracle pubkey.
+ * The program validates PriceUpdateV2 accounts against this feed ID at runtime.
  */
 export interface InitMarketArgs {
   admin: PublicKey | string;
   collateralMint: PublicKey | string;
-  pythIndex: PublicKey | string;
-  pythCollateral: PublicKey | string;
-  maxStalenessSlots: bigint | string;
+  indexFeedId: string;           // Pyth feed ID (hex string, 64 chars without 0x prefix)
+  maxStalenessSecs: bigint | string;  // Max staleness in SECONDS (Pyth Pull uses unix timestamps)
   confFilterBps: number;
   invert: number;              // 0 = no inversion, 1 = invert oracle price (USD/SOL -> SOL/USD)
   unitScale: number;           // Lamports per unit (0 = no scaling, e.g. 1000 = 1 SOL = 1,000,000 units)
@@ -58,14 +61,28 @@ export interface InitMarketArgs {
   minLiquidationAbs: bigint | string;
 }
 
+/**
+ * Encode a Pyth feed ID (hex string) to 32-byte buffer.
+ */
+function encodeFeedId(feedId: string): Buffer {
+  // Remove 0x prefix if present
+  const hex = feedId.startsWith("0x") ? feedId.slice(2) : feedId;
+  if (hex.length !== 64) {
+    throw new Error(`Invalid feed ID length: expected 64 hex chars, got ${hex.length}`);
+  }
+  return Buffer.from(hex, "hex");
+}
+
 export function encodeInitMarket(args: InitMarketArgs): Buffer {
+  // Layout: tag(1) + admin(32) + mint(32) + index_feed_id(32) + max_staleness_secs(8) +
+  //         conf_filter_bps(2) + invert(1) + unit_scale(4) + RiskParams(...)
+  // Note: _reserved field is only in MarketConfig on-chain, not in instruction data
   return Buffer.concat([
     encU8(IX_TAG.InitMarket),
     encPubkey(args.admin),
     encPubkey(args.collateralMint),
-    encPubkey(args.pythIndex),
-    encPubkey(args.pythCollateral),
-    encU64(args.maxStalenessSlots),
+    encodeFeedId(args.indexFeedId),   // index_feed_id (32 bytes)
+    encU64(args.maxStalenessSecs),    // max_staleness_secs (Pyth Pull uses unix timestamps)
     encU16(args.confFilterBps),
     encU8(args.invert),
     encU32(args.unitScale),
@@ -258,4 +275,11 @@ export interface UpdateAdminArgs {
 
 export function encodeUpdateAdmin(args: UpdateAdminArgs): Buffer {
   return Buffer.concat([encU8(IX_TAG.UpdateAdmin), encPubkey(args.newAdmin)]);
+}
+
+/**
+ * CloseSlab instruction data (1 byte)
+ */
+export function encodeCloseSlab(): Buffer {
+  return encU8(IX_TAG.CloseSlab);
 }

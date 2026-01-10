@@ -3,7 +3,6 @@ import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { getAta } from "../solana/ata.js";
 import { deriveVaultAuthority } from "../solana/pda.js";
 import { encodeInitMarket } from "../abi/instructions.js";
 import {
@@ -16,13 +15,12 @@ import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 export function registerInitMarket(program: Command): void {
   program
     .command("init-market")
-    .description("Initialize a new market")
+    .description("Initialize a new market (Pyth Pull oracle)")
     .requiredOption("--slab <pubkey>", "Slab account public key")
     .requiredOption("--mint <pubkey>", "Collateral token mint")
     .requiredOption("--vault <pubkey>", "Collateral vault token account")
-    .requiredOption("--pyth-index <pubkey>", "Pyth index oracle")
-    .requiredOption("--pyth-collateral <pubkey>", "Pyth collateral oracle")
-    .requiredOption("--max-staleness <string>", "Max oracle staleness (slots)")
+    .requiredOption("--index-feed-id <hex>", "Pyth index feed ID (64 hex chars, no 0x)")
+    .requiredOption("--max-staleness-secs <string>", "Max oracle staleness (seconds)")
     .requiredOption("--conf-filter-bps <number>", "Oracle confidence filter (bps)")
     .option("--invert <number>", "Invert oracle price (0=no, 1=yes)", "0")
     .option("--unit-scale <number>", "Lamports per unit scale (0=no scaling)", "0")
@@ -47,8 +45,13 @@ export function registerInitMarket(program: Command): void {
       const slabPk = new PublicKey(opts.slab);
       const mint = new PublicKey(opts.mint);
       const vault = new PublicKey(opts.vault);
-      const pythIndex = new PublicKey(opts.pythIndex);
-      const pythCollateral = new PublicKey(opts.pythCollateral);
+      const indexFeedId = opts.indexFeedId;
+
+      // Validate feed ID format
+      const feedIdHex = indexFeedId.startsWith("0x") ? indexFeedId.slice(2) : indexFeedId;
+      if (feedIdHex.length !== 64 || !/^[0-9a-fA-F]+$/.test(feedIdHex)) {
+        throw new Error("Invalid feed ID: must be 64 hex characters");
+      }
 
       // Derive vault authority for dummy ATA lookup (unused but required)
       const [vaultPda] = deriveVaultAuthority(ctx.programId, slabPk);
@@ -57,9 +60,8 @@ export function registerInitMarket(program: Command): void {
       const ixData = encodeInitMarket({
         admin: ctx.payer.publicKey,
         collateralMint: mint,
-        pythIndex,
-        pythCollateral,
-        maxStalenessSlots: opts.maxStaleness,
+        indexFeedId: feedIdHex,
+        maxStalenessSecs: opts.maxStalenessSecs,
         confFilterBps: parseInt(opts.confFilterBps, 10),
         invert: parseInt(opts.invert, 10),
         unitScale: parseInt(opts.unitScale, 10),
@@ -88,8 +90,6 @@ export function registerInitMarket(program: Command): void {
         WELL_KNOWN.clock, // clock
         WELL_KNOWN.rent, // rent
         vaultPda, // dummyAta (unused, pass vault PDA)
-        pythIndex, // pythIndex
-        pythCollateral, // pythCollateral
         WELL_KNOWN.systemProgram, // systemProgram
       ]);
 

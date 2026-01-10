@@ -22,7 +22,7 @@ export interface AccountSpec {
 // ============================================================================
 
 /**
- * InitMarket: 11 accounts
+ * InitMarket: 9 accounts (Pyth Pull - feed_id is in instruction data, not as accounts)
  */
 export const ACCOUNTS_INIT_MARKET: readonly AccountSpec[] = [
   { name: "admin", signer: true, writable: false },
@@ -33,13 +33,11 @@ export const ACCOUNTS_INIT_MARKET: readonly AccountSpec[] = [
   { name: "clock", signer: false, writable: false },
   { name: "rent", signer: false, writable: false },
   { name: "dummyAta", signer: false, writable: false },
-  { name: "pythIndex", signer: false, writable: false },
-  { name: "pythCollateral", signer: false, writable: false },
   { name: "systemProgram", signer: false, writable: false },
 ] as const;
 
 /**
- * InitUser: 5 accounts
+ * InitUser: 5 accounts (clock/oracle removed in commit 410f947)
  */
 export const ACCOUNTS_INIT_USER: readonly AccountSpec[] = [
   { name: "user", signer: true, writable: false },
@@ -50,7 +48,7 @@ export const ACCOUNTS_INIT_USER: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * InitLP: 5 accounts
+ * InitLP: 5 accounts (clock/oracle removed in commit 410f947)
  */
 export const ACCOUNTS_INIT_LP: readonly AccountSpec[] = [
   { name: "user", signer: true, writable: false },
@@ -169,6 +167,14 @@ export const ACCOUNTS_SET_RISK_THRESHOLD: readonly AccountSpec[] = [
  */
 export const ACCOUNTS_UPDATE_ADMIN: readonly AccountSpec[] = [
   { name: "admin", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+] as const;
+
+/**
+ * CloseSlab: 2 accounts
+ */
+export const ACCOUNTS_CLOSE_SLAB: readonly AccountSpec[] = [
+  { name: "admin", signer: true, writable: true },
   { name: "slab", signer: false, writable: true },
 ] as const;
 
