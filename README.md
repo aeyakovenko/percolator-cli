@@ -56,18 +56,34 @@ LP (50bps Passive Matcher):
 Insurance Fund: 100 tokens
 ```
 
-### Known Issues
-
-**LP Kind Bug**: There is a known issue where the on-chain `init_lp` instruction does not correctly set the account kind to LP. This causes trade instructions (`trade-cpi` and `trade-nocpi`) to fail with `EngineUnauthorized` error. User initialization, deposits, withdrawals, and the keeper crank work correctly.
-
 ### Working Features
 
-The following operations work on the test market:
+All operations work on the test market:
 
 1. **Initialize user account**: Create a new trading account
 2. **Deposit collateral**: Add tokens to your account
 3. **Withdraw collateral**: Remove tokens (if no open positions)
 4. **Keeper crank**: Update funding and mark prices
+5. **Trading**: Execute trades via `trade-nocpi` or `trade-cpi`
+
+### Important: Keeper Crank Requirement
+
+Risk-increasing trades require a **recent keeper crank**. The crank must have run within the last 200 slots (~80 seconds) for both:
+- Fresh crank check: `last_crank_slot` must be recent
+- Recent sweep check: `last_full_sweep_start_slot` must be recent
+
+The sweep starts at crank step 0 of a 16-step cycle. To ensure trades work, run the keeper crank immediately before trading, or run a keeper bot that cranks frequently.
+
+```bash
+# Run keeper crank before trading
+percolator-cli keeper-crank \
+  --slab <slab-pubkey> \
+  --oracle <oracle-pubkey>
+```
+
+### Known Workarounds
+
+**SBF Struct Layout Bug**: The Solana SBF compiler uses different struct alignment than native x86_64, causing the `kind` field in Account structs to not be reliably written. LP detection now uses `matcher_program != [0; 32]` instead of the `kind` field (LPs always have a matcher_program set, users never do).
 
 ### Testing User Operations
 
@@ -98,12 +114,17 @@ percolator-cli deposit \
   --amount 5000000
 ```
 
-### Trading (Currently Blocked)
+### Trading
 
-Trading is currently blocked due to the LP kind bug mentioned above. Once the on-chain program is updated, you can trade using:
+After depositing collateral, you can trade against the LP. Run a keeper crank first to ensure the sweep is fresh:
 
 ```bash
-# Trade via the 50bps matcher (long 0.1 contracts)
+# Step 1: Run keeper crank (ensures sweep is fresh)
+percolator-cli keeper-crank \
+  --slab 9kcSAbQPzqui1uDt7iZAYHmrUB4bVfnAr4UZPmWMc91T \
+  --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
+
+# Step 2: Trade via the 50bps matcher (long 0.1 contracts)
 percolator-cli trade-cpi \
   --slab 9kcSAbQPzqui1uDt7iZAYHmrUB4bVfnAr4UZPmWMc91T \
   --user-idx <your-idx> \
@@ -111,6 +132,14 @@ percolator-cli trade-cpi \
   --size 100000 \
   --matcher-program 4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy \
   --matcher-ctx EoTftmATkhkvonufshJidvAtzJb13GkpxVaqYWNxUxyk \
+  --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
+
+# Or use trade-nocpi for direct trading without matcher
+percolator-cli trade-nocpi \
+  --slab 9kcSAbQPzqui1uDt7iZAYHmrUB4bVfnAr4UZPmWMc91T \
+  --user-idx <your-idx> \
+  --lp-idx 0 \
+  --size 100000 \
   --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
 ```
 
