@@ -453,9 +453,9 @@ export function parseAccount(data: Buffer, idx: number): Account {
     throw new Error("Slab data too short for account");
   }
 
-  // WORKAROUND: Due to SBF struct layout bug, the kind field is not reliably set.
-  // Detect LP accounts by checking if matcher_program is non-zero (LPs always have
-  // a matcher_program set during init_lp, users never do).
+  // Detect LP accounts by checking if matcher_program is non-zero.
+  // This is more robust than using the kind field because LPs always have
+  // a matcher_program set during init_lp, while users never do.
   const matcherProgramBytes = data.subarray(base + ACCT_MATCHER_PROGRAM_OFF, base + ACCT_MATCHER_PROGRAM_OFF + 32);
   const isLp = !matcherProgramBytes.every((b: number) => b === 0);
   const kind = isLp ? AccountKind.LP : AccountKind.User;

@@ -81,9 +81,9 @@ percolator-cli keeper-crank \
   --oracle <oracle-pubkey>
 ```
 
-### Known Workarounds
+### LP Detection
 
-**SBF Struct Layout Bug**: The Solana SBF compiler uses different struct alignment than native x86_64, causing the `kind` field in Account structs to not be reliably written. LP detection now uses `matcher_program != [0; 32]` instead of the `kind` field (LPs always have a matcher_program set, users never do).
+LP accounts are detected by checking if `matcher_program` is non-zero rather than the `kind` field. This is because LPs always have a `matcher_program` set during `init_lp`, while user accounts never do. This approach is more robust and works regardless of how the account was created.
 
 ### Testing User Operations
 
