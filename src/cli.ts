@@ -17,6 +17,7 @@ import { registerSetRiskThreshold } from "./commands/set-risk-threshold.js";
 import { registerUpdateAdmin } from "./commands/update-admin.js";
 import { registerCloseSlab } from "./commands/close-slab.js";
 import { registerCloseAllSlabs } from "./commands/close-all-slabs.js";
+import { registerListMarkets } from "./commands/list-markets.js";
 import { registerSlabGet } from "./commands/slab-get.js";
 import { registerSlabHeader } from "./commands/slab-header.js";
 import { registerSlabConfig } from "./commands/slab-config.js";
@@ -65,6 +66,7 @@ export function createCli(): Command {
   registerUpdateAdmin(program);
   registerCloseSlab(program);
   registerCloseAllSlabs(program);
+  registerListMarkets(program);
   registerSlabGet(program);
   registerSlabHeader(program);
   registerSlabConfig(program);
