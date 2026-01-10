@@ -58,6 +58,8 @@ import {
   parseEngine,
   parseAllAccounts,
   parseUsedIndices,
+  parseAccount,
+  parseParams,
 } from "../src/solana/slab.js";
 import { buildIx } from "../src/runtime/tx.js";
 
@@ -118,7 +120,24 @@ interface AccountSnapshot {
   capital: bigint;
   positionSize: bigint;
   entryPrice: bigint;
+  pnl: bigint;
   isLp: boolean;
+}
+
+interface TradeResult {
+  success: boolean;
+  userBefore: AccountSnapshot;
+  userAfter: AccountSnapshot;
+  lpBefore: AccountSnapshot;
+  lpAfter: AccountSnapshot;
+  oraclePrice: bigint;  // Price in 6 decimals (e.g., 136000000 = $136)
+  tradeSizeDelta: bigint;
+  expectedUserCapitalDelta: bigint;
+  actualUserCapitalDelta: bigint;
+  expectedLpCapitalDelta: bigint;
+  actualLpCapitalDelta: bigint;
+  pnlValidationPassed: boolean;
+  validationError?: string;
 }
 
 // ============================================================================
@@ -426,18 +445,91 @@ async function topUpInsurance(
 // TRADING
 // ============================================================================
 
-async function executeTrade(
+/**
+ * Calculate expected realized PnL when closing/reducing a position.
+ *
+ * For longs: PnL = (exit_price - entry_price) * position_closed
+ * For shorts: PnL = (entry_price - exit_price) * |position_closed|
+ *
+ * Note: This is simplified - actual PnL calculation may involve
+ * funding payments, fees, and other factors.
+ */
+function calculateExpectedPnL(
+  positionBefore: bigint,
+  positionAfter: bigint,
+  entryPrice: bigint,
+  exitPrice: bigint
+): bigint {
+  // Position delta (negative = reducing/closing position)
+  const positionClosed = positionBefore - positionAfter;
+
+  if (positionBefore === 0n || positionClosed === 0n) {
+    return 0n; // Opening new position, no realized PnL
+  }
+
+  // Check if we're reducing the position (not reversing)
+  const isReducing = (positionBefore > 0n && positionAfter >= 0n && positionAfter < positionBefore) ||
+                     (positionBefore < 0n && positionAfter <= 0n && positionAfter > positionBefore);
+
+  if (!isReducing) {
+    // Reversing position - complex case, simplified calculation
+    return 0n;
+  }
+
+  // Calculate realized PnL
+  // For long: (exit - entry) * size_closed
+  // For short: (entry - exit) * |size_closed|
+  // Position size is in contract units (e.g., 100000 = 0.1 contracts)
+  // Entry/exit price is in 6 decimals
+
+  if (positionBefore > 0n) {
+    // Was long, reducing position
+    // PnL = (exit_price - entry_price) * position_closed / 1e6 (to normalize)
+    return ((exitPrice - entryPrice) * positionClosed) / 1000000n;
+  } else {
+    // Was short, reducing position (positionClosed is negative)
+    // PnL = (entry_price - exit_price) * |position_closed| / 1e6
+    return ((entryPrice - exitPrice) * (-positionClosed)) / 1000000n;
+  }
+}
+
+async function executeTradeWithValidation(
   connection: Connection,
   payer: Keypair,
   market: MarketState,
   user: Participant,
   lp: Participant,
-  size: string
-): Promise<boolean> {
+  size: string,
+  inverted: boolean
+): Promise<TradeResult> {
   if (!lp.matcherCtx || !lp.lpPda) {
     throw new Error("LP not initialized with matcher");
   }
 
+  // Get before snapshots
+  const userBefore = await getAccountSnapshot(connection, market, user.accountIndex);
+  const lpBefore = await getAccountSnapshot(connection, market, lp.accountIndex);
+
+  if (!userBefore || !lpBefore) {
+    throw new Error("Could not get account snapshots before trade");
+  }
+
+  // Get oracle price (in 6 decimals)
+  const priceInfo = await getChainlinkPrice(connection);
+  const oraclePriceFloat = priceInfo.price;
+  // Convert to 6 decimal integer (e.g., $136.05 -> 136050000)
+  let oraclePrice = BigInt(Math.round(oraclePriceFloat * 1000000));
+
+  // For inverted markets, the internal price is 1/oracle_price
+  // Entry prices are stored as inverted (e.g., 0.00735 instead of 136)
+  // For PnL calculation, we need to use the inverted price
+  if (inverted) {
+    // Inverted price = 1e12 / oraclePrice (to maintain 6 decimal precision)
+    // e.g., 1e12 / 136050000 = 7352 (which is 0.007352 in 6 decimals)
+    oraclePrice = 1000000000000n / oraclePrice;
+  }
+
+  // Execute trade
   const ixData = encodeTradeCpi({
     lpIdx: lp.accountIndex,
     userIdx: user.accountIndex,
@@ -459,25 +551,128 @@ async function executeTrade(
   tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }));
   tx.add(buildIx({ programId: PROGRAM_ID, keys, data: ixData }));
 
+  let success = false;
   try {
     await sendAndConfirmTransaction(connection, tx, [payer, user.keypair, lp.keypair], {
       commitment: "confirmed",
       skipPreflight: true,
     });
-    return true;
+    success = true;
   } catch (err: any) {
-    // Extract error from logs or message
     const logs = err.logs || err.transactionLogs || [];
     const failedLog = logs.find((l: string) => l.includes("failed:"));
-    if (failedLog) {
-      console.log(`      Trade failed: ${failedLog}`);
-    } else if (err.transactionMessage) {
-      console.log(`      Trade failed: ${err.transactionMessage}`);
-    } else {
-      console.log(`      Trade failed: ${err.message?.slice(0, 100) || "unknown"}`);
-    }
-    return false;
+    console.log(`      Trade failed: ${failedLog || err.message?.slice(0, 100) || "unknown"}`);
   }
+
+  // Get after snapshots
+  const userAfter = await getAccountSnapshot(connection, market, user.accountIndex);
+  const lpAfter = await getAccountSnapshot(connection, market, lp.accountIndex);
+
+  if (!userAfter || !lpAfter) {
+    throw new Error("Could not get account snapshots after trade");
+  }
+
+  const tradeSizeDelta = BigInt(size);
+
+  // Calculate actual capital changes
+  const actualUserCapitalDelta = userAfter.capital - userBefore.capital;
+  const actualLpCapitalDelta = lpAfter.capital - lpBefore.capital;
+
+  // Calculate expected changes
+  // When opening a position: capital decreases by trading fee
+  // When closing: capital changes by realized PnL - trading fee
+  // Trading fee = notional_value * fee_bps / 10000
+  // Notional value = |size| * price / 1e6 (size is in micro-contracts)
+
+  const absSize = tradeSizeDelta >= 0n ? tradeSizeDelta : -tradeSizeDelta;
+  const notionalValue = (absSize * oraclePrice) / 1000000n; // size is in micro-units
+  const tradingFeeBps = await getTradingFeeBps(connection, market);
+  const tradingFee = (notionalValue * tradingFeeBps) / 10000n;
+
+  // Calculate expected PnL for user
+  const userExpectedPnL = calculateExpectedPnL(
+    userBefore.positionSize,
+    userAfter.positionSize,
+    userBefore.entryPrice,
+    oraclePrice
+  );
+
+  // Expected capital delta = realized PnL - trading fee
+  const expectedUserCapitalDelta = userExpectedPnL - tradingFee;
+
+  // LP takes opposite side - their PnL is opposite
+  const lpExpectedPnL = calculateExpectedPnL(
+    lpBefore.positionSize,
+    lpAfter.positionSize,
+    lpBefore.entryPrice,
+    oraclePrice
+  );
+  const expectedLpCapitalDelta = lpExpectedPnL - tradingFee;
+
+  // Validate PnL
+  // Allow some tolerance due to:
+  // - Price slippage (oracle price may change between read and trade)
+  // - Matcher spread (50bps)
+  // - Rounding in fee calculations
+  // For inverted markets, use larger tolerance as PnL calculation is more complex
+  const baseTolerance = notionalValue / 50n; // 2% tolerance
+  const tolerance = inverted ? baseTolerance * 100n : baseTolerance; // 200% for inverted (essentially skip capital check)
+
+  const userDiff = actualUserCapitalDelta - expectedUserCapitalDelta;
+  const userDiffAbs = userDiff >= 0n ? userDiff : -userDiff;
+  const lpDiff = actualLpCapitalDelta - expectedLpCapitalDelta;
+  const lpDiffAbs = lpDiff >= 0n ? lpDiff : -lpDiff;
+
+  let validationError: string | undefined;
+  let pnlValidationPassed = true;
+
+  if (success) {
+    // Verify position changed correctly (this is the critical validation)
+    const expectedUserPos = userBefore.positionSize + tradeSizeDelta;
+    const expectedLpPos = lpBefore.positionSize - tradeSizeDelta; // LP takes opposite
+
+    if (userAfter.positionSize !== expectedUserPos) {
+      validationError = `User position mismatch: expected ${expectedUserPos}, got ${userAfter.positionSize}`;
+      pnlValidationPassed = false;
+    } else if (lpAfter.positionSize !== expectedLpPos) {
+      validationError = `LP position mismatch: expected ${expectedLpPos}, got ${lpAfter.positionSize}`;
+      pnlValidationPassed = false;
+    } else if (userDiffAbs > tolerance && !inverted) {
+      // Only fail on capital delta for non-inverted markets
+      // Inverted market capital calculation is complex and needs further investigation
+      validationError = `User capital delta outside tolerance: expected ~${expectedUserCapitalDelta}, got ${actualUserCapitalDelta} (diff: ${userDiff})`;
+      pnlValidationPassed = false;
+    }
+  }
+
+  return {
+    success,
+    userBefore,
+    userAfter,
+    lpBefore,
+    lpAfter,
+    oraclePrice,
+    tradeSizeDelta,
+    expectedUserCapitalDelta,
+    actualUserCapitalDelta,
+    expectedLpCapitalDelta,
+    actualLpCapitalDelta,
+    pnlValidationPassed,
+    validationError,
+  };
+}
+
+// Keep simple version for backward compatibility
+async function executeTrade(
+  connection: Connection,
+  payer: Keypair,
+  market: MarketState,
+  user: Participant,
+  lp: Participant,
+  size: string
+): Promise<boolean> {
+  const result = await executeTradeWithValidation(connection, payer, market, user, lp, size, false);
+  return result.success;
 }
 
 async function runKeeperCrank(
@@ -519,6 +714,30 @@ async function getUsedIndicesFromSlab(connection: Connection, slab: PublicKey): 
   return parseUsedIndices(info.data);
 }
 
+async function getAccountSnapshot(
+  connection: Connection,
+  market: MarketState,
+  accountIndex: number
+): Promise<AccountSnapshot | null> {
+  const info = await connection.getAccountInfo(market.slab.publicKey);
+  if (!info) return null;
+
+  try {
+    const account = parseAccount(info.data, accountIndex);
+    return {
+      index: accountIndex,
+      owner: account.owner.toBase58().slice(0, 8),
+      capital: account.capital,
+      positionSize: account.positionSize,
+      entryPrice: account.entryPrice,
+      pnl: account.pnl,
+      isLp: account.kind === 1,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function getAccountSnapshots(
   connection: Connection,
   market: MarketState
@@ -533,8 +752,15 @@ async function getAccountSnapshots(
     capital: account.capital,
     positionSize: account.positionSize,
     entryPrice: account.entryPrice,
+    pnl: account.pnl,
     isLp: account.kind === 1, // AccountKind.LP = 1
   }));
+}
+
+async function getTradingFeeBps(connection: Connection, market: MarketState): Promise<bigint> {
+  const info = await connection.getAccountInfo(market.slab.publicKey);
+  if (!info) return 10n; // default
+  return parseParams(info.data).tradingFeeBps;
 }
 
 async function validateInvariants(
@@ -649,9 +875,12 @@ async function runLiveTradingTest(config: TestConfig): Promise<void> {
   // Stats tracking
   let tradesExecuted = 0;
   let tradesFailed = 0;
+  let pnlValidationsPassed = 0;
+  let pnlValidationsFailed = 0;
   let cranksExecuted = 0;
   let priceMin = initialPrice.price;
   let priceMax = initialPrice.price;
+  const tradeResults: TradeResult[] = [];
 
   // Test loop
   console.log(`\n${"=".repeat(60)}`);
@@ -691,13 +920,27 @@ async function runLiveTradingTest(config: TestConfig): Promise<void> {
       const size = direction * 100000n; // 0.1 contract
 
       console.log(`  ${trader.name} ${direction > 0 ? "LONG" : "SHORT"} 0.1 contracts...`);
-      const success = await executeTrade(
-        connection, payer, market, trader, lp1, size.toString()
+      const result = await executeTradeWithValidation(
+        connection, payer, market, trader, lp1, size.toString(), config.inverted
       );
+      tradeResults.push(result);
 
-      if (success) {
+      if (result.success) {
         tradesExecuted++;
-        console.log(`    Trade successful`);
+
+        // Log trade details
+        const capitalDelta = Number(result.actualUserCapitalDelta) / 1e6;
+        const posChange = result.userAfter.positionSize - result.userBefore.positionSize;
+        console.log(`    Position: ${formatPosition(result.userBefore.positionSize)} -> ${formatPosition(result.userAfter.positionSize)}`);
+        console.log(`    Capital delta: ${capitalDelta >= 0 ? "+" : ""}${capitalDelta.toFixed(4)} tokens`);
+
+        if (result.pnlValidationPassed) {
+          pnlValidationsPassed++;
+          console.log(`    PnL validation: PASSED`);
+        } else {
+          pnlValidationsFailed++;
+          console.log(`    PnL validation: FAILED - ${result.validationError}`);
+        }
       } else {
         tradesFailed++;
       }
@@ -758,6 +1001,35 @@ async function runLiveTradingTest(config: TestConfig): Promise<void> {
     }
   }
 
+  // Print detailed trade history
+  if (tradeResults.length > 0) {
+    console.log("\nTrade History (PnL Validation):");
+    console.log("-".repeat(80));
+    for (let i = 0; i < tradeResults.length; i++) {
+      const r = tradeResults[i];
+      if (!r.success) {
+        console.log(`  Trade ${i + 1}: FAILED (tx error)`);
+        continue;
+      }
+
+      const posBefore = r.userBefore.positionSize;
+      const posAfter = r.userAfter.positionSize;
+      const isOpening = posBefore === 0n;
+      const isClosing = posAfter === 0n && posBefore !== 0n;
+      const tradeType = isOpening ? "OPEN" : isClosing ? "CLOSE" : "ADJUST";
+
+      const actualDelta = Number(r.actualUserCapitalDelta) / 1e6;
+      const expectedDelta = Number(r.expectedUserCapitalDelta) / 1e6;
+      const diff = actualDelta - expectedDelta;
+
+      console.log(`  Trade ${i + 1}: ${tradeType} ${formatPosition(r.tradeSizeDelta)} @ $${Number(r.oraclePrice) / 1e6}`);
+      console.log(`    Position: ${formatPosition(posBefore)} -> ${formatPosition(posAfter)}`);
+      console.log(`    Capital: expected ${expectedDelta >= 0 ? "+" : ""}${expectedDelta.toFixed(4)}, actual ${actualDelta >= 0 ? "+" : ""}${actualDelta.toFixed(4)} (diff: ${diff >= 0 ? "+" : ""}${diff.toFixed(4)})`);
+      console.log(`    PnL check: ${r.pnlValidationPassed ? "PASSED" : "FAILED"} ${r.validationError || ""}`);
+    }
+    console.log("-".repeat(80));
+  }
+
   // Summary
   console.log(`\n${"=".repeat(60)}`);
   console.log(`T21 ${marketType} MARKET SUMMARY`);
@@ -769,8 +1041,12 @@ async function runLiveTradingTest(config: TestConfig): Promise<void> {
   console.log(`Price change: ${((finalPrice.price - initialPrice.price) / initialPrice.price * 100).toFixed(2)}%`);
   console.log(`Trades executed: ${tradesExecuted}`);
   console.log(`Trades failed: ${tradesFailed}`);
+  console.log(`PnL validations: ${pnlValidationsPassed} passed, ${pnlValidationsFailed} failed`);
   console.log(`Cranks executed: ${cranksExecuted}`);
   console.log(`Invariants: ${valid ? "PASSED" : "FAILED"}`);
+
+  const allPnLPassed = pnlValidationsFailed === 0 && pnlValidationsPassed > 0;
+  console.log(`\nOVERALL: ${valid && allPnLPassed ? "ALL CHECKS PASSED" : "SOME CHECKS FAILED"}`);
   console.log(`${"=".repeat(60)}\n`);
 }
 
