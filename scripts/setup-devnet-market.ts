@@ -29,10 +29,9 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
-  createMint,
   getOrCreateAssociatedTokenAccount,
-  mintTo,
   TOKEN_PROGRAM_ID,
+  NATIVE_MINT,
 } from "@solana/spl-token";
 import * as fs from "fs";
 import {
@@ -69,10 +68,9 @@ const MATCHER_CTX_SIZE = 320;
 // Market parameters
 const SLAB_SIZE = 1107176;
 
-// Funding amounts (in tokens with 6 decimals)
-const INSURANCE_FUND_AMOUNT = 100_000_000n;  // 100 tokens
-const LP_COLLATERAL_AMOUNT = 10_000_000n;    // 10 tokens
-const ADMIN_MINT_AMOUNT = 200_000_000n;      // 200 tokens total to mint
+// Funding amounts (in lamports with 9 decimals for wrapped SOL)
+const INSURANCE_FUND_AMOUNT = 100_000_000n;  // 0.1 SOL
+const LP_COLLATERAL_AMOUNT = 100_000_000n;   // 0.1 SOL
 
 // ============================================================================
 // HELPERS
@@ -133,10 +131,10 @@ async function main() {
     console.log("  Oracle is FRESH");
   }
 
-  // Create collateral mint
-  console.log("\nStep 2: Creating collateral mint...");
-  const mint = await createMint(connection, payer, payer.publicKey, null, 6);
-  console.log(`  Mint: ${mint.toBase58()}`);
+  // Use wrapped SOL as collateral
+  console.log("\nStep 2: Using wrapped SOL as collateral...");
+  const mint = NATIVE_MINT;
+  console.log(`  Mint: ${mint.toBase58()} (Wrapped SOL)`);
 
   // Create slab account
   console.log("\nStep 3: Creating slab account...");
@@ -185,7 +183,7 @@ async function main() {
     initialMarginBps: "1000",        // 10% initial margin
     tradingFeeBps: "10",             // 0.1% trading fee
     maxAccounts: "1024",             // Allow many accounts
-    newAccountFee: "1000000",        // 1 token to create account
+    newAccountFee: "1000000",        // 0.001 SOL to create account
     riskReductionThreshold: "0",
     maintenanceFeePerSlot: "0",
     maxCrankStalenessSlots: "200",
@@ -229,13 +227,27 @@ async function main() {
   await sendAndConfirmTransaction(connection, crankTx, [payer], { commitment: "confirmed", skipPreflight: true });
   console.log("  Keeper crank executed");
 
-  // Create admin token account and mint tokens
-  console.log("\nStep 6: Minting collateral tokens...");
+  // Create admin wrapped SOL account and fund it
+  console.log("\nStep 6: Creating admin wrapped SOL account...");
   const adminAta = await getOrCreateAssociatedTokenAccount(
     connection, payer, mint, payer.publicKey
   );
-  await mintTo(connection, payer, mint, adminAta.address, payer, ADMIN_MINT_AMOUNT);
-  console.log(`  Minted ${Number(ADMIN_MINT_AMOUNT) / 1e6} tokens to admin`);
+  // Fund admin ATA with wrapped SOL for LP collateral + insurance + fees
+  const wrapAmount = 0.5 * LAMPORTS_PER_SOL;  // 0.5 SOL
+  const wrapTx = new Transaction();
+  wrapTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
+  wrapTx.add(SystemProgram.transfer({
+    fromPubkey: payer.publicKey,
+    toPubkey: adminAta.address,
+    lamports: wrapAmount,
+  }));
+  wrapTx.add({
+    programId: TOKEN_PROGRAM_ID,
+    keys: [{ pubkey: adminAta.address, isSigner: false, isWritable: true }],
+    data: Buffer.from([17]),  // SyncNative instruction
+  });
+  await sendAndConfirmTransaction(connection, wrapTx, [payer], { commitment: "confirmed" });
+  console.log(`  Wrapped ${wrapAmount / LAMPORTS_PER_SOL} SOL to admin ATA`);
 
   // Create LP with 50bps matcher
   console.log("\nStep 7: Creating LP with 50bps passive matcher...");
@@ -283,7 +295,7 @@ async function main() {
   const initLpData = encodeInitLP({
     matcherProgram: MATCHER_PROGRAM_ID,
     matcherContext: matcherCtxKp.publicKey,
-    feePayment: "2000000",  // 2 tokens
+    feePayment: "2000000",  // 0.002 SOL
   });
   const initLpKeys = buildAccountMetas(ACCOUNTS_INIT_LP, [
     payer.publicKey,
@@ -314,7 +326,7 @@ async function main() {
   depositTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
   depositTx.add(buildIx({ programId: PROGRAM_ID, keys: depositKeys, data: depositData }));
   await sendAndConfirmTransaction(connection, depositTx, [payer], { commitment: "confirmed" });
-  console.log(`  Deposited ${Number(LP_COLLATERAL_AMOUNT) / 1e6} tokens to LP`);
+  console.log(`  Deposited ${Number(LP_COLLATERAL_AMOUNT) / 1e9} SOL to LP`);
 
   // Top up insurance fund
   console.log("\nStep 9: Topping up insurance fund...");
@@ -331,7 +343,7 @@ async function main() {
   topupTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
   topupTx.add(buildIx({ programId: PROGRAM_ID, keys: topupKeys, data: topupData }));
   await sendAndConfirmTransaction(connection, topupTx, [payer], { commitment: "confirmed" });
-  console.log(`  Insurance fund topped up with ${Number(INSURANCE_FUND_AMOUNT) / 1e6} tokens`);
+  console.log(`  Insurance fund topped up with ${Number(INSURANCE_FUND_AMOUNT) / 1e9} SOL`);
 
   // Verify final state
   console.log("\nStep 10: Verifying market state...");
@@ -344,7 +356,7 @@ async function main() {
     console.log(`  Version: ${header.version}`);
     console.log(`  Admin: ${header.admin.toBase58()}`);
     console.log(`  Inverted: ${config.invert === 1 ? "Yes" : "No"}`);
-    console.log(`  Insurance fund: ${Number(engine.insuranceFund.balance) / 1e6} tokens`);
+    console.log(`  Insurance fund: ${Number(engine.insuranceFund.balance) / 1e9} SOL`);
     console.log(`  Risk reduction mode: ${engine.riskReductionOnly ? "Yes" : "No"}`);
   }
 
@@ -365,9 +377,9 @@ async function main() {
       index: lpIndex,
       pda: lpPda.toBase58(),
       matcherContext: matcherCtxKp.publicKey.toBase58(),
-      collateral: Number(LP_COLLATERAL_AMOUNT) / 1e6,
+      collateral: Number(LP_COLLATERAL_AMOUNT) / 1e9,
     },
-    insuranceFund: Number(INSURANCE_FUND_AMOUNT) / 1e6,
+    insuranceFund: Number(INSURANCE_FUND_AMOUNT) / 1e9,
     admin: payer.publicKey.toBase58(),
     adminAta: adminAta.address.toBase58(),
   };
@@ -391,9 +403,9 @@ LP (50bps Passive Matcher):
   Index:          ${lpIndex}
   PDA:            ${lpPda.toBase58()}
   Matcher Ctx:    ${matcherCtxKp.publicKey.toBase58()}
-  Collateral:     ${Number(LP_COLLATERAL_AMOUNT) / 1e6} tokens
+  Collateral:     ${Number(LP_COLLATERAL_AMOUNT) / 1e9} SOL
 
-Insurance Fund:   ${Number(INSURANCE_FUND_AMOUNT) / 1e6} tokens
+Insurance Fund:   ${Number(INSURANCE_FUND_AMOUNT) / 1e9} SOL
 
 Admin:            ${payer.publicKey.toBase58()}
 Admin ATA:        ${adminAta.address.toBase58()}

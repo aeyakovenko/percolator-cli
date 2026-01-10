@@ -1,0 +1,22 @@
+{
+  "network": "devnet",
+  "createdAt": "2026-01-10T23:33:39.943Z",
+  "programId": "AT2XFGzcQ2vVHkW5xpnqhs8NvfCUq5EmEcky5KE9EhnA",
+  "matcherProgramId": "4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy",
+  "slab": "CWaDTsGp6ArBBnMmbFkZ7BU1SzDdbMSzCRPRRvnHVRwm",
+  "mint": "So11111111111111111111111111111111111111112",
+  "vault": "3ebwFoQttP7NuNDL6fvxcJd7CKChs2exosazhADp4LM8",
+  "vaultPda": "8dTr6YJt5MLRawhbqnUR3N5fJ3ne3Z1WNWqLV6fcH5Jw",
+  "oracle": "99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR",
+  "oracleType": "chainlink",
+  "inverted": true,
+  "lp": {
+    "index": 0,
+    "pda": "7N9YKkZA1FzURTfEuAZDGvpPCPeSnME78MQ3kH1s5Gku",
+    "matcherContext": "Fc7SZMLEcNh24K4pjGuYsdaJkbQWB7hVrUtZbZ63yL4Q",
+    "collateral": 0.1
+  },
+  "insuranceFund": 0.1,
+  "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+  "adminAta": "7PTXsfTKCpQHPKZTsU1Mrdb3bwtExDeJGUmkaqkEbCrb"
+}
