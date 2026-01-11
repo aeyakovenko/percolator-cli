@@ -4,6 +4,7 @@ Command-line interface for interacting with the Percolator perpetuals protocol o
 
 ## Related Repositories
 
+- [percolator](https://github.com/aeyakovenko/percolator) - Risk engine library
 - [percolator-prog](https://github.com/aeyakovenko/percolator-prog) - Main Percolator program (Solana smart contract)
 - [percolator-match](https://github.com/aeyakovenko/percolator-match) - Passive LP matcher program (50bps spread)
 
