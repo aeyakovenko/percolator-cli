@@ -355,7 +355,7 @@ The program auto-detects oracle type by checking the account owner.
 
 ### Inverted Markets
 
-Inverted markets use `1/price` internally. This is useful for markets like SOL/USD where you want to trade SOL-denominated positions with USD-denominated collateral.
+Inverted markets use `1/price` internally. This is useful for markets like SOL/USD where you want SOL-denominated collateral and let users take long/short USD positions. Going long = long USD (profit if SOL drops), going short = short USD (profit if SOL rises).
 
 ### Matchers
 
