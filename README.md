@@ -87,10 +87,6 @@ percolator-cli keeper-crank \
   --oracle <oracle-pubkey>
 ```
 
-### LP Detection
-
-LP accounts are detected by checking if `matcher_program` is non-zero rather than the `kind` field. This is because LPs always have a `matcher_program` set during `init_lp`, while user accounts never do. This approach is more robust and works regardless of how the account was created.
-
 ### Testing User Operations
 
 #### Step 1: Get devnet SOL
