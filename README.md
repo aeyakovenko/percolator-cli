@@ -2,6 +2,11 @@
 
 Command-line interface for interacting with the Percolator perpetuals protocol on Solana.
 
+## Related Repositories
+
+- [percolator-prog](https://github.com/aeyakovenko/percolator-prog) - Main Percolator program (Solana smart contract)
+- [percolator-match](https://github.com/aeyakovenko/percolator-match) - Passive LP matcher program (50bps spread)
+
 ## Disclaimer
 
 **FOR EDUCATIONAL PURPOSES ONLY**
