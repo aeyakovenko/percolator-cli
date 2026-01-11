@@ -51,9 +51,9 @@ LP (50bps Passive Matcher):
   Index:        0
   PDA:          7N9YKkZA1FzURTfEuAZDGvpPCPeSnME78MQ3kH1s5Gku
   Matcher Ctx:  Fc7SZMLEcNh24K4pjGuYsdaJkbQWB7hVrUtZbZ63yL4Q
-  Collateral:   0.1 SOL
+  Collateral:   10 SOL
 
-Insurance Fund: 0.1 SOL
+Insurance Fund: 100 SOL
 ```
 
 ### Working Features

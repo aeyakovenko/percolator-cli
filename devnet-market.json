@@ -14,9 +14,9 @@
     "index": 0,
     "pda": "7N9YKkZA1FzURTfEuAZDGvpPCPeSnME78MQ3kH1s5Gku",
     "matcherContext": "Fc7SZMLEcNh24K4pjGuYsdaJkbQWB7hVrUtZbZ63yL4Q",
-    "collateral": 0.1
+    "collateral": 10
   },
-  "insuranceFund": 0.1,
+  "insuranceFund": 100,
   "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "adminAta": "7PTXsfTKCpQHPKZTsU1Mrdb3bwtExDeJGUmkaqkEbCrb"
 }
