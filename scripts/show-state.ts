@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { parseUsedIndices, parseAccount } from '../src/solana/slab.js';
+import { parseUsedIndices, parseAccount, parseEngine } from '../src/solana/slab.js';
 
 const conn = new Connection('https://api.devnet.solana.com');
 const SLAB = new PublicKey('CWaDTsGp6ArBBnMmbFkZ7BU1SzDdbMSzCRPRRvnHVRwm');
@@ -9,9 +9,11 @@ async function main() {
   if (!info) throw new Error('Slab not found');
 
   const usedIndices = parseUsedIndices(info.data);
+  const engine = parseEngine(info.data);
 
   console.log('=== Wrapped SOL Market State ===');
   console.log('Slab:', SLAB.toBase58());
+  console.log('Insurance Fund:', (Number(engine.insuranceFund.balance) / 1e9).toFixed(4), 'SOL');
   console.log('Used indices:', usedIndices);
   console.log('');
 
