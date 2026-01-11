@@ -174,8 +174,9 @@ Matchers are programs that determine trade pricing. The 50bps passive matcher ac
 
 A matcher program must implement:
 
-1. **Init instruction** (discriminator: `0x01`): Initialize matcher context
-2. **Match instruction** (discriminator: `0x00`): Called by percolator during `trade-cpi`
+1. **Match instruction** (discriminator: `0x00`): Called by percolator during `trade-cpi`
+
+Initialization is up to you - the percolator program never calls init. You can use any custom init function to set up your matcher context.
 
 ### Creating a Custom Matcher
 
@@ -199,11 +200,7 @@ fn process_instruction(
             // Return Ok(()) to accept, Err to reject
             Ok(())
         }
-        0x01 => {
-            // Init instruction - set up context
-            // LP PDA is accounts[0], context is accounts[1]
-            Ok(())
-        }
+        // Add your own init instruction(s) as needed
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
