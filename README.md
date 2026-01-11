@@ -119,6 +119,22 @@ percolator-cli deposit \
   --amount 50000000
 ```
 
+### Check Best Prices
+
+Before trading, you can scan available LPs to find the best prices:
+
+```bash
+percolator-cli best-price \
+  --slab CWaDTsGp6ArBBnMmbFkZ7BU1SzDdbMSzCRPRRvnHVRwm \
+  --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
+```
+
+This shows:
+- All LPs with their bid/ask quotes
+- Best buy price (lowest ask)
+- Best sell price (highest bid)
+- Effective spread
+
 ### Trading
 
 After depositing collateral, you can trade against the LP. Run a keeper crank first to ensure the sweep is fresh:
