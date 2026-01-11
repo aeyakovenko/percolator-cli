@@ -22,7 +22,7 @@ async function main() {
         const kind = account.kind === 1 ? 'LP' : 'User';
         console.log(`Account ${idx} (${kind}):`);
         console.log('  Owner:', account.owner.toBase58().slice(0, 20) + '...');
-        console.log('  Position:', account.position?.toString() ?? 'N/A');
+        console.log('  Position:', account.positionSize?.toString() ?? 'N/A');
         console.log('  Capital:', account.capital ? (Number(account.capital) / 1e9).toFixed(6) + ' SOL' : 'N/A');
       }
     } catch (e: any) {
