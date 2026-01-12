@@ -4,6 +4,7 @@ import {
   encU16,
   encU32,
   encU64,
+  encI64,
   encU128,
   encI128,
   encPubkey,
@@ -27,6 +28,7 @@ export const IX_TAG = {
   SetRiskThreshold: 11,
   UpdateAdmin: 12,
   CloseSlab: 13,
+  UpdateConfig: 14,
 } as const;
 
 /**
@@ -282,4 +284,45 @@ export function encodeUpdateAdmin(args: UpdateAdminArgs): Buffer {
  */
 export function encodeCloseSlab(): Buffer {
   return encU8(IX_TAG.CloseSlab);
+}
+
+/**
+ * UpdateConfig instruction data
+ * Updates funding and threshold parameters at runtime (admin only)
+ */
+export interface UpdateConfigArgs {
+  // Funding parameters
+  fundingHorizonSlots: bigint | string;
+  fundingKBps: bigint | string;
+  fundingInvScaleNotionalE6: bigint | string;
+  fundingMaxPremiumBps: bigint | string;
+  fundingMaxBpsPerSlot: bigint | string;
+  // Threshold parameters
+  threshFloor: bigint | string;
+  threshRiskBps: bigint | string;
+  threshUpdateIntervalSlots: bigint | string;
+  threshStepBps: bigint | string;
+  threshAlphaBps: bigint | string;
+  threshMin: bigint | string;
+  threshMax: bigint | string;
+  threshMinStep: bigint | string;
+}
+
+export function encodeUpdateConfig(args: UpdateConfigArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.UpdateConfig),
+    encU64(args.fundingHorizonSlots),
+    encU64(args.fundingKBps),
+    encU128(args.fundingInvScaleNotionalE6),
+    encI64(args.fundingMaxPremiumBps),
+    encI64(args.fundingMaxBpsPerSlot),
+    encU128(args.threshFloor),
+    encU64(args.threshRiskBps),
+    encU64(args.threshUpdateIntervalSlots),
+    encU64(args.threshStepBps),
+    encU64(args.threshAlphaBps),
+    encU128(args.threshMin),
+    encU128(args.threshMax),
+    encU128(args.threshMinStep),
+  ]);
 }

@@ -5,13 +5,23 @@ import * as fs from "fs";
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 const market = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
 const slab = new PublicKey(market.slab);
-const ENGINE_OFF = 216;
+const ENGINE_OFF = 328;
 const ENGINE_ACCOUNTS_OFF = 91160;
 const ACCOUNT_SIZE = 248;
 
 async function main() {
   const info = await connection.getAccountInfo(slab);
   if (!info) { console.log("Not found"); return; }
+
+  // Dump engine header (first 100 bytes after ENGINE_OFF)
+  console.log("=== Engine Header ===");
+  console.log("ENGINE_OFF =", ENGINE_OFF);
+  for (let i = 0; i < 100; i += 8) {
+    let hex = "";
+    for (let j = 0; j < 8 && i+j < 100; j++) hex += info.data[ENGINE_OFF+i+j].toString(16).padStart(2,'0') + " ";
+    const val = info.data.readBigUInt64LE(ENGINE_OFF + i);
+    console.log("  @" + i.toString().padStart(3) + ": " + hex + "(u64=" + val + ")");
+  }
 
   // Parse all accounts
   const indices = parseUsedIndices(info.data);

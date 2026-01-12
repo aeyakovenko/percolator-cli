@@ -1,10 +1,16 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
-// Constants from Rust (verified via verify-layout.cjs against devnet 2024-01)
+// Constants from Rust (updated for funding/threshold params 2026-01)
 const MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
 const HEADER_LEN = 72;    // SlabHeader: magic(8) + version(4) + bump(1) + _padding(3) + admin(32) + _reserved(24)
 const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
-const CONFIG_LEN = 144;   // MarketConfig: collateral_mint(32) + vault_pubkey(32) + _reserved(32) + index_feed_id(32) + max_staleness_secs(8) + conf_filter_bps(2) + bump(1) + invert(1) + unit_scale(4)
+// MarketConfig: collateral_mint(32) + vault_pubkey(32) + index_feed_id(32) + max_staleness_secs(8) +
+//               conf_filter_bps(2) + bump(1) + invert(1) + unit_scale(4) +
+//               funding_horizon_slots(8) + funding_k_bps(8) + funding_inv_scale_notional_e6(16) +
+//               funding_max_premium_bps(8) + funding_max_bps_per_slot(8) +
+//               thresh_floor(16) + thresh_risk_bps(8) + thresh_update_interval_slots(8) +
+//               thresh_step_bps(8) + thresh_alpha_bps(8) + thresh_min(16) + thresh_max(16) + thresh_min_step(16)
+const CONFIG_LEN = 256;
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 /**
@@ -156,10 +162,10 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 }
 
 // =============================================================================
-// RiskEngine Layout Constants (verified via verify-layout.cjs against devnet 2024-01)
-// ENGINE_OFF = HEADER_LEN + CONFIG_LEN = 72 + 144 = 216
+// RiskEngine Layout Constants (updated for funding/threshold params 2026-01)
+// ENGINE_OFF = HEADER_LEN + CONFIG_LEN = 72 + 256 = 328
 // =============================================================================
-const ENGINE_OFF = 216;
+const ENGINE_OFF = 328;
 // RiskEngine struct layout (repr(C), SBF uses 8-byte alignment for u128):
 // - vault: u128 (16 bytes) at offset 0
 // - insurance_fund: InsuranceFund { balance: u128, fee_revenue: u128 } (32 bytes) at offset 16

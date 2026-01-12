@@ -29,6 +29,7 @@ import { registerSlabAccounts } from "./commands/slab-accounts.js";
 import { registerSlabBitmap } from "./commands/slab-bitmap.js";
 import { registerAuditCu } from "./commands/audit-cu.js";
 import { registerBestPrice } from "./commands/best-price.js";
+import { registerUpdateConfig } from "./commands/update-config.js";
 
 export function createCli(): Command {
   const program = new Command();
@@ -79,6 +80,7 @@ export function createCli(): Command {
   registerSlabBitmap(program);
   registerAuditCu(program);
   registerBestPrice(program);
+  registerUpdateConfig(program);
 
   return program;
 }

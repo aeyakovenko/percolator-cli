@@ -66,7 +66,9 @@ const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChp
 const MATCHER_CTX_SIZE = 320;
 
 // Market parameters
-const SLAB_SIZE = 1107176;
+// SLAB_SIZE = HEADER_LEN + CONFIG_LEN (aligned) + ENGINE_LEN
+// Updated to match new MarketConfig with funding/threshold params
+const SLAB_SIZE = 1107288;
 
 // Funding amounts (in lamports with 9 decimals for wrapped SOL)
 const INSURANCE_FUND_AMOUNT = 100_000_000n;  // 0.1 SOL

@@ -1,19 +1,26 @@
 {
   "network": "devnet",
-  "createdAt": "2026-01-10T23:33:39.943Z",
+  "createdAt": "2026-01-11T15:03:44.535Z",
   "programId": "AT2XFGzcQ2vVHkW5xpnqhs8NvfCUq5EmEcky5KE9EhnA",
   "matcherProgramId": "4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy",
-  "slab": "CWaDTsGp6ArBBnMmbFkZ7BU1SzDdbMSzCRPRRvnHVRwm",
+  "slab": "EynmXN7czJowLNKu9jxMWnEnuCQCKELFWKdaioddePbq",
   "mint": "So11111111111111111111111111111111111111112",
-  "vault": "3ebwFoQttP7NuNDL6fvxcJd7CKChs2exosazhADp4LM8",
-  "vaultPda": "8dTr6YJt5MLRawhbqnUR3N5fJ3ne3Z1WNWqLV6fcH5Jw",
+  "vault": "CkEiRRC2ACXNYER7VHW3VJczVh8AMPCDC8RKCWQ3uEsx",
+  "vaultPda": "8KN674BoWWXkNwxeTVJbfBYvziPjpj46s16vbsMDYVUR",
   "oracle": "99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR",
   "oracleType": "chainlink",
   "inverted": true,
+  "fundingConfig": {
+    "horizonSlots": 50,
+    "kBps": 100,
+    "scaleNotionalE6": 1000,
+    "maxPremiumBps": 500,
+    "maxBpsPerSlot": 5
+  },
   "lp": {
     "index": 0,
-    "pda": "7N9YKkZA1FzURTfEuAZDGvpPCPeSnME78MQ3kH1s5Gku",
-    "matcherContext": "Fc7SZMLEcNh24K4pjGuYsdaJkbQWB7hVrUtZbZ63yL4Q",
+    "pda": "EfrXLJZJ8MhtYQgRjEccHHhzuTnw7RhCtjiNmYrSJBBX",
+    "matcherContext": "5ZVWpXAsdcRakH4cYGWNHZTpPM3pMJxUYqhSzxvX1aSS",
     "collateral": 10
   },
   "insuranceFund": 100,

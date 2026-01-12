@@ -47,19 +47,25 @@ A live inverted SOL/USD market is available on devnet for testing. This market u
 ### Market Details
 
 ```
-Slab:           CWaDTsGp6ArBBnMmbFkZ7BU1SzDdbMSzCRPRRvnHVRwm
+Slab:           EynmXN7czJowLNKu9jxMWnEnuCQCKELFWKdaioddePbq
 Mint:           So11111111111111111111111111111111111111112 (Wrapped SOL)
-Vault:          3ebwFoQttP7NuNDL6fvxcJd7CKChs2exosazhADp4LM8
+Vault:          CkEiRRC2ACXNYER7VHW3VJczVh8AMPCDC8RKCWQ3uEsx
 Oracle:         99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (Chainlink SOL/USD)
 Type:           INVERTED (price = 1/SOL in USD terms)
 
 LP (50bps Passive Matcher):
   Index:        0
-  PDA:          7N9YKkZA1FzURTfEuAZDGvpPCPeSnME78MQ3kH1s5Gku
-  Matcher Ctx:  Fc7SZMLEcNh24K4pjGuYsdaJkbQWB7hVrUtZbZ63yL4Q
+  PDA:          EfrXLJZJ8MhtYQgRjEccHHhzuTnw7RhCtjiNmYrSJBBX
+  Matcher Ctx:  5ZVWpXAsdcRakH4cYGWNHZTpPM3pMJxUYqhSzxvX1aSS
   Collateral:   10 SOL
 
 Insurance Fund: 100 SOL
+
+Funding Config (tuned for small positions):
+  Horizon:      50 slots (~20 seconds)
+  Scale:        $0.001 notional (funding kicks in for small positions)
+  Max Premium:  500 bps (5%)
+  Max/Slot:     5 bps
 ```
 
 ### Working Features
@@ -315,6 +321,22 @@ percolator-cli set-risk-threshold --slab <pubkey> --threshold-bps <n>
 
 # Top up insurance fund
 percolator-cli topup-insurance --slab <pubkey> --amount <lamports>
+
+# Update market configuration (funding and threshold params)
+percolator-cli update-config --slab <pubkey> \
+  --funding-horizon-slots <n> \
+  --funding-k-bps <n> \
+  --funding-scale-notional-e6 <n> \
+  --funding-max-premium-bps <n> \
+  --funding-max-bps-per-slot <n> \
+  --thresh-floor <n> \
+  --thresh-risk-bps <n> \
+  --thresh-update-interval-slots <n> \
+  --thresh-step-bps <n> \
+  --thresh-alpha-bps <n> \
+  --thresh-min <n> \
+  --thresh-max <n> \
+  --thresh-min-step <n>
 ```
 
 ## Testing
@@ -333,12 +355,56 @@ npx tsx tests/t21-live-trading.ts 3 --inverted # 3 minutes, inverted market
 
 ## Scripts
 
+### Market Setup
+
 ```bash
 # Setup a new devnet market with funded LP and insurance
 npx tsx scripts/setup-devnet-market.ts
+```
 
-# Post fresh Pyth prices to devnet
-node scripts/post-pyth-price.cjs btc
+### Bots
+
+```bash
+# Crank bot - runs continuous keeper cranks (every 5 seconds)
+npx tsx scripts/crank-bot.ts
+
+# Random traders bot - 5 traders making random trades with momentum bias
+# Trades every 30 seconds, 80% chance to continue in current direction
+npx tsx scripts/random-traders.ts
+```
+
+### Market Analysis
+
+```bash
+# Dump full market state to state.json (positions, margins, parameters)
+npx tsx scripts/dump-state.ts
+
+# Check liquidation risk for all accounts
+npx tsx scripts/check-liquidation.ts
+
+# Check funding rate status and accumulation
+npx tsx scripts/check-funding.ts
+
+# Display market risk parameters
+npx tsx scripts/check-params.ts
+```
+
+### User Tools
+
+```bash
+# Find user account index by owner pubkey
+npx tsx scripts/find-user.ts <slab_pubkey>                    # List all accounts
+npx tsx scripts/find-user.ts <slab_pubkey> <owner_pubkey>     # Find specific account
+
+# Manual liquidation trigger (for testing)
+npx tsx scripts/liquidate.ts <target_idx>
+```
+
+### Configuration
+
+```bash
+# Update funding configuration parameters
+npx tsx scripts/update-funding-config.ts
 ```
 
 ## Architecture

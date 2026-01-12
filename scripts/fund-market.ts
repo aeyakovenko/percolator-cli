@@ -9,8 +9,8 @@ import { buildAccountMetas, ACCOUNTS_DEPOSIT_COLLATERAL, ACCOUNTS_TOPUP_INSURANC
 import { buildIx } from '../src/runtime/tx.js';
 
 const PROGRAM_ID = new PublicKey('AT2XFGzcQ2vVHkW5xpnqhs8NvfCUq5EmEcky5KE9EhnA');
-const SLAB = new PublicKey('CWaDTsGp6ArBBnMmbFkZ7BU1SzDdbMSzCRPRRvnHVRwm');
-const VAULT = new PublicKey('3ebwFoQttP7NuNDL6fvxcJd7CKChs2exosazhADp4LM8');
+const SLAB = new PublicKey('EynmXN7czJowLNKu9jxMWnEnuCQCKELFWKdaioddePbq');
+const VAULT = new PublicKey('CkEiRRC2ACXNYER7VHW3VJczVh8AMPCDC8RKCWQ3uEsx');
 
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
@@ -20,9 +20,9 @@ async function main() {
   const LP_TARGET = 10_000_000_000n;  // 10 SOL
   const INSURANCE_TARGET = 100_000_000_000n;  // 100 SOL
 
-  // Current amounts (approximate)
+  // Current amounts (from setup script)
   const LP_CURRENT = 100_000_000n;  // 0.1 SOL
-  const INSURANCE_CURRENT = 102_000_000n;  // ~0.102 SOL
+  const INSURANCE_CURRENT = 101_000_000n;  // ~0.101 SOL
 
   const lpDeposit = LP_TARGET - LP_CURRENT;  // 9.9 SOL
   const insuranceDeposit = INSURANCE_TARGET - INSURANCE_CURRENT;  // ~99.9 SOL

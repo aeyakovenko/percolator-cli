@@ -178,6 +178,14 @@ export const ACCOUNTS_CLOSE_SLAB: readonly AccountSpec[] = [
   { name: "slab", signer: false, writable: true },
 ] as const;
 
+/**
+ * UpdateConfig: 2 accounts
+ */
+export const ACCOUNTS_UPDATE_CONFIG: readonly AccountSpec[] = [
+  { name: "admin", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+] as const;
+
 // ============================================================================
 // ACCOUNT META BUILDERS
 // ============================================================================
