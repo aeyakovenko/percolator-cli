@@ -183,16 +183,16 @@ const ENGINE_WARMED_POS_OFF = 312;
 const ENGINE_WARMED_NEG_OFF = 328;
 const ENGINE_WARMUP_INSURANCE_OFF = 344;
 // ADL scratch arrays follow, then bitmap and accounts
-// Verified via scan-multi-user.cjs against devnet 2025-01:
-// - Created 3 users and found: bitmap=7 (bits 0,1,2 set), numUsed=3, nextAccountId=3
-// - bitmap (u64=7) at slab 82640 = engine 82424
-// - numUsed (u16=3) at slab 83152 = engine 82936
-// - nextAccountId (u64=3) at slab 83160 = engine 82944
-// - accounts start at slab 91376 = engine 91160 (owner pubkeys verified)
-const ENGINE_BITMAP_OFF = 82424;          // slab 82640 = 216 + 82424 (bitmap word 0)
-const ENGINE_NUM_USED_OFF = 82936;        // slab 83152 = 216 + 82936 (u16)
-const ENGINE_NEXT_ACCOUNT_ID_OFF = 82944; // slab 83160 = 216 + 82944 (u64)
-const ENGINE_ACCOUNTS_OFF = 91160;        // slab 91376 = 216 + 91160
+// Verified via find-bitmap.ts against devnet 2026-01 (after RiskEngine grew by 4096 bytes):
+// - Created LP and found: bitmap=1 (bit 0 set), numUsed=1, nextAccountId=6
+// - bitmap (u64=1) at slab 86848 = engine 86520
+// - numUsed (u16=1) at slab 87360 = engine 87032
+// - nextAccountId (u64) at slab 87368 = engine 87040
+// - accounts start at slab 95584 = engine 95256 (owner pubkeys verified)
+const ENGINE_BITMAP_OFF = 86520;          // slab 86848 = 328 + 86520 (bitmap word 0)
+const ENGINE_NUM_USED_OFF = 87032;        // slab 87360 = 328 + 87032 (u16)
+const ENGINE_NEXT_ACCOUNT_ID_OFF = 87040; // slab 87368 = 328 + 87040 (u64)
+const ENGINE_ACCOUNTS_OFF = 95256;        // slab 95584 = 328 + 95256
 
 const BITMAP_WORDS = 64;
 const MAX_ACCOUNTS = 4096;
