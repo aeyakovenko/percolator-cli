@@ -8,7 +8,7 @@ import { buildAccountMetas, ACCOUNTS_KEEPER_CRANK } from '../src/abi/accounts.js
 import { buildIx } from '../src/runtime/tx.js';
 
 const PROGRAM_ID = new PublicKey('AT2XFGzcQ2vVHkW5xpnqhs8NvfCUq5EmEcky5KE9EhnA');
-const SLAB = new PublicKey('EynmXN7czJowLNKu9jxMWnEnuCQCKELFWKdaioddePbq');
+const SLAB = new PublicKey('8CUcauuMqAiB2xnT5c8VNM4zDHfbsedz6eLTAhHjACTe');
 const ORACLE = new PublicKey('99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR');
 
 const CRANK_INTERVAL_MS = 5000; // 5 seconds between cranks

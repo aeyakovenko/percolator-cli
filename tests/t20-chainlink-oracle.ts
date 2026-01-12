@@ -218,7 +218,7 @@ async function main() {
       console.log(`\n  Market config:`);
       console.log(`    Version: ${header.version}`);
       console.log(`    Collateral: ${config.collateralMint.toBase58().slice(0, 16)}...`);
-      console.log(`    Oracle (indexFeedId): ${config.indexOracle.toBase58().slice(0, 16)}...`);
+      console.log(`    Oracle (indexFeedId): ${config.indexFeedId.toBase58().slice(0, 16)}...`);
       console.log(`    Max staleness: ${config.maxStalenessSlots} seconds`);
     }
 

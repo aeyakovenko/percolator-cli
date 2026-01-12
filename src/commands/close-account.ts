@@ -51,7 +51,7 @@ export function registerCloseAccount(program: Command): void {
         vaultPda, // vaultPda
         WELL_KNOWN.tokenProgram, // tokenProgram
         WELL_KNOWN.clock, // clock
-        mktConfig.indexOracle, // oracle
+        mktConfig.indexFeedId, // oracle
       ]);
 
       const ix = buildIx({

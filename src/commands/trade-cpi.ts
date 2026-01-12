@@ -66,7 +66,7 @@ export function registerTradeCpi(program: Command): void {
         lpOwnerKeypair.publicKey, // lpOwner
         slabPk, // slab
         WELL_KNOWN.clock, // clock
-        mktConfig.indexOracle, // oracle (use index oracle from config)
+        mktConfig.indexFeedId, // oracle (use index feed ID from config)
         matcherProgram, // matcherProg
         matcherContext, // matcherCtx
         lpPda, // lpPda

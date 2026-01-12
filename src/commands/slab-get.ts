@@ -34,11 +34,12 @@ export function registerSlabGet(program: Command): void {
         config: {
           collateralMint: mktConfig.collateralMint.toBase58(),
           vault: mktConfig.vaultPubkey.toBase58(),
-          collateralOracle: mktConfig.collateralOracle.toBase58(),
-          indexOracle: mktConfig.indexOracle.toBase58(),
+          indexFeedId: mktConfig.indexFeedId.toBase58(),
           maxStalenessSlots: mktConfig.maxStalenessSlots.toString(),
           confFilterBps: mktConfig.confFilterBps,
           vaultAuthorityBump: mktConfig.vaultAuthorityBump,
+          invert: mktConfig.invert,
+          unitScale: mktConfig.unitScale,
         },
       };
 
@@ -57,11 +58,12 @@ export function registerSlabGet(program: Command): void {
         console.log("\n--- Config ---");
         console.log(`Collateral Mint:    ${output.config.collateralMint}`);
         console.log(`Vault:              ${output.config.vault}`);
-        console.log(`Collateral Oracle:  ${output.config.collateralOracle}`);
-        console.log(`Index Oracle:       ${output.config.indexOracle}`);
+        console.log(`Index Feed ID:      ${output.config.indexFeedId}`);
         console.log(`Max Staleness:      ${output.config.maxStalenessSlots} slots`);
         console.log(`Conf Filter:        ${output.config.confFilterBps} bps`);
         console.log(`Vault Auth Bump:    ${output.config.vaultAuthorityBump}`);
+        console.log(`Invert:             ${output.config.invert}`);
+        console.log(`Unit Scale:         ${output.config.unitScale}`);
       }
     });
 }

@@ -26,15 +26,14 @@ export interface SlabHeader {
 }
 
 /**
- * Market config (starts at offset 72, 144 bytes)
- * Layout: collateral_mint(32) + vault_pubkey(32) + _reserved(32) + index_feed_id(32)
- *         + max_staleness_secs(8) + conf_filter_bps(2) + bump(1) + invert(1) + unit_scale(4)
+ * Market config (starts at offset 72)
+ * Layout: collateral_mint(32) + vault_pubkey(32) + index_feed_id(32)
+ *         + max_staleness_secs(8) + conf_filter_bps(2) + vault_authority_bump(1) + invert(1) + unit_scale(4)
  */
 export interface MarketConfig {
   collateralMint: PublicKey;
   vaultPubkey: PublicKey;
-  collateralOracle: PublicKey;  // _reserved field, kept for backwards compat
-  indexOracle: PublicKey;       // index_feed_id
+  indexFeedId: PublicKey;       // index_feed_id (Pyth feed ID stored as 32 bytes)
   maxStalenessSlots: bigint;    // max_staleness_secs
   confFilterBps: number;
   vaultAuthorityBump: number;
@@ -88,9 +87,9 @@ export function parseHeader(data: Buffer): SlabHeader {
 }
 
 /**
- * Parse market config (starts at byte 72, 144 bytes).
- * Layout: collateral_mint(32) + vault_pubkey(32) + _reserved(32) + index_feed_id(32)
- *         + max_staleness_secs(8) + conf_filter_bps(2) + bump(1) + invert(1) + unit_scale(4)
+ * Parse market config (starts at byte 72).
+ * Layout: collateral_mint(32) + vault_pubkey(32) + index_feed_id(32)
+ *         + max_staleness_secs(8) + conf_filter_bps(2) + vault_authority_bump(1) + invert(1) + unit_scale(4)
  */
 export function parseConfig(data: Buffer): MarketConfig {
   const minLen = CONFIG_OFFSET + CONFIG_LEN;
@@ -106,12 +105,8 @@ export function parseConfig(data: Buffer): MarketConfig {
   const vaultPubkey = new PublicKey(data.subarray(off, off + 32));
   off += 32;
 
-  // _reserved field (32 bytes) - was collateralOracle in old layout
-  const collateralOracle = new PublicKey(data.subarray(off, off + 32));
-  off += 32;
-
-  // index_feed_id (32 bytes) - Pyth feed ID, not a pubkey but stored as 32 bytes
-  const indexOracle = new PublicKey(data.subarray(off, off + 32));
+  // index_feed_id (32 bytes) - Pyth feed ID, stored as 32 bytes
+  const indexFeedId = new PublicKey(data.subarray(off, off + 32));
   off += 32;
 
   const maxStalenessSlots = data.readBigUInt64LE(off);
@@ -131,8 +126,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   return {
     collateralMint,
     vaultPubkey,
-    collateralOracle,
-    indexOracle,
+    indexFeedId,
     maxStalenessSlots,
     confFilterBps,
     vaultAuthorityBump,

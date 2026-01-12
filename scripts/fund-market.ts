@@ -9,7 +9,7 @@ import { buildAccountMetas, ACCOUNTS_DEPOSIT_COLLATERAL, ACCOUNTS_TOPUP_INSURANC
 import { buildIx } from '../src/runtime/tx.js';
 
 const PROGRAM_ID = new PublicKey('AT2XFGzcQ2vVHkW5xpnqhs8NvfCUq5EmEcky5KE9EhnA');
-const SLAB = new PublicKey('EynmXN7czJowLNKu9jxMWnEnuCQCKELFWKdaioddePbq');
+const SLAB = new PublicKey('8CUcauuMqAiB2xnT5c8VNM4zDHfbsedz6eLTAhHjACTe');
 const VAULT = new PublicKey('CkEiRRC2ACXNYER7VHW3VJczVh8AMPCDC8RKCWQ3uEsx');
 
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));

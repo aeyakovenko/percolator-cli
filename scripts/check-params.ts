@@ -1,7 +1,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { fetchSlab, parseParams } from '../src/solana/slab.js';
 
-const SLAB = new PublicKey('EynmXN7czJowLNKu9jxMWnEnuCQCKELFWKdaioddePbq');
+const SLAB = new PublicKey('8CUcauuMqAiB2xnT5c8VNM4zDHfbsedz6eLTAhHjACTe');
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
 async function main() {

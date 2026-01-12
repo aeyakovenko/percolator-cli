@@ -5,7 +5,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { fetchSlab, parseParams, parseEngine, parseAccount, parseUsedIndices, parseConfig, AccountKind } from '../src/solana/slab.js';
 import * as fs from 'fs';
 
-const SLAB = new PublicKey('EynmXN7czJowLNKu9jxMWnEnuCQCKELFWKdaioddePbq');
+const SLAB = new PublicKey('8CUcauuMqAiB2xnT5c8VNM4zDHfbsedz6eLTAhHjACTe');
 const ORACLE = new PublicKey('99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR');
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 

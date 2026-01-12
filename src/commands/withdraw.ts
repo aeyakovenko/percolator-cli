@@ -58,7 +58,7 @@ export function registerWithdraw(program: Command): void {
         vaultPda, // vaultPda
         WELL_KNOWN.tokenProgram, // tokenProgram
         WELL_KNOWN.clock, // clock
-        mktConfig.indexOracle, // oracleIdx
+        mktConfig.indexFeedId, // oracle
       ]);
 
       const ix = buildIx({

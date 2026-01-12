@@ -27,11 +27,12 @@ export function registerSlabConfig(program: Command): void {
               admin: header.admin.toBase58(),
               collateralMint: mktConfig.collateralMint.toBase58(),
               vault: mktConfig.vaultPubkey.toBase58(),
-              collateralOracle: mktConfig.collateralOracle.toBase58(),
-              indexOracle: mktConfig.indexOracle.toBase58(),
+              indexFeedId: mktConfig.indexFeedId.toBase58(),
               maxStalenessSlots: mktConfig.maxStalenessSlots.toString(),
               confFilterBps: mktConfig.confFilterBps,
               vaultAuthorityBump: mktConfig.vaultAuthorityBump,
+              invert: mktConfig.invert,
+              unitScale: mktConfig.unitScale,
             },
             null,
             2
@@ -41,11 +42,12 @@ export function registerSlabConfig(program: Command): void {
         console.log(`Admin:              ${header.admin.toBase58()}`);
         console.log(`Collateral Mint:    ${mktConfig.collateralMint.toBase58()}`);
         console.log(`Vault:              ${mktConfig.vaultPubkey.toBase58()}`);
-        console.log(`Collateral Oracle:  ${mktConfig.collateralOracle.toBase58()}`);
-        console.log(`Index Oracle:       ${mktConfig.indexOracle.toBase58()}`);
+        console.log(`Index Feed ID:      ${mktConfig.indexFeedId.toBase58()}`);
         console.log(`Max Staleness:      ${mktConfig.maxStalenessSlots} slots`);
         console.log(`Conf Filter:        ${mktConfig.confFilterBps} bps`);
         console.log(`Vault Auth Bump:    ${mktConfig.vaultAuthorityBump}`);
+        console.log(`Invert:             ${mktConfig.invert}`);
+        console.log(`Unit Scale:         ${mktConfig.unitScale}`);
       }
     });
 }

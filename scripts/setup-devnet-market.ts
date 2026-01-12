@@ -67,12 +67,12 @@ const MATCHER_CTX_SIZE = 320;
 
 // Market parameters
 // SLAB_SIZE = HEADER_LEN + CONFIG_LEN (aligned) + ENGINE_LEN
-// Updated to match new MarketConfig with funding/threshold params
-const SLAB_SIZE = 1107288;
+// Updated to match percolator-prog SLAB_LEN constant
+const SLAB_SIZE = 1111384;
 
 // Funding amounts (in lamports with 9 decimals for wrapped SOL)
-const INSURANCE_FUND_AMOUNT = 100_000_000n;  // 0.1 SOL
-const LP_COLLATERAL_AMOUNT = 100_000_000n;   // 0.1 SOL
+const INSURANCE_FUND_AMOUNT = 1_000_000_000n;  // 1 SOL
+const LP_COLLATERAL_AMOUNT = 1_000_000_000n;   // 1 SOL
 
 // ============================================================================
 // HELPERS
@@ -235,7 +235,7 @@ async function main() {
     connection, payer, mint, payer.publicKey
   );
   // Fund admin ATA with wrapped SOL for LP collateral + insurance + fees
-  const wrapAmount = 0.5 * LAMPORTS_PER_SOL;  // 0.5 SOL
+  const wrapAmount = 5 * LAMPORTS_PER_SOL;  // 5 SOL
   const wrapTx = new Transaction();
   wrapTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
   wrapTx.add(SystemProgram.transfer({

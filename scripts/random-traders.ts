@@ -11,17 +11,17 @@ import { fetchSlab, parseAccount } from '../src/solana/slab.js';
 
 const PROGRAM_ID = new PublicKey('AT2XFGzcQ2vVHkW5xpnqhs8NvfCUq5EmEcky5KE9EhnA');
 const MATCHER_PROGRAM = new PublicKey('4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy');
-const SLAB = new PublicKey('EynmXN7czJowLNKu9jxMWnEnuCQCKELFWKdaioddePbq');
-const VAULT = new PublicKey('CkEiRRC2ACXNYER7VHW3VJczVh8AMPCDC8RKCWQ3uEsx');
+const SLAB = new PublicKey('8CUcauuMqAiB2xnT5c8VNM4zDHfbsedz6eLTAhHjACTe');
+const VAULT = new PublicKey('AkkCj9hJBKNWFgM69Z9eiPnT9hd5Db1Q9E4yjafHvmcf');
 const ORACLE = new PublicKey('99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR');
-const MATCHER_CTX = new PublicKey('5ZVWpXAsdcRakH4cYGWNHZTpPM3pMJxUYqhSzxvX1aSS');
-const LP_PDA = new PublicKey('EfrXLJZJ8MhtYQgRjEccHHhzuTnw7RhCtjiNmYrSJBBX');
+const MATCHER_CTX = new PublicKey('3M17wwjMsb6m9UzDSzW49GrATVtzSDNnKfLJytoZbs3W');
+const LP_PDA = new PublicKey('3hbJFjxcWyn3SWtgUygMZg8R6E8fcEu2PAt85qwckcNE');
 const LP_IDX = 0;
 
 const NUM_TRADERS = 5;
-const DEPOSIT_SOL = 1_000_000_000n; // 1 SOL per trader
-const TRADE_SIZE = 50_000_000n; // 50M units per trade (~7 SOL notional at $138) - HIGH RISK!
-const TRADE_INTERVAL_MS = 30_000; // 30 seconds between trades (faster for action)
+const DEPOSIT_SOL = 100_000_000n; // 0.1 SOL per trader (higher risk!)
+const TRADE_SIZE = 100_000_000n; // 100M units per trade - VERY HIGH RISK with small capital!
+const TRADE_INTERVAL_MS = 15_000; // 15 seconds between trades (faster for more activity)
 
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');

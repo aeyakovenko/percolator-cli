@@ -14,7 +14,7 @@ console.log("Testing slab parsing...\n");
 
 // Create a mock slab buffer
 function createMockSlab(): Buffer {
-  const buf = Buffer.alloc(300);
+  const buf = Buffer.alloc(400);  // HEADER_LEN(72) + CONFIG_LEN(256) = 328 minimum
 
   // Header (72 bytes)
   // magic: "PERCOLAT" = 0x504552434f4c4154
@@ -32,9 +32,9 @@ function createMockSlab(): Buffer {
   buf.writeBigUInt64LE(42n, 48); // nonce = 42
   buf.writeBigUInt64LE(12345n, 56); // lastThrUpdateSlot = 12345
 
-  // MarketConfig (144 bytes starting at offset 72)
-  // Layout: collateral_mint(32) + vault_pubkey(32) + _reserved(32) + index_feed_id(32)
-  //         + max_staleness_secs(8) + conf_filter_bps(2) + bump(1) + invert(1) + unit_scale(4)
+  // MarketConfig (starting at offset 72)
+  // Layout: collateral_mint(32) + vault_pubkey(32) + index_feed_id(32)
+  //         + max_staleness_secs(8) + conf_filter_bps(2) + vault_authority_bump(1) + invert(1) + unit_scale(4)
 
   // collateralMint: 32 bytes at offset 72
   const mintBytes = Buffer.alloc(32);
@@ -44,24 +44,20 @@ function createMockSlab(): Buffer {
   const vaultBytes = Buffer.alloc(32);
   vaultBytes[0] = 3;
   vaultBytes.copy(buf, 104);
-  // _reserved (collateralOracle): 32 bytes at offset 136
-  const reservedBytes = Buffer.alloc(32);
-  reservedBytes[0] = 4;
-  reservedBytes.copy(buf, 136);
-  // index_feed_id (indexOracle): 32 bytes at offset 168
+  // index_feed_id: 32 bytes at offset 136
   const feedIdBytes = Buffer.alloc(32);
   feedIdBytes[0] = 5;
-  feedIdBytes.copy(buf, 168);
-  // maxStalenessSlots: u64 at offset 200
-  buf.writeBigUInt64LE(100n, 200);
-  // confFilterBps: u16 at offset 208
-  buf.writeUInt16LE(50, 208);
-  // vaultAuthorityBump: u8 at offset 210
-  buf.writeUInt8(254, 210);
-  // invert: u8 at offset 211
-  buf.writeUInt8(0, 211);
-  // unitScale: u32 at offset 212
-  buf.writeUInt32LE(0, 212);
+  feedIdBytes.copy(buf, 136);
+  // maxStalenessSlots: u64 at offset 168
+  buf.writeBigUInt64LE(100n, 168);
+  // confFilterBps: u16 at offset 176
+  buf.writeUInt16LE(50, 176);
+  // vaultAuthorityBump: u8 at offset 178
+  buf.writeUInt8(254, 178);
+  // invert: u8 at offset 179
+  buf.writeUInt8(1, 179);
+  // unitScale: u32 at offset 180
+  buf.writeUInt32LE(0, 180);
 
   return buf;
 }
@@ -88,14 +84,11 @@ function createMockSlab(): Buffer {
 
   assert(config.collateralMint instanceof PublicKey, "config mint is PublicKey");
   assert(config.vaultPubkey instanceof PublicKey, "config vault is PublicKey");
-  // Note: On deployed devnet, oracle pubkeys are not stored in MarketConfig
-  // They return PublicKey.default
-  assert(config.collateralOracle instanceof PublicKey, "config colOracle is PublicKey");
-  assert(config.indexOracle instanceof PublicKey, "config idxOracle is PublicKey");
+  assert(config.indexFeedId instanceof PublicKey, "config indexFeedId is PublicKey");
   assert(config.maxStalenessSlots === 100n, "config maxStalenessSlots");
   assert(config.confFilterBps === 50, "config confFilterBps");
   assert(config.vaultAuthorityBump === 254, "config vaultAuthorityBump");
-  assert(config.invert === 0, "config invert");
+  assert(config.invert === 1, "config invert");
   assert(config.unitScale === 0, "config unitScale");
 
   console.log("✓ parseConfig");
