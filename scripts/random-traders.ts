@@ -7,16 +7,21 @@ import * as fs from 'fs';
 import { encodeInitUser, encodeDepositCollateral, encodeKeeperCrank, encodeTradeCpi } from '../src/abi/instructions.js';
 import { buildAccountMetas, ACCOUNTS_INIT_USER, ACCOUNTS_DEPOSIT_COLLATERAL, ACCOUNTS_KEEPER_CRANK, ACCOUNTS_TRADE_CPI } from '../src/abi/accounts.js';
 import { buildIx } from '../src/runtime/tx.js';
-import { fetchSlab, parseAccount } from '../src/solana/slab.js';
+import { fetchSlab, parseAccount, parseUsedIndices, AccountKind } from '../src/solana/slab.js';
 
 const PROGRAM_ID = new PublicKey('AT2XFGzcQ2vVHkW5xpnqhs8NvfCUq5EmEcky5KE9EhnA');
-const MATCHER_PROGRAM = new PublicKey('4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy');
 const SLAB = new PublicKey('8CUcauuMqAiB2xnT5c8VNM4zDHfbsedz6eLTAhHjACTe');
 const VAULT = new PublicKey('AkkCj9hJBKNWFgM69Z9eiPnT9hd5Db1Q9E4yjafHvmcf');
 const ORACLE = new PublicKey('99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR');
-const MATCHER_CTX = new PublicKey('3M17wwjMsb6m9UzDSzW49GrATVtzSDNnKfLJytoZbs3W');
-const LP_PDA = new PublicKey('3hbJFjxcWyn3SWtgUygMZg8R6E8fcEu2PAt85qwckcNE');
-const LP_IDX = 0;
+
+interface LpInfo {
+  index: number;
+  matcherProgram: PublicKey;
+  matcherContext: PublicKey;
+  lpPda: PublicKey;
+  capital: bigint;
+  position: bigint;
+}
 
 const NUM_TRADERS = 5;
 const DEPOSIT_SOL = 100_000_000n; // 0.1 SOL per trader (higher risk!)
@@ -27,6 +32,70 @@ const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(pr
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
 let traderIndices: number[] = [];
+
+/**
+ * Derive LP PDA from slab and LP index
+ */
+function deriveLpPda(slabPubkey: PublicKey, lpIndex: number): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('lp'), slabPubkey.toBuffer(), Buffer.from([lpIndex & 0xff, (lpIndex >> 8) & 0xff])],
+    PROGRAM_ID
+  );
+  return pda;
+}
+
+/**
+ * Find all LPs in the market
+ */
+async function findAllLps(slabData: Buffer): Promise<LpInfo[]> {
+  const usedIndices = parseUsedIndices(slabData);
+  const lps: LpInfo[] = [];
+
+  for (const idx of usedIndices) {
+    const account = parseAccount(slabData, idx);
+    if (!account) continue;
+
+    // LP detection: kind === LP or matcher_program is non-zero
+    const isLp = account.kind === AccountKind.LP ||
+      (account.matcherProgram && !account.matcherProgram.equals(PublicKey.default));
+
+    if (isLp) {
+      lps.push({
+        index: idx,
+        matcherProgram: account.matcherProgram,
+        matcherContext: account.matcherContext,
+        lpPda: deriveLpPda(SLAB, idx),
+        capital: account.capital,
+        position: account.positionSize,
+      });
+    }
+  }
+
+  return lps;
+}
+
+/**
+ * Find the best LP for a trade (currently picks randomly, can be enhanced later)
+ * For buys (isLong=true), prefer LPs with lower ask (more capital, willing to sell)
+ * For sells (isLong=false), prefer LPs with higher bid (more capital, willing to buy)
+ */
+function findBestLp(lps: LpInfo[], isLong: boolean): LpInfo | null {
+  if (lps.length === 0) return null;
+
+  // Simple heuristic: prefer LPs with more capital and opposite position
+  // For long: prefer LPs that are short or flat (willing to sell)
+  // For short: prefer LPs that are long or flat (willing to buy)
+  const scored = lps.map(lp => {
+    let score = Number(lp.capital) / 1e9; // Base score is capital in SOL
+    if (isLong && lp.position < 0n) score *= 1.5; // Prefer short LPs for longs
+    if (!isLong && lp.position > 0n) score *= 1.5; // Prefer long LPs for shorts
+    return { lp, score };
+  });
+
+  // Sort by score descending and pick the best
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].lp;
+}
 
 async function wrapSol(amount: bigint, ata: PublicKey): Promise<void> {
   const tx = new Transaction();
@@ -63,11 +132,16 @@ async function initTraders(): Promise<void> {
   // Get current slab state to find next available index
   const slabData = await fetchSlab(connection, SLAB);
 
-  // Find existing user accounts owned by us
+  // Find all LPs to exclude them from trader list
+  const lps = await findAllLps(slabData);
+  const lpIndices = new Set(lps.map(lp => lp.index));
+
+  // Find existing user accounts owned by us (exclude LPs)
   const existingIndices: number[] = [];
   for (let i = 0; i < 100; i++) {
+    if (lpIndices.has(i)) continue; // Skip LPs
     const account = parseAccount(slabData, i);
-    if (account && account.owner.equals(payer.publicKey) && i !== LP_IDX) {
+    if (account && account.owner.equals(payer.publicKey)) {
       existingIndices.push(i);
     }
   }
@@ -105,10 +179,14 @@ async function initTraders(): Promise<void> {
 
   // Refresh slab data and get all trader indices
   const newSlabData = await fetchSlab(connection, SLAB);
+  const newLps = await findAllLps(newSlabData);
+  const newLpIndices = new Set(newLps.map(lp => lp.index));
+
   traderIndices = [];
   for (let i = 0; i < 100; i++) {
+    if (newLpIndices.has(i)) continue; // Skip LPs
     const account = parseAccount(newSlabData, i);
-    if (account && account.owner.equals(payer.publicKey) && i !== LP_IDX) {
+    if (account && account.owner.equals(payer.publicKey)) {
       traderIndices.push(i);
       if (traderIndices.length >= NUM_TRADERS) break;
     }
@@ -171,7 +249,7 @@ async function runFullCrankCycle(): Promise<void> {
   console.log('Crank cycle complete');
 }
 
-async function executeTrade(traderIdx: number, isLong: boolean): Promise<void> {
+async function executeTrade(traderIdx: number, isLong: boolean, lp: LpInfo): Promise<void> {
   // Run full crank cycle to ensure sweep is fresh (16 steps)
   for (let i = 0; i < 16; i++) {
     await runCrank();
@@ -182,7 +260,7 @@ async function executeTrade(traderIdx: number, isLong: boolean): Promise<void> {
 
   const tradeData = encodeTradeCpi({
     userIdx: traderIdx,
-    lpIdx: LP_IDX,
+    lpIdx: lp.index,
     size: size.toString()
   });
 
@@ -192,9 +270,9 @@ async function executeTrade(traderIdx: number, isLong: boolean): Promise<void> {
     SLAB,                  // slab
     SYSVAR_CLOCK_PUBKEY,   // clock
     ORACLE,                // oracle
-    MATCHER_PROGRAM,       // matcherProg
-    MATCHER_CTX,           // matcherCtx
-    LP_PDA,                // lpPda
+    lp.matcherProgram,     // matcherProg (dynamic)
+    lp.matcherContext,     // matcherCtx (dynamic)
+    lp.lpPda,              // lpPda (dynamic)
   ]);
 
   const tradeTx = new Transaction();
@@ -236,10 +314,25 @@ async function tradeLoop(): Promise<void> {
       }
       const direction = isLong ? 'LONG' : 'SHORT';
 
-      console.log(`[${new Date().toISOString()}] Trade #${++tradeCount}: Trader ${traderIdx} going ${direction}...`);
+      // Find best LP for this trade direction
+      const lps = await findAllLps(preSlabData);
+      if (lps.length === 0) {
+        console.log(`[${new Date().toISOString()}] No LPs found, skipping trade\n`);
+        await new Promise(r => setTimeout(r, TRADE_INTERVAL_MS));
+        continue;
+      }
 
-      await executeTrade(traderIdx, isLong);
-      console.log(`  ✓ Trade executed successfully`);
+      const bestLp = findBestLp(lps, isLong);
+      if (!bestLp) {
+        console.log(`[${new Date().toISOString()}] Could not find best LP, skipping trade\n`);
+        await new Promise(r => setTimeout(r, TRADE_INTERVAL_MS));
+        continue;
+      }
+
+      console.log(`[${new Date().toISOString()}] Trade #${++tradeCount}: Trader ${traderIdx} going ${direction} via LP ${bestLp.index}...`);
+
+      await executeTrade(traderIdx, isLong, bestLp);
+      console.log(`  ✓ Trade executed successfully (LP ${bestLp.index})`);
 
       // Fetch and show position
       const slabData = await fetchSlab(connection, SLAB);
