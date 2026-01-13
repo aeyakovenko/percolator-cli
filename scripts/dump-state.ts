@@ -73,8 +73,9 @@ async function main() {
     // For SHORT: profit when price goes down
     const unrealizedPnl = acc.positionSize * (oraclePrice - acc.entryPrice) / 1_000_000n;
 
-    // Effective capital = capital + unrealized PnL (not the stored pnl field which is realized)
-    const effectiveCapital = acc.capital + unrealizedPnl;
+    // Effective capital = capital + realized PnL + unrealized PnL
+    // CRITICAL: Must include acc.pnl (realized PnL) to match engine's equity calculation
+    const effectiveCapital = acc.capital + acc.pnl + unrealizedPnl;
 
     // Margin ratio calculation (bps)
     const marginRatioBps = notionalLamports > 0n ?
@@ -112,6 +113,7 @@ async function main() {
         notionalSol: Number(notionalLamports) / 1e9,
       },
       capitalSol: Number(acc.capital) / 1e9,
+      realizedPnlSol: Number(acc.pnl) / 1e9,  // Realized PnL (from funding, previous trades)
       unrealizedPnlSol: Number(unrealizedPnl) / 1e9,
       effectiveCapitalSol: Number(effectiveCapital) / 1e9,
       margin: {
@@ -181,6 +183,8 @@ async function main() {
       lossAccum: engine.lossAccum.toString(),
       riskReductionOnly: engine.riskReductionOnly,
       crankStep: engine.crankStep,
+      lastSweepStartSlot: engine.lastSweepStartSlot.toString(),
+      lastSweepCompleteSlot: engine.lastSweepCompleteSlot.toString(),
       lifetimeLiquidations: Number(engine.lifetimeLiquidations),
       lifetimeForceCloses: Number(engine.lifetimeForceCloses),
       numUsedAccounts: engine.numUsedAccounts,
@@ -235,9 +239,9 @@ async function main() {
     console.log('\n=== LIQUIDATABLE ACCOUNTS ===');
     for (const acc of state.liquidationAnalysis.liquidatableAccounts) {
       console.log(`\n[${acc.index}] ${acc.label}:`);
-      console.log(`  Margin Ratio: ${acc.marginRatioPercent.toFixed(2)}% (threshold: ${state.riskParameters.maintenanceMarginPercent}%)`);
+      console.log(`  Margin Ratio: ${acc.marginPercent.toFixed(2)}% (threshold: ${state.riskParameters.maintenanceMarginPercent}%)`);
       console.log(`  Shortfall: ${acc.shortfallSol.toFixed(6)} SOL`);
-      console.log(`  Position: ${acc.position}`);
+      console.log(`  Notional: ${acc.notionalSol.toFixed(6)} SOL`);
       console.log(`  Reason: ${acc.reason}`);
     }
   }

@@ -25,8 +25,11 @@ interface LpInfo {
 
 const NUM_TRADERS = 5;
 const DEPOSIT_SOL = 100_000_000n; // 0.1 SOL per trader
-const TRADE_SIZE = 5_000_000_000n; // 5B units per trade (~0.036 SOL notional) - push toward 10x leverage!
-const TRADE_INTERVAL_MS = 8_000; // 8 seconds between trades
+const TRADE_SIZE = 10_000_000_000n; // 10B units per trade - MAX LEVERAGE MODE!
+const TRADE_INTERVAL_MS = 5_000; // 5 seconds between trades
+
+// Fixed direction for each trader (assigned at startup)
+const traderDirections: Map<number, boolean> = new Map(); // true = LONG, false = SHORT
 
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
@@ -287,8 +290,8 @@ async function tradeLoop(): Promise<void> {
   // Run a full crank cycle to ensure sweep is fresh
   await runFullCrankCycle();
 
-  console.log(`Trading every ${TRADE_INTERVAL_MS / 1000} seconds\n`);
-  console.log(`MOMENTUM BIAS: 80% chance to continue in current direction\n`);
+  console.log(`Trading every ${TRADE_INTERVAL_MS / 1000} seconds`);
+  console.log(`MAX LEVERAGE MODE: Always INCREASE current position direction!\n`);
 
   let tradeCount = 0;
 
@@ -297,25 +300,25 @@ async function tradeLoop(): Promise<void> {
       // Pick random trader
       const traderIdx = traderIndices[Math.floor(Math.random() * traderIndices.length)];
 
-      // Get current position to determine momentum bias
-      const preSlabData = await fetchSlab(connection, SLAB);
-      const preAccount = parseAccount(preSlabData, traderIdx);
-      const currentPos = preAccount?.positionSize || 0n;
+      // Fetch current state
+      const slabData = await fetchSlab(connection, SLAB);
+      const account = parseAccount(slabData, traderIdx);
+      const currentPos = account?.positionSize || 0n;
 
-      // 80% chance to continue in current direction (momentum bias)
+      // Always INCREASE current position (if long->more long, if short->more short)
       // If flat, random 50/50
       let isLong: boolean;
       if (currentPos > 0n) {
-        isLong = Math.random() < 0.8; // 80% continue LONG
+        isLong = true; // Already LONG, go MORE LONG
       } else if (currentPos < 0n) {
-        isLong = Math.random() >= 0.8; // 80% continue SHORT (20% go LONG)
+        isLong = false; // Already SHORT, go MORE SHORT
       } else {
         isLong = Math.random() > 0.5;
       }
       const direction = isLong ? 'LONG' : 'SHORT';
 
       // Find best LP for this trade direction
-      const lps = await findAllLps(preSlabData);
+      const lps = await findAllLps(slabData);
       if (lps.length === 0) {
         console.log(`[${new Date().toISOString()}] No LPs found, skipping trade\n`);
         await new Promise(r => setTimeout(r, TRADE_INTERVAL_MS));
@@ -335,10 +338,10 @@ async function tradeLoop(): Promise<void> {
       console.log(`  ✓ Trade executed successfully (LP ${bestLp.index})`);
 
       // Fetch and show position
-      const slabData = await fetchSlab(connection, SLAB);
-      const account = parseAccount(slabData, traderIdx);
-      if (account) {
-        console.log(`  Position: ${account.positionSize}, Capital: ${Number(account.capital) / 1e9} SOL\n`);
+      const postSlabData = await fetchSlab(connection, SLAB);
+      const postAccount = parseAccount(postSlabData, traderIdx);
+      if (postAccount) {
+        console.log(`  Position: ${postAccount.positionSize}, Capital: ${Number(postAccount.capital) / 1e9} SOL\n`);
       }
     } catch (err: any) {
       console.error(`  ✗ Trade failed: ${err.message}\n`);

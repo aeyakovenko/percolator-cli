@@ -182,12 +182,15 @@ const ENGINE_TOTAL_OI_OFF = 296;
 const ENGINE_WARMED_POS_OFF = 312;
 const ENGINE_WARMED_NEG_OFF = 328;
 const ENGINE_WARMUP_INSURANCE_OFF = 344;
-const ENGINE_LAST_SWEEP_START_OFF = 360;      // last_full_sweep_start_slot: u64
-const ENGINE_LAST_SWEEP_COMPLETE_OFF = 368;   // last_full_sweep_completed_slot: u64
-const ENGINE_CRANK_STEP_OFF = 376;            // crank_step: u8 (+ 7 bytes padding)
-const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 384; // lifetime_liquidations: u64
-const ENGINE_LIFETIME_FORCE_CLOSES_OFF = 392; // lifetime_force_realize_closes: u64
-// ADL scratch arrays follow, then bitmap and accounts
+// ADL scratch arrays and deferred socialization buckets span ~86K bytes
+// See RiskEngine struct for full layout: adl_remainder_scratch, adl_idx_scratch,
+// adl_exclude_scratch, pending_*, liq_cursor, gc_cursor, then sweep/crank fields
+// Offsets computed backwards from ENGINE_BITMAP_OFF = 86520:
+const ENGINE_LAST_SWEEP_START_OFF = 86416;    // last_full_sweep_start_slot: u64
+const ENGINE_LAST_SWEEP_COMPLETE_OFF = 86424; // last_full_sweep_completed_slot: u64
+const ENGINE_CRANK_STEP_OFF = 86432;          // crank_step: u8 (+ 7 bytes padding)
+const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 86440; // lifetime_liquidations: u64
+const ENGINE_LIFETIME_FORCE_CLOSES_OFF = 86448; // lifetime_force_realize_closes: u64
 // Verified via find-bitmap.ts against devnet 2026-01 (after RiskEngine grew by 4096 bytes):
 // - Created LP and found: bitmap=1 (bit 0 set), numUsed=1, nextAccountId=6
 // - bitmap (u64=1) at slab 86848 = engine 86520
