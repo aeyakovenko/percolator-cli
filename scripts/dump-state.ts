@@ -58,8 +58,13 @@ async function main() {
     const maintenanceReq = notionalLamports * params.maintenanceMarginBps / 10_000n;
     const initialReq = notionalLamports * params.initialMarginBps / 10_000n;
 
-    // Effective capital = capital + pnl
-    const effectiveCapital = acc.capital + acc.pnl;
+    // Calculate unrealized PnL: position * (currentPrice - entryPrice) / 1e6
+    // For LONG: profit when price goes up
+    // For SHORT: profit when price goes down
+    const unrealizedPnl = acc.positionSize * (oraclePrice - acc.entryPrice) / 1_000_000n;
+
+    // Effective capital = capital + unrealized PnL (not the stored pnl field which is realized)
+    const effectiveCapital = acc.capital + unrealizedPnl;
 
     // Margin ratio calculation (bps)
     const marginRatioBps = notionalLamports > 0n ?
@@ -99,7 +104,11 @@ async function main() {
         raw: acc.capital.toString(),
         sol: Number(acc.capital) / 1e9,
       },
-      pnl: {
+      unrealizedPnl: {
+        raw: unrealizedPnl.toString(),
+        sol: Number(unrealizedPnl) / 1e9,
+      },
+      realizedPnl: {
         raw: acc.pnl.toString(),
         sol: Number(acc.pnl) / 1e9,
       },
