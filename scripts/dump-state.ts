@@ -96,41 +96,21 @@ async function main() {
       kind: acc.kind === AccountKind.LP ? 'LP' : 'USER',
       owner: acc.owner.toBase58(),
       position: {
-        size: acc.positionSize.toString(),
+        sizeUnits: acc.positionSize.toString(),
         direction: acc.positionSize > 0n ? 'LONG' : acc.positionSize < 0n ? 'SHORT' : 'FLAT',
         entryPrice: acc.entryPrice.toString(),
-      },
-      capital: {
-        raw: acc.capital.toString(),
-        sol: Number(acc.capital) / 1e9,
-      },
-      unrealizedPnl: {
-        raw: unrealizedPnl.toString(),
-        sol: Number(unrealizedPnl) / 1e9,
-      },
-      realizedPnl: {
-        raw: acc.pnl.toString(),
-        sol: Number(acc.pnl) / 1e9,
-      },
-      reservedPnl: acc.reservedPnl.toString(),
-      margin: {
-        notionalLamports: notionalLamports.toString(),
         notionalSol: Number(notionalLamports) / 1e9,
-        maintenanceRequiredLamports: maintenanceReq.toString(),
+      },
+      capitalSol: Number(acc.capital) / 1e9,
+      unrealizedPnlSol: Number(unrealizedPnl) / 1e9,
+      effectiveCapitalSol: Number(effectiveCapital) / 1e9,
+      margin: {
         maintenanceRequiredSol: Number(maintenanceReq) / 1e9,
-        initialRequiredLamports: initialReq.toString(),
-        initialRequiredSol: Number(initialReq) / 1e9,
-        effectiveCapitalLamports: effectiveCapital.toString(),
-        effectiveCapitalSol: Number(effectiveCapital) / 1e9,
-        bufferLamports: buffer.toString(),
         bufferSol: Number(buffer) / 1e9,
-        marginRatioBps: Number(marginRatioBps),
-        marginRatioPercent: Number(marginRatioBps) / 100,
+        ratioPercent: Number(marginRatioBps) / 100,
       },
       status,
       liquidationReason,
-      warmupStartedAtSlot: acc.warmupStartedAtSlot.toString(),
-      warmupSlopePerStep: acc.warmupSlopePerStep.toString(),
     });
   }
 
@@ -148,11 +128,9 @@ async function main() {
 
     oraclePrice: {
       rawE6: rawOraclePrice.toString(),
-      rawUSD: Number(rawOraclePrice) / 1e6,
       inverted: true,
       effectiveE6: oraclePrice.toString(),
-      effectiveValue: Number(oraclePrice) / 1e6,
-      note: "Using inverted price (SOL/USD) - entry prices stored as ~7246",
+      note: "Inverted price for SOL/USD perp",
     },
 
     riskParameters: {
@@ -189,7 +167,6 @@ async function main() {
       maxCrankStalenessSlots: engine.maxCrankStalenessSlots.toString(),
       totalOpenInterestUnits: engine.totalOpenInterest.toString(),
       totalOpenInterestSol: Number(engine.totalOpenInterest * oraclePrice / 1_000_000n) / 1e9,
-      totalOpenInterestUsd: Number(engine.totalOpenInterest * oraclePrice / 1_000_000n) / 1e9 * Number(rawOraclePrice) / 1e6,
       lossAccum: engine.lossAccum.toString(),
       riskReductionOnly: engine.riskReductionOnly,
       numUsedAccounts: engine.numUsedAccounts,
@@ -202,28 +179,26 @@ async function main() {
       liquidatable: accounts.filter(a => a.status === 'LIQUIDATABLE').length,
       atRisk: accounts.filter(a => a.status === 'AT_RISK').length,
       safe: accounts.filter(a => a.status === 'SAFE').length,
-      totalLongPositionSize: accounts.reduce((sum, a) => {
-        const size = BigInt(a.position.size);
-        return size > 0n ? sum + size : sum;
-      }, 0n).toString(),
-      totalShortPositionSize: accounts.reduce((sum, a) => {
-        const size = BigInt(a.position.size);
-        return size < 0n ? sum - size : sum;
-      }, 0n).toString(),
+      totalLongNotionalSol: accounts.reduce((sum, a) => {
+        return a.position.direction === 'LONG' ? sum + a.position.notionalSol : sum;
+      }, 0),
+      totalShortNotionalSol: accounts.reduce((sum, a) => {
+        return a.position.direction === 'SHORT' ? sum + a.position.notionalSol : sum;
+      }, 0),
     },
 
     liquidationAnalysis: {
-      description: "Accounts are liquidatable when their effective capital (capital + PnL) falls below the maintenance margin requirement.",
+      description: "Accounts are liquidatable when effective capital falls below maintenance margin requirement.",
       formula: "margin_ratio = effective_capital / notional_value",
-      threshold: `Liquidation triggers when margin_ratio < ${Number(params.maintenanceMarginBps) / 100}% (${params.maintenanceMarginBps} bps)`,
+      threshold: `Liquidation at margin_ratio < ${Number(params.maintenanceMarginBps) / 100}%`,
       liquidatableAccounts: accounts
         .filter(a => a.status === 'LIQUIDATABLE')
         .map(a => ({
           index: a.index,
           label: a.label,
-          marginRatioPercent: a.margin.marginRatioPercent,
+          marginPercent: a.margin.ratioPercent,
           shortfallSol: -a.margin.bufferSol,
-          position: a.position.size,
+          notionalSol: a.position.notionalSol,
           reason: a.liquidationReason?.reason,
         })),
     },
