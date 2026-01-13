@@ -30,6 +30,14 @@ function toJSON(obj: any): any {
   return obj;
 }
 
+async function getChainlinkPrice(oracle: PublicKey): Promise<{ price: bigint; decimals: number }> {
+  const info = await connection.getAccountInfo(oracle);
+  if (!info) throw new Error("Oracle not found");
+  const decimals = info.data.readUInt8(138);
+  const answer = info.data.readBigInt64LE(216);
+  return { price: answer, decimals };
+}
+
 async function main() {
   const data = await fetchSlab(connection, SLAB);
   const config = parseConfig(data);
@@ -37,11 +45,13 @@ async function main() {
   const engine = parseEngine(data);
   const indices = parseUsedIndices(data);
 
-  // Get oracle price - the entry prices (~7200) prove inversion is being used
-  const rawOraclePrice = 138_000_000n; // ~$138 per SOL in e6 format
+  // Get live oracle price from Chainlink
+  const oracleData = await getChainlinkPrice(ORACLE);
+  const rawOraclePrice = oracleData.price;  // e.g. 142470000 for $142.47 (8 decimals)
+  // Convert to e6 format for calculations
+  const rawOraclePriceE6 = rawOraclePrice * 1_000_000n / BigInt(10 ** oracleData.decimals);
   // On-chain uses inverted price: 1e12 / price (SOL/USD instead of USD/SOL)
-  // This matches the entry prices stored as ~7200-7300
-  const oraclePrice = 1_000_000_000_000n / rawOraclePrice;  // Inverted: ~7246
+  const oraclePrice = 1_000_000_000_000n / rawOraclePriceE6;
 
   // Build accounts with liquidation analysis
   const accounts: any[] = [];
@@ -127,7 +137,8 @@ async function main() {
     },
 
     oraclePrice: {
-      rawE6: rawOraclePrice.toString(),
+      rawUsd: Number(rawOraclePrice) / Math.pow(10, oracleData.decimals),
+      rawE6: rawOraclePriceE6.toString(),
       inverted: true,
       effectiveE6: oraclePrice.toString(),
       note: "Inverted price for SOL/USD perp",
