@@ -25,8 +25,8 @@ interface LpInfo {
 
 const NUM_TRADERS = 5;
 const DEPOSIT_SOL = 100_000_000n; // 0.1 SOL per trader (higher risk!)
-const TRADE_SIZE = 100_000_000n; // 100M units per trade - VERY HIGH RISK with small capital!
-const TRADE_INTERVAL_MS = 15_000; // 15 seconds between trades (faster for more activity)
+const TRADE_SIZE = 500_000_000n; // 500M units per trade - EXTREME RISK!
+const TRADE_INTERVAL_MS = 10_000; // 10 seconds between trades
 
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
