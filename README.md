@@ -302,11 +302,8 @@ percolator-cli trade-cpi --slab <pubkey> --user-idx <n> --lp-idx <n> \
 ### Keeper Operations
 
 ```bash
-# Crank the keeper
+# Crank the keeper (liquidations are processed automatically during crank)
 percolator-cli keeper-crank --slab <pubkey> --nonce <n> --oracle <pubkey>
-
-# Liquidate undercollateralized account
-percolator-cli liquidate-at-oracle --slab <pubkey> --target-idx <n> --oracle <pubkey>
 ```
 
 ### Admin Operations
@@ -394,9 +391,6 @@ npx tsx scripts/check-params.ts
 # Find user account index by owner pubkey
 npx tsx scripts/find-user.ts <slab_pubkey>                    # List all accounts
 npx tsx scripts/find-user.ts <slab_pubkey> <owner_pubkey>     # Find specific account
-
-# Manual liquidation trigger (for testing)
-npx tsx scripts/liquidate.ts <target_idx>
 ```
 
 ### Configuration
