@@ -180,6 +180,9 @@ async function main() {
       totalOpenInterestSol: Number(engine.totalOpenInterest * oraclePrice / 1_000_000n) / 1e9,
       lossAccum: engine.lossAccum.toString(),
       riskReductionOnly: engine.riskReductionOnly,
+      crankStep: engine.crankStep,
+      lifetimeLiquidations: Number(engine.lifetimeLiquidations),
+      lifetimeForceCloses: Number(engine.lifetimeForceCloses),
       numUsedAccounts: engine.numUsedAccounts,
     },
 

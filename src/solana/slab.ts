@@ -182,6 +182,11 @@ const ENGINE_TOTAL_OI_OFF = 296;
 const ENGINE_WARMED_POS_OFF = 312;
 const ENGINE_WARMED_NEG_OFF = 328;
 const ENGINE_WARMUP_INSURANCE_OFF = 344;
+const ENGINE_LAST_SWEEP_START_OFF = 360;      // last_full_sweep_start_slot: u64
+const ENGINE_LAST_SWEEP_COMPLETE_OFF = 368;   // last_full_sweep_completed_slot: u64
+const ENGINE_CRANK_STEP_OFF = 376;            // crank_step: u8 (+ 7 bytes padding)
+const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 384; // lifetime_liquidations: u64
+const ENGINE_LIFETIME_FORCE_CLOSES_OFF = 392; // lifetime_force_realize_closes: u64
 // ADL scratch arrays follow, then bitmap and accounts
 // Verified via find-bitmap.ts against devnet 2026-01 (after RiskEngine grew by 4096 bytes):
 // - Created LP and found: bitmap=1 (bit 0 set), numUsed=1, nextAccountId=6
@@ -289,6 +294,11 @@ export interface EngineState {
   warmedPosTotal: bigint;
   warmedNegTotal: bigint;
   warmupInsuranceReserved: bigint;
+  lastSweepStartSlot: bigint;
+  lastSweepCompleteSlot: bigint;
+  crankStep: number;
+  lifetimeLiquidations: bigint;
+  lifetimeForceCloses: bigint;
   numUsedAccounts: number;
   nextAccountId: bigint;
 }
@@ -391,6 +401,11 @@ export function parseEngine(data: Buffer): EngineState {
     warmedPosTotal: readU128LE(data, base + ENGINE_WARMED_POS_OFF),
     warmedNegTotal: readU128LE(data, base + ENGINE_WARMED_NEG_OFF),
     warmupInsuranceReserved: readU128LE(data, base + ENGINE_WARMUP_INSURANCE_OFF),
+    lastSweepStartSlot: data.readBigUInt64LE(base + ENGINE_LAST_SWEEP_START_OFF),
+    lastSweepCompleteSlot: data.readBigUInt64LE(base + ENGINE_LAST_SWEEP_COMPLETE_OFF),
+    crankStep: data.readUInt8(base + ENGINE_CRANK_STEP_OFF),
+    lifetimeLiquidations: data.readBigUInt64LE(base + ENGINE_LIFETIME_LIQUIDATIONS_OFF),
+    lifetimeForceCloses: data.readBigUInt64LE(base + ENGINE_LIFETIME_FORCE_CLOSES_OFF),
     numUsedAccounts: data.readUInt16LE(base + ENGINE_NUM_USED_OFF),
     nextAccountId: data.readBigUInt64LE(base + ENGINE_NEXT_ACCOUNT_ID_OFF),
   };
