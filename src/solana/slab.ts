@@ -39,6 +39,12 @@ export interface MarketConfig {
   vaultAuthorityBump: number;
   invert: number;               // 0 = no inversion, 1 = invert oracle price
   unitScale: number;            // Lamports per unit (0 = no scaling)
+  // Funding rate parameters
+  fundingHorizonSlots: bigint;
+  fundingKBps: bigint;
+  fundingInvScaleNotionalE6: bigint;
+  fundingMaxPremiumBps: bigint;
+  fundingMaxBpsPerSlot: bigint;
 }
 
 /**
@@ -122,6 +128,22 @@ export function parseConfig(data: Buffer): MarketConfig {
   off += 1;
 
   const unitScale = data.readUInt32LE(off);
+  off += 4;
+
+  // Funding rate parameters
+  const fundingHorizonSlots = data.readBigUInt64LE(off);
+  off += 8;
+
+  const fundingKBps = data.readBigUInt64LE(off);
+  off += 8;
+
+  const fundingInvScaleNotionalE6 = readI128LE(data, off);
+  off += 16;
+
+  const fundingMaxPremiumBps = data.readBigUInt64LE(off);
+  off += 8;
+
+  const fundingMaxBpsPerSlot = data.readBigUInt64LE(off);
 
   return {
     collateralMint,
@@ -132,6 +154,11 @@ export function parseConfig(data: Buffer): MarketConfig {
     vaultAuthorityBump,
     invert,
     unitScale,
+    fundingHorizonSlots,
+    fundingKBps,
+    fundingInvScaleNotionalE6,
+    fundingMaxPremiumBps,
+    fundingMaxBpsPerSlot,
   };
 }
 
@@ -191,6 +218,11 @@ const ENGINE_LAST_SWEEP_COMPLETE_OFF = 86424; // last_full_sweep_completed_slot:
 const ENGINE_CRANK_STEP_OFF = 86432;          // crank_step: u8 (+ 7 bytes padding)
 const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 86440; // lifetime_liquidations: u64
 const ENGINE_LIFETIME_FORCE_CLOSES_OFF = 86448; // lifetime_force_realize_closes: u64
+// LP Aggregates for funding rate calculation
+const ENGINE_NET_LP_POS_OFF = 86456;          // net_lp_pos: i128 (sum of LP positions)
+const ENGINE_LP_SUM_ABS_OFF = 86472;          // lp_sum_abs: u128
+const ENGINE_LP_MAX_ABS_OFF = 86488;          // lp_max_abs: u128
+const ENGINE_LP_MAX_ABS_SWEEP_OFF = 86504;    // lp_max_abs_sweep: u128
 // Verified via find-bitmap.ts against devnet 2026-01 (after RiskEngine grew by 4096 bytes):
 // - Created LP and found: bitmap=1 (bit 0 set), numUsed=1, nextAccountId=6
 // - bitmap (u64=1) at slab 86848 = engine 86520
@@ -227,32 +259,25 @@ const PARAMS_MIN_LIQUIDATION_OFF = 128;    // u128 (total = 144 bytes)
 
 // =============================================================================
 // Account Layout (248 bytes, repr(C))
-// Verified via dump-bytes.ts empirical testing (2026-01-10):
-// - account_id at offset 0 (u64)
-// - capital at offset 8 (u128) - value 10000000 found
-// - kind at offset 24 (u8) - after capital
-// - warmup_started at offset 56 - slot value 434248143 found (not 64!)
-// - position_size at offset 80 - T12 verified
-// - matcher_program at offset 120 - correct pubkey found
-// - matcher_context at offset 152 - correct pubkey found (32 bytes!)
-// - owner at offset 184 - correct admin pubkey found
-// - last_fee_slot at offset 232 - slot value 434248143 found
+// NOTE: Despite U128/I128 wrapper types in Rust, on-chain layout remains unchanged
+// Field order: account_id, capital, kind, pnl, reserved_pnl, warmup_started,
+//              warmup_slope, position_size, entry_price, funding_index,
+//              matcher_program, matcher_context, owner, fee_credits, last_fee_slot
 // =============================================================================
 const ACCT_ACCOUNT_ID_OFF = 0;        // accountId (u64, 8 bytes), ends at 8
-const ACCT_CAPITAL_OFF = 8;           // capital (u128, 16 bytes), ends at 24
+const ACCT_CAPITAL_OFF = 8;           // capital (U128, 16 bytes), ends at 24
 const ACCT_KIND_OFF = 24;             // kind (u8, 1 byte + 7 padding), ends at 32
-const ACCT_PNL_OFF = 32;              // pnl (i128, 16 bytes), ends at 48
-const ACCT_RESERVED_PNL_OFF = 48;     // reserved_pnl (u64, 8 bytes), ends at 56
+const ACCT_PNL_OFF = 32;              // pnl (I128, 16 bytes), ends at 48
+const ACCT_RESERVED_PNL_OFF = 48;     // reserved_pnl (U128, 16 bytes), ends at 64
 const ACCT_WARMUP_STARTED_OFF = 56;   // warmup_started (u64, 8 bytes), ends at 64
-const ACCT_WARMUP_SLOPE_OFF = 64;     // warmup_slope (u64, 8 bytes), ends at 72
-// Note: bytes 72-79 may be padding or an unknown field
-const ACCT_POSITION_SIZE_OFF = 80;    // position_size (i128, 16 bytes), ends at 96 ← VERIFIED
+const ACCT_WARMUP_SLOPE_OFF = 64;     // warmup_slope (U128, 16 bytes), ends at 80
+const ACCT_POSITION_SIZE_OFF = 80;    // position_size (I128, 16 bytes), ends at 96
 const ACCT_ENTRY_PRICE_OFF = 96;      // entry_price (u64, 8 bytes), ends at 104
-const ACCT_FUNDING_INDEX_OFF = 104;   // funding_index (i128, 16 bytes), ends at 120
-const ACCT_MATCHER_PROGRAM_OFF = 120; // matcher_program (Pubkey, 32 bytes), ends at 152 ← VERIFIED
-const ACCT_MATCHER_CONTEXT_OFF = 152; // matcher_context (Pubkey, 32 bytes), ends at 184 ← VERIFIED
-const ACCT_OWNER_OFF = 184;           // owner (Pubkey, 32 bytes), ends at 216 ← VERIFIED
-const ACCT_FEE_CREDITS_OFF = 216;     // fee_credits (i128, 16 bytes), ends at 232
+const ACCT_FUNDING_INDEX_OFF = 104;   // funding_index (I128, 16 bytes), ends at 120
+const ACCT_MATCHER_PROGRAM_OFF = 120; // matcher_program (Pubkey, 32 bytes), ends at 152
+const ACCT_MATCHER_CONTEXT_OFF = 152; // matcher_context (Pubkey, 32 bytes), ends at 184
+const ACCT_OWNER_OFF = 184;           // owner (Pubkey, 32 bytes), ends at 216
+const ACCT_FEE_CREDITS_OFF = 216;     // fee_credits (I128, 16 bytes), ends at 232
 const ACCT_LAST_FEE_SLOT_OFF = 232;   // last_fee_slot (u64, 8 bytes), ends at 240
 
 // =============================================================================
@@ -302,6 +327,9 @@ export interface EngineState {
   crankStep: number;
   lifetimeLiquidations: bigint;
   lifetimeForceCloses: bigint;
+  // LP Aggregates for funding
+  netLpPos: bigint;          // Net LP position (sum of all LP positions)
+  lpSumAbs: bigint;          // Sum of abs(LP positions)
   numUsedAccounts: number;
   nextAccountId: bigint;
 }
@@ -331,11 +359,18 @@ export interface Account {
 
 // =============================================================================
 // Helper: read signed i128 from buffer
+// Match Rust's I128 wrapper: read both halves as unsigned, then interpret as signed
 // =============================================================================
 function readI128LE(buf: Buffer, offset: number): bigint {
   const lo = buf.readBigUInt64LE(offset);
-  const hi = buf.readBigInt64LE(offset + 8);
-  return (hi << 64n) | lo;
+  const hi = buf.readBigUInt64LE(offset + 8);
+  const unsigned = (hi << 64n) | lo;
+  // If high bit is set, convert to negative (two's complement)
+  const SIGN_BIT = 1n << 127n;
+  if (unsigned >= SIGN_BIT) {
+    return unsigned - (1n << 128n);
+  }
+  return unsigned;
 }
 
 function readU128LE(buf: Buffer, offset: number): bigint {
@@ -409,6 +444,9 @@ export function parseEngine(data: Buffer): EngineState {
     crankStep: data.readUInt8(base + ENGINE_CRANK_STEP_OFF),
     lifetimeLiquidations: data.readBigUInt64LE(base + ENGINE_LIFETIME_LIQUIDATIONS_OFF),
     lifetimeForceCloses: data.readBigUInt64LE(base + ENGINE_LIFETIME_FORCE_CLOSES_OFF),
+    // LP Aggregates for funding rate calculation
+    netLpPos: readI128LE(data, base + ENGINE_NET_LP_POS_OFF),
+    lpSumAbs: readU128LE(data, base + ENGINE_LP_SUM_ABS_OFF),
     numUsedAccounts: data.readUInt16LE(base + ENGINE_NUM_USED_OFF),
     nextAccountId: data.readBigUInt64LE(base + ENGINE_NEXT_ACCOUNT_ID_OFF),
   };
@@ -483,9 +521,9 @@ export function parseAccount(data: Buffer, idx: number): Account {
     accountId: data.readBigUInt64LE(base + ACCT_ACCOUNT_ID_OFF),
     capital: readU128LE(data, base + ACCT_CAPITAL_OFF),
     pnl: readI128LE(data, base + ACCT_PNL_OFF),
-    reservedPnl: data.readBigUInt64LE(base + ACCT_RESERVED_PNL_OFF),  // u64, not u128
+    reservedPnl: data.readBigUInt64LE(base + ACCT_RESERVED_PNL_OFF),  // u64
     warmupStartedAtSlot: data.readBigUInt64LE(base + ACCT_WARMUP_STARTED_OFF),
-    warmupSlopePerStep: data.readBigUInt64LE(base + ACCT_WARMUP_SLOPE_OFF),
+    warmupSlopePerStep: data.readBigUInt64LE(base + ACCT_WARMUP_SLOPE_OFF),  // u64
     positionSize: readI128LE(data, base + ACCT_POSITION_SIZE_OFF),
     entryPrice: data.readBigUInt64LE(base + ACCT_ENTRY_PRICE_OFF),
     fundingIndex: readI128LE(data, base + ACCT_FUNDING_INDEX_OFF),

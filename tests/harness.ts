@@ -81,7 +81,7 @@ import {
 // ============================================================================
 
 export const RPC_URL = process.env.SOLANA_RPC_URL || "https://devnet.helius-rpc.com/?api-key=2dfa2086-c6cd-4cb4-8a13-08ecdee36a0f";
-export const PROGRAM_ID = new PublicKey("AT2XFGzcQ2vVHkW5xpnqhs8NvfCUq5EmEcky5KE9EhnA");
+export const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 
 // Sentinel value for permissionless crank (no caller account required)
 export const CRANK_NO_CALLER = 65535; // u16::MAX

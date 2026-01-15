@@ -4,7 +4,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { fetchSlab, parseAccount, parseUsedIndices, parseEngine, AccountKind } from '../src/solana/slab.js';
 
-const SLAB = new PublicKey('8CUcauuMqAiB2xnT5c8VNM4zDHfbsedz6eLTAhHjACTe');
+const SLAB = new PublicKey('Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89');
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
 // Initial deposits (from README)

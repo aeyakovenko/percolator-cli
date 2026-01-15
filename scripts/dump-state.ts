@@ -5,7 +5,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { fetchSlab, parseParams, parseEngine, parseAccount, parseUsedIndices, parseConfig, AccountKind } from '../src/solana/slab.js';
 import * as fs from 'fs';
 
-const SLAB = new PublicKey('8CUcauuMqAiB2xnT5c8VNM4zDHfbsedz6eLTAhHjACTe');
+const SLAB = new PublicKey('Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89');
 const ORACLE = new PublicKey('99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR');
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
@@ -136,6 +136,12 @@ async function main() {
       unitScale: config.unitScale,
       confFilterBps: config.confFilterBps,
       maxStalenessSlots: config.maxStalenessSlots.toString(),
+      // Funding rate config
+      fundingHorizonSlots: config.fundingHorizonSlots.toString(),
+      fundingKBps: Number(config.fundingKBps),
+      fundingInvScaleNotionalE6: config.fundingInvScaleNotionalE6.toString(),
+      fundingMaxPremiumBps: Number(config.fundingMaxPremiumBps),
+      fundingMaxBpsPerSlot: Number(config.fundingMaxBpsPerSlot),
     },
 
     oraclePrice: {
@@ -187,8 +193,58 @@ async function main() {
       lastSweepCompleteSlot: engine.lastSweepCompleteSlot.toString(),
       lifetimeLiquidations: Number(engine.lifetimeLiquidations),
       lifetimeForceCloses: Number(engine.lifetimeForceCloses),
+      // LP Aggregates for funding
+      netLpPos: engine.netLpPos.toString(),
+      netLpPosNotionalSol: Number(engine.netLpPos * oraclePrice / 1_000_000n) / 1e9,
+      lpSumAbs: engine.lpSumAbs.toString(),
       numUsedAccounts: engine.numUsedAccounts,
     },
+
+    // Funding rate analysis
+    funding: (() => {
+      const netLpPos = engine.netLpPos;
+      const horizonSlots = config.fundingHorizonSlots;
+      const kBps = config.fundingKBps;
+      const invScale = config.fundingInvScaleNotionalE6;
+      const maxPremiumBps = config.fundingMaxPremiumBps;
+      const maxBpsPerSlot = config.fundingMaxBpsPerSlot;
+
+      // Calculate funding rate using same formula as contract
+      if (netLpPos === 0n || oraclePrice === 0n || horizonSlots === 0n) {
+        return {
+          currentIndexQpbE6: engine.fundingIndexQpbE6.toString(),
+          lastFundingSlot: engine.lastFundingSlot.toString(),
+          netLpPos: netLpPos.toString(),
+          calculatedRateBpsPerSlot: 0,
+          calculatedRateBpsPerHour: 0,
+          direction: 'NEUTRAL',
+          note: 'No funding (netLpPos=0 or oracle=0)',
+        };
+      }
+
+      const absPos = netLpPos < 0n ? -netLpPos : netLpPos;
+      const notionalE6 = absPos * oraclePrice / 1_000_000n;
+
+      // premium_bps = (notional / scale) * k_bps
+      let premiumBps = Number(notionalE6 * kBps / (invScale > 0n ? invScale : 1n));
+      if (premiumBps > Number(maxPremiumBps)) premiumBps = Number(maxPremiumBps);
+
+      // Apply sign and convert to per-slot
+      let perSlotBps = (netLpPos > 0n ? premiumBps : -premiumBps) / Number(horizonSlots);
+      if (perSlotBps > Number(maxBpsPerSlot)) perSlotBps = Number(maxBpsPerSlot);
+      if (perSlotBps < -Number(maxBpsPerSlot)) perSlotBps = -Number(maxBpsPerSlot);
+
+      return {
+        currentIndexQpbE6: engine.fundingIndexQpbE6.toString(),
+        lastFundingSlot: engine.lastFundingSlot.toString(),
+        netLpPos: netLpPos.toString(),
+        netLpPosNotionalSol: Number(notionalE6) / 1e6,
+        calculatedRateBpsPerSlot: perSlotBps,
+        calculatedRateBpsPerHour: perSlotBps * 7200,
+        direction: netLpPos > 0n ? 'LONGS_PAY' : 'SHORTS_PAY',
+        note: netLpPos > 0n ? 'LP net long - longs pay shorts to rebalance' : 'LP net short - shorts pay longs to rebalance',
+      };
+    })(),
 
     accounts,
 

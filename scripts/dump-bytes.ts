@@ -6,7 +6,7 @@ const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 const market = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
 const slab = new PublicKey(market.slab);
 const ENGINE_OFF = 328;
-const ENGINE_ACCOUNTS_OFF = 91160;
+const ENGINE_ACCOUNTS_OFF = 95256;
 const ACCOUNT_SIZE = 248;
 
 async function main() {

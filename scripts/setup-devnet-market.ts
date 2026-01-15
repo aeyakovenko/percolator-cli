@@ -61,7 +61,7 @@ import { buildIx } from "../src/runtime/tx.js";
 const CHAINLINK_SOL_USD = new PublicKey("99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR");
 
 // Program IDs
-const PROGRAM_ID = new PublicKey("AT2XFGzcQ2vVHkW5xpnqhs8NvfCUq5EmEcky5KE9EhnA");
+const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
 const MATCHER_CTX_SIZE = 320;
 
