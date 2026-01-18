@@ -1,7 +1,7 @@
 /**
  * Fund LP and insurance fund with more SOL
  */
-import { Connection, Keypair, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction, PublicKey, SystemProgram } from '@solana/web3.js';
+import { Connection, Keypair, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction, PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js';
 import { getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID, NATIVE_MINT } from '@solana/spl-token';
 import * as fs from 'fs';
 import { encodeDepositCollateral, encodeTopUpInsurance } from '../src/abi/instructions.js';
@@ -72,6 +72,7 @@ async function main() {
     userAta.address,
     VAULT,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const depositTx = new Transaction();

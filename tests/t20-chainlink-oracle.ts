@@ -276,6 +276,7 @@ async function main() {
     userAta.address,
     vaultAccount.address,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const depositTx = new Transaction();

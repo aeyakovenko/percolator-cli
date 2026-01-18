@@ -52,6 +52,7 @@ export function registerDeposit(program: Command): void {
         userAta, // userAta
         mktConfig.vaultPubkey, // vault
         WELL_KNOWN.tokenProgram, // tokenProgram
+        WELL_KNOWN.clock, // clock
       ]);
 
       const ix = buildIx({

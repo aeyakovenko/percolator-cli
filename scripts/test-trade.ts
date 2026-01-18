@@ -1,166 +1,122 @@
-/**
- * Test trading on the new wrapped SOL market
- */
-import { Connection, Keypair, Transaction, ComputeBudgetProgram, SYSVAR_CLOCK_PUBKEY, sendAndConfirmTransaction, PublicKey, SystemProgram } from '@solana/web3.js';
-import { getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID, NATIVE_MINT } from '@solana/spl-token';
-import * as fs from 'fs';
-import { encodeInitUser, encodeDepositCollateral, encodeTradeNoCpi, encodeKeeperCrank } from '../src/abi/instructions.js';
-import { buildAccountMetas, ACCOUNTS_INIT_USER, ACCOUNTS_DEPOSIT_COLLATERAL, ACCOUNTS_TRADE_NOCPI, ACCOUNTS_KEEPER_CRANK } from '../src/abi/accounts.js';
-import { buildIx } from '../src/runtime/tx.js';
-import { parseUsedIndices, parseAccount } from '../src/solana/slab.js';
+import { Connection, Keypair, PublicKey, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction, SYSVAR_CLOCK_PUBKEY } from "@solana/web3.js";
+import { encodeTradeCpi, encodeKeeperCrank } from "../src/abi/instructions.js";
+import { buildAccountMetas, ACCOUNTS_TRADE_CPI, ACCOUNTS_KEEPER_CRANK } from "../src/abi/accounts.js";
+import { buildIx } from "../src/runtime/tx.js";
+import { fetchSlab, parseAccount, parseEngine } from "../src/solana/slab.js";
+import fs from "fs";
 
-const PROGRAM_ID = new PublicKey('2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp');
-const SLAB = new PublicKey('Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89');
-const ORACLE = new PublicKey('99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR');
-const VAULT = new PublicKey('AJoTRUUwAb8nB2pwqKhNSKxvbE3GdHHiM9VxpoaBLhVj');
+// OLD slab configuration (working)
+const SLAB = new PublicKey("GKRvsx2gv7kvNGAKPxCATSufNJei6ep1fg6BvpYoPZAC");
+const ORACLE = new PublicKey("99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR");
+const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
+const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
+const MATCHER_CTX = new PublicKey("AY7GbUGzEsdQfiPqHuu8H8KAghvxow5KLWHMfHWxqtLM");
+const LP_IDX = 0;
+const USER_IDX = 6;
 
-const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));
-const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+function deriveLpPda(slabPubkey: PublicKey, lpIndex: number): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("lp"), slabPubkey.toBuffer(), Buffer.from([lpIndex & 0xff, (lpIndex >> 8) & 0xff])],
+    PROGRAM_ID
+  );
+  return pda;
+}
 
-async function main() {
-  // Run a full crank cycle (16 steps) to ensure sweep is fresh
-  console.log('Running full keeper crank cycle (16 steps)...');
+const conn = new Connection("https://api.devnet.solana.com", "confirmed");
+const payer = Keypair.fromSecretKey(
+  new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
+);
+
+async function runCrank(): Promise<void> {
   const crankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
-  const crankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, SLAB, SYSVAR_CLOCK_PUBKEY, ORACLE]);
-  for (let i = 0; i < 16; i++) {
-    const crankTx = new Transaction();
-    crankTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
-    crankTx.add(buildIx({ programId: PROGRAM_ID, keys: crankKeys, data: crankData }));
-    await sendAndConfirmTransaction(connection, crankTx, [payer], { commitment: 'confirmed', skipPreflight: true });
-    process.stdout.write('.');
-  }
-  console.log(' Done');
-
-  // Get or create wrapped SOL ATA
-  console.log('Setting up wrapped SOL account...');
-  const userAta = await getOrCreateAssociatedTokenAccount(connection, payer, NATIVE_MINT, payer.publicKey);
-  console.log('User ATA:', userAta.address.toBase58());
-
-  // Wrap some SOL if needed
-  const balance = await connection.getTokenAccountBalance(userAta.address);
-  console.log('Wrapped SOL balance:', balance.value.uiAmount);
-
-  if (balance.value.uiAmount! < 0.1) {
-    console.log('Wrapping 0.2 SOL...');
-    const wrapTx = new Transaction();
-    wrapTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
-    wrapTx.add(SystemProgram.transfer({
-      fromPubkey: payer.publicKey,
-      toPubkey: userAta.address,
-      lamports: 200_000_000, // 0.2 SOL
-    }));
-    wrapTx.add({
-      programId: TOKEN_PROGRAM_ID,
-      keys: [{ pubkey: userAta.address, isSigner: false, isWritable: true }],
-      data: Buffer.from([17]), // SyncNative
-    });
-    await sendAndConfirmTransaction(connection, wrapTx, [payer], { commitment: 'confirmed' });
-    console.log('Wrapped SOL OK');
-  }
-
-  // Check if user already has an account
-  const slabInfo = await connection.getAccountInfo(SLAB);
-  if (!slabInfo) throw new Error('Slab not found');
-
-  const usedIndices = parseUsedIndices(slabInfo.data);
-  console.log('Used indices:', usedIndices);
-
-  // Find user's account or create one
-  let userIdx = -1;
-  for (const idx of usedIndices) {
-    const account = parseAccount(slabInfo.data, idx);
-    if (account && account.owner.equals(payer.publicKey) && account.kind === 0) {
-      userIdx = idx;
-      console.log('Found existing user account at index:', userIdx);
-      break;
-    }
-  }
-
-  if (userIdx < 0) {
-    // Init user
-    console.log('Initializing new user account...');
-    const initUserData = encodeInitUser({ feePayment: '1000000' }); // 0.001 SOL
-    const initUserKeys = buildAccountMetas(ACCOUNTS_INIT_USER, [
-      payer.publicKey,
-      SLAB,
-      userAta.address,
-      VAULT,
-      TOKEN_PROGRAM_ID,
-    ]);
-    const initUserTx = new Transaction();
-    initUserTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
-    initUserTx.add(buildIx({ programId: PROGRAM_ID, keys: initUserKeys, data: initUserData }));
-    await sendAndConfirmTransaction(connection, initUserTx, [payer], { commitment: 'confirmed' });
-
-    // Re-fetch indices
-    const newSlabInfo = await connection.getAccountInfo(SLAB);
-    const newUsedIndices = parseUsedIndices(newSlabInfo!.data);
-    userIdx = newUsedIndices[newUsedIndices.length - 1];
-    console.log('User account created at index:', userIdx);
-  }
-
-  // Deposit collateral
-  console.log('Depositing 0.05 SOL collateral...');
-  const depositData = encodeDepositCollateral({ userIdx, amount: '50000000' }); // 0.05 SOL
-  const depositKeys = buildAccountMetas(ACCOUNTS_DEPOSIT_COLLATERAL, [
+  const crankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
     payer.publicKey,
-    SLAB,
-    userAta.address,
-    VAULT,
-    TOKEN_PROGRAM_ID,
-  ]);
-  const depositTx = new Transaction();
-  depositTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
-  depositTx.add(buildIx({ programId: PROGRAM_ID, keys: depositKeys, data: depositData }));
-  await sendAndConfirmTransaction(connection, depositTx, [payer], { commitment: 'confirmed' });
-  console.log('Deposit OK');
-
-  // Run another full crank cycle to ensure fresh state before trading
-  console.log('Running another keeper crank cycle (16 steps)...');
-  for (let i = 0; i < 16; i++) {
-    const crank2Tx = new Transaction();
-    crank2Tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
-    crank2Tx.add(buildIx({ programId: PROGRAM_ID, keys: crankKeys, data: crankData }));
-    await sendAndConfirmTransaction(connection, crank2Tx, [payer], { commitment: 'confirmed', skipPreflight: true });
-    process.stdout.write('.');
-  }
-  console.log(' Done');
-
-  // Trade: long 1000 units against LP (index 0)
-  console.log('Trading: long 1000 units...');
-  const tradeData = encodeTradeNoCpi({
-    userIdx,
-    lpIdx: 0,
-    size: '1000',
-  });
-  // TradeNoCpi needs: user, lpOwner, slab, clock, oracle
-  // Since we own the LP too, both signers are the payer
-  const tradeKeys = buildAccountMetas(ACCOUNTS_TRADE_NOCPI, [
-    payer.publicKey,  // user
-    payer.publicKey,  // lpOwner (we own the LP too)
     SLAB,
     SYSVAR_CLOCK_PUBKEY,
     ORACLE,
   ]);
-  const tradeTx = new Transaction();
-  tradeTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
-  tradeTx.add(buildIx({ programId: PROGRAM_ID, keys: tradeKeys, data: tradeData }));
-
-  const tradeSig = await sendAndConfirmTransaction(connection, tradeTx, [payer], { commitment: 'confirmed', skipPreflight: true });
-  console.log('Trade OK:', tradeSig);
-
-  // Check final state
-  const finalSlabInfo = await connection.getAccountInfo(SLAB);
-  const userAccount = parseAccount(finalSlabInfo!.data, userIdx);
-  const lpAccount = parseAccount(finalSlabInfo!.data, 0);
-
-  console.log('\n=== Final State ===');
-  console.log('User (idx', userIdx + '):');
-  console.log('  Position:', userAccount?.position.toString());
-  console.log('  Capital:', userAccount?.capital.toString());
-  console.log('LP (idx 0):');
-  console.log('  Position:', lpAccount?.position.toString());
-  console.log('  Capital:', lpAccount?.capital.toString());
+  const crankTx = new Transaction();
+  crankTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }));
+  crankTx.add(buildIx({ programId: PROGRAM_ID, keys: crankKeys, data: crankData }));
+  await sendAndConfirmTransaction(conn, crankTx, [payer], { commitment: "confirmed" });
 }
 
-main().catch(console.error);
+async function main() {
+  console.log("=== Test Trade on OLD Slab ===\n");
+
+  // Run a few cranks first
+  console.log("Running cranks...");
+  for (let i = 0; i < 4; i++) {
+    try {
+      await runCrank();
+      console.log("Crank " + (i + 1) + " done");
+    } catch {
+      // ignore
+    }
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  // Check current state
+  let data = await fetchSlab(conn, SLAB);
+  let engine = parseEngine(data);
+  let userAcc = parseAccount(data, USER_IDX);
+  let lpAcc = parseAccount(data, LP_IDX);
+
+  console.log("\nBefore trade:");
+  console.log("  Vault:", Number(engine.vault) / 1e9, "SOL");
+  console.log("  User 6 capital:", Number(userAcc.capital) / 1e9, "SOL");
+  console.log("  User 6 position:", userAcc.positionSize.toString());
+  console.log("  LP 0 position:", lpAcc.positionSize.toString());
+  console.log("  LP 0 capital:", Number(lpAcc.capital) / 1e9, "SOL");
+
+  // Execute a small trade
+  const tradeSize = 1_000_000_000n; // 1B units LONG
+  console.log("\nExecuting trade: user " + USER_IDX + " going LONG " + tradeSize + " via LP " + LP_IDX + "...");
+
+  const lpPda = deriveLpPda(SLAB, LP_IDX);
+  console.log("LP PDA:", lpPda.toBase58());
+
+  const tradeData = encodeTradeCpi({
+    lpIdx: LP_IDX,
+    userIdx: USER_IDX,
+    size: tradeSize.toString(),
+  });
+
+  const tradeKeys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
+    payer.publicKey,
+    payer.publicKey,
+    SLAB,
+    SYSVAR_CLOCK_PUBKEY,
+    ORACLE,
+    MATCHER_PROGRAM,
+    MATCHER_CTX,
+    lpPda,
+  ]);
+
+  const tradeTx = new Transaction();
+  tradeTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 300000 }));
+  tradeTx.add(buildIx({ programId: PROGRAM_ID, keys: tradeKeys, data: tradeData }));
+
+  try {
+    const sig = await sendAndConfirmTransaction(conn, tradeTx, [payer], { commitment: "confirmed" });
+    console.log("Trade successful:", sig.slice(0, 20) + "...");
+
+    // Check after trade
+    data = await fetchSlab(conn, SLAB);
+    userAcc = parseAccount(data, USER_IDX);
+    lpAcc = parseAccount(data, LP_IDX);
+
+    console.log("\nAfter trade:");
+    console.log("  User 6 capital:", Number(userAcc.capital) / 1e9, "SOL");
+    console.log("  User 6 position:", userAcc.positionSize.toString());
+    console.log("  User 6 pnl:", Number(userAcc.pnl) / 1e9, "SOL");
+    console.log("  LP 0 position:", lpAcc.positionSize.toString());
+  } catch (err) {
+    console.log("Trade failed:", (err as any).message?.slice(0, 200));
+    if ((err as any).logs) {
+      console.log("Logs:", (err as any).logs.slice(-5).join("\n      "));
+    }
+  }
+}
+
+main();

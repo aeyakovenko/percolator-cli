@@ -829,6 +829,7 @@ export class TestHarness {
       user.ata,
       ctx.vault,
       WELL_KNOWN.tokenProgram,
+      WELL_KNOWN.clock,
     ]);
 
     const ix = buildIx({ programId: PROGRAM_ID, keys, data: ixData });
@@ -1166,6 +1167,7 @@ export class TestHarness {
       payerAta,
       ctx.vault,
       WELL_KNOWN.tokenProgram,
+      WELL_KNOWN.clock,
     ]);
 
     const ix = buildIx({ programId: PROGRAM_ID, keys, data: ixData });

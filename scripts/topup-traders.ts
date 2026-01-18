@@ -1,7 +1,7 @@
 /**
  * Top up all traders with 1 SOL each
  */
-import { Connection, Keypair, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction, PublicKey, SystemProgram } from '@solana/web3.js';
+import { Connection, Keypair, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction, PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js';
 import { getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID, NATIVE_MINT } from '@solana/spl-token';
 import * as fs from 'fs';
 import { encodeDepositCollateral } from '../src/abi/instructions.js';
@@ -13,7 +13,7 @@ const SLAB = new PublicKey('Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89');
 const VAULT = new PublicKey('AJoTRUUwAb8nB2pwqKhNSKxvbE3GdHHiM9VxpoaBLhVj');
 
 const DEPOSIT_AMOUNT = 1_000_000_000n; // 1 SOL
-const TRADER_INDICES = [1, 2, 3, 4, 5];
+const TRADER_INDICES = [0, 1, 2, 3, 4, 5]; // Include LP (index 0)
 
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
@@ -59,6 +59,7 @@ async function main() {
       userAta.address,
       VAULT,
       TOKEN_PROGRAM_ID,
+      SYSVAR_CLOCK_PUBKEY,
     ]);
 
     const depositTx = new Transaction();

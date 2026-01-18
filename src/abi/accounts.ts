@@ -59,7 +59,7 @@ export const ACCOUNTS_INIT_LP: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * DepositCollateral: 5 accounts
+ * DepositCollateral: 6 accounts
  */
 export const ACCOUNTS_DEPOSIT_COLLATERAL: readonly AccountSpec[] = [
   { name: "user", signer: true, writable: false },
@@ -67,6 +67,7 @@ export const ACCOUNTS_DEPOSIT_COLLATERAL: readonly AccountSpec[] = [
   { name: "userAta", signer: false, writable: true },
   { name: "vault", signer: false, writable: true },
   { name: "tokenProgram", signer: false, writable: false },
+  { name: "clock", signer: false, writable: false },
 ] as const;
 
 /**

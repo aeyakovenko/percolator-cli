@@ -411,6 +411,7 @@ async function deposit(
     participant.ata,
     market.vault,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const tx = new Transaction();

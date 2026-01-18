@@ -155,6 +155,7 @@ async function main() {
     traderAta.address,
     vault,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const depositTx = new Transaction();
