@@ -15,10 +15,10 @@ const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(pr
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
 async function main() {
-  // Target index 0 = LP account
-  const targetIdx = 0;
+  // Target index 5 = Trader 5
+  const targetIdx = 5;
 
-  console.log('=== Liquidating LP (index 0) ===');
+  console.log('=== Liquidating Trader 5 (index 5) ===');
   console.log('Program:', PROGRAM_ID.toBase58());
   console.log('Slab:', SLAB.toBase58());
   console.log('Oracle:', ORACLE.toBase58());

@@ -24,9 +24,9 @@ async function main() {
     // Funding params - adjusted for meaningful rates at our market size
     fundingHorizonSlots: 500n,
     fundingKBps: 100n,
-    fundingInvScaleNotionalE6: 1_000_000_000n,  // Reduced from 1e12 to 1e9
-    fundingMaxPremiumBps: 1000n,                // Increased from 500
-    fundingMaxBpsPerSlot: 10n,                  // Increased from 5
+    fundingInvScaleNotionalE6: 1_000_000n,       // Reduced from 1e12 to 1e6 (1M x more aggressive)
+    fundingMaxPremiumBps: 5000n,                 // Increased from 500 to 5000 (50% max premium)
+    fundingMaxBpsPerSlot: 50n,                   // Increased from 5 to 50
     // Threshold params - keep defaults
     threshFloor: 0n,
     threshRiskBps: 50n,

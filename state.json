@@ -1,299 +1,944 @@
 {
-  "timestamp": "2026-01-12T13:06:15.430Z",
-  "slab": "8CUcauuMqAiB2xnT5c8VNM4zDHfbsedz6eLTAhHjACTe",
+  "timestamp": "2026-01-19T14:45:09.125Z",
+  "slab": "Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89",
   "oracle": "99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR",
   "marketConfig": {
     "invert": 1,
     "unitScale": 0,
     "confFilterBps": 500,
-    "maxStalenessSlots": "3600"
+    "maxStalenessSlots": "3600",
+    "fundingHorizonSlots": "500",
+    "fundingKBps": 100,
+    "fundingInvScaleNotionalE6": "1000000",
+    "fundingMaxPremiumBps": 5000,
+    "fundingMaxBpsPerSlot": 50
   },
   "oraclePrice": {
-    "rawE6": "138000000",
-    "rawUSD": 138,
+    "rawUsd": 133.33564,
+    "rawE6": "133335640",
     "inverted": true,
-    "effectiveE6": "7246",
-    "effectiveValue": 0.007246,
-    "note": "Using inverted price (SOL/USD) - entry prices stored as ~7246"
+    "effectiveE6": "7499",
+    "note": "Inverted price for SOL/USD perp"
   },
   "riskParameters": {
-    "warmupPeriodSlots": "10",
-    "maintenanceMarginBps": 500,
-    "maintenanceMarginPercent": 5,
-    "initialMarginBps": 1000,
-    "initialMarginPercent": 10,
-    "tradingFeeBps": 10,
-    "maxAccounts": "1024",
-    "newAccountFee": "1000000",
-    "riskReductionThreshold": "44074",
-    "maintenanceFeePerSlot": "0",
-    "maxCrankStalenessSlots": "200",
-    "liquidationFeeBps": 100,
-    "liquidationFeePercent": 1,
-    "liquidationFeeCap": "1000000000",
-    "liquidationBufferBps": 50,
-    "minLiquidationAbs": "100000"
+    "warmupPeriodSlots": "0",
+    "maintenanceMarginBps": 0,
+    "maintenanceMarginPercent": 0,
+    "initialMarginBps": 0,
+    "initialMarginPercent": 0,
+    "tradingFeeBps": 1000,
+    "maxAccounts": "0",
+    "newAccountFee": "1844674407370955161800",
+    "riskReductionThreshold": "1000000000",
+    "maintenanceFeePerSlot": "1844674407370955161600050",
+    "maxCrankStalenessSlots": "0",
+    "liquidationFeeBps": 435697162,
+    "liquidationFeePercent": 4356971.62,
+    "liquidationFeeCap": "2781",
+    "liquidationBufferBps": 435697162,
+    "minLiquidationAbs": "0"
   },
   "engine": {
-    "vault": "2506000000",
-    "vaultSol": 2.506,
+    "vault": "9223372036854775808010",
+    "vaultSol": 9223372036854.775,
     "insuranceFund": {
-      "balance": "1006023646",
-      "balanceSol": 1.006023646,
-      "feeRevenue": "6023646"
+      "balance": "184467440737095517160",
+      "balanceSol": 184467440737.09552,
+      "feeRevenue": "18446744073709551616001024"
     },
-    "currentSlot": "434657464",
+    "currentSlot": "0",
     "fundingIndexQpbE6": "0",
-    "lastFundingSlot": "434657464",
-    "lastCrankSlot": "434657464",
-    "maxCrankStalenessSlots": "200",
-    "totalOpenInterest": "3800000000",
-    "lossAccum": "0",
-    "riskReductionOnly": false,
-    "numUsedAccounts": 6
+    "lastFundingSlot": "0",
+    "lastCrankSlot": "12012505421",
+    "maxCrankStalenessSlots": "0",
+    "totalOpenInterestUnits": "118179958797",
+    "totalOpenInterestSol": 0.886231511,
+    "lossAccum": "8037194041055570451818961476",
+    "riskReductionOnly": true,
+    "crankStep": 0,
+    "lastSweepStartSlot": "0",
+    "lastSweepCompleteSlot": "0",
+    "lifetimeLiquidations": 0,
+    "lifetimeForceCloses": 0,
+    "netLpPos": "0",
+    "netLpPosNotionalSol": 0,
+    "lpSumAbs": "8511",
+    "numUsedAccounts": 16
+  },
+  "funding": {
+    "currentIndexQpbE6": "0",
+    "lastFundingSlot": "0",
+    "netLpPos": "0",
+    "calculatedRateBpsPerSlot": 0,
+    "calculatedRateBpsPerHour": 0,
+    "direction": "NEUTRAL",
+    "note": "No funding (netLpPos=0 or oracle=0)"
   },
   "accounts": [
     {
-      "index": 0,
-      "label": "LP",
-      "kind": "LP",
-      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "index": 3712,
+      "label": "Trader 3712",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
       "position": {
-        "size": "-1100000000",
-        "direction": "SHORT",
-        "entryPrice": "7192"
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
       },
-      "capital": {
-        "raw": "1000000000",
-        "sol": 1
-      },
-      "pnl": {
-        "raw": "0",
-        "sol": 0
-      },
-      "reservedPnl": "0",
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
       "margin": {
-        "notionalLamports": "7970600",
-        "notionalSol": 0.0079706,
-        "maintenanceRequiredLamports": "398530",
-        "maintenanceRequiredSol": 0.00039853,
-        "initialRequiredLamports": "797060",
-        "initialRequiredSol": 0.00079706,
-        "effectiveCapitalLamports": "1000000000",
-        "effectiveCapitalSol": 1,
-        "bufferLamports": "999601470",
-        "bufferSol": 0.99960147,
-        "marginRatioBps": 1254610,
-        "marginRatioPercent": 12546.1
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
       },
       "status": "SAFE",
-      "liquidationReason": null,
-      "warmupStartedAtSlot": "434656878",
-      "warmupSlopePerStep": "2030"
+      "liquidationReason": null
     },
     {
-      "index": 1,
-      "label": "Trader 1",
+      "index": 3715,
+      "label": "Trader 3715",
       "kind": "USER",
-      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "owner": "11111111111111111111111111111111",
       "position": {
-        "size": "-500000000",
-        "direction": "SHORT",
-        "entryPrice": "7122"
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
       },
-      "capital": {
-        "raw": "99996441",
-        "sol": 0.099996441
-      },
-      "pnl": {
-        "raw": "0",
-        "sol": 0
-      },
-      "reservedPnl": "0",
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
       "margin": {
-        "notionalLamports": "3623000",
-        "notionalSol": 0.003623,
-        "maintenanceRequiredLamports": "181150",
-        "maintenanceRequiredSol": 0.00018115,
-        "initialRequiredLamports": "362300",
-        "initialRequiredSol": 0.0003623,
-        "effectiveCapitalLamports": "99996441",
-        "effectiveCapitalSol": 0.099996441,
-        "bufferLamports": "99815291",
-        "bufferSol": 0.099815291,
-        "marginRatioBps": 276004,
-        "marginRatioPercent": 2760.04
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
       },
       "status": "SAFE",
-      "liquidationReason": null,
-      "warmupStartedAtSlot": "434656664",
-      "warmupSlopePerStep": "0"
+      "liquidationReason": null
     },
     {
-      "index": 2,
-      "label": "Trader 2",
+      "index": 3776,
+      "label": "Trader 3776",
       "kind": "USER",
-      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "owner": "11111111111111111111111111111111",
       "position": {
-        "size": "600000000",
-        "direction": "LONG",
-        "entryPrice": "7196"
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
       },
-      "capital": {
-        "raw": "99987552",
-        "sol": 0.099987552
-      },
-      "pnl": {
-        "raw": "0",
-        "sol": 0
-      },
-      "reservedPnl": "0",
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
       "margin": {
-        "notionalLamports": "4347600",
-        "notionalSol": 0.0043476,
-        "maintenanceRequiredLamports": "217380",
-        "maintenanceRequiredSol": 0.00021738,
-        "initialRequiredLamports": "434760",
-        "initialRequiredSol": 0.00043476,
-        "effectiveCapitalLamports": "99987552",
-        "effectiveCapitalSol": 0.099987552,
-        "bufferLamports": "99770172",
-        "bufferSol": 0.099770172,
-        "marginRatioBps": 229983,
-        "marginRatioPercent": 2299.83
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
       },
       "status": "SAFE",
-      "liquidationReason": null,
-      "warmupStartedAtSlot": "434656734",
-      "warmupSlopePerStep": "0"
+      "liquidationReason": null
     },
     {
-      "index": 3,
-      "label": "Trader 3",
+      "index": 3780,
+      "label": "Trader 3780",
       "kind": "USER",
-      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "owner": "11111111111111111111111111111111",
       "position": {
-        "size": "-300000000",
-        "direction": "SHORT",
-        "entryPrice": "7123"
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
       },
-      "capital": {
-        "raw": "99989336",
-        "sol": 0.099989336
-      },
-      "pnl": {
-        "raw": "0",
-        "sol": 0
-      },
-      "reservedPnl": "0",
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
       "margin": {
-        "notionalLamports": "2173800",
-        "notionalSol": 0.0021738,
-        "maintenanceRequiredLamports": "108690",
-        "maintenanceRequiredSol": 0.00010869,
-        "initialRequiredLamports": "217380",
-        "initialRequiredSol": 0.00021738,
-        "effectiveCapitalLamports": "99989336",
-        "effectiveCapitalSol": 0.099989336,
-        "bufferLamports": "99880646",
-        "bufferSol": 0.099880646,
-        "marginRatioBps": 459974,
-        "marginRatioPercent": 4599.74
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
       },
       "status": "SAFE",
-      "liquidationReason": null,
-      "warmupStartedAtSlot": "434656592",
-      "warmupSlopePerStep": "0"
+      "liquidationReason": null
     },
     {
-      "index": 4,
-      "label": "Trader 4",
+      "index": 3841,
+      "label": "Trader 3841",
       "kind": "USER",
-      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "owner": "11111111111111111111111111111111",
       "position": {
-        "size": "1200000000",
-        "direction": "LONG",
-        "entryPrice": "7190"
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
       },
-      "capital": {
-        "raw": "99991374",
-        "sol": 0.099991374
-      },
-      "pnl": {
-        "raw": "0",
-        "sol": 0
-      },
-      "reservedPnl": "0",
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
       "margin": {
-        "notionalLamports": "8695200",
-        "notionalSol": 0.0086952,
-        "maintenanceRequiredLamports": "434760",
-        "maintenanceRequiredSol": 0.00043476,
-        "initialRequiredLamports": "869520",
-        "initialRequiredSol": 0.00086952,
-        "effectiveCapitalLamports": "99991374",
-        "effectiveCapitalSol": 0.099991374,
-        "bufferLamports": "99556614",
-        "bufferSol": 0.099556614,
-        "marginRatioBps": 114996,
-        "marginRatioPercent": 1149.96
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
       },
       "status": "SAFE",
-      "liquidationReason": null,
-      "warmupStartedAtSlot": "434656806",
-      "warmupSlopePerStep": "0"
+      "liquidationReason": null
     },
     {
-      "index": 5,
-      "label": "Trader 5",
+      "index": 3844,
+      "label": "Trader 3844",
       "kind": "USER",
-      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "owner": "11111111111111111111111111111111",
       "position": {
-        "size": "100000000",
-        "direction": "LONG",
-        "entryPrice": "7197"
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
       },
-      "capital": {
-        "raw": "99991351",
-        "sol": 0.099991351
-      },
-      "pnl": {
-        "raw": "0",
-        "sol": 0
-      },
-      "reservedPnl": "0",
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
       "margin": {
-        "notionalLamports": "724600",
-        "notionalSol": 0.0007246,
-        "maintenanceRequiredLamports": "36230",
-        "maintenanceRequiredSol": 0.00003623,
-        "initialRequiredLamports": "72460",
-        "initialRequiredSol": 0.00007246,
-        "effectiveCapitalLamports": "99991351",
-        "effectiveCapitalSol": 0.099991351,
-        "bufferLamports": "99955121",
-        "bufferSol": 0.099955121,
-        "marginRatioBps": 1379952,
-        "marginRatioPercent": 13799.52
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
       },
       "status": "SAFE",
-      "liquidationReason": null,
-      "warmupStartedAtSlot": "434656878",
-      "warmupSlopePerStep": "0"
+      "liquidationReason": null
+    },
+    {
+      "index": 3857,
+      "label": "Trader 3857",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3858,
+      "label": "Trader 3858",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3873,
+      "label": "Trader 3873",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3874,
+      "label": "Trader 3874",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3888,
+      "label": "Trader 3888",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3905,
+      "label": "Trader 3905",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3920,
+      "label": "Trader 3920",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3921,
+      "label": "Trader 3921",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3952,
+      "label": "Trader 3952",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3953,
+      "label": "Trader 3953",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3954,
+      "label": "Trader 3954",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3971,
+      "label": "Trader 3971",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3984,
+      "label": "Trader 3984",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3987,
+      "label": "Trader 3987",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4001,
+      "label": "Trader 4001",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4003,
+      "label": "Trader 4003",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4016,
+      "label": "Trader 4016",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4017,
+      "label": "Trader 4017",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4019,
+      "label": "Trader 4019",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4034,
+      "label": "Trader 4034",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4035,
+      "label": "Trader 4035",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4048,
+      "label": "Trader 4048",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4050,
+      "label": "Trader 4050",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4051,
+      "label": "Trader 4051",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4065,
+      "label": "Trader 4065",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4066,
+      "label": "Trader 4066",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4067,
+      "label": "Trader 4067",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4080,
+      "label": "Trader 4080",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4081,
+      "label": "Trader 4081",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4082,
+      "label": "Trader 4082",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4083,
+      "label": "Trader 4083",
+      "kind": "USER",
+      "owner": "11111111111111111111111111111111",
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPrice": "0",
+        "notionalSol": 0
+      },
+      "capitalSol": 0,
+      "realizedPnlSol": 0,
+      "unrealizedPnlSol": 0,
+      "effectiveCapitalSol": 0,
+      "margin": {
+        "maintenanceRequiredSol": 0,
+        "bufferSol": 0,
+        "ratioPercent": 999.99
+      },
+      "status": "SAFE",
+      "liquidationReason": null
     }
   ],
   "summary": {
-    "totalAccounts": 6,
+    "totalAccounts": 37,
     "liquidatable": 0,
     "atRisk": 0,
-    "safe": 6,
-    "totalLongPositionSize": "1900000000",
-    "totalShortPositionSize": "1900000000"
+    "safe": 37,
+    "totalLongNotionalSol": 0,
+    "totalShortNotionalSol": 0
   },
   "liquidationAnalysis": {
-    "description": "Accounts are liquidatable when their effective capital (capital + PnL) falls below the maintenance margin requirement.",
+    "description": "Accounts are liquidatable when effective capital falls below maintenance margin requirement.",
     "formula": "margin_ratio = effective_capital / notional_value",
-    "threshold": "Liquidation triggers when margin_ratio < 5% (500 bps)",
+    "threshold": "Liquidation at margin_ratio < 0%",
     "liquidatableAccounts": []
   }
 }
