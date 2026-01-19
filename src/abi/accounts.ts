@@ -187,6 +187,32 @@ export const ACCOUNTS_UPDATE_CONFIG: readonly AccountSpec[] = [
   { name: "slab", signer: false, writable: true },
 ] as const;
 
+/**
+ * SetMaintenanceFee: 2 accounts
+ */
+export const ACCOUNTS_SET_MAINTENANCE_FEE: readonly AccountSpec[] = [
+  { name: "admin", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+] as const;
+
+/**
+ * SetOracleAuthority: 2 accounts
+ * Sets the oracle price authority (admin only)
+ */
+export const ACCOUNTS_SET_ORACLE_AUTHORITY: readonly AccountSpec[] = [
+  { name: "admin", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+] as const;
+
+/**
+ * PushOraclePrice: 2 accounts
+ * Push oracle price (oracle authority only)
+ */
+export const ACCOUNTS_PUSH_ORACLE_PRICE: readonly AccountSpec[] = [
+  { name: "authority", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+] as const;
+
 // ============================================================================
 // ACCOUNT META BUILDERS
 // ============================================================================

@@ -29,6 +29,9 @@ export const IX_TAG = {
   UpdateAdmin: 12,
   CloseSlab: 13,
   UpdateConfig: 14,
+  SetMaintenanceFee: 15,
+  SetOracleAuthority: 16,
+  PushOraclePrice: 17,
 } as const;
 
 /**
@@ -324,5 +327,52 @@ export function encodeUpdateConfig(args: UpdateConfigArgs): Buffer {
     encU128(args.threshMin),
     encU128(args.threshMax),
     encU128(args.threshMinStep),
+  ]);
+}
+
+/**
+ * SetMaintenanceFee instruction data (17 bytes)
+ */
+export interface SetMaintenanceFeeArgs {
+  newFee: bigint | string;
+}
+
+export function encodeSetMaintenanceFee(args: SetMaintenanceFeeArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.SetMaintenanceFee),
+    encU128(args.newFee),
+  ]);
+}
+
+/**
+ * SetOracleAuthority instruction data (33 bytes)
+ * Sets the oracle price authority. Pass zero pubkey to disable and require Pyth/Chainlink.
+ */
+export interface SetOracleAuthorityArgs {
+  newAuthority: PublicKey | string;
+}
+
+export function encodeSetOracleAuthority(args: SetOracleAuthorityArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.SetOracleAuthority),
+    encPubkey(args.newAuthority),
+  ]);
+}
+
+/**
+ * PushOraclePrice instruction data (17 bytes)
+ * Push a new oracle price (oracle authority only).
+ * The price should be in e6 format and already include any inversion/scaling.
+ */
+export interface PushOraclePriceArgs {
+  priceE6: bigint | string;
+  timestamp: bigint | string;
+}
+
+export function encodePushOraclePrice(args: PushOraclePriceArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.PushOraclePrice),
+    encU64(args.priceE6),
+    encI64(args.timestamp),
   ]);
 }
