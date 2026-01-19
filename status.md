@@ -369,3 +369,28 @@ Insurance: 1.012 SOL
 6. **Withdrawal limits** correctly enforce LP capital as maximum
 
 The Percolator perpetuals system demonstrates robust security against oracle manipulation attacks. The withdrawal limit mechanism effectively prevents attackers from extracting more value than counterparties can pay, even with full oracle control.
+
+---
+
+### ADL/Liquidation Exploitation Tests
+
+#### Direct Liquidation Attack
+Attempted `liquidateAtOracle` instruction at various prices:
+- **$1000, $500, $100, $50, $10, $1, $0.10, $0.01**
+- All transactions confirmed but **0 actual liquidations**
+- User accounts protected (no open positions to liquidate)
+
+#### Extreme Price Tests
+| Test | Price | Liquidations | Vault Impact |
+|------|-------|--------------|--------------|
+| Crash | $0.001 | 0 | None |
+| Spike | $10,000,000 | 0 | None |
+| Heavy cranking (30x) | Various | 0 | None |
+
+#### Results
+- **Vault**: 3.809379 SOL (unchanged)
+- **Insurance**: 1.011850 SOL (unchanged)
+- **Liquidations**: 0 (no positions to liquidate)
+- **User capital preserved**: USER 1 = 1.998 SOL, USER 2 = 0.500 SOL
+
+**Conclusion**: ADL/liquidation mechanism cannot be exploited when users have no open positions. System correctly rejects liquidation attempts on accounts with no exposure.
