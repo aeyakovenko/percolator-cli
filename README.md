@@ -47,16 +47,16 @@ A live inverted SOL/USD market is available on devnet for testing. This market u
 ### Market Details
 
 ```
-Slab:           Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89
+Slab:           Dw9f3yYUuP6mqLBpjEqBag9caw44GD4t9F5kaSuUTheq
 Mint:           So11111111111111111111111111111111111111112 (Wrapped SOL)
-Vault:          AJoTRUUwAb8nB2pwqKhNSKxvbE3GdHHiM9VxpoaBLhVj
+Vault:          4yEgJWp8qg1FTZAUmWvZrcaFTUGedKg3z92bbPQdgScr
 Oracle:         99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (Chainlink SOL/USD)
 Type:           INVERTED (price = 1/SOL in USD terms)
 
 LP (50bps Passive Matcher):
   Index:        0
-  PDA:          4hAU2i2rMejBGaPKqGxkGbU1WefuUbB3hevzeo3YqDWv
-  Matcher Ctx:  J3nEGRNvDaN2ADbGeFgAd93y3nxQ54kdNwWykgD4zZEJ
+  PDA:          8xr57S8Yxn6AVuE3TLChLsaHsPwcrzAAfcEEdQq7NkpP
+  Matcher Ctx:  8swEJQ9EDrirqGYeQ51g9nRShR5sGb3BctNnN3Zwm2RY
   Collateral:   1 SOL
 
 Insurance Fund: 1 SOL
@@ -113,7 +113,7 @@ spl-token wrap 1 --url devnet
 
 ```bash
 # Initialize user account (costs 0.001 SOL fee)
-percolator-cli init-user --slab Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89
+percolator-cli init-user --slab Dw9f3yYUuP6mqLBpjEqBag9caw44GD4t9F5kaSuUTheq
 ```
 
 #### Step 4: Deposit collateral
@@ -121,7 +121,7 @@ percolator-cli init-user --slab Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89
 ```bash
 # Deposit 0.05 SOL (50000000 lamports in 9 decimal format)
 percolator-cli deposit \
-  --slab Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89 \
+  --slab Dw9f3yYUuP6mqLBpjEqBag9caw44GD4t9F5kaSuUTheq \
   --user-idx <your-idx> \
   --amount 50000000
 ```
@@ -132,7 +132,7 @@ Before trading, you can scan available LPs to find the best prices:
 
 ```bash
 percolator-cli best-price \
-  --slab Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89 \
+  --slab Dw9f3yYUuP6mqLBpjEqBag9caw44GD4t9F5kaSuUTheq \
   --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
 ```
 
@@ -149,22 +149,22 @@ After depositing collateral, you can trade against the LP. Run a keeper crank fi
 ```bash
 # Step 1: Run keeper crank (ensures sweep is fresh)
 percolator-cli keeper-crank \
-  --slab Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89 \
+  --slab Dw9f3yYUuP6mqLBpjEqBag9caw44GD4t9F5kaSuUTheq \
   --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
 
 # Step 2: Trade via the 50bps matcher (long 1000 units)
 percolator-cli trade-cpi \
-  --slab Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89 \
+  --slab Dw9f3yYUuP6mqLBpjEqBag9caw44GD4t9F5kaSuUTheq \
   --user-idx <your-idx> \
   --lp-idx 0 \
   --size 1000 \
   --matcher-program 4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy \
-  --matcher-ctx J3nEGRNvDaN2ADbGeFgAd93y3nxQ54kdNwWykgD4zZEJ \
+  --matcher-ctx 8swEJQ9EDrirqGYeQ51g9nRShR5sGb3BctNnN3Zwm2RY \
   --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
 
 # Or use trade-nocpi for direct trading without matcher
 percolator-cli trade-nocpi \
-  --slab Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89 \
+  --slab Dw9f3yYUuP6mqLBpjEqBag9caw44GD4t9F5kaSuUTheq \
   --user-idx <your-idx> \
   --lp-idx 0 \
   --size 1000 \
@@ -335,6 +335,28 @@ percolator-cli update-config --slab <pubkey> \
   --thresh-min-step <n>
 ```
 
+### Oracle Authority (Admin Only)
+
+The oracle authority feature allows the admin to push prices directly instead of relying on Chainlink. This is useful for testing scenarios like flash crashes, ADL triggers, and stress testing.
+
+```bash
+# Set oracle authority (admin only)
+percolator-cli set-oracle-authority --slab <pubkey> --authority <pubkey>
+
+# Push oracle price (authority signer required)
+# Price is in USD (e.g., 143.50 for $143.50)
+percolator-cli push-oracle-price --slab <pubkey> --price <usd>
+
+# Disable oracle authority (reverts to Chainlink)
+percolator-cli set-oracle-authority --slab <pubkey> --authority 11111111111111111111111111111111
+```
+
+**Security Notes:**
+- Only the market admin can set the oracle authority
+- Only the designated authority can push prices
+- Zero price (0) is rejected to prevent division-by-zero attacks
+- Setting authority to the zero address disables the feature
+
 ## Testing
 
 ```bash
@@ -393,6 +415,19 @@ npx tsx scripts/find-user.ts <slab_pubkey>                    # List all account
 npx tsx scripts/find-user.ts <slab_pubkey> <owner_pubkey>     # Find specific account
 ```
 
+### Stress Testing & Security
+
+```bash
+# Oracle authority stress test - tests price manipulation scenarios
+npx tsx scripts/oracle-authority-stress.ts
+npx tsx scripts/oracle-authority-stress.ts 0        # Run specific scenario by index
+npx tsx scripts/oracle-authority-stress.ts --disable # Disable oracle authority after tests
+
+# Pen-test oracle - comprehensive security testing
+# Tests: flash crash, price edge cases, timestamp attacks, funding manipulation, ADL cascade
+npx tsx scripts/pentest-oracle.ts
+```
+
 ### Configuration
 
 ```bash
@@ -404,12 +439,17 @@ npx tsx scripts/update-funding-config.ts
 
 ### Price Oracles
 
-Percolator supports two oracle types:
+Percolator supports multiple oracle modes:
 
 1. **Pyth** - Uses Pyth Network price feeds via PriceUpdateV2 accounts
 2. **Chainlink** - Uses Chainlink OCR2 aggregator accounts
+3. **Oracle Authority** - Admin-controlled price push for testing
 
-The program auto-detects oracle type by checking the account owner.
+The program auto-detects oracle type by checking the account owner. If an oracle authority is set and has pushed a price, that price is used instead of Pyth/Chainlink.
+
+**Oracle Authority Priority:**
+1. If `oracle_authority != 0` AND `authority_price_e6 != 0` AND timestamp is recent: use authority price
+2. Otherwise: fall back to Pyth/Chainlink
 
 ### Inverted Markets
 

@@ -9,8 +9,9 @@ const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
 //               funding_horizon_slots(8) + funding_k_bps(8) + funding_inv_scale_notional_e6(16) +
 //               funding_max_premium_bps(8) + funding_max_bps_per_slot(8) +
 //               thresh_floor(16) + thresh_risk_bps(8) + thresh_update_interval_slots(8) +
-//               thresh_step_bps(8) + thresh_alpha_bps(8) + thresh_min(16) + thresh_max(16) + thresh_min_step(16)
-const CONFIG_LEN = 256;
+//               thresh_step_bps(8) + thresh_alpha_bps(8) + thresh_min(16) + thresh_max(16) + thresh_min_step(16) +
+//               oracle_authority(32) + authority_price_e6(8) + authority_timestamp(8)
+const CONFIG_LEN = 304;
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 /**
@@ -45,6 +46,19 @@ export interface MarketConfig {
   fundingInvScaleNotionalE6: bigint;
   fundingMaxPremiumBps: bigint;
   fundingMaxBpsPerSlot: bigint;
+  // Threshold parameters
+  threshFloor: bigint;
+  threshRiskBps: bigint;
+  threshUpdateIntervalSlots: bigint;
+  threshStepBps: bigint;
+  threshAlphaBps: bigint;
+  threshMin: bigint;
+  threshMax: bigint;
+  threshMinStep: bigint;
+  // Oracle authority
+  oracleAuthority: PublicKey;
+  authorityPriceE6: bigint;
+  authorityTimestamp: bigint;
 }
 
 /**
@@ -144,6 +158,41 @@ export function parseConfig(data: Buffer): MarketConfig {
   off += 8;
 
   const fundingMaxBpsPerSlot = data.readBigUInt64LE(off);
+  off += 8;
+
+  // Threshold parameters
+  const threshFloor = readU128LE(data, off);
+  off += 16;
+
+  const threshRiskBps = data.readBigUInt64LE(off);
+  off += 8;
+
+  const threshUpdateIntervalSlots = data.readBigUInt64LE(off);
+  off += 8;
+
+  const threshStepBps = data.readBigUInt64LE(off);
+  off += 8;
+
+  const threshAlphaBps = data.readBigUInt64LE(off);
+  off += 8;
+
+  const threshMin = readU128LE(data, off);
+  off += 16;
+
+  const threshMax = readU128LE(data, off);
+  off += 16;
+
+  const threshMinStep = readU128LE(data, off);
+  off += 16;
+
+  // Oracle authority fields
+  const oracleAuthority = new PublicKey(data.subarray(off, off + 32));
+  off += 32;
+
+  const authorityPriceE6 = data.readBigUInt64LE(off);
+  off += 8;
+
+  const authorityTimestamp = data.readBigInt64LE(off);
 
   return {
     collateralMint,
@@ -159,6 +208,17 @@ export function parseConfig(data: Buffer): MarketConfig {
     fundingInvScaleNotionalE6,
     fundingMaxPremiumBps,
     fundingMaxBpsPerSlot,
+    threshFloor,
+    threshRiskBps,
+    threshUpdateIntervalSlots,
+    threshStepBps,
+    threshAlphaBps,
+    threshMin,
+    threshMax,
+    threshMinStep,
+    oracleAuthority,
+    authorityPriceE6,
+    authorityTimestamp,
   };
 }
 
@@ -183,10 +243,10 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 }
 
 // =============================================================================
-// RiskEngine Layout Constants (updated for funding/threshold params 2026-01)
-// ENGINE_OFF = HEADER_LEN + CONFIG_LEN = 72 + 256 = 328
+// RiskEngine Layout Constants (updated for oracle authority 2026-01)
+// ENGINE_OFF = HEADER_LEN + CONFIG_LEN = 72 + 304 = 376
 // =============================================================================
-const ENGINE_OFF = 328;
+const ENGINE_OFF = 376;
 // RiskEngine struct layout (repr(C), SBF uses 8-byte alignment for u128):
 // - vault: u128 (16 bytes) at offset 0
 // - insurance_fund: InsuranceFund { balance: u128, fee_revenue: u128 } (32 bytes) at offset 16

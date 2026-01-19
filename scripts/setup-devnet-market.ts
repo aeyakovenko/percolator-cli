@@ -67,8 +67,8 @@ const MATCHER_CTX_SIZE = 320;
 
 // Market parameters
 // SLAB_SIZE = HEADER_LEN + CONFIG_LEN (aligned) + ENGINE_LEN
-// Updated to match percolator-prog SLAB_LEN constant
-const SLAB_SIZE = 1111384;
+// Updated to match percolator-prog SLAB_LEN constant (includes oracle authority fields)
+const SLAB_SIZE = 1111440;
 
 // Funding amounts (in lamports with 9 decimals for wrapped SOL)
 const INSURANCE_FUND_AMOUNT = 1_000_000_000n;  // 1 SOL
