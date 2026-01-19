@@ -277,4 +277,31 @@ Status: SOLVENT
 2. **Extreme Prices**: Prices $0.01, $1M, $0.001, $100K all accepted but caused no vault drain
 3. **Manipulate & Extract**: Created price swing 150->300->150, attempted 0.1 SOL withdrawal - BLOCKED
 
+| 7 | Flash Crash | 0.000000 | 0.000000 | Liquidations: 0 -> 0 |
+| 8 | Extreme Prices | 0.000000 | 0.000000 | 4/4 extreme prices accepted |
+| 9 | Manipulate & Extract | 0.000000 | 0.000000 | Price 150->300->150, withdrawal blocked |
+| 10 | Flash Crash | 0.000000 | 0.000000 | Liquidations: 0 -> 0 |
+
 **Continuous audit running with PID 1066439**
+
+---
+
+### Edge Case Security Audit Results
+
+Comprehensive edge case testing completed with **5/5 tests PASSED**.
+
+| Test | Result | Notes |
+|------|--------|-------|
+| Short Position Attack | PASS | Short positions correctly rejected |
+| Maximum Leverage | PASS | Position requests rejected (0 max leverage) |
+| Stale Crank Withdrawal | PASS | Withdrawal correctly blocked when crank stale |
+| Rapid Price Oscillation | PASS | 0 withdrawals succeeded during rapid price swings |
+| Integer Boundaries | PASS | All boundary values rejected (i64 MAX/MIN, u64 MAX, 1, 0) |
+
+**Key Security Findings:**
+1. **Stale Crank Protection**: Withdrawals require fresh crank, preventing exploitation of stale state
+2. **Integer Boundary Protection**: All extreme integer values correctly rejected
+3. **Price Oscillation Protection**: Rapid price changes don't enable unexpected withdrawals
+
+**Final vault: 3.809378780 SOL (unchanged)**
+**Final insurance: 1.011850353 SOL (unchanged)**
