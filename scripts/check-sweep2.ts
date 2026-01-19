@@ -14,12 +14,20 @@ async function main() {
   console.log("Slots since crank:", slot - Number(engine.lastCrankSlot));
   console.log("Max crank staleness:", engine.maxCrankStalenessSlots);
   console.log("");
-  console.log("Last full sweep start slot:", engine.lastFullSweepStartSlot);
-  console.log("Sweep phase:", engine.sweepPhase);
-  console.log("Sweep index:", engine.sweepIndex);
+  console.log("Last sweep start slot:", engine.lastSweepStartSlot);
+  console.log("Slots since sweep start:", slot - Number(engine.lastSweepStartSlot));
+  console.log("Last sweep complete slot:", engine.lastSweepCompleteSlot);
+  console.log("Crank step:", engine.crankStep);
   console.log("");
   console.log("Risk reduction only:", engine.riskReductionOnly);
   console.log("Warmup paused:", engine.warmupPaused);
+
+  // Check if sweep is stale
+  if (slot - Number(engine.lastSweepStartSlot) > Number(engine.maxCrankStalenessSlots)) {
+    console.log("\n⚠️ SWEEP IS STALE! Risk-increasing trades will be rejected.");
+  } else {
+    console.log("\n✓ Sweep is fresh.");
+  }
 }
 
 main();

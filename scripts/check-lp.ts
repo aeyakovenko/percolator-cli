@@ -1,35 +1,30 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { parseAccount, parseUsedIndices, parseAllAccounts } from "../src/solana/slab.js";
+import { fetchSlab, parseUsedIndices, parseAccount } from "../src/solana/slab.js";
 
-const connection = new Connection("https://api.devnet.solana.com", "confirmed");
-const slab = new PublicKey("9kcSAbQPzqui1uDt7iZAYHmrUB4bVfnAr4UZPmWMc91T");
+const SLAB = new PublicKey("Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89");
+const conn = new Connection("https://api.devnet.solana.com");
+const SYSTEM_PROGRAM = new PublicKey("11111111111111111111111111111111");
 
 async function main() {
-  const info = await connection.getAccountInfo(slab);
-  if (!info) {
-    console.log("Slab not found");
-    return;
-  }
-
-  // Get all used indices
-  const indices = parseUsedIndices(info.data);
+  const data = await fetchSlab(conn, SLAB);
+  const indices = parseUsedIndices(data);
   console.log("Used indices:", indices);
 
-  // Parse all accounts
-  const accounts = parseAllAccounts(info.data);
-  for (const { idx, account } of accounts) {
-    console.log(`\nAccount ${idx}:`);
-    console.log("  Owner:", account.owner.toBase58());
-    console.log("  Kind:", account.kind === 1 ? "LP" : "User");
-    console.log("  Position:", account.positionSize.toString());
-    console.log("  Capital:", Number(account.capital) / 1e6, "tokens");
-    if (account.kind === 1) {
-      console.log("  Matcher Program:", account.matcherProgram.toBase58());
-    }
+  // Check all indices for matcher_program
+  for (const idx of indices) {
+    const acc = parseAccount(data, idx);
+    const matcherStr = acc.matcherProgram?.toBase58() || "null";
+    const isLP = acc.matcherProgram && acc.matcherProgram.toBase58() !== SYSTEM_PROGRAM.toBase58();
+    console.log(`Index ${idx} - matcherProgram: ${matcherStr} - isLP: ${isLP}`);
+    console.log(`         capital: ${acc.capital} position: ${acc.positionSize}`);
   }
 
-  // Expected owner
-  console.log("\n\nExpected LP owner: A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK");
+  // Also check index 0 explicitly
+  console.log("\nChecking index 0 explicitly:");
+  const acc0 = parseAccount(data, 0);
+  console.log("Index 0 - matcherProgram:", acc0.matcherProgram?.toBase58() || "null");
+  console.log("Index 0 - capital:", acc0.capital.toString());
+  console.log("Index 0 - owner:", acc0.owner?.toBase58() || "null");
 }
 
-main().catch(console.error);
+main();

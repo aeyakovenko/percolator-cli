@@ -260,6 +260,9 @@ Running rate-limited continuous attack loop with 60-second intervals between ite
 | 1 | Flash Crash | 0.000000 | 0.000000 | Liquidations: 0 -> 0 |
 | 2 | Extreme Prices | 0.000000 | 0.000000 | 4/4 extreme prices accepted |
 | 3 | Manipulate & Extract | 0.000000 | 0.000000 | Price 150->300->150, withdrawal blocked |
+| 4 | Flash Crash | 0.000000 | 0.000000 | Liquidations: 0 -> 0 |
+| 5 | Extreme Prices | 0.000000 | 0.000000 | 4/4 extreme prices accepted |
+| 6 | Manipulate & Extract | 0.000000 | 0.000000 | Price 150->300->150, withdrawal blocked |
 
 #### Current State
 ```
