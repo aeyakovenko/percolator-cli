@@ -244,3 +244,34 @@ Even with full oracle authority control, the attacker:
 - Could NOT make the vault insolvent
 
 The system correctly limits withdrawals to what counterparties can pay, preventing oracle manipulation from draining the vault.
+
+---
+
+## Continuous Attack Loop Results
+
+### Session 3 - Continuous Attack Testing (2026-01-19)
+
+Running rate-limited continuous attack loop with 60-second intervals between iterations.
+
+#### Attack Results Summary
+
+| Iteration | Attack | Vault Δ | Insurance Δ | Notes |
+|-----------|--------|---------|-------------|-------|
+| 1 | Flash Crash | 0.000000 | 0.000000 | Liquidations: 0 -> 0 |
+| 2 | Extreme Prices | 0.000000 | 0.000000 | 4/4 extreme prices accepted |
+| 3 | Manipulate & Extract | 0.000000 | 0.000000 | Price 150->300->150, withdrawal blocked |
+
+#### Current State
+```
+Vault: 3.809 SOL
+Insurance: 1.012 SOL
+Status: SOLVENT
+```
+
+#### Observations
+
+1. **Flash Crash Attack**: Price dropped from $150 to $10 and back - no liquidations triggered, vault stable
+2. **Extreme Prices**: Prices $0.01, $1M, $0.001, $100K all accepted but caused no vault drain
+3. **Manipulate & Extract**: Created price swing 150->300->150, attempted 0.1 SOL withdrawal - BLOCKED
+
+**Continuous audit running with PID 1066439**
