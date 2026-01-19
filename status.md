@@ -327,8 +327,10 @@ Comprehensive edge case testing completed with **5/5 tests PASSED**.
 | 31 | Flash Crash | 0.000000 | 0.000000 | No liquidations |
 | ... | ... | 0.000000 | 0.000000 | ... |
 | 47 | Extreme Prices | 0.000000 | 0.000000 | 4/4 accepted |
+| ... | ... | 0.000000 | 0.000000 | ... |
+| 69 | Manipulate & Extract | 0.000000 | 0.000000 | Withdrawal blocked |
 
-**Current State After 47+ Iterations (~75 minutes of continuous attacks):**
+**Current State After 69+ Iterations (~110 minutes of continuous attacks):**
 - Vault: 3.809379 SOL (exactly unchanged)
 - Insurance: 1.011850 SOL (exactly unchanged)
 - Lifetime liquidations: 0
@@ -357,7 +359,7 @@ Insurance: 1.012 SOL
 > "Attacker with oracle control cannot withdraw more than user realized losses plus insurance surplus"
 
 **Evidence:**
-1. **47+ attack iterations** with zero vault drain
+1. **69+ attack iterations** with zero vault drain
 2. **5/5 edge case tests passed** (stale crank, integer boundaries, etc.)
 3. **Oracle manipulation** creates paper profits but withdrawals are blocked
 4. **Flash crashes** do not trigger exploitable liquidations
