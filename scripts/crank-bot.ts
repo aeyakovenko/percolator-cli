@@ -7,9 +7,10 @@ import { encodeKeeperCrank } from '../src/abi/instructions.js';
 import { buildAccountMetas, ACCOUNTS_KEEPER_CRANK } from '../src/abi/accounts.js';
 import { buildIx } from '../src/runtime/tx.js';
 
-const PROGRAM_ID = new PublicKey('2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp');
-const SLAB = new PublicKey('Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89');
-const ORACLE = new PublicKey('99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR');
+const marketInfo = JSON.parse(fs.readFileSync('devnet-market.json', 'utf-8'));
+const PROGRAM_ID = new PublicKey(marketInfo.programId);
+const SLAB = new PublicKey(marketInfo.slab);
+const ORACLE = new PublicKey(marketInfo.oracle);
 
 const CRANK_INTERVAL_MS = 5000; // 5 seconds between cranks
 
