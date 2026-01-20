@@ -394,3 +394,66 @@ Attempted `liquidateAtOracle` instruction at various prices:
 - **User capital preserved**: USER 1 = 1.998 SOL, USER 2 = 0.500 SOL
 
 **Conclusion**: ADL/liquidation mechanism cannot be exploited when users have no open positions. System correctly rejects liquidation attempts on accounts with no exposure.
+
+---
+
+## Deep Code Analysis - Session 4 (2026-01-20)
+
+### Liquidation Formula Analysis
+
+From `scripts/check-liquidation.ts`, the liquidation logic is:
+
+```
+effective_capital = capital + pnl
+notional = |position_size| × price / 1_000_000
+maintenance_requirement = notional × maintenance_margin_bps / 10_000
+
+LIQUIDATABLE when: effective_capital < maintenance_requirement
+```
+
+**Risk Parameters:**
+- Maintenance Margin: 500 bps (5%)
+- Initial Margin: 1000 bps (10%)
+- Liquidation Fee: 100 bps (1%)
+
+### Key Finding: Why Liquidations Aren't Triggering
+
+**Root Cause:** All accounts have `position_size = 0`
+
+| Account | Type | Capital | Position | Can Be Liquidated? |
+|---------|------|---------|----------|-------------------|
+| 0 | LP | 0.000 SOL | 0 | No (no position) |
+| 1 | USER | 1.998 SOL | 0 | No (no position) |
+| 2 | USER | 0.500 SOL | 0 | No (no position) |
+
+**Why trades fail:** LP has 0 capital, so new positions cannot be opened against it.
+
+### Testing Gap Identified
+
+Previous tests showed:
+- 330+ attack iterations with 0 vault drain
+- All liquidation attempts "succeed" (tx confirms) but have no effect
+- This is because there are NO OPEN POSITIONS to liquidate
+
+**To properly verify liquidation security:**
+1. Need LP with capital to enable position opening
+2. Open a leveraged position
+3. Crash price to trigger liquidation
+4. Verify liquidation works correctly (positive path)
+5. Then attempt to exploit (negative path)
+
+### Continuous Audit Status
+
+**Iteration Count:** 330+
+**Runtime:** ~5.5 hours
+**Vault:** 3.809379 SOL (unchanged)
+**Insurance:** 1.011850 SOL (unchanged)
+**Liquidations Triggered:** 0 (expected - no positions)
+
+### Next Steps
+
+1. Analyze if LP can be funded to enable position testing
+2. Create test that opens real positions
+3. Verify liquidation triggers correctly at maintenance margin
+4. Test edge cases around liquidation buffer
+5. Attempt to exploit the liquidation mechanism
