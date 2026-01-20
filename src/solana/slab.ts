@@ -569,12 +569,9 @@ export function parseAccount(data: Buffer, idx: number): Account {
     throw new Error("Slab data too short for account");
   }
 
-  // Detect LP accounts by checking if matcher_program is non-zero.
-  // This is more robust than using the kind field because LPs always have
-  // a matcher_program set during init_lp, while users never do.
-  const matcherProgramBytes = data.subarray(base + ACCT_MATCHER_PROGRAM_OFF, base + ACCT_MATCHER_PROGRAM_OFF + 32);
-  const isLp = !matcherProgramBytes.every((b: number) => b === 0);
-  const kind = isLp ? AccountKind.LP : AccountKind.User;
+  // Read the kind field directly from offset 24 (u8 with 7 bytes padding)
+  const kindByte = data.readUInt8(base + ACCT_KIND_OFF);
+  const kind = kindByte === 1 ? AccountKind.LP : AccountKind.User;
 
   return {
     kind,
