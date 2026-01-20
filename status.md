@@ -574,3 +574,105 @@ The 2.071 SOL surplus represents:
 ## Continuous Audit - Session 5 Continued
 
 Background audit loop still running (iteration 340+).
+
+---
+
+## Session 5.1 - Depleted State & Funding Rate Attacks (2026-01-20)
+
+### Depleted State Attack Results
+
+With insurance nearly empty (0.0003 SOL) and LP capital at 0:
+
+| Attack | Result | Notes |
+|--------|--------|-------|
+| Price Spike ($1000) | BLOCKED | Withdrawal of 10 SOL paper profit failed |
+| Bad Debt Creation | NO EFFECT | Liquidation TX confirmed, no new liquidation |
+| Withdrawal Race | ALL BLOCKED | Tried 5 different prices, all withdrawals blocked |
+| Risk Reduction Bypass | N/A | System correctly in risk reduction mode |
+
+**Key Finding: PnL is Unrealized**
+- User 2 has 1M unit LONG position at $10.05 entry
+- With price at $150, expected profit is huge
+- But stored PnL = 0 (unrealized until position closes)
+- Cannot close position because LP has no capital
+
+**Vault State:** UNCHANGED (4.609 SOL), SOLVENT
+
+### Funding Rate Manipulation Attack
+
+| Attack | Funding Index Before | After | Result |
+|--------|---------------------|-------|--------|
+| Extreme Price ($10K) | 0 | 0 | NO CHANGE |
+| Rapid Oscillation (10x) | 0 | 0 | NO CHANGE |
+| Extended Low ($0.01) | 0 | 0 | NO CHANGE |
+
+**Why Funding Rate Attacks Failed:**
+1. LP has no position (net LP pos = 0)
+2. Funding rate only applies when there's position imbalance between users and LP
+3. With LP at 0 capital, no new positions can be opened against it
+
+**Funding Config:**
+- Horizon: 500 slots
+- K BPS: 100
+- Max Premium BPS: 500
+- Max BPS Per Slot: 5
+
+### Unrealized vs Realized PnL Analysis
+
+The system distinguishes between:
+1. **Stored PnL**: Realized profit/loss from closed positions + funding
+2. **Unrealized PnL**: Current position value vs entry (calculated dynamically)
+
+User 2's "massive profit" is unrealized and cannot be extracted because:
+1. No counterparty (LP) to close the position against
+2. LP capital = 0, preventing any trades
+3. Withdrawal limits prevent extracting unrealized gains
+
+**This is a critical security mechanism:**
+> Paper profits cannot be converted to real withdrawals without a counterparty
+
+### Summary of Session 5 Findings
+
+| Metric | Value |
+|--------|-------|
+| Total Attacks | 340+ iterations |
+| Vault Drain | 0.2 SOL (within bounds) |
+| Insurance Drain | 1.01 SOL (covered bad debt) |
+| Net Attacker Gain/Loss | LOST 0.8 SOL |
+| Security Claim | **VERIFIED** |
+
+The attacker deposited 1 SOL and could only withdraw 0.2 SOL, resulting in a net loss despite:
+- Full oracle control
+- Triggering liquidations
+- Draining insurance fund
+- Creating paper profits
+
+---
+
+## Current State (Iteration 346+)
+
+```
+Vault: 4.609379 SOL (STABLE)
+Insurance: 0.000339 SOL (DEPLETED)
+Lifetime Liquidations: 1
+Lifetime Force Closes: 4
+Risk Reduction Mode: ENABLED
+Status: SOLVENT (surplus: 2.07 SOL)
+```
+
+### Active Positions
+| Account | Type | Capital | Position | Entry Price |
+|---------|------|---------|----------|-------------|
+| 0 | LP | 0 SOL | 0 | - |
+| 1 | USER | 1.998 SOL | 0 | - |
+| 2 | USER | 0.500 SOL | 1,000,000 | $10.05 |
+
+---
+
+## Next Attack Vectors to Explore
+
+1. **Close Account Attack**: Can the open position be exploited via account closure?
+2. **Oracle Timestamp Manipulation**: Can old timestamps cause issues?
+3. **Warmup Period Bypass**: Can positions be opened without proper warmup?
+4. **Fee Extraction**: Can trading fees be manipulated?
+5. **LP Replenishment Attack**: What happens if LP is funded again?
