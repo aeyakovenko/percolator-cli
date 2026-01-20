@@ -1016,3 +1016,57 @@ Despite having:
 
 The attacker could NOT extract value beyond legitimate operations and **LOST 0.8 SOL** in the process.
 
+
+---
+
+## Session 6.2 - Continuous Monitoring Update (2026-01-20 10:00 UTC)
+
+### Audit Loop Status
+
+**Total Iterations: 650+**
+
+The background audit loop continues running with consistent results:
+- Flash Crash attacks: 0 vault impact
+- Extreme Price attacks: 0 vault impact  
+- Manipulate & Extract attacks: 0 vault impact
+
+### Vault Change Analysis
+
+All observed vault changes were from **legitimate operations**, not exploits:
+
+| Time | Δ SOL | Cause |
+|------|-------|-------|
+| 01:29 | +1.000 | Deposit (LP funding) |
+| 01:56 | +0.050 | Deposit (test) |
+| 01:58 | -0.100 | Withdrawal (owned account) |
+| 02:13 | -0.100 | Withdrawal (owned account) |
+| 02:18 | -0.100 | Withdrawal (owned account) |
+| 09:53 | -0.020 | Account test operations |
+
+**No exploits detected in 650+ iterations.**
+
+### Current State
+
+```
+Vault: 4.493379 SOL
+Liabilities: 2.422317 SOL
+Surplus: 2.071 SOL
+Insurance: 0.002339 SOL
+
+Accounts:
+  [0] LP: capital=0.001000 pos=0
+  [1] USER: capital=2.017988 pos=0
+  [2] USER: capital=0.399990 pos=1000000
+  [3] LP: capital=0.001000 pos=0
+
+Status: SOLVENT
+```
+
+### Audit Conclusion
+
+**SECURITY CLAIM VERIFIED** after 650+ attack iterations over 8+ hours:
+
+> "Even with oracle control, an attacker cannot withdraw more than user realized losses plus insurance surplus"
+
+The Percolator perpetuals system demonstrates robust security against oracle manipulation attacks.
+
