@@ -1,0 +1,10 @@
+{
+  "testTime": "2026-01-20T01:35:25.639Z",
+  "vaultBefore": 4.80937878,
+  "vaultAfter": 4.60937878,
+  "insuranceBefore": 1.011850353,
+  "insuranceAfter": 0.000339404,
+  "liquidationsBefore": 0,
+  "liquidationsAfter": 1,
+  "positionOpened": true
+}

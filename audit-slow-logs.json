@@ -1978,5 +1978,4289 @@
     "vaultDelta": 0,
     "insuranceDelta": 0,
     "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 0 -> 0"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 1.0000000000000004,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0.0012612999999999097,
+    "notes": "Liquidations: 0 -> 0"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": -1.012772249,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0.04999999999999982,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": -0.10000000000000053,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": -0.09999999999999964,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": -0.10000000000000053,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": -0.020009045000000114,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
+  },
+  {
+    "name": "Flash Crash",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Liquidations: 1 -> 1"
+  },
+  {
+    "name": "Extreme Prices",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Extreme prices accepted: 4/4"
+  },
+  {
+    "name": "Manipulate & Extract",
+    "vaultDelta": 0,
+    "insuranceDelta": 0,
+    "notes": "Price 150->300->150, attempted 0.1 SOL withdraw"
   }
 ]
