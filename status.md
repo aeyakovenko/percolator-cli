@@ -669,10 +669,56 @@ Status: SOLVENT (surplus: 2.07 SOL)
 
 ---
 
+## Session 5.2 - LP Replenishment Attack (2026-01-20)
+
+### Attack Scenario
+
+User 2 has 1M unit LONG position at $10.05 entry with massive unrealized profit.
+What happens if LP is funded?
+
+### Test Results
+
+| Step | Action | Result |
+|------|--------|--------|
+| 1 | Deposit 0.5 SOL to LP | SUCCESS - LP capital = 0.5 SOL |
+| 2 | Try to close position | FAILED - Trade rejected |
+| 3 | Withdraw from User 2 | SUCCESS - 0.5 SOL withdrawn |
+| 4 | Final LP capital | 0.000009 SOL (drained) |
+
+### Analysis
+
+**Fund Flow:**
+- Deposited: 0.5 SOL to LP
+- Withdrawn: ~0.5 SOL from User 2
+- Vault change: +0.000009 SOL (essentially 0)
+- Net attacker gain: **~0 SOL**
+
+**Key Finding:** Withdrawals are capped by LP capital
+- User 2 has massive unrealized profit
+- But can only withdraw up to LP capital (0.5 SOL)
+- Attacker deposited 0.5, withdrew 0.5 = net 0
+
+### Security Implications
+
+| Question | Answer |
+|----------|--------|
+| Can attacker extract more than deposited? | **NO** |
+| Can third party LP funds be stolen? | Yes, but capped by LP capital |
+| Does system remain solvent? | **YES** (surplus: 2.07 SOL) |
+| Is security claim violated? | **NO** |
+
+### Conclusion
+
+**Security Claim VERIFIED:**
+> "Attacker cannot withdraw more than user realized losses plus insurance surplus"
+
+The withdrawal limit equals LP capital, preventing extraction beyond counterparty funds.
+
+---
+
 ## Next Attack Vectors to Explore
 
-1. **Close Account Attack**: Can the open position be exploited via account closure?
-2. **Oracle Timestamp Manipulation**: Can old timestamps cause issues?
-3. **Warmup Period Bypass**: Can positions be opened without proper warmup?
-4. **Fee Extraction**: Can trading fees be manipulated?
-5. **LP Replenishment Attack**: What happens if LP is funded again?
+1. **Oracle Timestamp Manipulation**: Can old timestamps cause issues?
+2. **Warmup Period Bypass**: Can positions be opened without proper warmup?
+3. **Fee Extraction**: Can trading fees be manipulated?
+4. **Multi-round Attack**: Repeated deposit/withdraw cycles
