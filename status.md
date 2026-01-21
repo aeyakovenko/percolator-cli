@@ -214,3 +214,19 @@ Message: Tr |
 2. Test ADL scenarios when liquidations occur
 3. Test warmup mechanism with longer positions
 4. Verify funding rate under extreme imbalance
+
+
+---
+
+## Adversarial Attack Testing - 2026-01-21T21:48:30.400Z
+
+**Results:** 6/6 attacks defended
+
+| Attack | Result | Details |
+|--------|--------|--------|
+| Multi-Account Extraction | DEFENDED | No extraction (fees paid) |
+| Rounding Accumulation | DEFENDED | Slack: 1579000 (max 10000000) |
+| Warmup Bypass | DEFENDED | Blocked correctly |
+| Insurance Protection | DEFENDED | Insurance: 1147664052, Floor: 1953294 |
+| Max Leverage Edge | DEFENDED | Max leverage: 1000.0x, Account healthy:  |
+| Global Conservation | DEFENDED | Vault covers capital: true |
