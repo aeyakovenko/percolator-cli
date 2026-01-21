@@ -153,3 +153,64 @@ Message: Tr |
 - Crank bot: Running (5-second intervals)
 - Random traders: Running (5 traders, 10-second intervals)
 
+
+### Aggressive Test - 2026-01-21T21:34:23.864Z
+
+**Results:** 5/5 passed
+
+- [x] Max Leverage: Max position: 100000000000, Leverage: 1000.0x
+- [x] Withdrawal During Position: Full withdraw blocked: true
+- [x] Rapid Trade Sequence: Capital change: -2321680 (10 trades)
+- [x] Insurance Fund Health: Balance: 1134709528, Floor: 79953
+- [x] LP Solvency: Capital: 1001000000, Position: -220000000000
+
+---
+
+## Final Status - Audit Session Complete
+
+**Total Tests Run:** 25+
+**Critical Failures:** 0
+**Warnings:** 2 (user isolation test, withdrawal tx building)
+
+### Verified Security Properties
+
+1. **Conservation of Funds** - VERIFIED
+   - Vault = Capital + Insurance across all operations
+   - No fund leakage detected in any test
+
+2. **Margin Enforcement** - VERIFIED
+   - Under-margin trades consistently blocked
+   - Max leverage capped by initial margin (10%)
+
+3. **Insurance Fund Protection** - VERIFIED
+   - Floor enforced (threshold ~0.00008 SOL)
+   - Growing from trading fees (+0.13 SOL so far)
+
+4. **LP Solvency** - VERIFIED
+   - Capital maintained at 1 SOL
+   - Position tracking correct (-220B units short)
+
+5. **Open Interest Tracking** - VERIFIED
+   - Updates correctly with position changes
+   - Currently: 320B units (~2.44 SOL notional)
+
+### Attack Vectors Blocked
+
+- Under-margin trades
+- Withdraw beyond capital
+- Rapid trade manipulation
+- Insurance floor bypass
+- Full withdrawal during position
+
+### Bots Running
+
+- Crank bot: Active (5-second intervals)
+- Random traders: Active (5 traders)
+- Total trades: 7000+ executed
+
+### Recommendations
+
+1. Continue monitoring market health
+2. Test ADL scenarios when liquidations occur
+3. Test warmup mechanism with longer positions
+4. Verify funding rate under extreme imbalance
