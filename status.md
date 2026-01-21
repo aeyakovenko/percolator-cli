@@ -59,9 +59,9 @@ Based on analysis of `../percolator` and `../percolator-prog`:
 
 #### Core Invariants
 - [ ] I1: ADL never reduces principal
-- [ ] I2: Conservation of funds
+- [x] I2: Conservation of funds (VERIFIED - multiple rounds)
 - [ ] I5: Warmup bounded by PnL
-- [ ] I7: User isolation
+- [?] I7: User isolation (NEEDS INVESTIGATION - test setup issue)
 - [ ] I10: Risk mode triggers correctly
 
 #### Operational Correctness
@@ -104,3 +104,13 @@ Message: Tr |
 - [x] Rapid Trade Sequence: Capital change: -2331940 (10 trades)
 - [x] Insurance Fund Health: Balance: 1105291496, Floor: 9818
 - [x] LP Solvency: Capital: 1001000000, Position: -55000000000
+
+### Liquidation Test - 2026-01-21T21:30:20.039Z
+
+**Results:** 3/5 passed
+
+- [ ] User Isolation: User B capital unchanged: false
+- [x] Lifetime Counters: Liquidations: 0, Force closes: 0
+- [x] Open Interest Tracking: OI: 110000000000 -> 150000000000
+- [x] Conservation Complex: Slack: 1180000 (< 10M allowed)
+- [ ] Full Withdrawal Post-Close: Blocked
