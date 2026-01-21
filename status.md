@@ -285,3 +285,19 @@ Message: Tr |
 - [x] Insurance Fund Floor: Balance: 1151088031, Threshold: 3906614, Above: true
 - [x] Entry Price Consistency: Range: 7591 - 7682
 - [x] Net LP Position Balance: Engine: 104999900000, LP: 104999900000
+
+
+### Timing Attack Test - 2026-01-21T22:01:30.907Z
+
+**Results:** 10/10 passed
+
+- [x] Crank Staleness: Staleness: 9/200 slots, Slots til stale: 191
+- [x] Sweep Timing: Sweep: COMPLETE, Age: 12 slots
+- [x] Multi-Trade Same Slot: 3/3 trades, 6 slots, capital: -0.000202 SOL
+- [x] Funding Settlement Timing: Delta: 0, Max unsettled: 0
+- [x] Liquidation Front-Running: At-risk account: 7, margin: 6.14%
+- [x] Trade After Crank: Crank@436749437, Trade@436749439, Same slot: false
+- [x] Withdrawal After Trade: Trade closed, withdraw: BLOCKED
+- [x] Rapid Cycle: 2243ms, capital change: -0.000466 SOL
+- [x] Transaction Atomicity: Vault: 6164762449, Required: 5554198159, Slack: 610564290
+- [x] Oracle Price Change: 0 entry price changes observed
