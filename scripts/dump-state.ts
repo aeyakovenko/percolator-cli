@@ -5,8 +5,9 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { fetchSlab, parseParams, parseEngine, parseAccount, parseUsedIndices, parseConfig, AccountKind } from '../src/solana/slab.js';
 import * as fs from 'fs';
 
-const SLAB = new PublicKey('Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89');
-const ORACLE = new PublicKey('99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR');
+const marketInfo = JSON.parse(fs.readFileSync('devnet-market.json', 'utf-8'));
+const SLAB = new PublicKey(marketInfo.slab);
+const ORACLE = new PublicKey(marketInfo.oracle);
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
 // Helper to convert BigInt to string for JSON
