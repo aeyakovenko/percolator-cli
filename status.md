@@ -40,7 +40,7 @@ Based on analysis of `../percolator` and `../percolator-prog`:
 
 #### 6. Insurance Fund Attacks
 - [ ] Insurance drain via coordinated liquidations
-- [ ] Insurance floor bypass
+- [x] Insurance floor bypass (VERIFIED - floor enforced)
 - [ ] Reserved insurance exploitation
 
 #### 7. Conservation Attacks
@@ -94,3 +94,13 @@ Message: Tr |
 | Fee Collection | Correctness | PASS | Insurance: 1080327444 -> 1081519044 |
 | Risk Mode Status | State Machine | PASS | Risk reduction only: false |
 
+
+### Aggressive Test - 2026-01-21T21:28:18.557Z
+
+**Results:** 5/5 passed
+
+- [x] Max Leverage: Max position: 100000000000, Leverage: 1000.0x
+- [x] Withdrawal During Position: Full withdraw blocked: true
+- [x] Rapid Trade Sequence: Capital change: -2331940 (10 trades)
+- [x] Insurance Fund Health: Balance: 1105291496, Floor: 9818
+- [x] LP Solvency: Capital: 1001000000, Position: -55000000000
