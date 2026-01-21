@@ -230,3 +230,29 @@ Message: Tr |
 | Insurance Protection | DEFENDED | Insurance: 1147664052, Floor: 1953294 |
 | Max Leverage Edge | DEFENDED | Max leverage: 1000.0x, Account healthy:  |
 | Global Conservation | DEFENDED | Vault covers capital: true |
+
+
+### Funding/Warmup Test - 2026-01-21T21:51:55.791Z
+
+**Results:** 6/7 passed
+
+- [x] Funding Rounding: Funding delta: 0, Vault change: 0
+- [x] Warmup Bypass: Warmup enforced (10 slots)
+- [ ] Loss Accumulation: Vault: 6188821229, Required: 5598034941, Slack: 590786288
+- [x] Force-Realize Threshold: Insurance: 1.1508, Threshold: 0.002589, Mode: NORMAL
+- [x] Pending Socialization: No pending (profit: 0, loss: 0)
+- [x] Rapid Position Flip: 4 flips, capital change: -0.000187 SOL
+- [x] LP Position Tracking: LP: 75000000000, Users: -75000000000, Mismatch: 0
+
+
+### Funding/Warmup Test - 2026-01-21T21:52:25.240Z
+
+**Results:** 7/7 passed
+
+- [x] Funding Rounding: Funding delta: 0, Vault change: 0
+- [x] Warmup Bypass: Warmup enforced (10 slots)
+- [x] Loss Accumulation: Vault: 6188821229, Required: 5597878941, Surplus: 590942288
+- [x] Force-Realize Threshold: Insurance: 1.1509, Threshold: 0.003030, Mode: NORMAL
+- [x] Pending Socialization: No pending (profit: 0, loss: 0)
+- [x] Rapid Position Flip: 4 flips, capital change: -0.000186 SOL
+- [x] LP Position Tracking: LP: 85000000000, Users: -85000000000, Mismatch: 0
