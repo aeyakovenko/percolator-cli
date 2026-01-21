@@ -114,3 +114,42 @@ Message: Tr |
 - [x] Open Interest Tracking: OI: 110000000000 -> 150000000000
 - [x] Conservation Complex: Slack: 1180000 (< 10M allowed)
 - [ ] Full Withdrawal Post-Close: Blocked
+
+---
+
+## Summary After 3 Test Rounds (2026-01-21)
+
+### Attack Vectors Tested
+
+| Category | Tests Run | Blocked | Notes |
+|----------|-----------|---------|-------|
+| Margin/Liquidation | 3 | 3 | Under-margin trades blocked |
+| Conservation | 4 | 4 | No fund leakage detected |
+| Oracle | 0 | - | Needs more testing |
+| ADL | 0 | - | Needs more testing |
+| Funding | 0 | - | Needs more testing |
+| Insurance | 1 | 1 | Floor enforced |
+| State Machine | 2 | 1 | Risk mode checked |
+
+### Key Findings
+
+1. **Conservation Holds**: Vault = Capital + Insurance across all operations
+2. **Margin Enforcement**: Under-margin trades consistently blocked
+3. **Max Leverage**: ~1000x achievable (margin-limited correctly)
+4. **Fees Working**: Insurance fund growing from trading fees
+5. **LP Solvent**: 1 SOL capital, position tracking correct
+6. **Open Interest**: Tracked correctly with position changes
+
+### Items Needing Investigation
+
+1. **User Isolation Test**: May be test setup issue (shared payer)
+2. **Full Withdrawal**: Transaction building issue with account metas
+3. **ADL Scenarios**: Need to trigger actual liquidations
+4. **Warmup Mechanism**: Not yet tested
+5. **Funding Rate Attacks**: Not yet tested
+
+### Bots Status
+
+- Crank bot: Running (5-second intervals)
+- Random traders: Running (5 traders, 10-second intervals)
+
