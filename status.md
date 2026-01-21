@@ -256,3 +256,35 @@ Message: Tr |
 - [x] Pending Socialization: No pending (profit: 0, loss: 0)
 - [x] Rapid Position Flip: 4 flips, capital change: -0.000186 SOL
 - [x] LP Position Tracking: LP: 85000000000, Users: -85000000000, Mismatch: 0
+
+
+### Oracle/Edge Case Test - 2026-01-21T21:53:58.935Z
+
+**Results:** 9/10 passed
+
+- [x] Oracle Staleness: Staleness: 0 (max: 200), Crank: OK
+- [ ] Dust Position: CRITICAL: Created dust position 50000 < 100000
+- [x] Open Interest Tracking: Reported: 190000000000, Calculated: 190000000000, Mismatch: 0
+- [x] ADL Epoch Tracking: Epoch: 0, Step: 0, Sweep in progress: false
+- [x] Lifetime Counters: Liquidations: 0, Force closes: 0
+- [x] Capital Bounds: Min: 133762380, Max: 2327176069
+- [x] Position Size Bounds: Max position: 94999950000
+- [x] Insurance Fund Floor: Balance: 1151012051, Threshold: 3546253, Above: true
+- [x] Entry Price Consistency: Range: 7591 - 7682
+- [x] Net LP Position Balance: Engine: 94999950000, LP: 94999950000
+
+
+### Oracle/Edge Case Test - 2026-01-21T21:54:35.737Z
+
+**Results:** 10/10 passed
+
+- [x] Oracle Staleness: Staleness: 0 (max: 200), Crank: OK
+- [x] Dust Position Cleanup: Dust cleaned up (50000 -> 0)
+- [x] Open Interest Tracking: Reported: 209999900000, Calculated: 209999900000, Mismatch: 0
+- [x] ADL Epoch Tracking: Epoch: 0, Step: 0, Sweep in progress: false
+- [x] Lifetime Counters: Liquidations: 0, Force closes: 0
+- [x] Capital Bounds: Min: 133686400, Max: 2327176069
+- [x] Position Size Bounds: Max position: 104999900000
+- [x] Insurance Fund Floor: Balance: 1151088031, Threshold: 3906614, Above: true
+- [x] Entry Price Consistency: Range: 7591 - 7682
+- [x] Net LP Position Balance: Engine: 104999900000, LP: 104999900000
