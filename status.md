@@ -301,3 +301,19 @@ Message: Tr |
 - [x] Rapid Cycle: 2243ms, capital change: -0.000466 SOL
 - [x] Transaction Atomicity: Vault: 6164762449, Required: 5554198159, Slack: 610564290
 - [x] Oracle Price Change: 0 entry price changes observed
+
+
+### Red Team Attack Test - 2026-01-22T03:52:32.639Z
+
+**Results:** 9/10 defended, 1 critical
+
+- [x] Insurance Fund Drainage: Before: 1182134915, After: 1208541727, Drained: false
+- [x] Pending Bucket Wedge: Pending profit: 0, loss: 0
+- [x] Conservation Equation Break: Vault: 6219449091, Required: 5458330801, Deficit: 0
+- [x] Entry Price Manipulation: Entry: 7749 -> 7749, Capital gain: 0
+- [ ] LP Position Desync: LP: -3384330890648, net_lp_pos: -3384330890648, users: -3384330790648 (CRITICAL)
+- [x] Funding Rate Manipulation: Funding delta: 0, Net LP: -3384330890648 -> -3394330890648
+- [x] Crank DoS: Success rate: 100%, Final: true
+- [x] Max Position Boundary: Max current: 3394330890648, Limit: 100000000000000000000
+- [x] Loss Accumulator Exploitation: Loss accum: 0, Risk mode: false
+- [x] Epoch Wraparound Attack: Epoch: 0 -> 0, Changes: 0
