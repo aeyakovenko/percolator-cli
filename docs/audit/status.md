@@ -2,9 +2,62 @@
 
 ## Audit Status: COMPLETE
 **Started:** 2026-01-21
-**Last Updated:** 2026-01-21 22:30 UTC
-**Total Tests Run:** 35+
-**Critical Failures:** 0
+**Last Updated:** 2026-01-23
+**Total Tests Run:** 59
+**Critical Findings:** 1 (Low severity - LP position desync)
+
+---
+
+## Final Summary
+
+### Test Suites
+| Suite | Tests | Pass | Fail | Notes |
+|-------|-------|------|------|-------|
+| audit-adversarial.ts | 6 | 6 | 0 | Economic attacks |
+| audit-funding-warmup.ts | 7 | 7 | 0 | Funding/warmup mechanisms |
+| audit-oracle-edge.ts | 10 | 10 | 0 | Oracle edge cases |
+| audit-timing-attacks.ts | 10 | 10 | 0 | Timing attacks |
+| audit-redteam.ts | 10 | 9 | 1 | Found LP desync |
+| audit-deep-redteam.ts | 16 | 15 | 1 | Comprehensive adversarial |
+| **Total** | **59** | **57** | **2** | **97% defended** |
+
+### Security Findings
+
+1. **LP Position Desync** (Low severity)
+   - Mismatch: 100,000 units orphaned LP exposure
+   - Root cause: dust position force-closes don't unwind LP counterparty position
+   - Impact: ~0.01% of vault, PnL leakage over time
+   - Conservation equation still holds
+   - See: [lp_issue.md](lp_issue.md)
+
+2. **LP Margin Stress** (Operational, not vulnerability)
+   - LP margin at 7.07% (between initial 10% and maintenance 5%)
+   - System working as designed under one-sided trading pressure
+
+### Verified Security Properties
+- Conservation of funds (vault >= capital + insurance)
+- Margin enforcement (under-margin trades blocked)
+- Insurance fund protection (floor enforced)
+- Warmup mechanism (PnL extraction prevented)
+- Open interest tracking (exact match)
+- Funding rate rounding (favors vault)
+- Oracle staleness checks (200 slot max)
+- Dust position cleanup (crank handles)
+
+### Attack Vectors Defended
+- Flash loan style attacks
+- Self-liquidation profit extraction
+- Fee evasion
+- Arithmetic overflow/underflow
+- Rounding exploitation
+- State manipulation (risk mode, pending buckets)
+- Multi-account wash trading
+- Oracle exploitation (staleness, confidence)
+- Timing attacks (crank, sweep, funding)
+
+---
+
+## Detailed Test History
 
 ---
 
