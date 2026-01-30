@@ -11,6 +11,7 @@ import { fetchSlab, parseParams, parseEngine, parseConfig, parseAccount, parseUs
 import { encodeKeeperCrank, encodeTradeCpi, encodeWithdrawCollateral } from "../src/abi/instructions.js";
 import { buildAccountMetas, ACCOUNTS_KEEPER_CRANK, ACCOUNTS_TRADE_CPI, ACCOUNTS_WITHDRAW_COLLATERAL } from "../src/abi/accounts.js";
 import { buildIx } from "../src/runtime/tx.js";
+import { deriveVaultAuthority } from "../src/solana/pda.js";
 import * as fs from "fs";
 
 const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
@@ -62,15 +63,12 @@ async function getFullState() {
 }
 
 async function runCranks(n: number): Promise<void> {
-  const { config } = await getFullState();
   for (let i = 0; i < n; i++) {
     try {
       const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
-        payer.publicKey, SLAB, new PublicKey(config.vault),
-        new PublicKey(config.collateralMint), ORACLE,
-        TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
+        payer.publicKey, SLAB, SYSVAR_CLOCK_PUBKEY, ORACLE,
       ]);
-      const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeKeeperCrank() });
+      const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }) });
       const tx = new Transaction().add(
         ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }), ix
       );
@@ -82,8 +80,8 @@ async function runCranks(n: number): Promise<void> {
 
 async function closePosition(lpIdx: number, userIdx: number, size: bigint): Promise<boolean> {
   try {
-    const matcherCtx = new PublicKey(marketInfo.matcherCtx);
-    const lpPda = new PublicKey(marketInfo.lpPda);
+    const matcherCtx = new PublicKey(marketInfo.lp.matcherContext);
+    const lpPda = new PublicKey(marketInfo.lp.pda);
 
     const keys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
       payer.publicKey,       // user
@@ -118,20 +116,23 @@ async function tryWithdraw(accountIdx: number, amount: bigint): Promise<{ succes
   try {
     const { config } = await getFullState();
     const userAta = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, payer.publicKey);
+    const [vaultPda] = deriveVaultAuthority(PROGRAM_ID, SLAB);
 
     const keys = buildAccountMetas(ACCOUNTS_WITHDRAW_COLLATERAL, [
       payer.publicKey,
       SLAB,
-      new PublicKey(config.vault),
-      new PublicKey(config.collateralMint),
+      config.vaultPubkey,
       userAta.address,
+      vaultPda,
       TOKEN_PROGRAM_ID,
+      SYSVAR_CLOCK_PUBKEY,
+      config.indexFeedId,
     ]);
 
     const ix = buildIx({
       programId: PROGRAM_ID,
       keys,
-      data: encodeWithdrawCollateral({ accountIdx, amount: amount.toString() }),
+      data: encodeWithdrawCollateral({ userIdx: accountIdx, amount: amount.toString() }),
     });
 
     const tx = new Transaction().add(

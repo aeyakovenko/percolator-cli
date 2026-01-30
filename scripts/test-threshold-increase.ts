@@ -5,7 +5,6 @@
  * This is critical for the soft burn mechanism to scale properly.
  */
 import { Connection, Keypair, PublicKey, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction, SYSVAR_CLOCK_PUBKEY } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { fetchSlab, parseParams, parseEngine, parseConfig, parseAccount, parseUsedIndices, AccountKind } from "../src/solana/slab.js";
 import { encodeKeeperCrank, encodeTradeCpi } from "../src/abi/instructions.js";
 import { buildAccountMetas, ACCOUNTS_KEEPER_CRANK, ACCOUNTS_TRADE_CPI } from "../src/abi/accounts.js";
@@ -51,13 +50,10 @@ async function getState() {
 
 async function runCrank(): Promise<boolean> {
   try {
-    const { config } = await getState();
     const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
-      payer.publicKey, SLAB, new PublicKey(config.vault),
-      new PublicKey(config.collateralMint), ORACLE,
-      TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
+      payer.publicKey, SLAB, SYSVAR_CLOCK_PUBKEY, ORACLE,
     ]);
-    const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeKeeperCrank() });
+    const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }) });
     const tx = new Transaction().add(
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }), ix
     );
@@ -68,8 +64,8 @@ async function runCrank(): Promise<boolean> {
 
 async function executeTrade(lpIdx: number, userIdx: number, size: bigint): Promise<boolean> {
   try {
-    const matcherCtx = new PublicKey(marketInfo.matcherCtx);
-    const lpPda = new PublicKey(marketInfo.lpPda);
+    const matcherCtx = new PublicKey(marketInfo.lp.matcherContext);
+    const lpPda = new PublicKey(marketInfo.lp.pda);
 
     // ACCOUNTS_TRADE_CPI: user, lpOwner, slab, clock, oracle, matcherProg, matcherCtx, lpPda
     const keys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
