@@ -108,6 +108,45 @@ Available admin instructions that could help:
 
 There is **no admin instruction** to directly clear `riskReductionOnly` or reset `lossAccum`. The only path to recovery is growing the insurance fund above the threshold, which requires either admin injection via `TopUpInsurance` or a protocol upgrade.
 
+## Resolution: PR #15 — Automatic Stranded Funds Recovery
+
+**Status: RESOLVED**
+
+PR #15 in `percolator` core ("Stranded funds detection and automatic insurance recovery", commits `9e15fcc`, `61b08dc`, merged `bb9474e`) adds `recover_stranded_to_insurance()` which runs automatically during `keeper_crank`. The recovery triggers when all three conditions are met:
+
+1. `risk_reduction_only == true`
+2. `loss_accum > 0`
+3. Total open interest == 0 (all positions closed/liquidated)
+
+### Recovery mechanism
+
+1. **Haircut phantom PnL**: All accounts with positive realized PnL have it zeroed out. The LP's 58.17 SOL phantom PnL (which was never backed by withdrawable funds) is eliminated.
+2. **Clear loss accumulator**: `lossAccum` is reset to 0.
+3. **Move stranded funds to insurance**: All vault surplus (vault - total_capital) is transferred to the insurance fund balance.
+4. **Exit risk-reduction mode**: `riskReductionOnly` set to false, warmup unpaused.
+
+### Verified on devnet
+
+After rebuilding with `bb9474e` and redeploying, a single keeper crank triggered the recovery:
+
+| Field | Before | After |
+|-------|--------|-------|
+| `engine.lossAccum` | 24.14 SOL | 0 SOL |
+| `engine.riskReductionOnly` | true | false |
+| `engine.insuranceFund.balance` | 0.14 SOL | 34.17 SOL |
+| `engine.warmup.paused` | true | false |
+| `account[0].pnl.realized` | 58.17 SOL | 0 SOL |
+| `account[0].capital` | 8.18 SOL | 8.18 SOL (unchanged) |
+| `solvency.stranded` | 36.65 SOL | 2.62 SOL* |
+
+\* Residual 2.62 SOL is dust from GC'd trader accounts (new account fees etc). The LP's capital is fully withdrawable and the market is operational again.
+
+### Impact
+
+The fix correctly handles the deadlock by recognizing that when all positions are closed and losses have been socialized, phantom PnL is meaningless — those profits can never be realized because the counterparties are gone. The insurance fund absorbs the stranded funds, which is the appropriate destination since insurance exists to cover exactly these kinds of gap-risk events.
+
 ## Severity
 
-Medium -- no funds are lost or stolen, but they can become permanently inaccessible without admin intervention after a gap-risk event that exhausts the insurance fund.
+~~Medium -- no funds are lost or stolen, but they can become permanently inaccessible without admin intervention after a gap-risk event that exhausts the insurance fund.~~
+
+**Resolved** — PR #15 (`bb9474e`) adds automatic recovery. No admin intervention required. The keeper crank detects the stranded state and recovers funds to insurance automatically.

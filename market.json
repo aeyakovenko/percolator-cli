@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "timestamp": "2026-02-01T15:41:10.710Z",
+    "timestamp": "2026-02-01T17:17:21.310Z",
     "slabAddress": "8GbiJKxuoN2Nr9hshYuBSeuHouU1VyJXXqYCe9J8M4hS",
     "oracleAddress": "99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR",
     "slabDataBytes": 1111440
@@ -11,7 +11,7 @@
     "bump": 255,
     "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
     "nonce": "2647",
-    "lastThresholdUpdateSlot": "439173502"
+    "lastThresholdUpdateSlot": "439188648"
   },
   "config": {
     "collateralMint": "So11111111111111111111111111111111111111112",
@@ -54,7 +54,7 @@
     "oracleAuthority": {
       "authority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
       "authorityPriceE6": "9623",
-      "authorityTimestamp": "1769901539"
+      "authorityTimestamp": "1769960594"
     }
   },
   "riskParams": {
@@ -92,38 +92,38 @@
   },
   "engine": {
     "vault": {
-      "raw": "43150007727",
-      "sol": 43.150007727
+      "raw": "44976999962",
+      "sol": 44.976999962
     },
     "insuranceFund": {
       "balance": {
-        "raw": "139542642",
-        "sol": 0.139542642
+        "raw": "34174035103",
+        "sol": 34.174035103
       },
       "feeRevenue": {
-        "raw": "740316089",
-        "sol": 0.740316089
+        "raw": "745316089",
+        "sol": 0.745316089
       },
       "threshold": {
         "raw": "0",
         "sol": 0
       },
       "surplus": {
-        "raw": "139542642",
-        "sol": 0.139542642
+        "raw": "34174035103",
+        "sol": 34.174035103
       }
     },
     "lossAccum": {
-      "raw": "24141247293",
-      "sol": 24.141247293
+      "raw": "0",
+      "sol": 0
     },
-    "riskReductionOnly": true,
+    "riskReductionOnly": false,
     "riskReductionModeWithdrawn": {
       "raw": "0",
       "sol": 0
     },
     "warmup": {
-      "paused": true,
+      "paused": false,
       "pauseSlot": "439018544",
       "warmedPosTotal": {
         "raw": "3747426911",
@@ -139,12 +139,12 @@
       }
     },
     "slots": {
-      "current": "439173502",
-      "lastFunding": "439173502",
-      "lastCrank": "439173502",
+      "current": "439188648",
+      "lastFunding": "439188648",
+      "lastCrank": "439188648",
       "maxCrankStaleness": "200",
-      "lastSweepStart": "439173502",
-      "lastSweepComplete": "439173502"
+      "lastSweepStart": "439188648",
+      "lastSweepComplete": "439188648"
     },
     "funding": {
       "indexQpbE6": "0"
@@ -163,15 +163,15 @@
       "lifetimeLiquidations": 10,
       "lifetimeForceCloses": 3,
       "numUsedAccounts": 1,
-      "nextAccountId": "69"
+      "nextAccountId": "74"
     }
   },
   "oracle": {
-    "rawUsd": 101.03726,
-    "rawE6": "101037260",
+    "rawUsd": 101.87300492,
+    "rawE6": "101873004",
     "decimals": 8,
     "inverted": true,
-    "effectivePriceE6": "9897"
+    "effectivePriceE6": "9816"
   },
   "accounts": [
     {
@@ -180,13 +180,13 @@
       "accountId": "0",
       "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
       "capital": {
-        "raw": "6356015531",
-        "sol": 6.356015531
+        "raw": "8178007766",
+        "sol": 8.178007766
       },
       "pnl": {
         "realized": {
-          "raw": "58170739754",
-          "sol": 58.170739754
+          "raw": "0",
+          "sol": 0
         },
         "unrealized": {
           "raw": "0",
@@ -194,8 +194,8 @@
         }
       },
       "effectiveCapital": {
-        "raw": "64526755285",
-        "sol": 64.526755285
+        "raw": "8178007766",
+        "sol": 8.178007766
       },
       "warmup": {
         "reservedPnl": "0",
@@ -220,8 +220,8 @@
         },
         "ratioPercent": 999.99,
         "buffer": {
-          "raw": "64526755285",
-          "sol": 64.526755285
+          "raw": "8178007766",
+          "sol": 8.178007766
         },
         "status": "SAFE"
       },
@@ -234,39 +234,39 @@
       },
       "fees": {
         "feeCredits": "0",
-        "lastFeeSlot": "439173502"
+        "lastFeeSlot": "439188648"
       }
     }
   ],
   "solvency": {
     "vault": {
-      "raw": "43150007727",
-      "sol": 43.150007727
+      "raw": "44976999962",
+      "sol": 44.976999962
     },
     "totalCapital": {
-      "raw": "6356015531",
-      "sol": 6.356015531
+      "raw": "8178007766",
+      "sol": 8.178007766
     },
     "insurance": {
-      "raw": "139542642",
-      "sol": 0.139542642
+      "raw": "34174035103",
+      "sol": 34.174035103
     },
     "totalClaims": {
-      "raw": "6495558173",
-      "sol": 6.495558173
+      "raw": "42352042869",
+      "sol": 42.352042869
     },
     "surplus": {
-      "raw": "36654449554",
-      "sol": 36.654449554
+      "raw": "2624957093",
+      "sol": 2.624957093
     },
     "solvent": true,
     "lossAccum": {
-      "raw": "24141247293",
-      "sol": 24.141247293
+      "raw": "0",
+      "sol": 0
     },
     "strandedFunds": {
-      "raw": "36654449554",
-      "sol": 36.654449554,
+      "raw": "2624957093",
+      "sol": 2.624957093,
       "note": "Vault balance minus all claims (capital + insurance). Positive value indicates funds with no current owner."
     }
   }
