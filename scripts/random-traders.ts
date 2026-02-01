@@ -30,8 +30,8 @@ interface LpInfo {
 }
 
 const NUM_TRADERS = 5;
-const DEPOSIT_SOL = 100_000_000n; // 0.1 SOL per trader
-const TRADE_SIZE = 10_000_000_000n; // 10B units per trade - MAX LEVERAGE MODE!
+const DEPOSIT_SOL = 1_000_000_000n; // 1 SOL per trader
+const TRADE_SIZE = 100_000_000_000n; // 100B units per trade - MAX LEVERAGE MODE!
 const TRADE_INTERVAL_MS = 10_000; // 10 seconds between trades (rate limit protection)
 
 // Fixed direction for each trader (assigned at startup)

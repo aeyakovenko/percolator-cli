@@ -47,6 +47,8 @@ A live inverted SOL/USD market is available on devnet for testing. This market u
 ### Market Details
 
 ```
+Program:        2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp (percolator-prog)
+Matcher:        4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy (percolator-match)
 Slab:           8GbiJKxuoN2Nr9hshYuBSeuHouU1VyJXXqYCe9J8M4hS
 Mint:           So11111111111111111111111111111111111111112 (Wrapped SOL)
 Vault:          Zxb9biDjRx86M8PhkFntdiXKCq6LEqaa5cemAivKf7j
@@ -397,6 +399,9 @@ npx tsx scripts/random-traders.ts
 # Dump full market state to state.json (positions, margins, parameters)
 npx tsx scripts/dump-state.ts
 
+# Dump comprehensive market state to market.json (all on-chain fields)
+npx tsx scripts/dump-market.ts
+
 # Check liquidation risk for all accounts
 npx tsx scripts/check-liquidation.ts
 
@@ -418,6 +423,9 @@ npx tsx scripts/find-user.ts <slab_pubkey> <owner_pubkey>     # Find specific ac
 ### Stress Testing & Security
 
 ```bash
+# Worst-case stress test - gap risk, insurance exhaustion, socialized losses
+npx tsx scripts/stress-worst-case.ts
+
 # Oracle authority stress test - tests price manipulation scenarios
 npx tsx scripts/oracle-authority-stress.ts
 npx tsx scripts/oracle-authority-stress.ts 0        # Run specific scenario by index
@@ -426,6 +434,12 @@ npx tsx scripts/oracle-authority-stress.ts --disable # Disable oracle authority 
 # Pen-test oracle - comprehensive security testing
 # Tests: flash crash, price edge cases, timestamp attacks, funding manipulation, ADL cascade
 npx tsx scripts/pentest-oracle.ts
+
+# Protocol invariant tests
+npx tsx scripts/test-price-profit.ts           # Price-profit relationship validation
+npx tsx scripts/test-threshold-increase.ts     # Threshold auto-adjustment verification
+npx tsx scripts/test-lp-profit-realize.ts      # LP profit realization and withdrawal
+npx tsx scripts/test-profit-withdrawal.ts      # Profit withdrawal limit enforcement
 ```
 
 ### Configuration
