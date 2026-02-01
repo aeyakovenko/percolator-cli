@@ -72,11 +72,41 @@ The issue is not a solvency bug but a **liveness problem**: funds are safe but p
 - `account[0].capital`: 6,356,015,531 lamports (6.36 SOL)
 - `engine.vault`: 43,150,007,727 lamports (43.15 SOL)
 
-## Related Fix
+## Related Fix: `5f5213c` warmup budget double-subtraction
 
-Commit `5f5213c` in `percolator` core ("Fix warmup budget double-subtraction deadlock") fixes a related bug where `warmup_budget_remaining()` double-subtracted `W+` (warmed positive total), causing the budget to hit 0 while raw insurance was still available. The fix uses `insurance_spendable_raw()` instead of `insurance_spendable_unreserved()`.
+Commit `5f5213c` in `percolator` core ("Fix warmup budget double-subtraction deadlock") fixes a related bug where `warmup_budget_remaining()` double-subtracted `W+` (warmed positive total), causing the budget to hit 0 while raw insurance was still available.
 
-However, this fix addresses the budget **calculation** bug (which manifests when `W+ > W-`). The broader issue documented here involves risk-reduction mode **pausing** warmup entirely after a crash. In our stress test, `W- >> W+` (39.34 vs 3.75 SOL), so the double-subtraction bug does not trigger. The stranded funds result from the warmup being paused in risk-reduction mode, which is a separate mechanism.
+**Old (buggy):** `budget = W- + insurance_spendable_unreserved() - W+`
+  - `unreserved = raw - reserved`, where `reserved = min(W+ - W-, raw)`
+  - When `W+ > W-`: `reserved = W+ - W-`, so `unreserved = raw - (W+ - W-)`, then `budget = W- + raw - W+ + W- - W+ = 2*W- + raw - 2*W+` -- double-subtracts W+
+
+**New (fixed):** `budget = W- + insurance_spendable_raw() - W+`
+
+### Does the fix resolve this issue?
+
+**No.** The fix was redeployed to devnet and tested. Two separate problems prevent recovery:
+
+1. **The budget bug does not trigger in this scenario.** In the post-crash state, `W- = 39.34 SOL >> W+ = 3.75 SOL`. Since `W+ < W-`, `reserved = 0` and the old formula gives the same result as the new one. The budget bug only manifests when `W+ > W-`.
+
+2. **Warmup is paused by risk-reduction mode.** The engine field `warmup.paused = true` was set when risk-reduction mode activated during the crash. Even with a correct budget of 35.73 SOL (`W- + raw - W+ = 39.34 + 0.14 - 3.75`), the crank skips warmup processing entirely while paused.
+
+3. **Risk-reduction mode blocks all new trades.** When the stress test was rerun on the already-damaged market, all 5 trade attempts failed. No new positions can be opened, so no new fees can generate, and the deadlock persists.
+
+### What the fix does help with
+
+The fix prevents a different deadlock scenario: during normal operations (not risk-reduction mode), if positive PnL warmup (`W+`) exceeds negative PnL warmup (`W-`), the old code would stall warmup prematurely even when the insurance fund had available budget. This is important for day-to-day market health.
+
+## Recovery Options
+
+Available admin instructions that could help:
+
+| Instruction | Effect |
+|------------|--------|
+| `TopUpInsurance` (tag 9) | Inject SOL into insurance fund -- could rebuild surplus |
+| `SetRiskThreshold` (tag 11) | Adjust risk-reduction threshold |
+| `UpdateConfig` (tag 14) | Update threshold parameters |
+
+There is **no admin instruction** to directly clear `riskReductionOnly` or reset `lossAccum`. The only path to recovery is growing the insurance fund above the threshold, which requires either admin injection via `TopUpInsurance` or a protocol upgrade.
 
 ## Severity
 
