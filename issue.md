@@ -208,6 +208,36 @@ Positions near liquidation boundary are fully closed when partial would suffice.
 
 ---
 
+## Finding H: Warmup PnL Not Settled by Keeper Crank (INFO)
+
+**Status: By design — verified on devnet**
+
+### Summary
+
+`keeper_crank` does **not** call `settle_warmup_to_capital()`. Warmup PnL→capital conversion only triggers via user-initiated operations (`withdraw`, `close_account`, `deposit`) that call `touch_account_full()`. This means a user with a profitable closed position must explicitly perform a withdrawal or account close to realize their warmed PnL — cranking alone will never convert it.
+
+### Verification
+
+The happy-path winner test demonstrates the full flow:
+1. Open LONG, price +5%, close position → `pnl=0.215 SOL` in warmup
+2. 6 cranks with 2s gaps → **PnL unchanged** (crank doesn't settle warmup)
+3. Withdrawal (1 lamport) → `touch_account_full` → `settle_warmup_to_capital` → PnL converts to capital
+4. Capital after warmup: `2.180637 SOL` (> 2.0 deposit) → profit realized
+
+### Impact
+
+Low — users naturally perform withdrawals or close accounts to get their money out, which triggers settlement. However:
+- **UX concern**: Users checking their account state via slab reads will see PnL not converting, potentially causing confusion
+- **Integrator concern**: Bots or frontends should call `withdraw(0)` or a similar operation to trigger settlement before displaying "available capital"
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator/src/percolator.rs`, `keeper_crank()` ~line 1481-1668
+
+The crank loop calls `settle_maintenance_fee_best_effort_for_crank()` but not `settle_warmup_to_capital()`. Settlement only occurs in `touch_account_full()` (line 2282), called by deposit, withdraw, and close_account.
+
+---
+
 ## Open Finding: LP Position Blocks Auto-Recovery (Low)
 
 **Severity: Low (workaround exists)**
@@ -258,7 +288,7 @@ When the LP has a profitable position (e.g., SHORT during a crash), all traders 
 | stress-haircut-system.ts | **ALL 3 PASSED** (conservation, insurance, undercollateralization) |
 | stress-worst-case.ts | **PASS** — 5 traders liquidated at 20%+50% crash, LP bank run (26 SOL withdrawn), solvency maintained |
 | stress-corner-cases.ts | **27/34 pass** — conservation at every checkpoint; failures are parser gaps (lossAccum/riskReduction fields), not program bugs |
-| test-happy-path.ts | **ALL 4 PASS** — round-trip (fees only), winner (profit withdrawal), loser (remaining capital withdrawal), conservation |
+| test-happy-path.ts | **ALL 4 PASS** — round-trip (fees only), winner (profit via warmup PnL→capital, 9%), loser (remaining capital withdrawal), conservation |
 | bug-oracle-no-bounds.ts | **7/8 validation gaps confirmed** |
 | verify-threshold-autoadjust.ts | **PASSED** (step limiting, EWMA smoothing work) |
 | verify-fixes.ts | **ALL PASS** (conservation + account close lifecycle) |
