@@ -31,17 +31,16 @@ export function registerSlabEngine(program: Command): void {
               currentSlot: engine.currentSlot.toString(),
               fundingIndexQpbE6: engine.fundingIndexQpbE6.toString(),
               lastFundingSlot: engine.lastFundingSlot.toString(),
-              lossAccum: engine.lossAccum.toString(),
-              riskReductionOnly: engine.riskReductionOnly,
-              riskReductionModeWithdrawn: engine.riskReductionModeWithdrawn.toString(),
-              warmupPaused: engine.warmupPaused,
-              warmupPauseSlot: engine.warmupPauseSlot.toString(),
               lastCrankSlot: engine.lastCrankSlot.toString(),
               maxCrankStalenessSlots: engine.maxCrankStalenessSlots.toString(),
               totalOpenInterest: engine.totalOpenInterest.toString(),
-              warmedPosTotal: engine.warmedPosTotal.toString(),
-              warmedNegTotal: engine.warmedNegTotal.toString(),
-              warmupInsuranceReserved: engine.warmupInsuranceReserved.toString(),
+              cTot: engine.cTot.toString(),
+              pnlPosTot: engine.pnlPosTot.toString(),
+              lifetimeLiquidations: engine.lifetimeLiquidations.toString(),
+              lifetimeForceCloses: engine.lifetimeForceCloses.toString(),
+              netLpPos: engine.netLpPos.toString(),
+              lpSumAbs: engine.lpSumAbs.toString(),
+              lpMaxAbs: engine.lpMaxAbs.toString(),
               numUsedAccounts: engine.numUsedAccounts,
               nextAccountId: engine.nextAccountId.toString(),
             },
@@ -60,22 +59,21 @@ export function registerSlabEngine(program: Command): void {
         console.log(`Last Funding Slot:       ${engine.lastFundingSlot}`);
         console.log(`Current Slot:            ${engine.currentSlot}`);
         console.log("");
-        console.log("--- Risk State ---");
-        console.log(`Risk Reduction Only:     ${engine.riskReductionOnly}`);
-        console.log(`RR Mode Withdrawn:       ${engine.riskReductionModeWithdrawn}`);
-        console.log(`Loss Accumulator:        ${engine.lossAccum}`);
+        console.log("--- Aggregates ---");
         console.log(`Total Open Interest:     ${engine.totalOpenInterest}`);
+        console.log(`C_tot (total capital):   ${engine.cTot}`);
+        console.log(`PnL_pos_tot (pos PnL):   ${engine.pnlPosTot}`);
         console.log("");
-        console.log("--- Warmup ---");
-        console.log(`Warmup Paused:           ${engine.warmupPaused}`);
-        console.log(`Warmup Pause Slot:       ${engine.warmupPauseSlot}`);
-        console.log(`Warmed Pos Total:        ${engine.warmedPosTotal}`);
-        console.log(`Warmed Neg Total:        ${engine.warmedNegTotal}`);
-        console.log(`Warmup Insurance Rsv:    ${engine.warmupInsuranceReserved}`);
+        console.log("--- LP ---");
+        console.log(`Net LP Position:         ${engine.netLpPos}`);
+        console.log(`LP Sum Abs:              ${engine.lpSumAbs}`);
+        console.log(`LP Max Abs:              ${engine.lpMaxAbs}`);
         console.log("");
         console.log("--- Keeper ---");
         console.log(`Last Crank Slot:         ${engine.lastCrankSlot}`);
         console.log(`Max Crank Staleness:     ${engine.maxCrankStalenessSlots}`);
+        console.log(`Lifetime Liquidations:   ${engine.lifetimeLiquidations}`);
+        console.log(`Lifetime Force Closes:   ${engine.lifetimeForceCloses}`);
         console.log("");
         console.log("--- Accounts ---");
         console.log(`Num Used Accounts:       ${engine.numUsedAccounts}`);

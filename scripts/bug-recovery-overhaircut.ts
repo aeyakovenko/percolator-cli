@@ -97,8 +97,8 @@ function printState(label: string, state: ParsedState) {
   console.log(`\n>>> ${label} <<<`);
   console.log(`  Vault:       ${fmt(e.vault)} SOL`);
   console.log(`  Insurance:   ${fmt(e.insuranceFund.balance)} SOL`);
-  console.log(`  LossAccum:   ${fmt(e.lossAccum)} SOL`);
-  console.log(`  RiskReduce:  ${e.riskReductionOnly}`);
+  console.log(`  C_tot:       ${fmt(e.cTot)} SOL`);
+  console.log(`  PnlPosTot:   ${fmt(e.pnlPosTot)} SOL`);
   console.log(`  TotalOI:     ${e.totalOpenInterest}`);
   console.log(`  Liqs: ${e.lifetimeLiquidations}, ForceClose: ${e.lifetimeForceCloses}`);
   for (const acc of state.accounts) {
@@ -313,25 +313,18 @@ async function resetMarket() {
 
   let state = await getState();
 
-  // Exit risk-reduction if active
-  if (state.engine.riskReductionOnly) {
-    const lossAccum = state.engine.lossAccum;
-    const threshold = state.params.riskReductionThreshold;
-    if (lossAccum > 0n) {
-      const topUp = lossAccum + threshold + 2_000_000_000n;
-      console.log(`  Exiting risk-reduction via topUpInsurance (${fmt(topUp)} SOL)...`);
-      await ensureSolBalance(topUp + 1_000_000_000n);
-      try {
-        await topUpInsurance(topUp);
-        await crankN(3, "reset-rr-exit");
-        state = await getState();
-        console.log(`  Risk-reduction: ${state.engine.riskReductionOnly}, lossAccum: ${fmt(state.engine.lossAccum)}`);
-      } catch (e: any) {
-        console.log(`  TopUpInsurance failed: ${e.message?.slice(0, 60)}`);
-      }
-    } else {
-      await crankN(5, "reset-rr-clear");
+  // Top up insurance if depleted (haircut-ratio system has no risk-reduction mode)
+  if (state.engine.insuranceFund.balance < 100_000_000n) {
+    const topUp = 1_000_000_000n;
+    console.log(`  Insurance low, topping up ${fmt(topUp)} SOL...`);
+    await ensureSolBalance(topUp + 1_000_000_000n);
+    try {
+      await topUpInsurance(topUp);
+      await crankN(3, "reset-insurance-topup");
       state = await getState();
+      console.log(`  Insurance: ${fmt(state.engine.insuranceFund.balance)}`);
+    } catch (e: any) {
+      console.log(`  TopUpInsurance failed: ${e.message?.slice(0, 60)}`);
     }
   }
 
@@ -519,10 +512,10 @@ async function reproduceOverHaircut() {
   printState("PRE-RECOVERY", state);
 
   const preRecovery = {
-    lossAccum: state.engine.lossAccum,
+    cTot: state.engine.cTot,
+    pnlPosTot: state.engine.pnlPosTot,
     insurance: state.engine.insuranceFund.balance,
     vault: state.engine.vault,
-    riskReduction: state.engine.riskReductionOnly,
     totalOI: state.engine.totalOpenInterest,
     lpPnl: 0n,
     lpCapital: 0n,

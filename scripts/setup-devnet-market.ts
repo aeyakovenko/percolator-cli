@@ -66,9 +66,9 @@ const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChp
 const MATCHER_CTX_SIZE = 320;
 
 // Market parameters
-// SLAB_SIZE = HEADER_LEN + CONFIG_LEN (aligned) + ENGINE_LEN
-// Updated to match percolator-prog SLAB_LEN constant (includes oracle authority fields)
-const SLAB_SIZE = 1111440;
+// SLAB_SIZE = ENGINE_OFF(376) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(248)
+// Updated for haircut-ratio refactor (removed ADL scratch arrays)
+const SLAB_SIZE = 1025320;
 
 // Funding amounts (in lamports with 9 decimals for wrapped SOL)
 const INSURANCE_FUND_AMOUNT = 1_000_000_000n;  // 1 SOL
@@ -360,7 +360,8 @@ async function main() {
     console.log(`  Admin: ${header.admin.toBase58()}`);
     console.log(`  Inverted: ${config.invert === 1 ? "Yes" : "No"}`);
     console.log(`  Insurance fund: ${Number(engine.insuranceFund.balance) / 1e9} SOL`);
-    console.log(`  Risk reduction mode: ${engine.riskReductionOnly ? "Yes" : "No"}`);
+    console.log(`  C_tot: ${Number(engine.cTot) / 1e9} SOL`);
+    console.log(`  PnL_pos_tot: ${Number(engine.pnlPosTot) / 1e9} SOL`);
   }
 
   // Save market info

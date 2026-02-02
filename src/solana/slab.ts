@@ -243,8 +243,13 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 }
 
 // =============================================================================
-// RiskEngine Layout Constants (updated for oracle authority 2026-01)
+// RiskEngine Layout Constants (updated for haircut-ratio refactor 2026-02)
 // ENGINE_OFF = HEADER_LEN + CONFIG_LEN = 72 + 304 = 376
+//
+// The ADL/socialization system was replaced with O(1) haircut ratio.
+// Removed: loss_accum, risk_reduction_only, warmup_paused, warmed totals,
+//          adl_*_scratch arrays, pending_* deferred socialization fields.
+// Added: c_tot, pnl_pos_tot (O(1) aggregates for haircut calculation).
 // =============================================================================
 const ENGINE_OFF = 376;
 // RiskEngine struct layout (repr(C), SBF uses 8-byte alignment for u128):
@@ -256,43 +261,39 @@ const ENGINE_INSURANCE_OFF = 16;
 const ENGINE_PARAMS_OFF = 48;         // RiskParams starts here (after vault+insurance_fund)
 // After RiskParams (at engine offset 48 + 144 = 192):
 const ENGINE_CURRENT_SLOT_OFF = 192;
-const ENGINE_FUNDING_INDEX_OFF = 200;
+const ENGINE_FUNDING_INDEX_OFF = 200;   // I128 (16 bytes)
 const ENGINE_LAST_FUNDING_SLOT_OFF = 216;
-const ENGINE_LOSS_ACCUM_OFF = 224;
-const ENGINE_RISK_REDUCTION_ONLY_OFF = 240;
-const ENGINE_RISK_REDUCTION_WITHDRAWN_OFF = 248;
-const ENGINE_WARMUP_PAUSED_OFF = 264;
-const ENGINE_WARMUP_PAUSE_SLOT_OFF = 272;
-const ENGINE_LAST_CRANK_SLOT_OFF = 280;
-const ENGINE_MAX_CRANK_STALENESS_OFF = 288;
-const ENGINE_TOTAL_OI_OFF = 296;
-const ENGINE_WARMED_POS_OFF = 312;
-const ENGINE_WARMED_NEG_OFF = 328;
-const ENGINE_WARMUP_INSURANCE_OFF = 344;
-// ADL scratch arrays and deferred socialization buckets span ~86K bytes
-// See RiskEngine struct for full layout: adl_remainder_scratch, adl_idx_scratch,
-// adl_exclude_scratch, pending_*, liq_cursor, gc_cursor, then sweep/crank fields
-// Offsets computed backwards from ENGINE_BITMAP_OFF = 86520:
-const ENGINE_LAST_SWEEP_START_OFF = 86416;    // last_full_sweep_start_slot: u64
-const ENGINE_LAST_SWEEP_COMPLETE_OFF = 86424; // last_full_sweep_completed_slot: u64
-const ENGINE_CRANK_STEP_OFF = 86432;          // crank_step: u8 (+ 7 bytes padding)
-const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 86440; // lifetime_liquidations: u64
-const ENGINE_LIFETIME_FORCE_CLOSES_OFF = 86448; // lifetime_force_realize_closes: u64
+const ENGINE_LAST_CRANK_SLOT_OFF = 224;
+const ENGINE_MAX_CRANK_STALENESS_OFF = 232;
+const ENGINE_TOTAL_OI_OFF = 240;        // U128 (16 bytes)
+const ENGINE_C_TOT_OFF = 256;           // U128: sum of all account capital
+const ENGINE_PNL_POS_TOT_OFF = 272;     // U128: sum of all positive PnL
+const ENGINE_LIQ_CURSOR_OFF = 288;      // u16
+const ENGINE_GC_CURSOR_OFF = 290;       // u16
+// 4 bytes padding for u64 alignment
+const ENGINE_LAST_SWEEP_START_OFF = 296;
+const ENGINE_LAST_SWEEP_COMPLETE_OFF = 304;
+const ENGINE_CRANK_CURSOR_OFF = 312;    // u16
+const ENGINE_SWEEP_START_IDX_OFF = 314; // u16
+// 4 bytes padding for u64 alignment
+const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 320;
+const ENGINE_LIFETIME_FORCE_CLOSES_OFF = 328;
 // LP Aggregates for funding rate calculation
-const ENGINE_NET_LP_POS_OFF = 86456;          // net_lp_pos: i128 (sum of LP positions)
-const ENGINE_LP_SUM_ABS_OFF = 86472;          // lp_sum_abs: u128
-const ENGINE_LP_MAX_ABS_OFF = 86488;          // lp_max_abs: u128
-const ENGINE_LP_MAX_ABS_SWEEP_OFF = 86504;    // lp_max_abs_sweep: u128
-// Verified via find-bitmap.ts against devnet 2026-01 (after RiskEngine grew by 4096 bytes):
-// - Created LP and found: bitmap=1 (bit 0 set), numUsed=1, nextAccountId=6
-// - bitmap (u64=1) at slab 86848 = engine 86520
-// - numUsed (u16=1) at slab 87360 = engine 87032
-// - nextAccountId (u64) at slab 87368 = engine 87040
-// - accounts start at slab 95584 = engine 95256 (owner pubkeys verified)
-const ENGINE_BITMAP_OFF = 86520;          // slab 86848 = 328 + 86520 (bitmap word 0)
-const ENGINE_NUM_USED_OFF = 87032;        // slab 87360 = 328 + 87032 (u16)
-const ENGINE_NEXT_ACCOUNT_ID_OFF = 87040; // slab 87368 = 328 + 87040 (u64)
-const ENGINE_ACCOUNTS_OFF = 95256;        // slab 95584 = 328 + 95256
+const ENGINE_NET_LP_POS_OFF = 336;      // I128
+const ENGINE_LP_SUM_ABS_OFF = 352;      // U128
+const ENGINE_LP_MAX_ABS_OFF = 368;      // U128
+const ENGINE_LP_MAX_ABS_SWEEP_OFF = 384;// U128
+// Bitmap: 64 u64 words = 512 bytes
+const ENGINE_BITMAP_OFF = 400;
+// After bitmap (400 + 512 = 912):
+const ENGINE_NUM_USED_OFF = 912;        // u16
+// 6 bytes padding for u64 alignment
+const ENGINE_NEXT_ACCOUNT_ID_OFF = 920; // u64
+const ENGINE_FREE_HEAD_OFF = 928;       // u16
+// _padding_accounts: [u8; 8] at 930-937
+// next_free: [u16; 4096] at 938-9129
+// 6 bytes padding for Account alignment (u64)
+const ENGINE_ACCOUNTS_OFF = 9136;       // accounts: [Account; 4096]
 
 const BITMAP_WORDS = 64;
 const MAX_ACCOUNTS = 4096;
@@ -328,7 +329,7 @@ const ACCT_ACCOUNT_ID_OFF = 0;        // accountId (u64, 8 bytes), ends at 8
 const ACCT_CAPITAL_OFF = 8;           // capital (U128, 16 bytes), ends at 24
 const ACCT_KIND_OFF = 24;             // kind (u8, 1 byte + 7 padding), ends at 32
 const ACCT_PNL_OFF = 32;              // pnl (I128, 16 bytes), ends at 48
-const ACCT_RESERVED_PNL_OFF = 48;     // reserved_pnl (U128, 16 bytes), ends at 64
+const ACCT_RESERVED_PNL_OFF = 48;     // reserved_pnl (u64, 8 bytes), ends at 56
 const ACCT_WARMUP_STARTED_OFF = 56;   // warmup_started (u64, 8 bytes), ends at 64
 const ACCT_WARMUP_SLOPE_OFF = 64;     // warmup_slope (U128, 16 bytes), ends at 80
 const ACCT_POSITION_SIZE_OFF = 80;    // position_size (I128, 16 bytes), ends at 96
@@ -371,25 +372,24 @@ export interface EngineState {
   currentSlot: bigint;
   fundingIndexQpbE6: bigint;
   lastFundingSlot: bigint;
-  lossAccum: bigint;
-  riskReductionOnly: boolean;
-  riskReductionModeWithdrawn: bigint;
-  warmupPaused: boolean;
-  warmupPauseSlot: bigint;
   lastCrankSlot: bigint;
   maxCrankStalenessSlots: bigint;
   totalOpenInterest: bigint;
-  warmedPosTotal: bigint;
-  warmedNegTotal: bigint;
-  warmupInsuranceReserved: bigint;
+  cTot: bigint;              // Sum of all account capital (O(1) aggregate)
+  pnlPosTot: bigint;         // Sum of all positive PnL (O(1) aggregate)
+  liqCursor: number;
+  gcCursor: number;
   lastSweepStartSlot: bigint;
   lastSweepCompleteSlot: bigint;
-  crankStep: number;
+  crankCursor: number;
+  sweepStartIdx: number;
   lifetimeLiquidations: bigint;
   lifetimeForceCloses: bigint;
   // LP Aggregates for funding
   netLpPos: bigint;          // Net LP position (sum of all LP positions)
   lpSumAbs: bigint;          // Sum of abs(LP positions)
+  lpMaxAbs: bigint;          // Max abs(LP position) monotone upper bound
+  lpMaxAbsSweep: bigint;     // In-progress max abs for current sweep
   numUsedAccounts: number;
   nextAccountId: bigint;
 }
@@ -488,25 +488,24 @@ export function parseEngine(data: Buffer): EngineState {
     currentSlot: data.readBigUInt64LE(base + ENGINE_CURRENT_SLOT_OFF),
     fundingIndexQpbE6: readI128LE(data, base + ENGINE_FUNDING_INDEX_OFF),
     lastFundingSlot: data.readBigUInt64LE(base + ENGINE_LAST_FUNDING_SLOT_OFF),
-    lossAccum: readU128LE(data, base + ENGINE_LOSS_ACCUM_OFF),
-    riskReductionOnly: data.readUInt8(base + ENGINE_RISK_REDUCTION_ONLY_OFF) !== 0,
-    riskReductionModeWithdrawn: readU128LE(data, base + ENGINE_RISK_REDUCTION_WITHDRAWN_OFF),
-    warmupPaused: data.readUInt8(base + ENGINE_WARMUP_PAUSED_OFF) !== 0,
-    warmupPauseSlot: data.readBigUInt64LE(base + ENGINE_WARMUP_PAUSE_SLOT_OFF),
     lastCrankSlot: data.readBigUInt64LE(base + ENGINE_LAST_CRANK_SLOT_OFF),
     maxCrankStalenessSlots: data.readBigUInt64LE(base + ENGINE_MAX_CRANK_STALENESS_OFF),
     totalOpenInterest: readU128LE(data, base + ENGINE_TOTAL_OI_OFF),
-    warmedPosTotal: readU128LE(data, base + ENGINE_WARMED_POS_OFF),
-    warmedNegTotal: readU128LE(data, base + ENGINE_WARMED_NEG_OFF),
-    warmupInsuranceReserved: readU128LE(data, base + ENGINE_WARMUP_INSURANCE_OFF),
+    cTot: readU128LE(data, base + ENGINE_C_TOT_OFF),
+    pnlPosTot: readU128LE(data, base + ENGINE_PNL_POS_TOT_OFF),
+    liqCursor: data.readUInt16LE(base + ENGINE_LIQ_CURSOR_OFF),
+    gcCursor: data.readUInt16LE(base + ENGINE_GC_CURSOR_OFF),
     lastSweepStartSlot: data.readBigUInt64LE(base + ENGINE_LAST_SWEEP_START_OFF),
     lastSweepCompleteSlot: data.readBigUInt64LE(base + ENGINE_LAST_SWEEP_COMPLETE_OFF),
-    crankStep: data.readUInt8(base + ENGINE_CRANK_STEP_OFF),
+    crankCursor: data.readUInt16LE(base + ENGINE_CRANK_CURSOR_OFF),
+    sweepStartIdx: data.readUInt16LE(base + ENGINE_SWEEP_START_IDX_OFF),
     lifetimeLiquidations: data.readBigUInt64LE(base + ENGINE_LIFETIME_LIQUIDATIONS_OFF),
     lifetimeForceCloses: data.readBigUInt64LE(base + ENGINE_LIFETIME_FORCE_CLOSES_OFF),
     // LP Aggregates for funding rate calculation
     netLpPos: readI128LE(data, base + ENGINE_NET_LP_POS_OFF),
     lpSumAbs: readU128LE(data, base + ENGINE_LP_SUM_ABS_OFF),
+    lpMaxAbs: readU128LE(data, base + ENGINE_LP_MAX_ABS_OFF),
+    lpMaxAbsSweep: readU128LE(data, base + ENGINE_LP_MAX_ABS_SWEEP_OFF),
     numUsedAccounts: data.readUInt16LE(base + ENGINE_NUM_USED_OFF),
     nextAccountId: data.readBigUInt64LE(base + ENGINE_NEXT_ACCOUNT_ID_OFF),
   };
@@ -580,7 +579,7 @@ export function parseAccount(data: Buffer, idx: number): Account {
     pnl: readI128LE(data, base + ACCT_PNL_OFF),
     reservedPnl: data.readBigUInt64LE(base + ACCT_RESERVED_PNL_OFF),  // u64
     warmupStartedAtSlot: data.readBigUInt64LE(base + ACCT_WARMUP_STARTED_OFF),
-    warmupSlopePerStep: data.readBigUInt64LE(base + ACCT_WARMUP_SLOPE_OFF),  // u64
+    warmupSlopePerStep: readU128LE(data, base + ACCT_WARMUP_SLOPE_OFF),
     positionSize: readI128LE(data, base + ACCT_POSITION_SIZE_OFF),
     entryPrice: data.readBigUInt64LE(base + ACCT_ENTRY_PRICE_OFF),
     fundingIndex: readI128LE(data, base + ACCT_FUNDING_INDEX_OFF),

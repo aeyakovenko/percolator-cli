@@ -7,7 +7,9 @@ import { parseHeader, parseConfig, parseEngine, parseParams } from "../solana/sl
 
 // PERCOLAT magic bytes
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
-const SLAB_SIZE = 1107176;
+// New slab size after haircut-ratio refactor (removed ADL scratch arrays)
+// = ENGINE_OFF(376) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(248)
+const SLAB_SIZE = 1025320;
 
 export function registerListMarkets(program: Command): void {
   program
@@ -62,7 +64,7 @@ export function registerListMarkets(program: Command): void {
             numAccounts: engine.numUsedAccounts,
             insuranceFund: engine.insuranceFund.balance.toString(),
             totalOI: engine.totalOpenInterest.toString(),
-            riskReductionOnly: engine.riskReductionOnly,
+            cTot: engine.cTot.toString(),
             initialMarginBps: Number(params.initialMarginBps),
             maintenanceMarginBps: Number(params.maintenanceMarginBps),
           };
@@ -94,7 +96,7 @@ export function registerListMarkets(program: Command): void {
           console.log(`  Maintenance Margin: ${Number(params.maintenanceMarginBps) / 100}%`);
           console.log(`  Liquidation Fee: ${Number(params.liquidationFeeBps) / 100}%`);
           console.log(`  Trading Fee: ${Number(params.tradingFeeBps) / 100}%`);
-          console.log(`  Risk Reduction Mode: ${engine.riskReductionOnly}`);
+          console.log(`  C_tot: ${engine.cTot}`);
           console.log(`  Funding Index: ${engine.fundingIndexQpbE6}`);
           console.log(`  Rent: ${account.lamports / 1e9} SOL`);
         }

@@ -1,184 +1,6 @@
-# Stranded Vault Funds After Socialized Loss Event
+# Percolator Security Audit — Open Findings
 
-## Summary
-
-After a gap-risk scenario (oracle price gaps past liquidation levels before the crank processes), the insurance fund is exhausted and losses are socialized. The winning counterparty (LP) accumulates large realized PnL that cannot be withdrawn due to the warmup mechanism and depleted insurance surplus. This leaves a significant portion of vault funds permanently stranded with no viable recovery path under current market conditions.
-
-## Reproduction
-
-Stress test: `scripts/stress-worst-case.ts`
-
-1. 5 traders deposit 2 SOL each, open near-max leverage LONG positions (~9.6x, 2T units each)
-2. LP boosted with 10 SOL to absorb counterparty SHORT exposure
-3. Oracle price gapped 50% down in one step WITHOUT cranking (simulates delayed crank / gap risk)
-4. Cranks then process the liquidation cascade
-
-## Observed State After Event
-
-| Metric | Value |
-|--------|-------|
-| Vault balance | 43.15 SOL |
-| LP capital (withdrawable) | 6.36 SOL |
-| LP realized PnL (paper) | 58.17 SOL |
-| LP reservedPnl (warmed) | 0 |
-| LP warmupSlopePerStep | 24,823,400 (~0.025 SOL/step) |
-| Insurance fund | 0.14 SOL |
-| Insurance surplus | 0.04 SOL |
-| Socialized losses (lossAccum) | 24.14 SOL |
-| Risk-reduction mode | true |
-| Stranded vault funds | 36.65 SOL |
-| New liquidations | 5 |
-| New force closes | 1 |
-
-## The Problem
-
-After the event, the vault holds 43.15 SOL but only 6.50 SOL is claimable (6.36 LP capital + 0.14 insurance). The remaining **36.65 SOL is stranded** -- it belongs to nobody:
-
-- **Traders are gone**: All 5 were liquidated with negative equity. Their capital was seized but insufficient to cover their losses.
-- **LP can't access its PnL**: The LP earned 58.17 SOL in realized PnL, but `reservedPnl = 0` (none warmed up). The warmup mechanism gates PnL withdrawal through insurance surplus, which is nearly zero (0.04 SOL).
-- **Insurance is depleted**: Drained from 1.64 SOL to 0.14 SOL absorbing bad debt before socializing the remainder.
-- **Market is frozen**: Risk-reduction-only mode prevents new trading, which prevents fee generation, which prevents insurance from rebuilding.
-
-## Recovery Path Analysis
-
-The LP's "real" PnL after the socialized haircut is `58.17 - 24.14 = 34.03 SOL`. The vault has enough tokens (43.15) to eventually pay this. But the warmup mechanism requires insurance surplus to grow, and the market is frozen.
-
-**Deadlock**: No new trades -> no fees -> no insurance growth -> no warmup budget -> LP can't withdraw PnL -> funds stay stranded.
-
-The only escape would be:
-1. Admin intervention to disable risk-reduction mode or manually settle PnL
-2. External insurance fund injection
-3. A protocol upgrade to handle this edge case
-
-## Correctness Assessment
-
-The protocol handled the crisis correctly in several ways:
-
-- Insurance was drained first before socializing losses
-- `lossAccum` correctly tracks the socialized haircut amount
-- Risk-reduction mode activated to prevent further damage
-- LP cannot withdraw phantom PnL (prevents insolvency)
-- Vault token balance always >= capital + insurance (no token-level insolvency)
-
-The issue is not a solvency bug but a **liveness problem**: funds are safe but permanently inaccessible under the current state machine.
-
-## Affected Fields
-
-- `engine.lossAccum`: 24,141,247,293 lamports (24.14 SOL)
-- `engine.riskReductionOnly`: true
-- `engine.insuranceFund.balance`: 139,542,642 lamports (0.14 SOL)
-- `account[0].pnl`: 58,170,739,754 lamports (58.17 SOL)
-- `account[0].reservedPnl`: 0
-- `account[0].capital`: 6,356,015,531 lamports (6.36 SOL)
-- `engine.vault`: 43,150,007,727 lamports (43.15 SOL)
-
-## Related Fix: `5f5213c` warmup budget double-subtraction
-
-Commit `5f5213c` in `percolator` core ("Fix warmup budget double-subtraction deadlock") fixes a related bug where `warmup_budget_remaining()` double-subtracted `W+` (warmed positive total), causing the budget to hit 0 while raw insurance was still available.
-
-**Old (buggy):** `budget = W- + insurance_spendable_unreserved() - W+`
-  - `unreserved = raw - reserved`, where `reserved = min(W+ - W-, raw)`
-  - When `W+ > W-`: `reserved = W+ - W-`, so `unreserved = raw - (W+ - W-)`, then `budget = W- + raw - W+ + W- - W+ = 2*W- + raw - 2*W+` -- double-subtracts W+
-
-**New (fixed):** `budget = W- + insurance_spendable_raw() - W+`
-
-### Does the fix resolve this issue?
-
-**No.** The fix was redeployed to devnet and tested. Two separate problems prevent recovery:
-
-1. **The budget bug does not trigger in this scenario.** In the post-crash state, `W- = 39.34 SOL >> W+ = 3.75 SOL`. Since `W+ < W-`, `reserved = 0` and the old formula gives the same result as the new one. The budget bug only manifests when `W+ > W-`.
-
-2. **Warmup is paused by risk-reduction mode.** The engine field `warmup.paused = true` was set when risk-reduction mode activated during the crash. Even with a correct budget of 35.73 SOL (`W- + raw - W+ = 39.34 + 0.14 - 3.75`), the crank skips warmup processing entirely while paused.
-
-3. **Risk-reduction mode blocks all new trades.** When the stress test was rerun on the already-damaged market, all 5 trade attempts failed. No new positions can be opened, so no new fees can generate, and the deadlock persists.
-
-### What the fix does help with
-
-The fix prevents a different deadlock scenario: during normal operations (not risk-reduction mode), if positive PnL warmup (`W+`) exceeds negative PnL warmup (`W-`), the old code would stall warmup prematurely even when the insurance fund had available budget. This is important for day-to-day market health.
-
-## Recovery Options
-
-Available admin instructions that could help:
-
-| Instruction | Effect |
-|------------|--------|
-| `TopUpInsurance` (tag 9) | Inject SOL into insurance fund -- could rebuild surplus |
-| `SetRiskThreshold` (tag 11) | Adjust risk-reduction threshold |
-| `UpdateConfig` (tag 14) | Update threshold parameters |
-
-There is **no admin instruction** to directly clear `riskReductionOnly` or reset `lossAccum`. The only path to recovery is growing the insurance fund above the threshold, which requires either admin injection via `TopUpInsurance` or a protocol upgrade.
-
-## Resolution: PR #15 — Automatic Stranded Funds Recovery
-
-**Status: RESOLVED**
-
-PR #15 in `percolator` core ("Stranded funds detection and automatic insurance recovery", commits `9e15fcc`, `61b08dc`, merged `bb9474e`) adds `recover_stranded_to_insurance()` which runs automatically during `keeper_crank`. The recovery triggers when all three conditions are met:
-
-1. `risk_reduction_only == true`
-2. `loss_accum > 0`
-3. Total open interest == 0 (all positions closed/liquidated)
-
-### Recovery mechanism
-
-1. **Haircut phantom PnL**: All accounts with positive realized PnL have it zeroed out. The LP's 58.17 SOL phantom PnL (which was never backed by withdrawable funds) is eliminated.
-2. **Clear loss accumulator**: `lossAccum` is reset to 0.
-3. **Move stranded funds to insurance**: All vault surplus (vault - total_capital) is transferred to the insurance fund balance.
-4. **Exit risk-reduction mode**: `riskReductionOnly` set to false, warmup unpaused.
-
-### Verified on devnet
-
-After rebuilding with `bb9474e` and redeploying, a single keeper crank triggered the recovery:
-
-| Field | Before | After |
-|-------|--------|-------|
-| `engine.lossAccum` | 24.14 SOL | 0 SOL |
-| `engine.riskReductionOnly` | true | false |
-| `engine.insuranceFund.balance` | 0.14 SOL | 34.17 SOL |
-| `engine.warmup.paused` | true | false |
-| `account[0].pnl.realized` | 58.17 SOL | 0 SOL |
-| `account[0].capital` | 8.18 SOL | 8.18 SOL (unchanged) |
-| `solvency.stranded` | 36.65 SOL | 2.62 SOL* |
-
-\* Residual 2.62 SOL is dust from GC'd trader accounts (new account fees etc). The LP's capital is fully withdrawable and the market is operational again.
-
-### Impact
-
-The fix correctly handles the deadlock by recognizing that when all positions are closed and losses have been socialized, phantom PnL is meaningless — those profits can never be realized because the counterparties are gone. The insurance fund absorbs the stranded funds, which is the appropriate destination since insurance exists to cover exactly these kinds of gap-risk events.
-
-## Severity
-
-~~Medium -- no funds are lost or stolen, but they can become permanently inaccessible without admin intervention after a gap-risk event that exhausts the insurance fund.~~
-
-**Resolved** — PR #15 (`bb9474e`) adds automatic recovery. No admin intervention required. The keeper crank detects the stranded state and recovers funds to insurance automatically.
-
-## Corner Case Stress Test
-
-Comprehensive stress test: `scripts/stress-corner-cases.ts`
-
-Tests four scenarios to verify recovery robustness and edge cases:
-
-| # | Scenario | What it tests |
-|---|----------|---------------|
-| 1 | Baseline Recovery | Full gap-risk crash (50% down, 5 LONG traders at ~9.6x), verify PR #15 auto-recovery clears lossAccum, exits risk-reduction, zeros phantom PnL, replenishes insurance |
-| 2 | Double Crash | Recover from scenario 1, crash again (50%), then 80% to overwhelm insurance — verifies repeat recovery cycles work |
-| 3 | LP Underwater | Traders open SHORT (LP goes LONG), crash DOWN — tests the opposite crash direction where LP is the losing side |
-| 4 | Manual Top-Up | Small crash triggers risk-reduction, then admin `topUpInsurance` instead of auto-recovery — tests the admin escape hatch |
-
-Conservation invariant checked after every state transition: `vault >= sum(capital) + insurance` (slack bounded by 4096 lamports).
-
-Run: `npx tsx scripts/stress-corner-cases.ts`
-
-### Corner Case Findings
-
-#### Finding 1: Auto-recovery triggers within 1-2 cranks
-
-When PR #15 conditions are met (riskReduction=true, lossAccum>0, totalOI=0), recovery completes within a single crank cycle. Observed in stress test: crank 1 shows `lossAccum=4.45, ins=0.02` (socialization), crank 2 shows `lossAccum=0, ins=43.96` (fully recovered). The recovery is immediate once conditions are satisfied.
-
-#### Finding 2: Large insurance fund prevents socialization entirely
-
-When the insurance fund is large (e.g., 34+ SOL from prior recovery), a 50% crash on 10 SOL total trader exposure is absorbed entirely by insurance. No socialization occurs, no risk-reduction activates. The insurance fund dropped from ~36 SOL to ~17 SOL absorbing bad debt — this is the intended happy path.
-
-#### Finding 3: LP profitable position blocks auto-recovery
+## Open Finding: LP Position Blocks Auto-Recovery
 
 **Severity: Low (workaround exists)**
 
@@ -189,95 +11,293 @@ Observed in 80% crash scenario:
 - `lossAccum = 11.77 SOL`, `riskReductionOnly = true`
 - `totalOI = 10T` (LP position), auto-recovery blocked
 
-**Workaround**: Admin calls `topUpInsurance` with enough to cover lossAccum + threshold. This exits risk-reduction mode via the `exit_risk_reduction_only_mode_if_safe` path, which does NOT require `totalOI == 0`. Verified working in scenario 4.
+**Workaround**: Admin calls `topUpInsurance` with enough to cover lossAccum + threshold. This exits risk-reduction mode via the `exit_risk_reduction_only_mode_if_safe` path, which does NOT require `totalOI == 0`. Verified working.
 
-**Recommendation**: Consider extending `recover_stranded_to_insurance()` to handle the case where the only remaining OI is from the LP's counterparty position. When all non-LP accounts are liquidated/closed, the LP's phantom position has no counterparty and should be closeable.
+**Recommendation**: Consider extending `recover_stranded_to_insurance()` to handle the case where the only remaining OI is from the LP's counterparty position.
 
-#### Finding 4: LP survives -40% crash while LONG (not liquidated)
+---
 
-When LP is on the losing side (LONG position, price crashes 40%), the LP survives with sufficient capital:
-- LP capital: 18.58 SOL, PnL: -15.19 SOL, effective equity: 3.39 SOL
-- Not liquidated, not force-closed, no risk-reduction triggered
-- Traders (SHORT, profitable) successfully withdrew their profits
+# Security Audit Findings
 
-This confirms the LP's capital buffer is working as designed for moderate crashes.
-
-#### Finding 5: Conservation invariant holds throughout all scenarios
-
-`vault >= sum(capital) + insurance` holds in every state transition across all test runs. The vault surplus (dust) grows over time from GC'd trader accounts — residual from `new_account_fee` payments. After many cycles: ~20 SOL dust accumulated. This is expected and non-recoverable by design.
-
-#### Finding 6: Risk-reduction mode blocks all new trades
-
-When the market enters risk-reduction mode, all trade attempts fail (both LONG and SHORT). This is correct behavior — risk-reduction prevents new exposure. Admin `topUpInsurance` is the only way to resume trading when auto-recovery is blocked by LP position (Finding 3).
-
-## Bug: Recovery Over-Haircut (LP Legitimate Profit Confiscated)
-
-**Status: FIXED** — Verified on devnet after deploying core commit `19cd5de`.
-
-**Severity: High** — LP's legitimate profit was confiscated into insurance during recovery.
+## Finding A: Warmup Haircut Rounding Creates Unrecoverable Dust (HIGH)
 
 ### Summary
 
-`recover_stranded_to_insurance()` computes `total_needed = stranded + loss_accum ≈ Σpnl`, then `haircut = min(total_needed, total_positive_pnl) = total_positive_pnl`. This wipes **100%** of the LP's PnL, including the legitimate profit portion (`pnl - loss_accum`) that the LP actually earned from the crash.
+Floor division in `settle_warmup_to_capital()` silently loses lamports during PnL-to-capital conversion. The dust is subtracted from PnL but never credited anywhere, creating a permanent vault surplus that belongs to nobody.
 
-### Evidence from stress test run 3
+### Root Cause
 
-```
-Crank 1: lossAccum=37.450646, ins=0.005021, rr=true   ← socialization
-Crank 2: lossAccum=0.000000,  ins=10.922609, rr=false  ← recovery wiped LP PnL to 0
-```
+**File:** `/home/anatoly/percolator/src/percolator.rs`, `settle_warmup_to_capital()` ~line 2990
 
-- LP PnL before recovery: ~48 SOL
-- LossAccum (socialized portion): ~37.45 SOL
-- Expected LP PnL after recovery: `48 - 37.45 ≈ 10.55 SOL`
-- Actual LP PnL after recovery: **0 SOL**
-- Confiscated legitimate profit: **~10.55 SOL** → sent to insurance
-
-### Root cause
-
-In `recover_stranded_to_insurance()`:
-
-1. `stranded = vault - total_capital - insurance` (funds belonging to no one)
-2. `total_needed = stranded + loss_accum` — this approximates `Σ positive_pnl` because the stranded funds are the vault surplus created by phantom PnL
-3. `haircut = min(total_needed, total_positive_pnl)` — since `total_needed ≈ total_positive_pnl`, this equals `total_positive_pnl`
-4. Each account's positive PnL is zeroed: `acc.pnl = 0`
-
-The haircut eliminates **all** positive PnL, but it should only eliminate the **socialized loss portion** (`loss_accum`). The difference (`pnl - loss_accum`) is legitimate profit the LP earned from being on the winning side of the crash.
-
-### Correct behavior
-
-The recovery should:
-- Haircut only the `loss_accum` portion from positive PnL holders (proportionally)
-- Leave `pnl - loss_accum` as legitimate, withdrawable profit
-- Move only the `loss_accum`-equivalent stranded amount to insurance
-
-### Reproduction
-
-Script: `scripts/bug-recovery-overhaircut.ts`
-
-```
-npx tsx scripts/bug-recovery-overhaircut.ts
+```rust
+let (h_num, h_den) = self.haircut_ratio();
+let y = if h_den == 0 {
+    x
+} else {
+    mul_u128(x, h_num) / h_den     // ← FLOOR DIVISION
+};
+self.set_pnl(idx as usize, pnl - (x as i128));   // removes x from PnL
+self.set_capital(idx as usize, new_cap);            // adds y to capital
 ```
 
-Steps:
-1. Reset market to clean state (LP flat)
-2. Setup: 5 traders (2 SOL each) + LP boost (10 SOL), all traders LONG 2T units
-3. Gap price 50% down without cranking
-4. Crank once — liquidation cascade + socialization (lossAccum > 0)
-5. Capture pre-recovery state: LP PnL, lossAccum
-6. Crank once more — recovery triggers, zeroes LP PnL
-7. Report: expected vs actual LP PnL, confiscated profit amount
+- `x` lamports are removed from PnL
+- `y = floor(x * h_num / h_den)` lamports are added to capital
+- Dust = `x - y` is lost every time warmup settles
 
-### Fix verification
+### Example
 
-Core commit `19cd5de` ("Fix 3 design flaws in stranded funds recovery") changes the haircut from `min(stranded + loss_accum, total_positive_pnl)` to `min(loss_accum, total_positive_pnl)`. Deployed to devnet and verified:
+```
+x = 1000 lamports, h_num = 999, h_den = 1000
+y = floor(1000 * 999 / 1000) = 999
+Dust = 1000 - 999 = 1 lamport (lost forever)
+```
 
-| Metric | Before fix | After fix |
-|--------|-----------|-----------|
-| Pre-recovery LP PnL | 48.38 SOL | 57.85 SOL |
-| LossAccum | 36.40 SOL | 34.15 SOL |
-| Expected LP PnL | 11.98 SOL | 23.70 SOL |
-| **Actual LP PnL** | **0.00 SOL** | **23.699180 SOL** |
-| Confiscated profit | 11.98 SOL | **0.00 SOL** |
+### Impact
 
-LP now retains exactly `pnl - loss_accum` of legitimate profit after recovery.
+Each warmup settlement can lose up to 1 lamport. Over many accounts and many settlement cycles, dust accumulates as unbacked vault surplus. While individual amounts are tiny, the asymmetry is a conservation violation — PnL is debited more than capital is credited.
+
+The `haircut_ratio()` function (line ~820) computes `h_num = min(residual, pnl_pos_tot)` / `h_den = pnl_pos_tot`. When the vault is slightly undercollateralized (residual < pnl_pos_tot), the ratio `h_num/h_den < 1` and floor division creates dust on every settlement.
+
+### Recommendation
+
+Round `y` up instead of down, or accumulate the remainder in a dust counter that gets swept to insurance periodically.
+
+---
+
+## Finding B: Warmup Settlement Ordering Unfairness (MEDIUM)
+
+### Summary
+
+The haircut ratio is a global value that changes as each account settles warmup. Accounts that settle first get a different (potentially better) haircut rate than accounts that settle later in the same crank cycle. Settlement order is deterministic by account index, creating a structural advantage for lower-indexed accounts.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator/src/percolator.rs`, `settle_warmup_to_capital()` ~line 2986
+
+```rust
+let (h_num, h_den) = self.haircut_ratio();   // reads global state
+let y = mul_u128(x, h_num) / h_den;
+self.set_pnl(idx, pnl - (x as i128));         // updates pnl_pos_tot
+self.set_capital(idx, new_cap);
+```
+
+1. Account A settles: reads haircut ratio, converts PnL to capital, `pnl_pos_tot` decreases
+2. Account B settles: reads a DIFFERENT haircut ratio because `pnl_pos_tot` changed
+3. The ratio `h_num = min(residual, pnl_pos_tot) / pnl_pos_tot` shifts after each settlement
+
+### Mechanism
+
+- `haircut_ratio()` at line ~820: `residual = vault - c_tot - insurance`, `h_num = min(residual, pnl_pos_tot)`
+- When residual < pnl_pos_tot (undercollateralized), the ratio is `residual / pnl_pos_tot`
+- As each account converts PnL to capital: capital increases (c_tot up), PnL decreases (pnl_pos_tot down), residual decreases
+- The direction of change depends on whether `y < x` (which is true when haircut < 1)
+
+### Exploitation
+
+- Settlement is triggered by user operations (`touch_account_full` at ~line 2280) — not queued
+- An attacker who knows the haircut is about to change could time their settlement transaction
+- During crank, accounts are processed in linear bitmap order from `crank_cursor` (~line 1543), giving lower-indexed accounts structural priority
+- No randomization, rotation, or fairness mechanism exists (comment at ~line 2036: "No warmup rate cap (removed for simplicity)")
+
+### Impact
+
+In normal market conditions with a healthy insurance fund, haircut ratio = 1 and there's no unfairness. The issue only manifests when the vault is undercollateralized (residual < pnl_pos_tot), which occurs during/after insurance depletion events. At that point, the ordering advantage becomes proportional to the gap between residual and pnl_pos_tot.
+
+### Recommendation
+
+Snapshot the haircut ratio at the start of each crank sweep and use the snapshot for all settlements in that sweep. This ensures all accounts in the same sweep get the same rate.
+
+---
+
+## Finding C: Fee Debt Traps Accounts — Cannot Close (MEDIUM)
+
+### Summary
+
+An account whose `fee_credits` goes negative cannot call `close_account` to withdraw remaining capital. Maintenance fees continue accruing while the account is idle. Capital is drained to pay fees until eventually the account has zero capital but may still have residual negative fee_credits. The `garbage_collect_dust` function can then free the slot (it doesn't check fee_credits), but the user's capital was consumed by fees with no ability to stop the drain.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator/src/percolator.rs`
+
+1. `close_account` (~line 1290) blocks if `fee_credits.is_negative()`:
+   ```rust
+   if account.fee_credits.is_negative() {
+       return Err(RiskError::InsufficientBalance);
+   }
+   ```
+
+2. `settle_maintenance_fee` (~line 1057) charges fees per slot:
+   ```rust
+   let due = self.params.maintenance_fee_per_slot.get().saturating_mul(dt as u128);
+   account.fee_credits = account.fee_credits.saturating_sub(due as i128);
+   ```
+
+3. If fee_credits goes negative, capital pays the debt (~line 1061-1074):
+   ```rust
+   if account.fee_credits.is_negative() {
+       let owed = neg_i128_to_u128(account.fee_credits.get());
+       let pay = core::cmp::min(owed, account.capital.get());
+       account.capital = account.capital.saturating_sub(pay);
+       // ... transfer to insurance ...
+       account.fee_credits = account.fee_credits.saturating_add(pay as i128);
+   }
+   ```
+
+4. `garbage_collect_dust` (~line 1379-1394) dust predicate does NOT check fee_credits:
+   ```rust
+   // Only checks: position_size == 0, capital == 0, reserved_pnl == 0, pnl <= 0
+   // Missing: fee_credits check
+   ```
+
+### Attack/Trap Scenario
+
+1. User opens account with small capital (e.g., 0.01 SOL)
+2. Closes position, sits idle with zero position
+3. Fee_credits drains to negative as maintenance_fee_per_slot accrues over time
+4. `close_account` is blocked — user cannot withdraw remaining capital
+5. Capital is gradually consumed to pay fees via `pay_fee_debt_from_capital`
+6. Eventually capital hits 0 and GC frees the slot — user lost their remaining capital to fees they couldn't escape
+
+### Impact
+
+For accounts with small balances, the fee drain can consume 100% of capital without the user being able to close and withdraw. The trap is self-reinforcing: the longer the user waits, the more fees accrue, the more capital is consumed.
+
+In practice this primarily affects dust accounts and users who abandon small-balance accounts. Larger accounts can deposit fee_credits to stay positive. However, there is no mechanism to close an account and accept the fee debt loss — the user is forced to watch their capital drain.
+
+### Recommendation
+
+Allow `close_account` to proceed even with negative fee_credits by forgiving the remaining debt (writing it off as the fee equivalent of bad debt). Alternatively, add a `force_close_with_fee_write_off` path that lets users exit at the cost of their remaining fee debt.
+
+---
+
+## Finding D: Partial Liquidation Can Cascade Into Full Close (MEDIUM)
+
+### Summary
+
+After a partial liquidation closes part of a position, the safety check at ~line 1980 immediately recalculates equity. Because the partial close realized negative mark PnL (which reduced capital), the remaining position may now be below the liquidation buffer target, triggering an immediate second full liquidation in the same transaction. This "double-hit" can close a position that would have survived with just the partial liquidation.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator/src/percolator.rs`
+
+The liquidation flow:
+
+1. `touch_account_for_liquidation` (~line 1949): settles mark PnL, updates entry_price to oracle
+2. `compute_liquidation_close_amount` (~line 1956): calculates partial close amount based on post-settlement equity
+3. `oracle_close_position_slice_core` (~line 1811-1842): executes partial close, realizes proportional mark PnL, then calls `settle_warmup_to_capital` which drains capital for negative PnL
+4. Safety check (~line 1980-1993):
+   ```rust
+   if !self.accounts[idx].position_size.is_zero() {
+       let target_bps = maintenance_margin_bps + liquidation_buffer_bps;
+       if !self.is_above_margin_bps_mtm(&self.accounts[idx], oracle_price, target_bps) {
+           let fallback = self.oracle_close_position_core(idx, oracle_price)?;
+       }
+   }
+   ```
+
+The double-hit chain:
+- Partial close computes proportional mark_pnl for the closed slice (~line 1812)
+- `settle_warmup_to_capital` (~line 1842) realizes the negative PnL by draining capital (~line 2953-2966)
+- The safety check re-evaluates margin using the now-reduced capital
+- If the capital reduction from settling the partial close drops equity below the buffer, a full liquidation fires immediately
+
+### Impact
+
+Positions near the liquidation boundary can be fully closed when a partial liquidation would have been sufficient. The extra close is more punitive than necessary — the user loses their entire position instead of having a reduced but surviving position.
+
+This is arguably a conservative safety feature (better to fully close than leave an undercollateralized position), but it means the partial liquidation path in `compute_liquidation_close_amount` is misleading — it computes a "safe" partial size that turns out not to be safe after settlement effects.
+
+### Recommendation
+
+The safety fallback at line ~1988 is reasonable as a defense-in-depth measure. However, `compute_liquidation_close_amount` should account for the capital drain that will occur when mark PnL is settled during the partial close, so the computed close amount actually achieves the target margin.
+
+---
+
+## Finding E: pending_epoch Wraparound — NOT APPLICABLE
+
+**Status: Does not exist in current codebase**
+
+The `pending_epoch` field and associated ADL exclusion mechanism are not implemented in the current version of percolator.rs. A commented-out regression test in `/home/anatoly/percolator-prog/tests/integration.rs` (line ~954) documents this as a hypothetical "Bug #7" for a u8 epoch type that would wrap after 256 sweeps, but the feature was never shipped. No action needed.
+
+---
+
+## Finding F: Oracle Authority Has No Price Bounds or Deviation Checks (HIGH)
+
+### Summary
+
+The `PushOraclePrice` instruction accepts any positive u64 price with no upper bound, no deviation limit from the previous price or from Pyth/Chainlink, no rate limiting, and no circuit breaker. If the oracle authority key is compromised, an attacker can set arbitrary prices and trigger mass liquidations, manipulate withdrawals, or drain the insurance fund.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator-prog/src/percolator.rs`
+
+The PushOraclePrice handler (~line 3213-3242):
+```rust
+// Validate price (must be positive)
+if price_e6 == 0 {
+    return Err(PercolatorError::OracleInvalid.into());
+}
+
+// Store the new price
+config.authority_price_e6 = price_e6;
+config.authority_timestamp = timestamp;
+```
+
+**Only validation:** `price_e6 != 0`
+
+**Missing validations:**
+
+| Check | Pyth | Chainlink | Authority |
+|-------|------|-----------|-----------|
+| Price > 0 | Yes | Yes | Yes |
+| Max price bound | N/A (u64 range) | N/A | **Missing** |
+| Confidence/quality filter | Yes (`conf_filter_bps`, ~line 1648) | No | **Missing** |
+| Staleness on push | N/A | N/A | **Missing** (only checked on read) |
+| Timestamp sanity | N/A | N/A | **Missing** (accepts any i64) |
+| Deviation from previous | No | No | **Missing** |
+| Rate limiting | N/A | N/A | **Missing** |
+
+### Price Consumption Path
+
+`read_price_with_authority` (~line 1850) tries the authority price FIRST before falling back to Pyth/Chainlink:
+```rust
+if let Some(authority_price) = read_authority_price(config, now_unix_ts, config.max_staleness_secs) {
+    return Ok(authority_price);
+}
+// Fall back to Pyth/Chainlink
+```
+
+The authority price takes priority. `read_authority_price` (~line 1822) only checks staleness — no bounds or quality filters.
+
+### Attack Scenarios (if oracle authority compromised)
+
+1. **Mass liquidation**: Push price to 1 (minimum). All LONG positions become massively underwater, triggering cascading liquidations. Insurance fund drains, losses socialize.
+
+2. **Inflated withdrawals**: Push price extremely high. LONG positions show massive unrealized profit. Attacker withdraws inflated equity before price corrects.
+
+3. **Insurance drain**: Alternate between extreme high and low prices. Each swing liquidates one side of the book, consuming insurance for bad debt absorption.
+
+4. **Timestamp manipulation**: Push with future timestamp to keep a stale price "fresh" for longer than max_staleness_secs intended.
+
+### Mitigating Factors
+
+- Oracle authority requires admin to set (`SetOracleAuthority` requires admin signer, ~line 3202)
+- Staleness checked on read (~line 1836): prices expire after `max_staleness_secs`
+- Authority can be disabled by setting to all-zeros
+
+### Recommendation
+
+1. Add MAX_ORACLE_PRICE bound check on push (the core engine already has `MAX_ORACLE_PRICE = 1_000_000_000_000_000` at line 63)
+2. Add deviation check: reject prices that differ by more than X% from the last pushed price
+3. Add timestamp validation: reject if `timestamp > now + buffer` or `timestamp < now - max_staleness_secs`
+4. Consider requiring multi-sig or timelock for `SetOracleAuthority` changes
+
+---
+
+## Resolved Issues (for reference)
+
+The following issues were previously documented and have been fixed:
+
+- **Stranded vault funds after socialized loss** — Fixed by PR #15 (`bb9474e`): automatic recovery via `recover_stranded_to_insurance()`
+- **Warmup budget double-subtraction** — Fixed by commit `5f5213c`: corrected `warmup_budget_remaining()` formula
+- **Recovery over-haircut confiscating LP profit** — Fixed by commit `19cd5de`: haircut limited to `loss_accum` instead of `stranded + loss_accum`
