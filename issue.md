@@ -248,6 +248,110 @@ When the LP has a profitable position (e.g., SHORT during a crash), all traders 
 
 ---
 
+## Deep Audit: Code-Level Analysis (2026-02-02)
+
+Four candidate vulnerabilities were identified by automated source analysis agents and manually verified against the Rust source code. All turned out to be false positives or bounded by existing safety mechanisms.
+
+### Candidate 1: Funding Settlement Overflow Locks Accounts — FALSE POSITIVE
+
+**Status: Theoretical only — practically impossible**
+
+`settle_account_funding()` at line 2148 uses `position_size.checked_mul(delta_f)`. If this overflows i128, the error propagates and blocks all user operations (deposit, withdraw, close_account) on the affected account.
+
+**Analysis**: For overflow to occur with MAX_POSITION_ABS (1e20), delta_f must exceed 1.7e18. At realistic parameters (oracle_price=1e8, funding_rate=1 bps/slot, cranking every few seconds), delta_f grows by ~1e4/second. Time to overflow: **~5.4 million years**. Even with aggressive parameters (price=1e10, rate=100 bps/slot), it would take hundreds of years. The funding payment itself would bankrupt the account long before overflow occurs.
+
+**Caveat**: If oracle authority is compromised (Finding F) and pushes MAX_ORACLE_PRICE (1e15) while funding rate is maxed, the timeline shortens to ~1 year for a dormant max-position account. This is subsumed by Finding F — oracle compromise enables many worse attacks.
+
+### Candidate 2: Partial Liquidation mark_pnl Overflow Clamped to -capital — FALSE POSITIVE
+
+**Status: Bounded by MAX_ORACLE_PRICE**
+
+At line 1813-1818, `oracle_close_position_slice_core` computes `diff.checked_mul(close_abs)`. On overflow, mark_pnl falls back to `-cap_before` (wiping all capital). The concern: a profitable position could have its capital destroyed.
+
+**Analysis**: With MAX_ORACLE_PRICE = 1e15 (enforced at line 1490 and 2655), max diff = 1e15 and max close_abs = 1e20. Product = 1e35, well within i128::MAX (1.7e38). **Overflow cannot occur** with bounded oracle prices.
+
+### Candidate 3: Margin Check Inconsistency (< vs >) — BY DESIGN
+
+**Status: Not exploitable**
+
+In `withdraw` (line 2465): `new_equity_mtm < initial_margin_required` (passes at boundary).
+In `is_above_margin_bps_mtm` (line 2567): `equity > margin_required` (strict, fails at boundary).
+
+**Analysis**: The withdraw function checks initial margin first (stricter), then maintenance margin second (looser). Since initial_margin_bps > maintenance_margin_bps, passing the first check guarantees passing the second. The strict `>` in margin predicates is the conservative choice — accounts at exact boundary are considered under-margined, which is safe.
+
+### Candidate 4: Recovery Deadlock in Force-Realize Mode — ALREADY DOCUMENTED
+
+**Status: Same as "LP Position Blocks Auto-Recovery" finding**
+
+After force-realize closes all positions, if insurance remains below threshold, the system stays in force-realize mode. This is the same issue documented above — requires admin `topUpInsurance` intervention.
+
+---
+
+## Deep Audit: On-Chain Program Security (2026-02-02)
+
+Full review of all 18 instruction handlers in `/home/anatoly/percolator-prog/src/percolator.rs`.
+
+### Account Validation: STRONG
+
+All instructions call `slab_guard()` which verifies slab ownership and exact size (1,111,392 or 1,111,384 bytes for migration). Vault authority PDA is derived from slab key and verified via `expect_key()`. Token account validation checks SPL Token ownership, mint match, vault authority, and initialization state.
+
+### CPI Reentrancy: SAFE
+
+The `TradeCpi` instruction calls into the matcher program but does **not pass the slab account** to the CPI, preventing the matcher from modifying engine state. State is read before CPI and written after, with nonce validation.
+
+### Privilege Escalation: PROTECTED
+
+All 7 admin-only instructions (`SetRiskThreshold`, `UpdateAdmin`, `UpdateConfig`, `SetMaintenanceFee`, `SetOracleAuthority`, `CloseSlab`, `allow_panic` flag) require `require_admin()` check against stored admin pubkey.
+
+### Owner Authorization: COMPREHENSIVE
+
+Every user-facing instruction (deposit, withdraw, trade, close) verifies `owner_ok(account.owner, signer)` before mutating state.
+
+### PushOraclePrice Gaps: See Finding F
+
+All oracle validation gaps confirmed at the program level. Authority price has no MAX_ORACLE_PRICE bound check (unlike engine-level validation). Timestamp has no bounds validation. These are covered by Finding F.
+
+### Build Configuration: `unsafe_close` Feature Flag
+
+The `CloseSlab` instruction has a `#[cfg(feature = "unsafe_close")]` path that bypasses admin checks, state validation, and data zeroing. **This feature must never be enabled in production builds.** It exists for development (CU limit workaround).
+
+### Permissionless Operations (by design)
+
+- `TopUpInsurance`: Any signer can add to insurance fund
+- `LiquidateAtOracle`: Any caller can trigger liquidation on underwater accounts
+- `KeeperCrank`: Permissionless when `allow_panic = 0`
+
+These are intentional design choices for market health, not vulnerabilities.
+
+---
+
+## Deep Audit: Matching Engine Trust Boundary (2026-02-02)
+
+Reviewed the `MatchingEngine` trait and `execute_trade` validation of matcher output.
+
+### Matcher Output Validation: COMPREHENSIVE
+
+After `matcher.execute_match()` returns, the risk engine validates (lines 2702-2728):
+- Price: `exec_price != 0 && exec_price <= MAX_ORACLE_PRICE`
+- Size: `exec_size != 0 && exec_size != i128::MIN && |exec_size| <= MAX_POSITION_ABS`
+- Direction: `sign(exec_size) == sign(requested_size)`
+- Fill limit: `|exec_size| <= |requested_size|`
+
+### No Slippage Limit: By Design
+
+The matcher can return any price within `[1, MAX_ORACLE_PRICE]` regardless of oracle price. This is intentional — the matcher provides the best available price. Protection against unfavorable fills:
+
+1. **Haircut ratio** caps effective positive PnL by available Residual
+2. **Warmup period** delays profit conversion to capital
+3. **Maintenance margin check** (lines 2847-2884) uses haircutted equity at oracle price
+4. **Zero-sum PnL** — user profit = LP loss, LP must also pass margin check
+
+### Vault Drainage: Not Possible
+
+The combination of zero-sum PnL, haircut ratio, warmup delay, and dual-sided margin checks prevents any matcher from draining the vault. An LP returning extreme prices would either fail its own margin check or have its losses bounded by capital.
+
+---
+
 # Test Results Summary (2026-02-02)
 
 ## Test Suite (t1-t11 via runner.ts)
