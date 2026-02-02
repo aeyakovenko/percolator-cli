@@ -102,10 +102,10 @@ async function crank() {
   await sendAndConfirmTransaction(conn, tx, [payer], { commitment: "confirmed" });
 }
 
-async function crankN(n: number) {
+async function crankN(n: number, gapMs = 500) {
   for (let i = 0; i < n; i++) {
     try { await crank(); } catch {}
-    await delay(500);
+    await delay(gapMs);
   }
 }
 
@@ -208,7 +208,7 @@ interface TestResult {
 
 async function scenarioWinner(basePrice: bigint): Promise<TestResult> {
   console.log("\n============================================================");
-  console.log("SCENARIO 1: Winner — profit withdrawal");
+  console.log("SCENARIO 1: Winner — profit withdrawal with warmup");
   console.log("============================================================");
 
   const DEPOSIT = 2_000_000_000n; // 2 SOL
@@ -235,63 +235,108 @@ async function scenarioWinner(basePrice: bigint): Promise<TestResult> {
   console.log(`  Price: ${basePrice} → ${upPrice} (+5%)`);
   await pushPrice(upPrice);
 
-  // Crank several times to settle PnL + warmup
-  await crankN(5);
+  // Crank to mark PnL
+  await crank();
+  await delay(500);
 
   state = await getState();
   acc = state.accounts.find((a: any) => a.idx === idx);
-  const capitalAfterWarmup = BigInt(acc?.capital || 0);
-  const pnlAfterWarmup = BigInt(acc?.pnl || 0);
-  console.log(`  After warmup: capital=${fmt(capitalAfterWarmup)}, pnl=${fmt(pnlAfterWarmup)}`);
-  checkConservation(state, "after-warmup");
+  const pnlAfterMark = BigInt(acc?.pnl || 0);
+  console.log(`  After mark: capital=${fmt(BigInt(acc?.capital || 0))}, pnl=${fmt(pnlAfterMark)}`);
 
-  // Close position
+  // Close position — this resets warmup_started_at_slot via update_warmup_slope
   console.log("  Closing position...");
   await trade(idx, -SIZE);
   state = await getState();
   acc = state.accounts.find((a: any) => a.idx === idx);
   const capitalAfterClose = BigInt(acc?.capital || 0);
+  const pnlAfterClose = BigInt(acc?.pnl || 0);
   const posAfterClose = BigInt(acc?.positionSize || 0);
-  console.log(`  After close: capital=${fmt(capitalAfterClose)}, position=${posAfterClose}`);
+  console.log(`  After close: capital=${fmt(capitalAfterClose)}, pnl=${fmt(pnlAfterClose)}, position=${posAfterClose}`);
 
   if (posAfterClose !== 0n) {
     return { name: "Winner", pass: false, details: `Position not flat: ${posAfterClose}` };
   }
 
-  // Try to withdraw all capital
-  console.log(`  Withdrawing ${fmt(capitalAfterClose)} SOL...`);
+  // Wait for warmup period to elapse.
+  // warmupPeriodSlots=10 on devnet (~4 seconds at ~2.5 slots/sec).
+  // keeper_crank does NOT call settle_warmup_to_capital — conversion only
+  // triggers on user operations (withdraw, close_account, deposit) that call
+  // touch_account_full. We just need enough slots to pass before that call.
+  console.log("  Waiting 10 seconds for warmup period to elapse (10 slots @ ~2.5 slots/sec)...");
+  await delay(10_000);
+
+  // Read slab state — PnL will still show because cranks don't settle warmup.
+  // The conversion happens inside the next user operation (withdraw/close_account).
+  state = await getState();
+  acc = state.accounts.find((a: any) => a.idx === idx);
+  console.log(`  Before withdrawal: capital=${fmt(BigInt(acc?.capital || 0))}, pnl=${fmt(BigInt(acc?.pnl || 0))}`);
+  console.log("  (PnL still visible — conversion triggers inside withdraw/close_account)");
+
+  // Withdraw a small amount to trigger touch_account_full → settle_warmup_to_capital.
+  // This converts warmed PnL to capital. Then we can read the true post-warmup capital.
+  console.log("  Triggering settlement via small withdrawal (1 lamport)...");
   try {
-    await withdraw(idx, capitalAfterClose);
+    await withdraw(idx, 1n);
+  } catch (e: any) {
+    console.log(`  Small withdraw failed: ${e.message?.slice(0, 80)}`);
+  }
+
+  // Crank to keep market fresh for subsequent operations
+  try { await crank(); } catch {}
+  await delay(1000);
+
+  // Now read state — PnL should be converted to capital
+  state = await getState();
+  acc = state.accounts.find((a: any) => a.idx === idx);
+  const capitalAfterWarmup = BigInt(acc?.capital || 0);
+  const pnlAfterWarmup = BigInt(acc?.pnl || 0);
+  console.log(`  After warmup settlement: capital=${fmt(capitalAfterWarmup)}, pnl=${fmt(pnlAfterWarmup)}`);
+  checkConservation(state, "after-warmup");
+
+  // Withdraw all remaining capital
+  let totalWithdrawn = 1n; // already withdrew 1 lamport
+  console.log(`  Withdrawing remaining ${fmt(capitalAfterWarmup)} SOL...`);
+  try {
+    await withdraw(idx, capitalAfterWarmup);
+    totalWithdrawn += capitalAfterWarmup;
     console.log("  Withdrawal SUCCESS");
   } catch (e: any) {
-    // Might be blocked by margin check — try withdrawing slightly less
-    const reduced = capitalAfterClose * 95n / 100n;
+    // Margin check might block if fees accumulate — try 95%
+    const reduced = capitalAfterWarmup * 95n / 100n;
     console.log(`  Full withdraw blocked, trying ${fmt(reduced)}...`);
     try {
       await withdraw(idx, reduced);
+      totalWithdrawn += reduced;
       console.log(`  Partial withdrawal SUCCESS: ${fmt(reduced)}`);
     } catch (e2: any) {
       return { name: "Winner", pass: false, details: `Withdrawal failed: ${e2.message?.slice(0, 80)}` };
     }
   }
 
-  // Close account
+  // Close account (returns any remaining capital)
   try {
     await closeAccount(idx);
     console.log("  Account closed");
   } catch (e: any) {
-    console.log(`  Close account: ${e.message?.slice(0, 60)} (may already be cleaned)`);
+    console.log(`  Close account: ${e.message?.slice(0, 60)} (may need more warmup or crank)`);
   }
 
-  // Check: user should have received MORE than their deposit
-  const profit = capitalAfterClose - DEPOSIT;
-  if (capitalAfterClose > DEPOSIT) {
+  // Verify: capital after warmup should exceed deposit (user profited)
+  const profit = capitalAfterWarmup - DEPOSIT;
+  console.log(`  Warmup result: capital=${fmt(capitalAfterWarmup)}, deposit=${fmt(DEPOSIT)}`);
+
+  if (capitalAfterWarmup > DEPOSIT) {
     console.log(`  PROFIT: ${fmt(profit)} SOL (${(Number(profit) * 100 / Number(DEPOSIT)).toFixed(2)}%)`);
-    return { name: "Winner", pass: true, details: `Deposited ${fmt(DEPOSIT)}, withdrew ${fmt(capitalAfterClose)}, profit ${fmt(profit)}` };
+    return {
+      name: "Winner",
+      pass: true,
+      details: `Deposited ${fmt(DEPOSIT)}, capital after warmup ${fmt(capitalAfterWarmup)}, profit ${fmt(profit)} — warmup PnL→capital conversion verified`,
+    };
+  } else if (pnlAfterWarmup > 0n) {
+    return { name: "Winner", pass: false, details: `Warmup incomplete: capital=${fmt(capitalAfterWarmup)}, remaining pnl=${fmt(pnlAfterWarmup)}` };
   } else {
-    // Even if capital didn't grow (warmup not fully complete), at least verify withdrawal worked
-    console.log(`  Capital didn't exceed deposit (warmup incomplete), but withdrawal succeeded`);
-    return { name: "Winner", pass: true, details: `Deposited ${fmt(DEPOSIT)}, withdrew ${fmt(capitalAfterClose)} (warmup pending)` };
+    return { name: "Winner", pass: false, details: `No profit after warmup: capital=${fmt(capitalAfterWarmup)}, deposit=${fmt(DEPOSIT)} (fees consumed profit)` };
   }
 }
 
@@ -490,19 +535,19 @@ async function main() {
 
   // Run scenarios sequentially to avoid rate limits
   results.push(await scenarioRoundTrip(basePrice));
-  await delay(2000);
+  await delay(3000);
   await pushPrice(basePrice);
-  await crankN(3);
+  await crankN(3, 2000);
 
   results.push(await scenarioWinner(basePrice));
-  await delay(2000);
+  await delay(3000);
   await pushPrice(basePrice);
-  await crankN(3);
+  await crankN(3, 2000);
 
   results.push(await scenarioLoser(basePrice));
-  await delay(2000);
+  await delay(3000);
   await pushPrice(basePrice);
-  await crankN(3);
+  await crankN(3, 2000);
 
   // Final conservation check
   const finalState = await getState();
