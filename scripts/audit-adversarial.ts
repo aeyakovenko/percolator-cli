@@ -162,7 +162,13 @@ async function attackMultiAccountExtraction() {
   const a1Before = stateBefore.accounts.find((a: any) => a.idx === attacker1);
   const a2Before = stateBefore.accounts.find((a: any) => a.idx === attacker2);
   const totalBefore = Number(a1Before?.capital || 0n) + Number(a2Before?.capital || 0n);
-  
+  // Track vault-level conservation (vault >= all_capital + insurance + pnl_pos_tot)
+  const vaultBefore = stateBefore.engine.vault;
+  let allCapBefore = 0n;
+  for (const acc of stateBefore.accounts) allCapBefore += acc.capital;
+  const insBefore = stateBefore.engine.insuranceFund.balance;
+  const pnlPosBefore = stateBefore.engine.pnlPosTot;
+
   console.log("  Initial capital A1: " + (Number(a1Before?.capital || 0n) / 1e9).toFixed(6));
   console.log("  Initial capital A2: " + (Number(a2Before?.capital || 0n) / 1e9).toFixed(6));
   
@@ -198,13 +204,24 @@ async function attackMultiAccountExtraction() {
   console.log("  Final capital A1: " + (Number(a1After?.capital || 0n) / 1e9).toFixed(6));
   console.log("  Final capital A2: " + (Number(a2After?.capital || 0n) / 1e9).toFixed(6));
   console.log("  Total change: " + ((totalAfter - totalBefore) / 1e9).toFixed(6) + " SOL");
-  
-  // Attack succeeds if total capital increased (extracted value)
-  const attacked = totalAfter > totalBefore;
+
+  // The correct check: vault-level conservation, NOT individual capital growth.
+  // Attacker capital can grow (at LP expense) — that's normal trading, not extraction.
+  // Real attack = vault < all_capital + insurance + pnl_pos_tot (value from nowhere).
+  const vaultAfter1 = stateAfter.engine.vault;
+  let allCapAfter = 0n;
+  for (const acc of stateAfter.accounts) allCapAfter += acc.capital;
+  const insAfter1 = stateAfter.engine.insuranceFund.balance;
+  const pnlPosAfter1 = stateAfter.engine.pnlPosTot;
+  const conservationSlack = vaultAfter1 - allCapAfter - insAfter1 - pnlPosAfter1;
+  console.log("  Conservation: vault(" + (Number(vaultAfter1)/1e9).toFixed(6) + ") - tracked(" + (Number(allCapAfter + insAfter1 + pnlPosAfter1)/1e9).toFixed(6) + ") = slack " + (Number(conservationSlack)/1e9).toFixed(6));
+  const conserved = conservationSlack >= 0n;
   results.push({
     test: "Multi-Account Extraction",
-    passed: !attacked,
-    details: attacked ? "EXTRACTED " + ((totalAfter - totalBefore) / 1e9).toFixed(6) + " SOL (BUG!)" : "No extraction (fees paid)"
+    passed: conserved,
+    details: conserved
+      ? "Conservation holds (slack=" + (Number(conservationSlack)/1e9).toFixed(6) + " SOL). Attacker capital change: " + ((totalAfter - totalBefore) / 1e9).toFixed(6) + " SOL (normal PnL from LP)"
+      : "CONSERVATION VIOLATED: slack=" + (Number(conservationSlack)/1e9).toFixed(6) + " SOL"
   });
 }
 
@@ -220,12 +237,13 @@ async function attackRoundingAccumulation() {
   await runCrank();
   
   const stateBefore = await getMarketState();
-  const vaultBefore = stateBefore.vaultLamports;
+  const vaultBefore = stateBefore.engine.vault;
   let totalCapitalBefore = 0n;
   for (const acc of stateBefore.accounts) {
     totalCapitalBefore += acc.capital;
   }
   const insuranceBefore = stateBefore.engine.insuranceFund.balance;
+  const pnlPosTotBefore = stateBefore.engine.pnlPosTot;
   
   // Create trader and do many small trades
   const attacker = await createTrader();
@@ -246,31 +264,35 @@ async function attackRoundingAccumulation() {
   await delay(1000);
   
   const stateAfter = await getMarketState();
-  const vaultAfter = stateAfter.vaultLamports;
+  const vaultAfter = stateAfter.engine.vault;
   let totalCapitalAfter = 0n;
   for (const acc of stateAfter.accounts) {
     totalCapitalAfter += acc.capital;
   }
   const insuranceAfter = stateAfter.engine.insuranceFund.balance;
-  
+  const pnlPosTotAfter = stateAfter.engine.pnlPosTot;
+
   const vaultDiff = vaultAfter - vaultBefore;
-  const capitalDiff = Number(totalCapitalAfter - totalCapitalBefore);
-  const insuranceDiff = Number(insuranceAfter - insuranceBefore);
-  
-  // Conservation: vault_diff = capital_diff + insurance_diff (within rounding)
-  const slack = Math.abs(vaultDiff - capitalDiff - insuranceDiff);
-  const maxAllowedSlack = 10_000_000; // 0.01 SOL
-  
+  const capitalDiff = totalCapitalAfter - totalCapitalBefore;
+  const insuranceDiff = insuranceAfter - insuranceBefore;
+  const pnlPosDiff = pnlPosTotAfter - pnlPosTotBefore;
+
+  // Conservation: vault_diff = capital_diff + insurance_diff + pnl_pos_tot_diff (within rounding)
+  const slack = vaultDiff - capitalDiff - insuranceDiff - pnlPosDiff;
+  const absSlack = slack < 0n ? -slack : slack;
+  const maxAllowedSlack = 10_000_000n; // 0.01 SOL
+
   console.log("  Vault diff: " + vaultDiff);
   console.log("  Capital diff: " + capitalDiff);
   console.log("  Insurance diff: " + insuranceDiff);
-  console.log("  Conservation slack: " + slack);
-  
-  const conserved = slack < maxAllowedSlack;
+  console.log("  PnlPosTot diff: " + pnlPosDiff);
+  console.log("  Conservation slack: " + absSlack);
+
+  const conserved = absSlack < maxAllowedSlack;
   results.push({
     test: "Rounding Accumulation",
     passed: conserved,
-    details: "Slack: " + slack + " (max " + maxAllowedSlack + ")"
+    details: "Slack: " + absSlack + " (max " + maxAllowedSlack + ")"
   });
 }
 
@@ -416,30 +438,34 @@ async function verifyGlobalConservation() {
   await runCrank();
   const state = await getMarketState();
   
-  const vault = state.vaultLamports;
-  const insurance = Number(state.engine.insuranceFund.balance);
-  const lossAccum = Number(state.engine.lossAccum || 0n);
-  
+  const vault = state.engine.vault;
+  const insurance = state.engine.insuranceFund.balance;
+  const pnlPosTot = state.engine.pnlPosTot;
+
   let totalCapital = 0n;
   let totalPnl = 0n;
   for (const acc of state.accounts) {
     totalCapital += acc.capital;
     totalPnl += acc.pnl || 0n;
   }
-  
-  console.log("  Vault: " + (vault / 1e9).toFixed(6) + " SOL");
-  console.log("  Insurance: " + (insurance / 1e9).toFixed(6) + " SOL");
-  console.log("  Loss accum: " + (lossAccum / 1e9).toFixed(6) + " SOL");
+
+  const tracked = totalCapital + insurance + pnlPosTot;
+  const slack = vault - tracked;
+
+  console.log("  Vault: " + (Number(vault) / 1e9).toFixed(6) + " SOL");
+  console.log("  Insurance: " + (Number(insurance) / 1e9).toFixed(6) + " SOL");
+  console.log("  PnlPosTot: " + (Number(pnlPosTot) / 1e9).toFixed(6) + " SOL");
   console.log("  Total capital: " + (Number(totalCapital) / 1e9).toFixed(6) + " SOL");
   console.log("  Total PnL: " + (Number(totalPnl) / 1e9).toFixed(6) + " SOL");
-  
-  // Conservation: vault >= capital (users can always withdraw their capital)
-  const conserved = vault >= Number(totalCapital);
-  
+  console.log("  Slack: " + (Number(slack) / 1e9).toFixed(6) + " SOL");
+
+  // Conservation: vault >= capital + insurance + pnl_pos_tot
+  const conserved = slack >= 0n;
+
   results.push({
     test: "Global Conservation",
     passed: conserved,
-    details: "Vault covers capital: " + conserved
+    details: "Vault covers tracked: " + conserved + " (slack=" + (Number(slack)/1e9).toFixed(6) + " SOL)"
   });
 }
 
@@ -486,7 +512,8 @@ async function main() {
   
   // Update status.md
   const timestamp = new Date().toISOString();
-  let status = fs.readFileSync("status.md", "utf-8");
+  let status = "";
+  try { status = fs.readFileSync("status.md", "utf-8"); } catch {}
   status += "\n\n---\n\n## Adversarial Attack Testing - " + timestamp + "\n\n";
   status += "**Results:** " + passed + "/" + results.length + " attacks defended\n\n";
   status += "| Attack | Result | Details |\n";
