@@ -256,6 +256,9 @@ When the LP has a profitable position (e.g., SHORT during a crash), all traders 
 | Script | Result |
 |--------|--------|
 | stress-haircut-system.ts | **ALL 3 PASSED** (conservation, insurance, undercollateralization) |
+| stress-worst-case.ts | **PASS** — 5 traders liquidated at 20%+50% crash, LP bank run (26 SOL withdrawn), solvency maintained |
+| stress-corner-cases.ts | **27/34 pass** — conservation at every checkpoint; failures are parser gaps (lossAccum/riskReduction fields), not program bugs |
+| test-happy-path.ts | **ALL 4 PASS** — round-trip (fees only), winner (profit withdrawal), loser (remaining capital withdrawal), conservation |
 | bug-oracle-no-bounds.ts | **7/8 validation gaps confirmed** |
 | verify-threshold-autoadjust.ts | **PASSED** (step limiting, EWMA smoothing work) |
 | verify-fixes.ts | **ALL PASS** (conservation + account close lifecycle) |
