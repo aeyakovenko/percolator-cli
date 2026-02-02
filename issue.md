@@ -111,6 +111,42 @@ Admin calls `topUpInsurance` with enough to cover lossAccum + threshold.
 
 ---
 
+## Finding I: Admin Config Updates Have No Cross-Parameter Validation (MEDIUM)
+
+**Status: OPEN**
+
+### Summary
+
+`UpdateConfig`, `SetMaintenanceFee`, and `SetRiskThreshold` instructions accept parameter values with minimal validation. An admin (even acting in good faith) can set parameter combinations that break margin model invariants or destabilize the market.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator-prog/src/percolator.rs`, UpdateConfig (~line 3117), SetMaintenanceFee (~line 3169), SetRiskThreshold (~line 3028)
+
+### Dangerous Parameter Combinations
+
+| Parameter | Risk | Impact |
+|-----------|------|--------|
+| `initial_margin_bps` < `maintenance_margin_bps` | No validation | Accounts open below maintenance margin, immediately liquidatable |
+| `warmup_period_slots` = 0 | No validation | Disables warmup protection entirely, enables instant profit extraction |
+| `maintenance_fee_per_slot` = extreme value | No validation | Drains all account capital on next crank via fee settlement |
+| `risk_reduction_threshold` = u128::MAX | No validation | Triggers force-realize on all positions immediately |
+| `liquidation_buffer_bps` = extreme value | No validation | Either prevents liquidation entirely (too high) or removes safety buffer (0) |
+
+### Mitigating Factors
+
+- All config changes require admin signer
+- Admin is a trusted role by design
+- Parameters are set at market initialization with safe defaults
+
+### Recommendation
+
+1. Add cross-parameter validation in `UpdateConfig`: enforce `initial_margin_bps > maintenance_margin_bps`, `warmup_period_slots > 0`, `liquidation_buffer_bps` within reasonable range
+2. Add cap validation in `SetMaintenanceFee`: reject unreasonably large values
+3. Consider requiring timelock or multi-sig for parameter changes on active markets
+
+---
+
 ## Build Configuration: `unsafe_close` Feature Flag (INFO)
 
 **Status: OPEN — requires build discipline**
