@@ -211,26 +211,29 @@ export class InvariantChecker {
       }
     }
 
-    // Conservation: vault = sum(capital) + insurance.balance
-    // Note: feeRevenue is an accounting field, not actual vault funds
-    const totalInSlab = totalUserCapital + engine.insuranceFund.balance;
+    // Conservation: vault_tokens = c_tot + insurance.balance + pnl_pos_tot
+    //
+    // Positive PnL that hasn't been converted to capital (still in warmup) is
+    // backed by the vault but not reflected in capital. After two-pass settlement
+    // (settle_loss_only before settle_warmup_to_capital), the haircut is 1:1 so
+    // no value is destroyed — it just hasn't converted yet due to warmup timing.
+    // feeRevenue is a cumulative counter, not additive vault funds.
+    const totalInSlab = totalUserCapital + engine.insuranceFund.balance + engine.pnlPosTot;
 
     // Get actual vault balance
     try {
       const vaultAccount = await getAccount(this.connection, ctx.vault);
       const vaultBalance = vaultAccount.amount;
 
-      // Allow differences up to 0.2 USDC for fee accounting discrepancies
-      // Trading fees may be tracked in feeRevenue which is not always in sync with balance
       const diff = totalInSlab > vaultBalance
         ? totalInSlab - vaultBalance
         : vaultBalance - totalInSlab;
 
-      if (diff > 200_000n) {  // 0.2 USDC tolerance
+      if (diff > 200_000n) {  // 0.2 USDC tolerance for rounding
         return {
           name: "I4: Collateral conservation",
           passed: false,
-          expected: `Slab total: ${totalInSlab}`,
+          expected: `Slab total: ${totalInSlab} (capital=${totalUserCapital} + ins=${engine.insuranceFund.balance} + pnlPos=${engine.pnlPosTot})`,
           actual: `Vault balance: ${vaultBalance}`,
           message: `Difference: ${diff}`,
         };
@@ -239,7 +242,7 @@ export class InvariantChecker {
       return {
         name: "I4: Collateral conservation",
         passed: true,
-        message: `Total: ${totalInSlab}, Vault: ${vaultBalance}, Diff: ${diff}`,
+        message: `Total: ${totalInSlab}, Vault: ${vaultBalance}, Diff: ${diff} (capital=${totalUserCapital} + ins=${engine.insuranceFund.balance} + pnlPos=${engine.pnlPosTot})`,
       };
     } catch (e: any) {
       return {
