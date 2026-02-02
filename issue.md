@@ -288,7 +288,13 @@ When the LP has a profitable position (e.g., SHORT during a crash), all traders 
 | stress-haircut-system.ts | **ALL 3 PASSED** (conservation, insurance, undercollateralization) |
 | stress-worst-case.ts | **PASS** — 5 traders liquidated at 20%+50% crash, LP bank run (26 SOL withdrawn), solvency maintained |
 | stress-corner-cases.ts | **27/34 pass** — conservation at every checkpoint; failures are parser gaps (lossAccum/riskReduction fields), not program bugs |
-| test-happy-path.ts | **ALL 4 PASS** — round-trip (fees only), winner (profit via warmup PnL→capital, 9%), loser (remaining capital withdrawal), conservation |
+| test-happy-path.ts | **ALL 7 PASS** — round-trip, winner (warmup), loser, max-lev LONG (9.1x), max-lev SHORT (9.1x), over-leverage rejected, conservation |
+| audit-adversarial.ts | **ALL 6 DEFENDED** — multi-account extraction, rounding accumulation, warmup bypass, insurance protection, max leverage, global conservation |
+| audit-redteam.ts | **9/10 DEFENDED** — insurance drain, pending wedge, conservation, entry price, funding, crank DoS, position bounds, loss accum, epoch wraparound. 1 false positive (stale dust position) |
+| audit-deep-redteam.ts | **15/16 DEFENDED** — all economic, arithmetic, state, multi-account, LP, and oracle attacks defended. 1 false positive (fee evasion: trade didn't execute) |
+| audit-timing-attacks.ts | **9/10 DEFENDED** — crank staleness, sweep timing, multi-trade, funding, liquidation front-run, withdrawal, rapid cycle, atomicity, oracle. 1 false positive (trade correctly blocked same-slot) |
+| audit-oracle-edge.ts | **ALL 10 VERIFIED** — staleness, dust positions, OI tracking, ADL epoch, lifetime counters, capital bounds, position bounds, insurance floor, entry prices, LP balance |
+| pentest-oracle.ts | **ALL 6 PASS** — price edge cases, timestamp manipulation (confirms Finding F), funding manipulation, flash crash, insurance drain, ADL cascade |
 | bug-oracle-no-bounds.ts | **7/8 validation gaps confirmed** |
 | verify-threshold-autoadjust.ts | **PASSED** (step limiting, EWMA smoothing work) |
 | verify-fixes.ts | **ALL PASS** (conservation + account close lifecycle) |
