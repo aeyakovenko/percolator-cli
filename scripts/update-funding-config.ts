@@ -7,8 +7,9 @@ import { encodeUpdateConfig } from '../src/abi/instructions.js';
 import { buildAccountMetas, ACCOUNTS_UPDATE_CONFIG } from '../src/abi/accounts.js';
 import { buildIx } from '../src/runtime/tx.js';
 
-const PROGRAM_ID = new PublicKey('2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp');
-const SLAB = new PublicKey('Auh2xxbcg6zezP1CvLqZykGaTqwbjXfTaMHmMwGDYK89');
+const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+const PROGRAM_ID = new PublicKey(marketInfo.programId);
+const SLAB = new PublicKey(marketInfo.slab);
 
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');

@@ -1,7 +1,9 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { fetchSlab, parseEngine, parseConfig, parseAccount, parseUsedIndices } from "../src/solana/slab.js";
+import * as fs from "fs";
 
-const SLAB = new PublicKey("GKRvsx2gv7kvNGAKPxCATSufNJei6ep1fg6BvpYoPZAC");
+const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+const SLAB = new PublicKey(marketInfo.slab);
 const conn = new Connection("https://api.devnet.solana.com");
 
 async function main() {
