@@ -98,43 +98,56 @@ let margin_bps = if user_risk_increasing {
 
 ---
 
-## Finding M: Funding Rate Retroactive Application Creates Manipulation Window (HIGH)
+## Finding M: Funding Rate Retroactive Application Creates Manipulation Window (HIGH → LOW)
 
-**Status: OPEN — design-level concern, code-verified**
+**Status: MITIGATED via anti-retroactivity pattern in core engine**
 
 ### Summary
 
-The funding rate is computed from the LP's net position at the instant the permissionless keeper crank is called, then applied retroactively for the entire elapsed period since the last funding accrual. If the LP inventory changed during that period, the retroactive application is incorrect.
+The original concern was that a newly computed funding rate would be applied retroactively for the entire elapsed period. **This attack does not work** because the core engine implements anti-retroactivity correctly.
 
-### Root Cause
+### Anti-Retroactivity Implementation
 
-**File:** `/home/anatoly/percolator-prog/src/percolator.rs`, lines 2555-2570
-**File:** `/home/anatoly/percolator/src/percolator.rs`, lines 2073-2119
+**File:** `/home/anatoly/percolator/src/percolator.rs`, `keeper_crank()` lines 1507-1514
 
-The crank computes `effective_funding_rate` from current `net_lp_pos` (line 2555-2564), then `accrue_funding` applies `ΔF = price × rate × dt / 10_000` where `dt = now_slot - last_funding_slot` (lines 2079, 2104-2111). The rate is a point-in-time value but `dt` can span hundreds of slots.
+```rust
+// Accrue funding first using the STORED rate (anti-retroactivity).
+// This ensures funding charged for the elapsed interval uses the rate that was
+// in effect at the start of the interval, NOT the new rate computed from current state.
+self.accrue_funding(now_slot, oracle_price)?;
 
-### Attack Scenario
+// Now set the new rate for the NEXT interval (anti-retroactivity).
+// The funding_rate_bps_per_slot parameter becomes the rate for [now_slot, next_accrual).
+self.set_funding_rate_for_next_interval(funding_rate_bps_per_slot);
+```
 
-1. Slot 100: LP balanced (`net_lp_pos ≈ 0`), last crank at slot 100
-2. Slot 100-299: No crank called (attacker avoids cranking)
-3. Slot 299: Attacker opens large SHORT position → LP forced net LONG → high positive funding rate
-4. Slot 300: Attacker calls permissionless crank. Rate computed from current (skewed) inventory. Applied retroactively for `dt=200` slots
-5. Result: all existing LONG holders pay 200 slots worth of high funding, even though LP was balanced for 199/200 slots
+### Why the Attack Fails
 
-The attacker's SHORT position receives the funding payment. After settling, attacker closes the SHORT.
+1. Slot 100: LP balanced, crank called → stored rate set based on balanced LP (e.g., 0)
+2. Slot 100-299: No crank called
+3. Slot 299: Attacker opens large SHORT → LP forced net LONG
+4. Slot 300: Attacker calls crank:
+   - `accrue_funding()` uses the **stored rate from slot 100** (0), not the skewed rate
+   - Funding for slots 100-300 is computed at rate 0 → no manipulation
+   - Only AFTER accruing, the new skewed rate is stored for slots 300+
 
-### Mitigating Factors
+### Remaining Concern (LOW)
 
-- `funding_max_bps_per_slot` caps the per-slot rate
-- `max_crank_staleness_slots` limits crank staleness (but only enforced on trade/withdraw, not on crank call itself)
-- Attacker pays trading fees and mark settlement costs
-- Attack requires significant capital (must open large position to skew LP)
+The rate set at any crank applies to the entire next interval. If LP inventory changes significantly within an interval (between cranks), the rate isn't TWAP for that period. However:
+- Regular keepers crank frequently (every few slots)
+- `max_crank_staleness_slots` limits how stale cranks can be before trades/withdrawals are blocked
+- Impact is proportional to stale interval length, which is naturally bounded
 
-### Recommendation
+### Devnet Verification
 
-1. Apply funding using a time-weighted average of LP inventory, not point-in-time
-2. Or enforce maximum `dt` for funding application (e.g., split large `dt` into multiple intervals)
-3. Or enforce that `max_crank_staleness_slots` applies to the funding accrual `dt` as well
+```
+Funding applied over ~5 slots
+Victim (LONG) funding delta: 0.000000
+LP funding delta: -0.000490
+No funding accrued (balanced or rate = 0)
+```
+
+The zero funding delta confirms the stored rate (0) was used, not the newly computed rate.
 
 ---
 
@@ -222,6 +235,21 @@ Fee calculation: `notional = |exec_size| * exec_price / 1_000_000`, `fee = notio
 
 Only validation on exec_price: `!= 0 && <= MAX_ORACLE_PRICE`. No proximity check to oracle_price.
 
+### Related: Zero-Fee via Small Size (devnet verified)
+
+Even without exec_price manipulation, fee rounding enables zero-fee trades:
+
+```
+trading_fee_bps: 10 (0.10%)
+Zero-fee threshold: size < 103,917 at price 9623
+
+Test: 10 micro round-trips
+  Total insurance delta: 0.000000
+  All trades executed with zero fees
+```
+
+The NoOpMatcher returns `exec_price = oracle_price`, so exec_price manipulation wasn't tested. However, if a malicious matcher returned `exec_price = 1`, all trades would pay near-zero fees regardless of size.
+
 ### Recommendation
 
 1. Compute trading fees on `oracle_price` instead of `exec_price`
@@ -261,9 +289,9 @@ Set slope floor to 0 instead of 1. If slope = 0, no warmup conversion occurs (Pn
 
 ---
 
-## Finding O: `close_account` Skips Crank Freshness Check (MEDIUM)
+## Finding O: `close_account` Skips Crank Freshness Check (MEDIUM → LOW)
 
-**Status: OPEN — code-verified**
+**Status: OPEN — severity reduced upon review**
 
 ### Summary
 
@@ -271,19 +299,27 @@ Set slope floor to 0 instead of 1. If slope = 0, no warmup conversion occurs (Pn
 
 ### Root Cause
 
-**File:** `/home/anatoly/percolator/src/percolator.rs`, `close_account()` ~line 1258
+**File:** `/home/anatoly/percolator/src/percolator.rs`, `close_account()` ~line 1272
 
 Compare:
-- `withdraw()` at line 2390-2393: calls `require_fresh_crank(now_slot)` and `require_recent_full_sweep(now_slot)`
+- `withdraw()` at line 2442-2445: calls `require_fresh_crank(now_slot)` and `require_recent_full_sweep(now_slot)`
 - `close_account()`: only calls `touch_account_full(idx, now_slot, oracle_price)`, no crank/sweep checks
 
-### Impact
+### Impact Analysis (Reduced Severity)
 
-During periods of stale cranks (e.g., system stress), users can close accounts and extract capital before liquidations have been processed and the haircut ratio has been properly updated.
+The original concern was that users could extract capital during stale periods before liquidations are processed. However:
+
+1. `close_account` requires `position_size == 0` (line 1285-1286)
+2. `close_account` requires `pnl == 0` (lines 1302-1306)
+3. `touch_account_full` settles all funding/fees/warmup before the checks
+
+For an account with zero position and zero PnL, the "extraction" is just returning capital that's already marked as the user's. There's no PnL that could be affected by haircut calculations, and no position that could be affected by liquidation.
+
+The remaining risk is minimal: during extreme stress, a user could close faster than they could withdraw, but both operations return the same capital.
 
 ### Recommendation
 
-Add `require_fresh_crank()` and `require_recent_full_sweep()` checks to `close_account()` before allowing capital extraction.
+For consistency, consider adding freshness checks. But given the existing safeguards (zero position, zero PnL required), the practical risk is LOW.
 
 ---
 
