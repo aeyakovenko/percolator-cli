@@ -167,12 +167,19 @@ async function main() {
   // Close position
   await trade(idx, -normalSize);
 
-  // Test 2: Micro trade (might have zero fee)
-  console.log("\n--- Test 2: Micro trade (below threshold) ---");
-  const microSize = zeroFeeThreshold / 2n; // Half the threshold
+  // Test 2: Micro trade (should have ceiling fee now)
+  console.log("\n--- Test 2: Micro trade (testing ceiling division) ---");
+  const microSize = zeroFeeThreshold / 2n; // Half the old threshold
   const microNotional = microSize * basePrice / 1_000_000n;
-  const microExpectedFee = microNotional * feeBps / 10_000n;
-  console.log(`  Size: ${microSize}, notional: ${fmt(microNotional)}, expected fee: ${fmt(microExpectedFee)}`);
+  // OLD: floor division = 0 for small notional
+  const oldExpectedFee = microNotional * feeBps / 10_000n;
+  // NEW: ceiling division = at least 1 for any non-zero notional
+  const newExpectedFee = microNotional > 0n && feeBps > 0n
+    ? (microNotional * feeBps + 9999n) / 10_000n
+    : 0n;
+  console.log(`  Size: ${microSize}, notional: ${fmt(microNotional)}`);
+  console.log(`  Old expected fee (floor): ${fmt(oldExpectedFee)}`);
+  console.log(`  New expected fee (ceiling): ${fmt(newExpectedFee)}`);
 
   s = await getState();
   const insBeforeMicro = BigInt(s.engine.insuranceFund.balance);
@@ -186,9 +193,11 @@ async function main() {
     console.log(`  Insurance delta: ${fmt(insDelta2)}`);
 
     if (insDelta2 === 0n) {
-      console.log(`  RESULT: Zero-fee trade EXECUTED`);
+      console.log(`  RESULT: Zero-fee trade EXECUTED (BUG - ceiling division not applied)`);
+    } else if (insDelta2 >= newExpectedFee) {
+      console.log(`  RESULT: Fee was charged (${fmt(insDelta2)}) - CEILING DIVISION WORKING`);
     } else {
-      console.log(`  RESULT: Fee was charged (${fmt(insDelta2)})`);
+      console.log(`  RESULT: Fee was charged (${fmt(insDelta2)}) - less than expected`);
     }
 
     // Close micro position

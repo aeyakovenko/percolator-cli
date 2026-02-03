@@ -221,7 +221,7 @@ The `PushOraclePrice` instruction previously accepted any positive u64 price wit
 
 ## Finding J: Fee Evasion via Matcher-Controlled Execution Price (HIGH)
 
-**Status: OPEN**
+**Status: FIXED in core engine commit 9cdc92b (ceiling division), devnet verification pending**
 
 ### Summary
 
