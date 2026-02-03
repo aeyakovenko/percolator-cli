@@ -9,7 +9,7 @@ import { parseHeader, parseConfig, parseEngine, parseParams } from "../solana/sl
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
 // New slab size after haircut-ratio refactor (removed ADL scratch arrays)
 // = ENGINE_OFF(376) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(248)
-const SLAB_SIZE = 1025320;
+const SLAB_SIZE = 992560;
 
 export function registerListMarkets(program: Command): void {
   program

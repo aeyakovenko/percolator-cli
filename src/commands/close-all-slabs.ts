@@ -12,7 +12,7 @@ import { buildIx } from "../runtime/tx.js";
 
 // PERCOLAT magic bytes for filtering
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
-const SLAB_SIZE = 1025320; // Expected slab size (haircut-ratio refactor)
+const SLAB_SIZE = 992560; // Expected slab size (haircut-ratio refactor)
 
 export function registerCloseAllSlabs(program: Command): void {
   program

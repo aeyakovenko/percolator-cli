@@ -66,9 +66,9 @@ const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChp
 const MATCHER_CTX_SIZE = 320;
 
 // Market parameters
-// SLAB_SIZE = ENGINE_OFF(376) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(248)
-// Updated for haircut-ratio refactor (removed ADL scratch arrays)
-const SLAB_SIZE = 1025320;
+// SLAB_SIZE = ENGINE_OFF(392) + ENGINE_ACCOUNTS_OFF(9128) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(240)
+// Updated for circuit breaker + padding removal
+const SLAB_SIZE = 992560;
 
 // Funding amounts (in lamports with 9 decimals for wrapped SOL)
 const INSURANCE_FUND_AMOUNT = 1_000_000_000n;  // 1 SOL

@@ -504,7 +504,7 @@ export class TestHarness {
 
   /**
    * Calculate required slab size for given max accounts.
-   * The program expects a fixed slab size of SLAB_LEN = 0xfa528 (1025320 bytes)
+   * The program expects a fixed slab size of SLAB_LEN = 0xfa528 (992560 bytes)
    * for MAX_ACCOUNTS=4096. The slab size must exactly match the program's expected size.
    *
    * SLAB_SIZE = ENGINE_OFF(376) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(248)
@@ -512,7 +512,7 @@ export class TestHarness {
    */
   private calculateSlabSize(_maxAccounts: number): number {
     // Fixed SLAB_LEN expected by the program (from error logs: 0xfa528)
-    return 1025320;
+    return 992560;
   }
 
   // ==========================================================================

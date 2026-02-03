@@ -10,8 +10,9 @@ const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
 //               funding_max_premium_bps(8) + funding_max_bps_per_slot(8) +
 //               thresh_floor(16) + thresh_risk_bps(8) + thresh_update_interval_slots(8) +
 //               thresh_step_bps(8) + thresh_alpha_bps(8) + thresh_min(16) + thresh_max(16) + thresh_min_step(16) +
-//               oracle_authority(32) + authority_price_e6(8) + authority_timestamp(8)
-const CONFIG_LEN = 304;
+//               oracle_authority(32) + authority_price_e6(8) + authority_timestamp(8) +
+//               oracle_price_cap_e2bps(8) + last_effective_price_e6(8)
+const CONFIG_LEN = 320;
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 /**
@@ -59,6 +60,9 @@ export interface MarketConfig {
   oracleAuthority: PublicKey;
   authorityPriceE6: bigint;
   authorityTimestamp: bigint;
+  // Oracle price circuit breaker
+  oraclePriceCapE2bps: bigint;
+  lastEffectivePriceE6: bigint;
 }
 
 /**
@@ -193,6 +197,13 @@ export function parseConfig(data: Buffer): MarketConfig {
   off += 8;
 
   const authorityTimestamp = data.readBigInt64LE(off);
+  off += 8;
+
+  // Oracle price circuit breaker
+  const oraclePriceCapE2bps = data.readBigUInt64LE(off);
+  off += 8;
+
+  const lastEffectivePriceE6 = data.readBigUInt64LE(off);
 
   return {
     collateralMint,
@@ -219,6 +230,8 @@ export function parseConfig(data: Buffer): MarketConfig {
     oracleAuthority,
     authorityPriceE6,
     authorityTimestamp,
+    oraclePriceCapE2bps,
+    lastEffectivePriceE6,
   };
 }
 
@@ -244,14 +257,14 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 
 // =============================================================================
 // RiskEngine Layout Constants (updated for haircut-ratio refactor 2026-02)
-// ENGINE_OFF = HEADER_LEN + CONFIG_LEN = 72 + 304 = 376
+// ENGINE_OFF = HEADER_LEN + CONFIG_LEN = 72 + 320 = 392
 //
 // The ADL/socialization system was replaced with O(1) haircut ratio.
 // Removed: loss_accum, risk_reduction_only, warmup_paused, warmed totals,
 //          adl_*_scratch arrays, pending_* deferred socialization fields.
 // Added: c_tot, pnl_pos_tot (O(1) aggregates for haircut calculation).
 // =============================================================================
-const ENGINE_OFF = 376;
+const ENGINE_OFF = 392;
 // RiskEngine struct layout (repr(C), SBF uses 8-byte alignment for u128):
 // - vault: u128 (16 bytes) at offset 0
 // - insurance_fund: InsuranceFund { balance: u128, fee_revenue: u128 } (32 bytes) at offset 16
@@ -293,11 +306,11 @@ const ENGINE_FREE_HEAD_OFF = 928;       // u16
 // _padding_accounts: [u8; 8] at 930-937
 // next_free: [u16; 4096] at 938-9129
 // 6 bytes padding for Account alignment (u64)
-const ENGINE_ACCOUNTS_OFF = 9136;       // accounts: [Account; 4096]
+const ENGINE_ACCOUNTS_OFF = 9128;       // accounts: [Account; 4096]
 
 const BITMAP_WORDS = 64;
 const MAX_ACCOUNTS = 4096;
-const ACCOUNT_SIZE = 248;  // Empirically verified (was 272, but actual SBF layout is 248)
+const ACCOUNT_SIZE = 240;  // Account._padding removed (was 248)
 
 // =============================================================================
 // RiskParams Layout (144 bytes, repr(C) with 8-byte alignment on SBF)

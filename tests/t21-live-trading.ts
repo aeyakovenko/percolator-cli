@@ -76,7 +76,7 @@ const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChp
 const MATCHER_CTX_SIZE = 320;
 
 // Test parameters
-const SLAB_SIZE = 1025320;
+const SLAB_SIZE = 992560;
 const DEFAULT_DURATION_MINS = 3;
 const TRADE_INTERVAL_MS = 15000; // Trade every 15 seconds
 const CRANK_INTERVAL_MS = 10000; // Crank every 10 seconds

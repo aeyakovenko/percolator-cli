@@ -32,6 +32,7 @@ export const IX_TAG = {
   SetMaintenanceFee: 15,
   SetOracleAuthority: 16,
   PushOraclePrice: 17,
+  SetOraclePriceCap: 18,
 } as const;
 
 /**
@@ -374,5 +375,21 @@ export function encodePushOraclePrice(args: PushOraclePriceArgs): Buffer {
     encU8(IX_TAG.PushOraclePrice),
     encU64(args.priceE6),
     encI64(args.timestamp),
+  ]);
+}
+
+/**
+ * SetOraclePriceCap instruction data (9 bytes)
+ * Set oracle price circuit breaker cap (admin only).
+ * max_change_e2bps in 0.01 bps units (1_000_000 = 100%). 0 = disabled.
+ */
+export interface SetOraclePriceCapArgs {
+  maxChangeE2bps: bigint | string;
+}
+
+export function encodeSetOraclePriceCap(args: SetOraclePriceCapArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.SetOraclePriceCap),
+    encU64(args.maxChangeE2bps),
   ]);
 }

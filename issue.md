@@ -1,29 +1,129 @@
 # Percolator Security Audit — Open Issues
 
-## Finding K: Zero-Capital "PnL Zombie" Accounts Poison Global Haircut Ratio (CRITICAL)
+## Finding L: Trade Margin Check Uses `maintenance_margin_bps` Instead of `initial_margin_bps` (HIGH)
 
-**Status: OPEN — actively impacting devnet market**
+**Status: OPEN — code-verified AND reproduced on devnet**
 
 ### Summary
 
-An account with 0 capital but positive PnL and a small position becomes a "PnL zombie" that cannot be closed, garbage-collected, or liquidated. Its unbounded positive PnL dominates `pnl_pos_tot`, collapsing the global haircut ratio to near-zero. **All profitable traders on the market lose 99.99% of their earned PnL during warmup conversion.**
+The `execute_trade()` post-trade collateralization check uses `maintenance_margin_bps` (5%) instead of `initial_margin_bps` (10%), allowing users to open positions at 2x the intended maximum leverage. The withdrawal path correctly uses `initial_margin_bps`.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator/src/percolator.rs`, lines 2816-2817 and 2837-2838
+
+```rust
+// In execute_trade() — user margin check:
+let margin_required =
+    mul_u128(position_value, self.params.maintenance_margin_bps as u128) / 10_000;
+    //                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    //                       Should be initial_margin_bps
+
+// Same bug for LP margin check at line 2837-2838
+```
+
+Compare with `withdraw()` at line 2450-2451 which correctly uses `initial_margin_bps`:
+```rust
+let initial_margin_required =
+    mul_u128(position_notional, self.params.initial_margin_bps as u128) / 10_000;
+```
+
+### Concrete Impact (with current devnet params)
+
+- `maintenance_margin_bps` = 500 (5%) → max leverage on trade entry: **20x**
+- `initial_margin_bps` = 1000 (10%) → intended max leverage: **10x**
+- User deposits 5.01 SOL, opens 100 SOL notional position
+- Maintenance margin = 5 SOL → trade passes (5.01 > 5)
+- Initial margin would = 10 SOL → trade should be rejected
+- Position sits at liquidation boundary immediately after opening
+- Any tiny adverse move triggers liquidation
+
+### Impact
+
+- **HIGH**: Users can open positions at 2x intended leverage
+- The margin buffer between initial and maintenance margins (designed to prevent immediate liquidation) is bypassed
+- Newly opened positions are immediately at risk of liquidation
+- Increases systemic risk of cascading liquidations
+- No special role required — any user can exploit
 
 ### Devnet Evidence
 
 ```
-Account [9]: position=2160141, capital=0 SOL, pnl=998,339.85 SOL
+$ npx tsx scripts/bug-margin-initial-vs-maintenance.ts
 
-Engine state:
-  vault:       170.43 SOL
-  c_tot:        12.30 SOL
-  pnl_pos_tot: 998,339.91 SOL  ← dominated by account 9
-  insurance:    35.71 SOL
+Price: 9719
+maintenance_margin_bps: 500 (5%)
+initial_margin_bps: 1000 (10%)
+Deposited: 0.050000, capital after fees: 0.050000
 
-  Residual:    122.42 SOL
-  Haircut:     122.42 / 998,339.91 = 0.012%
+--- Test 1: Trade at ~15x leverage ---
+  Size: 77168432966
+  Expected notional: 0.750000 SOL
+  At 10% initial margin: need 0.075000 SOL equity
+  At 5% maint margin:   need 0.037500 SOL equity
+  Actual equity:              0.050000 SOL
+  Result: ACCEPTED ← BUG! Should be rejected
+
+--- Test 2: Trade at ~25x leverage ---
+  Result: REJECTED (correct — above even 5% maintenance margin)
+
+  FINDING L CONFIRMED: execute_trade() checks maintenance_margin_bps (5%)
+  instead of initial_margin_bps (10%). Users can open at 20x leverage.
 ```
 
-Result: a legitimate trader earning 0.129 SOL profit from a +5% price move receives only 0.000016 SOL after warmup conversion (99.99% loss to haircut).
+### Recommendation
+
+Change lines 2817 and 2838 to use `self.params.initial_margin_bps` for risk-increasing trades. Consider keeping `maintenance_margin_bps` for risk-reducing trades (partial closes).
+
+---
+
+## Finding M: Funding Rate Retroactive Application Creates Manipulation Window (HIGH)
+
+**Status: OPEN — design-level concern, code-verified**
+
+### Summary
+
+The funding rate is computed from the LP's net position at the instant the permissionless keeper crank is called, then applied retroactively for the entire elapsed period since the last funding accrual. If the LP inventory changed during that period, the retroactive application is incorrect.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator-prog/src/percolator.rs`, lines 2555-2570
+**File:** `/home/anatoly/percolator/src/percolator.rs`, lines 2073-2119
+
+The crank computes `effective_funding_rate` from current `net_lp_pos` (line 2555-2564), then `accrue_funding` applies `ΔF = price × rate × dt / 10_000` where `dt = now_slot - last_funding_slot` (lines 2079, 2104-2111). The rate is a point-in-time value but `dt` can span hundreds of slots.
+
+### Attack Scenario
+
+1. Slot 100: LP balanced (`net_lp_pos ≈ 0`), last crank at slot 100
+2. Slot 100-299: No crank called (attacker avoids cranking)
+3. Slot 299: Attacker opens large SHORT position → LP forced net LONG → high positive funding rate
+4. Slot 300: Attacker calls permissionless crank. Rate computed from current (skewed) inventory. Applied retroactively for `dt=200` slots
+5. Result: all existing LONG holders pay 200 slots worth of high funding, even though LP was balanced for 199/200 slots
+
+The attacker's SHORT position receives the funding payment. After settling, attacker closes the SHORT.
+
+### Mitigating Factors
+
+- `funding_max_bps_per_slot` caps the per-slot rate
+- `max_crank_staleness_slots` limits crank staleness (but only enforced on trade/withdraw, not on crank call itself)
+- Attacker pays trading fees and mark settlement costs
+- Attack requires significant capital (must open large position to skew LP)
+
+### Recommendation
+
+1. Apply funding using a time-weighted average of LP inventory, not point-in-time
+2. Or enforce maximum `dt` for funding application (e.g., split large `dt` into multiple intervals)
+3. Or enforce that `max_crank_staleness_slots` applies to the funding accrual `dt` as well
+
+---
+
+## Finding K: Zero-Capital "PnL Zombie" Accounts Poison Global Haircut Ratio (CRITICAL)
+
+**Status: OPEN — not present on fresh market, but can re-occur in normal operation**
+
+### Summary
+
+An account with 0 capital but positive PnL and a small position becomes a "PnL zombie" that cannot be closed, garbage-collected, or liquidated. Its unbounded positive PnL dominates `pnl_pos_tot`, collapsing the global haircut ratio to near-zero. **All profitable traders on the market lose ~100% of their earned PnL during warmup conversion.**
 
 ### Root Cause
 
@@ -37,9 +137,9 @@ Result: a legitimate trader earning 0.129 SOL profit from a +5% price move recei
 
 4. **Close blocked by positive PnL** (~line 1300-1301): `close_account()` returns `PnlNotWarmedUp` for positive PnL.
 
-5. **Liquidation blocked by effective equity** (~line 1954): `effective_pos_pnl(pnl)` = `pnl * haircut` = 998,339 × 0.012% = 122 SOL. This exceeds maintenance margin (≈1 SOL), so the account is not liquidatable.
+5. **Liquidation blocked by effective equity** (~line 1954): `effective_pos_pnl(pnl)` = `pnl * haircut` makes the account appear well-collateralized.
 
-6. **Warmup never triggers**: `settle_warmup_to_capital()` is NOT called during `keeper_crank()`. It only fires on user operations (deposit/withdraw/close). Since nobody interacts with account 9, its PnL never converts.
+6. **Warmup never triggers**: `settle_warmup_to_capital()` only fires on user operations. Since nobody interacts with the zombie, its PnL never converts.
 
 ### How This State Arises (normal market operation)
 
@@ -47,71 +147,36 @@ Result: a legitimate trader earning 0.129 SOL profit from a +5% price move recei
 2. Price moves favorably → PnL becomes positive
 3. Maintenance fees drain capital to 0 over time (no active management)
 4. Crank continues settling mark_to_oracle → PnL grows unboundedly
-5. Account becomes a PnL zombie: can't close (PnL > 0), can't GC (PnL > 0), can't liquidate (effective equity > margin)
-6. `pnl_pos_tot` grows with every crank, haircut ratio drops for ALL traders
-
-### Impact
-
-- **CRITICAL**: All profitable traders lose nearly 100% of their earned PnL
-- The market is functionally broken for profit realization
-- The problem is self-reinforcing: as PnL grows, haircut drops further
-- Can occur in normal market operation (no attacker required)
-- No admin instruction exists to fix the state
+5. Account becomes a PnL zombie: can't close, can't GC, can't liquidate
 
 ### Recommendation
 
-1. **Write off positive PnL on zero-capital accounts**: In `garbage_collect_dust()` or `keeper_crank()`, if `capital == 0 && pnl > 0`, call `set_pnl(idx, 0)` to write off the phantom PnL
-2. **Cap pnl_pos_tot contribution**: Don't count PnL from accounts with 0 capital in `pnl_pos_tot`
-3. **Settle warmup during crank**: Add `settle_warmup_to_capital()` calls in the keeper crank loop for accounts with positive PnL and 0 capital
-4. **Force-close zombie accounts**: Allow the crank to force-close accounts with `position=small, capital=0, pnl>0` by writing off the PnL and freeing the slot
+1. Write off positive PnL on zero-capital accounts during `keeper_crank()` or `garbage_collect_dust()`
+2. Don't count PnL from zero-capital accounts in `pnl_pos_tot`
+3. Add force-close mechanism for zombie accounts
+4. Settle warmup during crank for accounts with positive PnL and 0 capital
 
 ---
 
-## Finding F: Oracle Authority Has No Price Bounds or Deviation Checks (HIGH)
+## Finding F: Oracle Authority Has No Price Bounds (HIGH → PARTIALLY MITIGATED)
 
-**Status: OPEN**
+**Status: PARTIALLY FIXED by oracle price circuit breaker (commit 33bed47)**
 
 ### Summary
 
-The `PushOraclePrice` instruction accepts any positive u64 price with no upper bound, no deviation limit from the previous price or from Pyth/Chainlink, no rate limiting, and no circuit breaker.
+The `PushOraclePrice` instruction previously accepted any positive u64 price with no bounds. The circuit breaker (`oracle_price_cap_e2bps`) now clamps price changes per update. Current devnet configuration: max 10% change per update.
 
-### Devnet Verification Results
+### Remaining Concerns
 
-| Test | Result |
-|------|--------|
-| Zero price | REJECTED (correct) |
-| 1000x price jump | ACCEPTED |
-| Near-zero price (1) | ACCEPTED |
-| Future timestamp | ACCEPTED |
-| Past timestamp | ACCEPTED |
-| Rapid price changes | ACCEPTED |
-| Large price → small price | ACCEPTED |
-
-### Root Cause
-
-**File:** `/home/anatoly/percolator-prog/src/percolator.rs`, PushOraclePrice handler (~line 3213)
-
-Only validation: `price_e6 != 0`. Missing: upper bound, deviation check, timestamp validation, rate limiting, confidence filter. The authority price also has no MAX_ORACLE_PRICE bound check (unlike engine-level validation at crank/trade time).
-
-### Attack Scenarios (if oracle authority compromised)
-
-1. **Mass liquidation**: Push price to 1 → all LONG positions liquidated
-2. **Inflated withdrawals**: Push extreme high price → withdraw inflated equity
-3. **Insurance drain**: Alternate between extreme prices → both sides liquidated
-4. **Timestamp manipulation**: Push with future timestamp → keep stale price "fresh"
-
-### Mitigating Factors
-
-- Oracle authority requires admin to set
-- Staleness checked on read (prices expire after `max_staleness_secs`)
-- Authority can be disabled by setting to all-zeros
+1. **No upper bound on `max_change_e2bps`**: Admin can set cap to 10,000,000 (1000%), effectively disabling it
+2. **Cap is per-update, not per-time-period**: Rapid successive pushes can move price arbitrarily far (each capped at 10% from the previous)
+3. **`last_effective_price_e6` starts at 0**: First price push after initialization is unclamped (0 → any value)
 
 ### Recommendation
 
-1. Add MAX_ORACLE_PRICE bound check (core engine has `MAX_ORACLE_PRICE = 1_000_000_000_000_000`)
-2. Add deviation check: reject prices differing >X% from previous
-3. Add timestamp validation: reject `timestamp > now + buffer`
-4. Consider requiring multi-sig or timelock for authority changes
+1. Add maximum bound on `max_change_e2bps` (e.g., <= 500,000 = 50%)
+2. Add rate limiting (max N price updates per M slots)
+3. Initialize `last_effective_price_e6` to a reasonable value at market creation
 
 ---
 
@@ -121,55 +186,78 @@ Only validation: `price_e6 != 0`. Missing: upper bound, deviation check, timesta
 
 ### Summary
 
-Trading fees are computed on `exec_price * |exec_size|` (line 2710-2712), but `exec_price` is returned by the matcher CPI with no validation that it's close to oracle_price. A colluding LP can set `exec_price = 1` to pay near-zero fees, starving the insurance fund of revenue.
+Trading fees are computed on `exec_price * |exec_size|` (line 2710-2712), but `exec_price` is returned by the matcher CPI with no validation that it's close to oracle_price. A colluding LP can set `exec_price = 1` to pay near-zero fees.
 
 ### Root Cause
 
 **File:** `/home/anatoly/percolator/src/percolator.rs`, `execute_trade()` lines 2668-2712
-**File:** `/home/anatoly/percolator-prog/src/percolator.rs`, CpiMatcher line 1983-2002, return data line 2815-2827
 
-Fee calculation:
-```
-notional = |exec_size| * exec_price / 1_000_000          // line 2710-2711
-fee = notional * trading_fee_bps / 10_000                 // line 2712
-```
+Fee calculation: `notional = |exec_size| * exec_price / 1_000_000`, `fee = notional * trading_fee_bps / 10_000`
 
-exec_price validation (line 2673): only checks `exec_price != 0 && exec_price <= MAX_ORACLE_PRICE`. No check that exec_price is within any range of oracle_price.
-
-### Attack Scenario
-
-1. Attacker deploys custom matcher program that returns `exec_price = 1` for all trades
-2. Attacker registers as LP with this matcher
-3. All trades through this LP compute fees on `notional = |exec_size| * 1 / 1_000_000 ≈ 0`
-4. Fee = 0 for practically any trade size
-5. Insurance fund receives zero revenue from trading fees
-
-**Example with current market:**
-- Oracle price: 9,623 (inverted SOL)
-- Trade size: 300,000,000,000
-- Normal fee: `(300B × 9623 / 1M) × 10 / 10000 = 2,886,900` (≈0.0029 SOL)
-- With exec_price=1: `(300B × 1 / 1M) × 10 / 10000 = 30` (≈0.00000003 SOL)
-
-The trade PnL is still computed from `(oracle_price - exec_price) * exec_size`, so the LP takes a massive loss equal to the user's gain — but if both accounts are controlled by the same entity, the net is zero (wash trade) and fees are evaded.
-
-### Impact
-
-- Insurance fund is starved of trading fee revenue
-- Protocol earns nothing from wash trades
-- Over time, insurance fund doesn't grow, making it more vulnerable to drawdown events
-- Fee rounding to zero also applies to legitimate small trades (micro-trade fee evasion via integer floor division)
-
-### Mitigating Factors
-
-- LP is a trusted role; only authorized LPs can set matchers
-- Trade PnL is zero-sum, so no extraction occurs beyond fee savings
-- Wash trading ties up capital in warmup periods
+Only validation on exec_price: `!= 0 && <= MAX_ORACLE_PRICE`. No proximity check to oracle_price.
 
 ### Recommendation
 
-1. Compute trading fees on `oracle_price` instead of `exec_price`: `notional = |exec_size| × oracle_price / 1_000_000`
-2. Or add minimum fee: `fee = max(fee_calculated, min_trade_fee)`
-3. Or validate exec_price proximity: reject if `|exec_price - oracle_price| > deviation_bps * oracle_price`
+1. Compute trading fees on `oracle_price` instead of `exec_price`
+2. Or add minimum fee per trade
+3. Or validate `exec_price` proximity to `oracle_price`
+
+---
+
+## Finding N: Warmup Slope Floor Enables Accelerated Micro-PnL Extraction (MEDIUM)
+
+**Status: OPEN — code-verified**
+
+### Summary
+
+The warmup slope has a floor of 1 (via `max(1, avail_gross / warmup_period_slots)`). For tiny PnL amounts (e.g., PnL = 1 lamport), slope = 1, so the full PnL warms up in 1 slot instead of `warmup_period_slots`. By making many micro-trades that each generate 1 unit of PnL, a user can extract profits much faster than the warmup period intends.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator/src/percolator.rs`, `update_warmup_slope()` ~line 2043
+
+```
+slope = max(1, avail_gross / warmup_period_slots)
+```
+
+With `warmup_period_slots = 1000` and `PnL = 1`: slope = max(1, 1/1000) = 1. After 1 slot: `cap = 1 * 1 = 1 ≥ PnL`. Full warmup in 1 slot instead of 1000.
+
+### Mitigating Factors
+
+- Each micro-trade costs a transaction fee (~5000 lamports on Solana)
+- Trading fees further bound the attack
+- The extracted PnL per micro-trade is tiny (1 lamport)
+- Net profitability depends on fee structure vs PnL extraction rate
+
+### Recommendation
+
+Set slope floor to 0 instead of 1. If slope = 0, no warmup conversion occurs (PnL effectively queued). Or use a higher precision (e.g., slope in fixed-point) to avoid the floor issue.
+
+---
+
+## Finding O: `close_account` Skips Crank Freshness Check (MEDIUM)
+
+**Status: OPEN — code-verified**
+
+### Summary
+
+`close_account()` does not call `require_fresh_crank()` or `require_recent_full_sweep()`, unlike `withdraw()` which gates on both. This allows account closure with stale system state.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator/src/percolator.rs`, `close_account()` ~line 1258
+
+Compare:
+- `withdraw()` at line 2390-2393: calls `require_fresh_crank(now_slot)` and `require_recent_full_sweep(now_slot)`
+- `close_account()`: only calls `touch_account_full(idx, now_slot, oracle_price)`, no crank/sweep checks
+
+### Impact
+
+During periods of stale cranks (e.g., system stress), users can close accounts and extract capital before liquidations have been processed and the haircut ratio has been properly updated.
+
+### Recommendation
+
+Add `require_fresh_crank()` and `require_recent_full_sweep()` checks to `close_account()` before allowing capital extraction.
 
 ---
 
@@ -185,12 +273,6 @@ After partial liquidation, the safety check re-evaluates margin using reduced ca
 
 **File:** `/home/anatoly/percolator/src/percolator.rs`, ~line 1980-1993
 
-The partial close realizes negative mark PnL → capital drops → fails margin check → full close fires.
-
-### Impact
-
-Positions near liquidation boundary are fully closed when partial would suffice. This is arguably conservative (safe) but more punitive than necessary.
-
 ### Recommendation
 
 `compute_liquidation_close_amount` should account for the capital drain that occurs during partial close settlement.
@@ -203,18 +285,7 @@ Positions near liquidation boundary are fully closed when partial would suffice.
 
 ### Summary
 
-The haircut ratio is a global value that changes as each account settles warmup. Accounts that settle first get a different (potentially better) rate than accounts that settle later. Settlement order is deterministic by account index, creating structural advantage for lower-indexed accounts.
-
-### Root Cause
-
-**File:** `/home/anatoly/percolator/src/percolator.rs`, `settle_warmup_to_capital()` ~line 3001
-
-1. Account A settles: reads haircut ratio, converts PnL to capital, `pnl_pos_tot` decreases
-2. Account B settles: reads a DIFFERENT haircut ratio because `pnl_pos_tot` changed
-
-### Impact
-
-In normal conditions with haircut ratio = 1, there's no unfairness. Only manifests when vault is undercollateralized (residual < pnl_pos_tot). With Finding G fixed, this only matters during genuine insurance depletion scenarios.
+The haircut ratio is a global value that changes as each account settles warmup. Accounts that settle first get a different (potentially better) rate. Settlement order is deterministic by account index.
 
 ### Recommendation
 
@@ -228,33 +299,11 @@ Snapshot the haircut ratio at crank sweep start and use it for all settlements i
 
 ### Summary
 
-`UpdateConfig`, `SetMaintenanceFee`, and `SetRiskThreshold` instructions accept parameter values with minimal validation. An admin (even acting in good faith) can set parameter combinations that break margin model invariants or destabilize the market.
-
-### Root Cause
-
-**File:** `/home/anatoly/percolator-prog/src/percolator.rs`, UpdateConfig (~line 3117), SetMaintenanceFee (~line 3169), SetRiskThreshold (~line 3028)
-
-### Dangerous Parameter Combinations
-
-| Parameter | Risk | Impact |
-|-----------|------|--------|
-| `initial_margin_bps` < `maintenance_margin_bps` | No validation | Accounts open below maintenance margin, immediately liquidatable |
-| `warmup_period_slots` = 0 | No validation | Disables warmup protection entirely, enables instant profit extraction |
-| `maintenance_fee_per_slot` = extreme value | No validation | Drains all account capital on next crank via fee settlement |
-| `risk_reduction_threshold` = u128::MAX | No validation | Triggers force-realize on all positions immediately |
-| `liquidation_buffer_bps` = extreme value | No validation | Either prevents liquidation entirely (too high) or removes safety buffer (0) |
-
-### Mitigating Factors
-
-- All config changes require admin signer
-- Admin is a trusted role by design
-- Parameters are set at market initialization with safe defaults
+`UpdateConfig`, `SetMaintenanceFee`, and `SetRiskThreshold` accept parameter values with minimal validation. Admin can set `initial_margin_bps < maintenance_margin_bps`, `warmup_period_slots = 0`, extreme maintenance fees, etc.
 
 ### Recommendation
 
-1. Add cross-parameter validation in `UpdateConfig`: enforce `initial_margin_bps > maintenance_margin_bps`, `warmup_period_slots > 0`, `liquidation_buffer_bps` within reasonable range
-2. Add cap validation in `SetMaintenanceFee`: reject unreasonably large values
-3. Consider requiring timelock or multi-sig for parameter changes on active markets
+Add cross-parameter validation enforcing invariants (initial > maintenance margin, warmup > 0, etc.).
 
 ---
 
@@ -264,7 +313,7 @@ Snapshot the haircut ratio at crank sweep start and use it for all settlements i
 
 ### Summary
 
-When the LP has a profitable position (e.g., SHORT during a crash), all traders are liquidated but the LP's counterparty position persists. This keeps `totalOI > 0`, blocking auto-recovery. The system stays in force-realize mode indefinitely.
+When LP has a profitable position during crisis, all traders are liquidated but LP's counterparty position persists, keeping `totalOI > 0` and blocking auto-recovery.
 
 ### Workaround
 
@@ -278,12 +327,8 @@ Admin calls `topUpInsurance` with enough to cover lossAccum + threshold.
 
 ### Summary
 
-The `CloseSlab` instruction in `/home/anatoly/percolator-prog/src/percolator.rs` has a `#[cfg(feature = "unsafe_close")]` path that bypasses admin checks, state validation, and data zeroing. It exists for development (CU limit workaround).
-
-### Risk
-
-If enabled in a production build, any signer could close any slab and drain its lamports without authorization.
+The `CloseSlab` instruction has a `#[cfg(feature = "unsafe_close")]` path that bypasses admin checks. If enabled in production, any signer could close any slab.
 
 ### Recommendation
 
-Ensure `unsafe_close` feature is never enabled in production builds. Consider adding a compile-time assertion or CI check.
+Never enable in production builds. Add CI check to verify feature is not enabled.
