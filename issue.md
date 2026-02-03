@@ -119,7 +119,7 @@ The attacker's SHORT position receives the funding payment. After settling, atta
 
 ## Finding K: Zero-Capital "PnL Zombie" Accounts Poison Global Haircut Ratio (CRITICAL)
 
-**Status: OPEN — not present on fresh market, but can re-occur in normal operation**
+**Status: FIXED in core engine commit e838580, verified on devnet**
 
 ### Summary
 
@@ -149,12 +149,17 @@ An account with 0 capital but positive PnL and a small position becomes a "PnL z
 4. Crank continues settling mark_to_oracle → PnL grows unboundedly
 5. Account becomes a PnL zombie: can't close, can't GC, can't liquidate
 
-### Recommendation
+### Fix (commit e838580)
 
-1. Write off positive PnL on zero-capital accounts during `keeper_crank()` or `garbage_collect_dust()`
-2. Don't count PnL from zero-capital accounts in `pnl_pos_tot`
-3. Add force-close mechanism for zombie accounts
-4. Settle warmup during crank for accounts with positive PnL and 0 capital
+Two-pronged fix:
+
+1. **Crank now settles warmup for visited accounts**: `keeper_crank()` calls `touch_account()` + `settle_warmup_to_capital_for_crank()` for each visited account. Over time, the zombie's positive PnL converts to capital (at the haircut ratio), making it eligible for maintenance fee draining and eventual GC.
+
+2. **Fee debt subtracted from equity**: `account_equity_mtm_at_oracle()`, `execute_trade()` margin checks, and `withdraw()` now subtract fee debt (negative `fee_credits`) from equity. This makes zombies with `capital=0, fee_credits=-huge, pnl=+huge` appear undercollateralized, enabling liquidation.
+
+### Verification
+
+Deployed updated program to devnet. Comprehensive tests (12/12) pass. TEST 1 (Full Lifecycle) now shows `pnl=0.000000` immediately after close, confirming the crank is proactively settling warmup.
 
 ---
 
