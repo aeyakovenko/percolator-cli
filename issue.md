@@ -2,7 +2,7 @@
 
 ## Finding L: Trade Margin Check Uses `maintenance_margin_bps` Instead of `initial_margin_bps` (HIGH)
 
-**Status: OPEN — code-verified AND reproduced on devnet**
+**Status: FIXED in core engine commit 9731300, verified on devnet**
 
 ### Summary
 
@@ -71,9 +71,30 @@ Deposited: 0.050000, capital after fees: 0.050000
   instead of initial_margin_bps (10%). Users can open at 20x leverage.
 ```
 
-### Recommendation
+### Fix (commit 9731300)
 
-Change lines 2817 and 2838 to use `self.params.initial_margin_bps` for risk-increasing trades. Consider keeping `maintenance_margin_bps` for risk-reducing trades (partial closes).
+`execute_trade()` now checks whether the trade is risk-increasing (`|new_pos| > |old_pos|`):
+- Risk-increasing: requires `initial_margin_bps` (10%)
+- Risk-reducing: requires `maintenance_margin_bps` (5%)
+
+```rust
+let user_risk_increasing = new_user_pos_abs > old_user_pos_abs;
+let margin_bps = if user_risk_increasing {
+    self.params.initial_margin_bps
+} else {
+    self.params.maintenance_margin_bps
+};
+```
+
+### Verification
+
+15x leverage trade now correctly REJECTED (was previously ACCEPTED):
+```
+  Size: 77938272887
+  At 10% initial margin: need 0.075000 SOL equity
+  Actual equity:              0.050000 SOL
+  Result: REJECTED (correct)
+```
 
 ---
 
