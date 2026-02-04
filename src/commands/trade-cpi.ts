@@ -1,11 +1,10 @@
 import { Command } from "commander";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { fetchSlab, parseConfig } from "../solana/slab.js";
+import { fetchSlab, parseConfig, parseAccount } from "../solana/slab.js";
 import { deriveLpPda } from "../solana/pda.js";
-import { loadKeypair } from "../solana/wallet.js";
 import { encodeTradeCpi } from "../abi/instructions.js";
 import {
   ACCOUNTS_TRADE_CPI,
@@ -29,7 +28,6 @@ export function registerTradeCpi(program: Command): void {
     .requiredOption("--size <string>", "Trade size (i128, positive=long, negative=short)")
     .requiredOption("--matcher-program <pubkey>", "Matcher program ID")
     .requiredOption("--matcher-context <pubkey>", "Matcher context account")
-    .option("--lp-wallet <path>", "LP owner wallet keypair (if different from payer)")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -50,8 +48,9 @@ export function registerTradeCpi(program: Command): void {
       // Derive LP PDA
       const [lpPda] = deriveLpPda(ctx.programId, slabPk, lpIdx);
 
-      // Load LP owner keypair if provided, otherwise use payer
-      const lpOwnerKeypair = opts.lpWallet ? loadKeypair(opts.lpWallet) : ctx.payer;
+      // Read LP owner from slab (no keypair needed — lpOwner is not a signer for trade-cpi)
+      const lpAccount = parseAccount(data, lpIdx);
+      const lpOwnerPk = lpAccount.owner;
 
       // Build instruction data
       const ixData = encodeTradeCpi({
@@ -62,8 +61,8 @@ export function registerTradeCpi(program: Command): void {
 
       // Build account metas (order matches ACCOUNTS_TRADE_CPI)
       const keys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
-        ctx.payer.publicKey, // user
-        lpOwnerKeypair.publicKey, // lpOwner
+        ctx.payer.publicKey, // user (signer)
+        lpOwnerPk, // lpOwner (read from slab, not a signer)
         slabPk, // slab
         WELL_KNOWN.clock, // clock
         mktConfig.indexFeedId, // oracle (use index feed ID from config)
@@ -78,11 +77,8 @@ export function registerTradeCpi(program: Command): void {
         data: ixData,
       });
 
-      // Determine signers
-      const signers: Keypair[] =
-        lpOwnerKeypair.publicKey.equals(ctx.payer.publicKey)
-          ? [ctx.payer]
-          : [ctx.payer, lpOwnerKeypair];
+      // Only the user (payer) signs — lpOwner does not sign for trade-cpi
+      const signers: Keypair[] = [ctx.payer];
 
       const result = await simulateOrSend({
         connection: ctx.connection,
