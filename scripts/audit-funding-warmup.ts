@@ -465,7 +465,8 @@ async function main() {
 
     // Update status.md
     const statusPath = 'status.md';
-    let status = fs.readFileSync(statusPath, 'utf-8');
+    let status = '';
+    try { status = fs.readFileSync(statusPath, 'utf-8'); } catch {}
 
     const timestamp = new Date().toISOString();
     const newSection = `
