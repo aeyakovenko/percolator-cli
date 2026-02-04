@@ -414,8 +414,8 @@ async function trade(conn: Connection, payer: Keypair, slab: PublicKey, lpIdx: n
   );
 
   const keys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
-    payer.publicKey,           // user
-    payer.publicKey,           // lpOwner
+    payer.publicKey,           // user (signer)
+    lpOwnerPubkey,             // lpOwner (NOT a signer - LP delegated to matcher)
     slab,                      // slab
     SYSVAR_CLOCK_PUBKEY,       // clock
     config.indexFeedId,        // oracle
