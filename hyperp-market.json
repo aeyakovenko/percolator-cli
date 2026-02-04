@@ -1,0 +1,18 @@
+{
+  "network": "devnet",
+  "mode": "hyperp",
+  "createdAt": "2026-02-03T17:15:27.691Z",
+  "programId": "2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp",
+  "matcherProgramId": "4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy",
+  "slab": "BJVDPj2CKNr1a7ZHhZRaJsRA8Y71q3RScA783JVx6qAj",
+  "mint": "So11111111111111111111111111111111111111112",
+  "vault": "22SJExrJ7NaksFVGMa2b6Kdpu3LqtcCKQctrMVwQeBxq",
+  "vaultPda": "5LaRMmuANhfrh8izBcJg35roymKwC9MNcbBYLJL5rRHX",
+  "initialMarkPrice": 10000,
+  "lp": {
+    "index": 0,
+    "pda": "A4HSNVNqrLYYNNwBzN2uXVXwaSoLv6yDhFhKnLyFrtML",
+    "matcherContext": "7g5pRuE3UBw1hrFPD728R2pqZRnbtg8cVN1Auwavq6Lz"
+  },
+  "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK"
+}

@@ -394,3 +394,137 @@ The `CloseSlab` instruction has a `#[cfg(feature = "unsafe_close")]` path that b
 ### Recommendation
 
 Never enable in production builds. Add CI check to verify feature is not enabled.
+
+---
+
+## Hyperp Mode Security Analysis (2026-02-03)
+
+### Finding P: TradeCpi Allows Arbitrary Mark Price via Malicious Matcher (HIGH)
+
+**Status: OPEN**
+
+### Summary
+
+In Hyperp mode, `TradeCpi` sets the mark price to `exec_price_e6` returned by the external matcher program with no bounds validation. A malicious matcher can return an extreme exec_price, allowing mark price manipulation.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator-prog/src/percolator.rs`, lines 3104-3107
+
+```rust
+if is_hyperp {
+    let mut config = state::read_config(&data);
+    config.authority_price_e6 = ret.exec_price_e6;  // FROM MATCHER - NO BOUNDS CHECK
+    state::write_config(&mut data, &config);
+}
+```
+
+The ABI validation only checks `exec_price_e6 != 0` but does NOT constrain it relative to the current oracle/index price.
+
+### Impact
+
+- Mark price can be set to any u64 value by a complicit LP/matcher
+- Funding rate calculations use the manipulated mark
+- If `oracle_price_cap_e2bps = 0` (default), index also jumps to mark
+- Attackers can drain funds via distorted funding payments
+
+### Mitigating Factor
+
+The LP loses money on the trade itself (PnL uses `oracle_price - exec_price`), providing economic disincentive. However, a coordinated attacker controlling both LP and user accounts could still exploit this.
+
+### Recommendation
+
+Add bounds check on exec_price relative to current index price:
+```rust
+if is_hyperp {
+    let max_deviation = oracle_price * MAX_DEVIATION_BPS / 10000;
+    if exec_price > oracle_price + max_deviation || exec_price < oracle_price.saturating_sub(max_deviation) {
+        return Err(PercolatorError::PriceDeviationTooLarge);
+    }
+}
+```
+
+---
+
+### Finding Q: Index Can Jump Instantly When oracle_price_cap_e2bps = 0 (MEDIUM)
+
+**Status: OPEN**
+
+### Summary
+
+At market initialization, `oracle_price_cap_e2bps` defaults to 0, which disables rate limiting for index smoothing. This allows the index to instantly jump to any mark price.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator-prog/src/percolator.rs`, line 2381 and lines 1935-1936
+
+```rust
+// InitMarket:
+oracle_price_cap_e2bps: 0,  // disabled by default
+
+// clamp_toward_with_dt:
+if cap_e2bps == 0 || dt_slots == 0 { return mark; }  // Bypasses rate limiting!
+```
+
+### Impact
+
+- Index can jump to any mark value in a single crank
+- Combined with Finding P, allows instant propagation of manipulated prices
+- Defeats the purpose of gradual index smoothing for funding stability
+
+### Recommendation
+
+1. Set a non-zero default for `oracle_price_cap_e2bps` in Hyperp markets
+2. Or require admin to explicitly enable Hyperp mode with a reasonable cap
+
+---
+
+### Finding R: TradeNoCpi Sets Mark = Index (Logic Bug) (LOW)
+
+**Status: OPEN**
+
+### Summary
+
+In Hyperp mode, `TradeNoCpi` sets the mark price to the current index price, not the trade execution price. This collapses mark-index premium to zero.
+
+### Root Cause
+
+**File:** `/home/anatoly/percolator-prog/src/percolator.rs`, lines 2890-2894
+
+```rust
+if is_hyperp {
+    let mut config = state::read_config(&data);
+    config.authority_price_e6 = price;  // `price` is the INDEX, not exec_price!
+    state::write_config(&mut data, &config);
+}
+```
+
+The `price` variable was set from `config.last_effective_price_e6` (the index) at line 2828.
+
+### Impact
+
+- Mark always equals index after TradeNoCpi trades
+- Premium is always zero, eliminating the funding mechanism's purpose
+- This may not be the intended behavior
+
+### Recommendation
+
+Review whether TradeNoCpi should update mark to the trade's entry price (similar to TradeCpi) or leave mark unchanged.
+
+---
+
+### Finding S: No Bounds on funding_k_bps in UpdateConfig (LOW)
+
+**Status: OPEN**
+
+### Summary
+
+The `UpdateConfig` instruction does not bound `funding_k_bps`, allowing admin to set extreme funding rate multipliers.
+
+### Impact
+
+An admin could set `funding_k_bps = 1_000_000` (10000x), causing punitive funding rates. Mitigated by `max_bps_per_slot` cap, but still allows admin misconfiguration.
+
+### Recommendation
+
+Add bounds validation: `funding_k_bps <= MAX_FUNDING_K_BPS` (e.g., 1000 = 10x)
