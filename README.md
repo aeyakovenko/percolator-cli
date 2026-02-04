@@ -49,19 +49,20 @@ A live inverted SOL/USD market is available on devnet for testing. This market u
 ```
 Program:        2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp (percolator-prog)
 Matcher:        4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy (percolator-match)
-Slab:           7Z4tqowXZ3RgYLAJF8DDfNtFAP5pb6jyy2d9Fx2P3K8R
+Slab:           WzwZMuQq4SpJVYCLwpR1mN98eZW4ntZFkq9K2obWYLr
 Mint:           So11111111111111111111111111111111111111112 (Wrapped SOL)
-Vault:          8YfyFbTPhVbEpguy55VmBadWsxKqusuGfuR4aQqmkwdC
+Vault:          6DfS9bRdXYkvM4Aod7GNebLrcfefu8ZtBrGRNE3FCjUh
+Vault PDA:      EkeVFG4XNPKRvjbjnBgPRcp3fZfdoCZKxvCozGiEo8Dt
 Oracle:         99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (Chainlink SOL/USD)
 Type:           INVERTED (price = 1/SOL in USD terms)
 
 LP (50bps Passive Matcher):
   Index:        0
-  PDA:          6XeVhVuJqkuDqJU7MexjYfLiuNyKG7aHZLS4wUYYivr3
-  Matcher Ctx:  77djsM4WCVEN5GyMWmi8Yy8h68MQj2J12AByUzUPUTjd
-  Collateral:   1 SOL
+  PDA:          AciyY3pUqHHBCzcH3JnkE54Wo1EVw5HcARUQkiMb1byg
+  Matcher Ctx:  8j8L5MzBpfs1xFheTsyvQbpoeiQb5XzLqjomBa2FRatP
+  Collateral:   0.5 SOL
 
-Insurance Fund: 1 SOL
+Insurance Fund: 0.5 SOL
 
 Risk Parameters:
   Maintenance Margin: 5%
@@ -115,7 +116,7 @@ spl-token wrap 1 --url devnet
 
 ```bash
 # Initialize user account (costs 0.001 SOL fee)
-percolator-cli init-user --slab 7Z4tqowXZ3RgYLAJF8DDfNtFAP5pb6jyy2d9Fx2P3K8R
+percolator-cli init-user --slab WzwZMuQq4SpJVYCLwpR1mN98eZW4ntZFkq9K2obWYLr
 ```
 
 #### Step 4: Deposit collateral
@@ -123,7 +124,7 @@ percolator-cli init-user --slab 7Z4tqowXZ3RgYLAJF8DDfNtFAP5pb6jyy2d9Fx2P3K8R
 ```bash
 # Deposit 0.05 SOL (50000000 lamports in 9 decimal format)
 percolator-cli deposit \
-  --slab 7Z4tqowXZ3RgYLAJF8DDfNtFAP5pb6jyy2d9Fx2P3K8R \
+  --slab WzwZMuQq4SpJVYCLwpR1mN98eZW4ntZFkq9K2obWYLr \
   --user-idx <your-idx> \
   --amount 50000000
 ```
@@ -134,7 +135,7 @@ Before trading, you can scan available LPs to find the best prices:
 
 ```bash
 percolator-cli best-price \
-  --slab 7Z4tqowXZ3RgYLAJF8DDfNtFAP5pb6jyy2d9Fx2P3K8R \
+  --slab WzwZMuQq4SpJVYCLwpR1mN98eZW4ntZFkq9K2obWYLr \
   --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
 ```
 
@@ -151,12 +152,12 @@ After depositing collateral, you can trade against the LP. Run a keeper crank fi
 ```bash
 # Step 1: Run keeper crank (ensures sweep is fresh)
 percolator-cli keeper-crank \
-  --slab 7Z4tqowXZ3RgYLAJF8DDfNtFAP5pb6jyy2d9Fx2P3K8R \
+  --slab WzwZMuQq4SpJVYCLwpR1mN98eZW4ntZFkq9K2obWYLr \
   --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
 
 # Step 2: Trade via the 50bps matcher (long 1000 units)
 percolator-cli trade-cpi \
-  --slab 7Z4tqowXZ3RgYLAJF8DDfNtFAP5pb6jyy2d9Fx2P3K8R \
+  --slab WzwZMuQq4SpJVYCLwpR1mN98eZW4ntZFkq9K2obWYLr \
   --user-idx <your-idx> \
   --lp-idx 0 \
   --size 1000 \
@@ -166,7 +167,7 @@ percolator-cli trade-cpi \
 
 # Or use trade-nocpi for direct trading without matcher
 percolator-cli trade-nocpi \
-  --slab 7Z4tqowXZ3RgYLAJF8DDfNtFAP5pb6jyy2d9Fx2P3K8R \
+  --slab WzwZMuQq4SpJVYCLwpR1mN98eZW4ntZFkq9K2obWYLr \
   --user-idx <your-idx> \
   --lp-idx 0 \
   --size 1000 \
