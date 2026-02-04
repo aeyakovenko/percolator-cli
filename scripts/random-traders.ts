@@ -45,7 +45,7 @@ const BPS_DENOM = 10000n;
 const NUM_TRADERS = 5;
 const DEPOSIT_SOL = 1_000_000_000n; // 1 SOL per trader
 const TRADE_SIZE = 10_000_000n; // 10M units per trade (small positions)
-const TRADE_INTERVAL_MS = 10_000; // 10 seconds between trades (rate limit protection)
+const TRADE_INTERVAL_MS = 3_000; // 3 seconds between trades
 
 // Fixed direction for each trader (assigned at startup)
 const traderDirections: Map<number, boolean> = new Map(); // true = LONG, false = SHORT
@@ -107,27 +107,63 @@ async function findAllLps(slabData: Buffer): Promise<LpInfo[]> {
   return lps;
 }
 
+// Passive matcher magic: "PERCPASS" in little-endian
+const PASSIVE_MAGIC = 0x5353_4150_4352_4550n;
+// Default passive spread (50 bps)
+const DEFAULT_PASSIVE_SPREAD_BPS = 50;
+
 /**
  * Fetch and parse matcher context params for an LP
+ * Supports both vAMM and passive matchers
  */
 async function fetchMatcherParams(matcherContext: PublicKey): Promise<MatcherParams | null> {
   try {
     const info = await connection.getAccountInfo(matcherContext);
-    if (!info || info.data.length < CTX_VAMM_OFFSET + 64) return null;
+    if (!info || info.data.length < CTX_VAMM_OFFSET + 16) return null;
 
     const data = info.data.subarray(CTX_VAMM_OFFSET);
     const magic = data.readBigUInt64LE(0);
-    if (magic !== VAMM_MAGIC) return null;
 
+    // vAMM matcher
+    if (magic === VAMM_MAGIC && info.data.length >= CTX_VAMM_OFFSET + 64) {
+      return {
+        mode: 1, // vAMM
+        tradingFeeBps: data.readUInt32LE(16),
+        baseSpreadBps: data.readUInt32LE(20),
+        maxTotalBps: data.readUInt32LE(24),
+        impactKBps: data.readUInt32LE(28),
+        liquidityNotionalE6: data.readBigUInt64LE(32) + (data.readBigUInt64LE(40) << 64n),
+      };
+    }
+
+    // Passive matcher - try to read spread, default to 50bps
+    if (magic === PASSIVE_MAGIC) {
+      // Passive context format: magic(8) + reserved(4) + spread_bps(4)
+      const spreadBps = info.data.length >= CTX_VAMM_OFFSET + 16
+        ? data.readUInt32LE(12)
+        : DEFAULT_PASSIVE_SPREAD_BPS;
+      return {
+        mode: 0, // Passive
+        tradingFeeBps: 0,
+        baseSpreadBps: spreadBps || DEFAULT_PASSIVE_SPREAD_BPS,
+        maxTotalBps: spreadBps || DEFAULT_PASSIVE_SPREAD_BPS,
+        impactKBps: 0,
+        liquidityNotionalE6: 0n,
+      };
+    }
+
+    // Unknown matcher type - assume passive with default spread
+    console.log(`  [Router] Unknown matcher magic ${magic.toString(16)}, assuming passive 50bps`);
     return {
-      mode: data.readUInt8(12),
-      tradingFeeBps: data.readUInt32LE(16),
-      baseSpreadBps: data.readUInt32LE(20),
-      maxTotalBps: data.readUInt32LE(24),
-      impactKBps: data.readUInt32LE(28),
-      liquidityNotionalE6: data.readBigUInt64LE(32) + (data.readBigUInt64LE(40) << 64n),
+      mode: 0,
+      tradingFeeBps: 0,
+      baseSpreadBps: DEFAULT_PASSIVE_SPREAD_BPS,
+      maxTotalBps: DEFAULT_PASSIVE_SPREAD_BPS,
+      impactKBps: 0,
+      liquidityNotionalE6: 0n,
     };
-  } catch {
+  } catch (err) {
+    console.log(`  [Router] Failed to fetch matcher params: ${err}`);
     return null;
   }
 }
@@ -185,19 +221,28 @@ async function findBestLp(lps: LpInfo[], isLong: boolean): Promise<LpInfo | null
   if (lps.length === 0) return null;
 
   const oraclePrice = await fetchOraclePrice();
+  const direction = isLong ? 'BUY' : 'SELL';
 
   // Get quotes from all LPs
-  const quotes: { lp: LpInfo; price: bigint }[] = [];
+  const quotes: { lp: LpInfo; price: bigint; spreadBps: number; mode: string }[] = [];
 
   for (const lp of lps) {
     const params = await fetchMatcherParams(lp.matcherContext);
-    if (!params) continue;
+    if (!params) {
+      console.log(`  [Router] LP ${lp.index}: no params, skipping`);
+      continue;
+    }
 
     // Skip if LP has no capital
-    if (lp.capital <= 0n) continue;
+    if (lp.capital <= 0n) {
+      console.log(`  [Router] LP ${lp.index}: no capital, skipping`);
+      continue;
+    }
 
     const price = computeQuote(params, oraclePrice, TRADE_SIZE, isLong);
-    quotes.push({ lp, price });
+    const spreadBps = Number(((isLong ? price - oraclePrice : oraclePrice - price) * 10000n) / oraclePrice);
+    const mode = params.mode === 1 ? 'vAMM' : 'Passive';
+    quotes.push({ lp, price, spreadBps, mode });
   }
 
   if (quotes.length === 0) return null;
@@ -211,14 +256,21 @@ async function findBestLp(lps: LpInfo[], isLong: boolean): Promise<LpInfo | null
     quotes.sort((a, b) => Number(b.price - a.price));
   }
 
+  // Log all quotes for visibility
+  if (quotes.length > 1) {
+    console.log(`  [Router] ${direction} quotes (oracle=${oraclePrice}):`);
+    for (const q of quotes) {
+      const marker = q === quotes[0] ? '★' : ' ';
+      console.log(`    ${marker} LP ${q.lp.index} (${q.mode}): ${q.price} (${q.spreadBps >= 0 ? '+' : ''}${q.spreadBps} bps)`);
+    }
+  }
+
   const best = quotes[0];
   const worst = quotes[quotes.length - 1];
-  const improvement = isLong
-    ? Number(worst.price - best.price) / Number(oraclePrice) * 10000
-    : Number(best.price - worst.price) / Number(oraclePrice) * 10000;
+  const improvement = Math.abs(best.spreadBps - worst.spreadBps);
 
-  if (quotes.length > 1 && improvement > 0.5) {
-    console.log(`  [Router] Best LP ${best.lp.index} saves ${improvement.toFixed(1)} bps vs LP ${worst.lp.index}`);
+  if (quotes.length > 1) {
+    console.log(`  [Router] Selected LP ${best.lp.index} (${best.mode}) - saves ${improvement.toFixed(1)} bps vs LP ${worst.lp.index}`);
   }
 
   return best.lp;
