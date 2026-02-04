@@ -146,7 +146,7 @@ export const ACCOUNTS_TOPUP_INSURANCE: readonly AccountSpec[] = [
  */
 export const ACCOUNTS_TRADE_CPI: readonly AccountSpec[] = [
   { name: "user", signer: true, writable: false },
-  { name: "lpOwner", signer: true, writable: false },
+  { name: "lpOwner", signer: false, writable: false },  // LP delegated to matcher - no signature needed
   { name: "slab", signer: false, writable: true },
   { name: "clock", signer: false, writable: false },
   { name: "oracle", signer: false, writable: false },
