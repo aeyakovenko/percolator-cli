@@ -211,17 +211,6 @@ async function main() {
         threshold: { raw: threshold.toString(), sol: sol(threshold) },
         surplus: { raw: surplus.toString(), sol: sol(surplus) },
       },
-      lossAccum: { raw: engine.lossAccum.toString(), sol: sol(engine.lossAccum) },
-      riskReductionOnly: engine.riskReductionOnly,
-      riskReductionModeWithdrawn: { raw: engine.riskReductionModeWithdrawn.toString(), sol: sol(engine.riskReductionModeWithdrawn) },
-
-      warmup: {
-        paused: engine.warmupPaused,
-        pauseSlot: engine.warmupPauseSlot.toString(),
-        warmedPosTotal: { raw: engine.warmedPosTotal.toString(), sol: sol(engine.warmedPosTotal) },
-        warmedNegTotal: { raw: engine.warmedNegTotal.toString(), sol: sol(engine.warmedNegTotal) },
-        insuranceReserved: { raw: engine.warmupInsuranceReserved.toString(), sol: sol(engine.warmupInsuranceReserved) },
-      },
 
       slots: {
         current: engine.currentSlot.toString(),
@@ -248,7 +237,6 @@ async function main() {
       },
 
       counters: {
-        crankStep: engine.crankStep,
         lifetimeLiquidations: Number(engine.lifetimeLiquidations),
         lifetimeForceCloses: Number(engine.lifetimeForceCloses),
         numUsedAccounts: engine.numUsedAccounts,
@@ -273,7 +261,6 @@ async function main() {
       totalClaims: { raw: (totalCapital + insurance).toString(), sol: sol(totalCapital + insurance) },
       surplus: { raw: (engine.vault - totalCapital - insurance).toString(), sol: sol(engine.vault - totalCapital - insurance) },
       solvent: engine.vault >= totalCapital + insurance,
-      lossAccum: { raw: engine.lossAccum.toString(), sol: sol(engine.lossAccum) },
       strandedFunds: {
         raw: (engine.vault - totalCapital - insurance).toString(),
         sol: sol(engine.vault - totalCapital - insurance),
@@ -289,8 +276,6 @@ async function main() {
   console.log("  Accounts:       " + accounts.length);
   console.log("  Vault:          " + sol(engine.vault).toFixed(6) + " SOL");
   console.log("  Insurance:      " + sol(insurance).toFixed(6) + " SOL");
-  console.log("  Loss accum:     " + sol(engine.lossAccum).toFixed(6) + " SOL");
-  console.log("  Risk-reduction: " + engine.riskReductionOnly);
   console.log("  Stranded funds: " + sol(engine.vault - totalCapital - insurance).toFixed(6) + " SOL");
 }
 
