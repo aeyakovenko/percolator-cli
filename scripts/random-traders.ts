@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import { encodeInitUser, encodeDepositCollateral, encodeKeeperCrank, encodeTradeCpi, encodeWithdrawCollateral } from '../src/abi/instructions.js';
 import { buildAccountMetas, ACCOUNTS_INIT_USER, ACCOUNTS_DEPOSIT_COLLATERAL, ACCOUNTS_KEEPER_CRANK, ACCOUNTS_TRADE_CPI, ACCOUNTS_WITHDRAW_COLLATERAL } from '../src/abi/accounts.js';
 import { buildIx } from '../src/runtime/tx.js';
-import { fetchSlab, parseAccount, parseUsedIndices, AccountKind } from '../src/solana/slab.js';
+import { fetchSlab, parseAccount, parseUsedIndices, AccountKind, isAccountUsed } from '../src/solana/slab.js';
 
 // Load market config from devnet-market.json
 const marketInfo = JSON.parse(fs.readFileSync('devnet-market.json', 'utf-8'));
@@ -31,14 +31,14 @@ interface LpInfo {
 
 const NUM_TRADERS = 5;
 const DEPOSIT_SOL = 1_000_000_000n; // 1 SOL per trader
-const TRADE_SIZE = 100_000_000_000n; // 100B units per trade - MAX LEVERAGE MODE!
+const TRADE_SIZE = 10_000_000n; // 10M units per trade (small positions)
 const TRADE_INTERVAL_MS = 10_000; // 10 seconds between trades (rate limit protection)
 
 // Fixed direction for each trader (assigned at startup)
 const traderDirections: Map<number, boolean> = new Map(); // true = LONG, false = SHORT
 
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));
-const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
 
 let traderIndices: number[] = [];
 
@@ -160,6 +160,7 @@ async function initTraders(): Promise<void> {
   const existingIndices: number[] = [];
   for (let i = 0; i < 100; i++) {
     if (lpIndices.has(i)) continue; // Skip LPs
+    if (!isAccountUsed(slabData, i)) continue; // Skip empty slots
     const account = parseAccount(slabData, i);
     if (account && account.owner.equals(payer.publicKey)) {
       existingIndices.push(i);
@@ -205,6 +206,7 @@ async function initTraders(): Promise<void> {
   traderIndices = [];
   for (let i = 0; i < 100; i++) {
     if (newLpIndices.has(i)) continue; // Skip LPs
+    if (!isAccountUsed(newSlabData, i)) continue; // Skip empty slots
     const account = parseAccount(newSlabData, i);
     if (account && account.owner.equals(payer.publicKey)) {
       traderIndices.push(i);

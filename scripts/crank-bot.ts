@@ -15,7 +15,7 @@ const ORACLE = new PublicKey(marketInfo.oracle);
 const CRANK_INTERVAL_MS = 5000; // 5 seconds between cranks
 
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf-8'))));
-const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
 
 async function runCrank(): Promise<string> {
   const crankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
