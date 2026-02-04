@@ -47,11 +47,12 @@ export const IX_TAG = {
 export interface InitMarketArgs {
   admin: PublicKey | string;
   collateralMint: PublicKey | string;
-  indexFeedId: string;           // Pyth feed ID (hex string, 64 chars without 0x prefix)
+  indexFeedId: string;           // Pyth feed ID (hex string, 64 chars without 0x prefix). All zeros = Hyperp mode.
   maxStalenessSecs: bigint | string;  // Max staleness in SECONDS (Pyth Pull uses unix timestamps)
   confFilterBps: number;
   invert: number;              // 0 = no inversion, 1 = invert oracle price (USD/SOL -> SOL/USD)
   unitScale: number;           // Lamports per unit (0 = no scaling, e.g. 1000 = 1 SOL = 1,000,000 units)
+  initialMarkPriceE6: bigint | string;  // Initial mark price (required non-zero for Hyperp mode)
   warmupPeriodSlots: bigint | string;
   maintenanceMarginBps: bigint | string;
   initialMarginBps: bigint | string;
@@ -81,17 +82,18 @@ function encodeFeedId(feedId: string): Buffer {
 
 export function encodeInitMarket(args: InitMarketArgs): Buffer {
   // Layout: tag(1) + admin(32) + mint(32) + index_feed_id(32) + max_staleness_secs(8) +
-  //         conf_filter_bps(2) + invert(1) + unit_scale(4) + RiskParams(...)
+  //         conf_filter_bps(2) + invert(1) + unit_scale(4) + initial_mark_price_e6(8) + RiskParams(...)
   // Note: _reserved field is only in MarketConfig on-chain, not in instruction data
   return Buffer.concat([
     encU8(IX_TAG.InitMarket),
     encPubkey(args.admin),
     encPubkey(args.collateralMint),
-    encodeFeedId(args.indexFeedId),   // index_feed_id (32 bytes)
+    encodeFeedId(args.indexFeedId),   // index_feed_id (32 bytes) - all zeros for Hyperp mode
     encU64(args.maxStalenessSecs),    // max_staleness_secs (Pyth Pull uses unix timestamps)
     encU16(args.confFilterBps),
     encU8(args.invert),
     encU32(args.unitScale),
+    encU64(args.initialMarkPriceE6),  // initial_mark_price_e6 (required non-zero for Hyperp)
     encU64(args.warmupPeriodSlots),
     encU64(args.maintenanceMarginBps),
     encU64(args.initialMarginBps),

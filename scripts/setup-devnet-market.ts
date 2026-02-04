@@ -180,6 +180,7 @@ async function main() {
     confFilterBps: 500,              // 5% confidence filter
     invert: 1,                       // INVERTED market
     unitScale: 0,
+    initialMarkPriceE6: "0",         // Not Hyperp mode, so this is ignored
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",     // 5% maintenance margin
     initialMarginBps: "1000",        // 10% initial margin

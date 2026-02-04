@@ -276,37 +276,38 @@ const ENGINE_PARAMS_OFF = 48;         // RiskParams starts here (after vault+ins
 const ENGINE_CURRENT_SLOT_OFF = 192;
 const ENGINE_FUNDING_INDEX_OFF = 200;   // I128 (16 bytes)
 const ENGINE_LAST_FUNDING_SLOT_OFF = 216;
-const ENGINE_LAST_CRANK_SLOT_OFF = 224;
-const ENGINE_MAX_CRANK_STALENESS_OFF = 232;
-const ENGINE_TOTAL_OI_OFF = 240;        // U128 (16 bytes)
-const ENGINE_C_TOT_OFF = 256;           // U128: sum of all account capital
-const ENGINE_PNL_POS_TOT_OFF = 272;     // U128: sum of all positive PnL
-const ENGINE_LIQ_CURSOR_OFF = 288;      // u16
-const ENGINE_GC_CURSOR_OFF = 290;       // u16
+const ENGINE_FUNDING_RATE_BPS_OFF = 224;// i64: funding_rate_bps_per_slot_last (8 bytes) - was missing!
+const ENGINE_LAST_CRANK_SLOT_OFF = 232;
+const ENGINE_MAX_CRANK_STALENESS_OFF = 240;
+const ENGINE_TOTAL_OI_OFF = 248;        // U128 (16 bytes)
+const ENGINE_C_TOT_OFF = 264;           // U128: sum of all account capital
+const ENGINE_PNL_POS_TOT_OFF = 280;     // U128: sum of all positive PnL
+const ENGINE_LIQ_CURSOR_OFF = 296;      // u16
+const ENGINE_GC_CURSOR_OFF = 298;       // u16
 // 4 bytes padding for u64 alignment
-const ENGINE_LAST_SWEEP_START_OFF = 296;
-const ENGINE_LAST_SWEEP_COMPLETE_OFF = 304;
-const ENGINE_CRANK_CURSOR_OFF = 312;    // u16
-const ENGINE_SWEEP_START_IDX_OFF = 314; // u16
+const ENGINE_LAST_SWEEP_START_OFF = 304;
+const ENGINE_LAST_SWEEP_COMPLETE_OFF = 312;
+const ENGINE_CRANK_CURSOR_OFF = 320;    // u16
+const ENGINE_SWEEP_START_IDX_OFF = 322; // u16
 // 4 bytes padding for u64 alignment
-const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 320;
-const ENGINE_LIFETIME_FORCE_CLOSES_OFF = 328;
+const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 328;
+const ENGINE_LIFETIME_FORCE_CLOSES_OFF = 336;
 // LP Aggregates for funding rate calculation
-const ENGINE_NET_LP_POS_OFF = 336;      // I128
-const ENGINE_LP_SUM_ABS_OFF = 352;      // U128
-const ENGINE_LP_MAX_ABS_OFF = 368;      // U128
-const ENGINE_LP_MAX_ABS_SWEEP_OFF = 384;// U128
+const ENGINE_NET_LP_POS_OFF = 344;      // I128
+const ENGINE_LP_SUM_ABS_OFF = 360;      // U128
+const ENGINE_LP_MAX_ABS_OFF = 376;      // U128
+const ENGINE_LP_MAX_ABS_SWEEP_OFF = 392;// U128
 // Bitmap: 64 u64 words = 512 bytes
-const ENGINE_BITMAP_OFF = 400;
-// After bitmap (400 + 512 = 912):
-const ENGINE_NUM_USED_OFF = 912;        // u16
+const ENGINE_BITMAP_OFF = 408;
+// After bitmap (408 + 512 = 920):
+const ENGINE_NUM_USED_OFF = 920;        // u16
 // 6 bytes padding for u64 alignment
-const ENGINE_NEXT_ACCOUNT_ID_OFF = 920; // u64
-const ENGINE_FREE_HEAD_OFF = 928;       // u16
-// _padding_accounts: [u8; 8] at 930-937
-// next_free: [u16; 4096] at 938-9129
-// 6 bytes padding for Account alignment (u64)
-const ENGINE_ACCOUNTS_OFF = 9128;       // accounts: [Account; 4096]
+const ENGINE_NEXT_ACCOUNT_ID_OFF = 928; // u64
+const ENGINE_FREE_HEAD_OFF = 936;       // u16
+// _padding_accounts: [u8; 6] at 938-943 for next_free alignment
+// next_free: [u16; 4096] at 944-9135
+// 8 bytes padding for Account alignment (u128)
+const ENGINE_ACCOUNTS_OFF = 9136;       // accounts: [Account; 4096]
 
 const BITMAP_WORDS = 64;
 const MAX_ACCOUNTS = 4096;
@@ -385,6 +386,7 @@ export interface EngineState {
   currentSlot: bigint;
   fundingIndexQpbE6: bigint;
   lastFundingSlot: bigint;
+  fundingRateBpsPerSlotLast: bigint;  // Added: was missing from layout
   lastCrankSlot: bigint;
   maxCrankStalenessSlots: bigint;
   totalOpenInterest: bigint;
@@ -501,6 +503,7 @@ export function parseEngine(data: Buffer): EngineState {
     currentSlot: data.readBigUInt64LE(base + ENGINE_CURRENT_SLOT_OFF),
     fundingIndexQpbE6: readI128LE(data, base + ENGINE_FUNDING_INDEX_OFF),
     lastFundingSlot: data.readBigUInt64LE(base + ENGINE_LAST_FUNDING_SLOT_OFF),
+    fundingRateBpsPerSlotLast: data.readBigInt64LE(base + ENGINE_FUNDING_RATE_BPS_OFF),
     lastCrankSlot: data.readBigUInt64LE(base + ENGINE_LAST_CRANK_SLOT_OFF),
     maxCrankStalenessSlots: data.readBigUInt64LE(base + ENGINE_MAX_CRANK_STALENESS_OFF),
     totalOpenInterest: readU128LE(data, base + ENGINE_TOTAL_OI_OFF),
