@@ -157,11 +157,11 @@ console.log("\n✅ All basic slab tests passed!");
 
 console.log("\nTesting account parsing...\n");
 
-// Constants from slab.ts for testing
-const ENGINE_OFF = 376;
-const ENGINE_ACCOUNTS_OFF = 95256;
-const ACCOUNT_SIZE = 248;
-const ENGINE_BITMAP_OFF = 86520;
+// Constants from slab.ts for testing (keep in sync with slab.ts)
+const ENGINE_OFF = 392;
+const ENGINE_ACCOUNTS_OFF = 9136;
+const ACCOUNT_SIZE = 240;
+const ENGINE_BITMAP_OFF = 408;
 
 // Account field offsets
 const ACCT_ACCOUNT_ID_OFF = 0;

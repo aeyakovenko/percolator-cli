@@ -334,6 +334,7 @@ console.log("\nTesting instruction encoders...\n");
     confFilterBps: 50,
     invert: 0,
     unitScale: 0,
+    initialMarkPriceE6: "0",  // Standard market (not Hyperp)
     warmupPeriodSlots: "1000",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",
@@ -348,7 +349,7 @@ console.log("\nTesting instruction encoders...\n");
     liquidationBufferBps: "50",
     minLiquidationAbs: "1000000",
   });
-  assert(data.length === 256, `InitMarket length: expected 256, got ${data.length}`);
+  assert(data.length === 264, `InitMarket length: expected 264, got ${data.length}`);
   assert(data[0] === IX_TAG.InitMarket, "InitMarket tag byte");
   console.log("✓ encodeInitMarket");
 }
