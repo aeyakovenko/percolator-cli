@@ -18,5 +18,18 @@
   },
   "insuranceFund": 1,
   "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
-  "adminAta": "7PTXsfTKCpQHPKZTsU1Mrdb3bwtExDeJGUmkaqkEbCrb"
+  "adminAta": "7PTXsfTKCpQHPKZTsU1Mrdb3bwtExDeJGUmkaqkEbCrb",
+  "vammLp": {
+    "index": 14,
+    "pda": "HUfQJ2Zsh9uikbAtbV1xMNNsj6cCpqvaDB7SqLZrNfqu",
+    "matcherContext": "Gg3BadkVAkVjZbiTxwbPzsXP5M7MXZPanQfxGuybTjSr",
+    "collateral": 5,
+    "config": {
+      "mode": "vAMM",
+      "tradingFeeBps": 5,
+      "baseSpreadBps": 10,
+      "maxTotalBps": 200,
+      "impactKBps": 100
+    }
+  }
 }

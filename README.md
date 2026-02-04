@@ -56,11 +56,18 @@ Vault PDA:      4C6cZFwwDnEyL81YZPY9xBUnnBuM9gWHcvjpHa71y3V6
 Oracle:         99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (Chainlink SOL/USD)
 Type:           INVERTED (price = 1/SOL in USD terms)
 
-LP (50bps Passive Matcher):
+LP 0 (Passive Matcher - 50bps spread):
   Index:        0
   PDA:          7YgxweQCVnBDfnP7hBdrBLV5NXpSLPS9mx6fgaGnH3jd
   Matcher Ctx:  5n3jT6iy9TK3XNMQarC1sK26zS8ofjLG3dvE9iDEFYhK
-  Collateral:   1 SOL
+  Collateral:   ~15 SOL
+
+LP 14 (vAMM Matcher - tighter spreads):
+  Index:        14
+  PDA:          HUfQJ2Zsh9uikbAtbV1xMNNsj6cCpqvaDB7SqLZrNfqu
+  Matcher Ctx:  Gg3BadkVAkVjZbiTxwbPzsXP5M7MXZPanQfxGuybTjSr
+  Collateral:   5 SOL
+  Config:       5bps fee + 10bps base spread + impact pricing
 
 Insurance Fund: ~8.8 SOL
 
@@ -390,8 +397,15 @@ npx tsx scripts/setup-devnet-market.ts
 npx tsx scripts/crank-bot.ts
 
 # Random traders bot - 5 traders making random trades with momentum bias
-# Trades every 30 seconds, 80% chance to continue in current direction
+# Routes to best LP by simulated price (vAMM vs passive)
 npx tsx scripts/random-traders.ts
+```
+
+### LP Setup
+
+```bash
+# Add a vAMM-configured LP (creates matcher context + LP account + deposits collateral)
+npx tsx scripts/add-vamm-lp.ts
 ```
 
 ### Market Analysis
@@ -475,11 +489,20 @@ Inverted markets use `1/price` internally. This is useful for markets like SOL/U
 
 ### Matchers
 
-Matchers are external programs that determine trade pricing. They enable:
-- Custom spread logic
-- Order book matching
-- AMM-style pricing
-- Limit orders
+Matchers are external programs that determine trade pricing. The `percolator-match` program supports two modes:
+
+**Passive Mode** (mode=0): Fixed spread around oracle price
+- Simple bid/ask spread (e.g., 50bps = 0.5%)
+- No price impact based on trade size
+
+**vAMM Mode** (mode=1): Spread + impact pricing
+- `trading_fee_bps`: Fee charged on every fill (e.g., 5 = 0.05%)
+- `base_spread_bps`: Minimum spread (e.g., 10 = 0.10%)
+- `impact_k_bps`: Price impact at full liquidity utilization
+- `max_total_bps`: Cap on total cost (spread + impact + fee)
+- `liquidity_notional_e6`: Quoting depth for impact calculation
+
+The random-traders bot routes to the LP with the best simulated price, computing quotes using each LP's matcher parameters.
 
 ## License
 

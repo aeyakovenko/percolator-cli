@@ -29,6 +29,19 @@ interface LpInfo {
   position: bigint;
 }
 
+interface MatcherParams {
+  mode: number;  // 0 = Passive, 1 = vAMM
+  tradingFeeBps: number;
+  baseSpreadBps: number;
+  maxTotalBps: number;
+  impactKBps: number;
+  liquidityNotionalE6: bigint;
+}
+
+const VAMM_MAGIC = 0x5045_5243_4d41_5443n;
+const CTX_VAMM_OFFSET = 64;
+const BPS_DENOM = 10000n;
+
 const NUM_TRADERS = 5;
 const DEPOSIT_SOL = 1_000_000_000n; // 1 SOL per trader
 const TRADE_SIZE = 10_000_000n; // 10M units per trade (small positions)
@@ -95,26 +108,120 @@ async function findAllLps(slabData: Buffer): Promise<LpInfo[]> {
 }
 
 /**
- * Find the best LP for a trade (currently picks randomly, can be enhanced later)
- * For buys (isLong=true), prefer LPs with lower ask (more capital, willing to sell)
- * For sells (isLong=false), prefer LPs with higher bid (more capital, willing to buy)
+ * Fetch and parse matcher context params for an LP
  */
-function findBestLp(lps: LpInfo[], isLong: boolean): LpInfo | null {
+async function fetchMatcherParams(matcherContext: PublicKey): Promise<MatcherParams | null> {
+  try {
+    const info = await connection.getAccountInfo(matcherContext);
+    if (!info || info.data.length < CTX_VAMM_OFFSET + 64) return null;
+
+    const data = info.data.subarray(CTX_VAMM_OFFSET);
+    const magic = data.readBigUInt64LE(0);
+    if (magic !== VAMM_MAGIC) return null;
+
+    return {
+      mode: data.readUInt8(12),
+      tradingFeeBps: data.readUInt32LE(16),
+      baseSpreadBps: data.readUInt32LE(20),
+      maxTotalBps: data.readUInt32LE(24),
+      impactKBps: data.readUInt32LE(28),
+      liquidityNotionalE6: data.readBigUInt64LE(32) + (data.readBigUInt64LE(40) << 64n),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch oracle price (Chainlink format)
+ */
+async function fetchOraclePrice(): Promise<bigint> {
+  const info = await connection.getAccountInfo(ORACLE);
+  if (!info) throw new Error('Oracle not found');
+  // Chainlink answer at offset 216
+  return BigInt(info.data.readBigInt64LE(216));
+}
+
+/**
+ * Compute execution price for a given LP and trade
+ * Returns the exec price in oracle units (e6)
+ */
+function computeQuote(params: MatcherParams, oraclePrice: bigint, tradeSize: bigint, isLong: boolean): bigint {
+  const absSize = tradeSize < 0n ? -tradeSize : tradeSize;
+
+  // Compute notional for impact calculation
+  const absNotionalE6 = (absSize * oraclePrice) / 1_000_000n;
+
+  // Compute impact for vAMM mode
+  let impactBps = 0n;
+  if (params.mode === 1 && params.liquidityNotionalE6 > 0n) {
+    impactBps = (absNotionalE6 * BigInt(params.impactKBps)) / params.liquidityNotionalE6;
+  }
+
+  // Total = base_spread + trading_fee + impact, capped at max_total
+  const maxTotal = BigInt(params.maxTotalBps);
+  const baseFee = BigInt(params.baseSpreadBps) + BigInt(params.tradingFeeBps);
+  const maxImpact = maxTotal > baseFee ? maxTotal - baseFee : 0n;
+  const clampedImpact = impactBps < maxImpact ? impactBps : maxImpact;
+  let totalBps = baseFee + clampedImpact;
+  if (totalBps > maxTotal) totalBps = maxTotal;
+
+  // Compute exec price based on direction
+  if (isLong) {
+    // Buys pay above oracle
+    return (oraclePrice * (BPS_DENOM + totalBps)) / BPS_DENOM;
+  } else {
+    // Sells receive below oracle
+    return (oraclePrice * (BPS_DENOM - totalBps)) / BPS_DENOM;
+  }
+}
+
+/**
+ * Find the best LP for a trade by simulating actual quotes
+ * For buys (isLong=true), pick LP with lowest ask price
+ * For sells (isLong=false), pick LP with highest bid price
+ */
+async function findBestLp(lps: LpInfo[], isLong: boolean): Promise<LpInfo | null> {
   if (lps.length === 0) return null;
 
-  // Simple heuristic: prefer LPs with more capital and opposite position
-  // For long: prefer LPs that are short or flat (willing to sell)
-  // For short: prefer LPs that are long or flat (willing to buy)
-  const scored = lps.map(lp => {
-    let score = Number(lp.capital) / 1e9; // Base score is capital in SOL
-    if (isLong && lp.position < 0n) score *= 1.5; // Prefer short LPs for longs
-    if (!isLong && lp.position > 0n) score *= 1.5; // Prefer long LPs for shorts
-    return { lp, score };
-  });
+  const oraclePrice = await fetchOraclePrice();
 
-  // Sort by score descending and pick the best
-  scored.sort((a, b) => b.score - a.score);
-  return scored[0].lp;
+  // Get quotes from all LPs
+  const quotes: { lp: LpInfo; price: bigint }[] = [];
+
+  for (const lp of lps) {
+    const params = await fetchMatcherParams(lp.matcherContext);
+    if (!params) continue;
+
+    // Skip if LP has no capital
+    if (lp.capital <= 0n) continue;
+
+    const price = computeQuote(params, oraclePrice, TRADE_SIZE, isLong);
+    quotes.push({ lp, price });
+  }
+
+  if (quotes.length === 0) return null;
+
+  // Sort by best price
+  if (isLong) {
+    // Buys: lowest ask is best
+    quotes.sort((a, b) => Number(a.price - b.price));
+  } else {
+    // Sells: highest bid is best
+    quotes.sort((a, b) => Number(b.price - a.price));
+  }
+
+  const best = quotes[0];
+  const worst = quotes[quotes.length - 1];
+  const improvement = isLong
+    ? Number(worst.price - best.price) / Number(oraclePrice) * 10000
+    : Number(best.price - worst.price) / Number(oraclePrice) * 10000;
+
+  if (quotes.length > 1 && improvement > 0.5) {
+    console.log(`  [Router] Best LP ${best.lp.index} saves ${improvement.toFixed(1)} bps vs LP ${worst.lp.index}`);
+  }
+
+  return best.lp;
 }
 
 async function wrapSol(amount: bigint, ata: PublicKey): Promise<void> {
@@ -555,7 +662,7 @@ async function realizePnL(): Promise<{ closed: number; adlTriggered: boolean }> 
     const closeSize = position > 0n ? -position : -position; // Negate to close
 
     // Find LP for closing trade
-    const bestLp = findBestLp(lps, closeDirection);
+    const bestLp = await findBestLp(lps, closeDirection);
     if (!bestLp) continue;
 
     console.log(`Trader ${traderIdx}: Closing ${isLong ? 'LONG' : 'SHORT'} position of ${Math.abs(Number(position))/1e9}B...`);
@@ -714,7 +821,7 @@ async function tradeLoop(): Promise<void> {
         continue;
       }
 
-      const bestLp = findBestLp(lps, isLong);
+      const bestLp = await findBestLp(lps, isLong);
       if (!bestLp) {
         console.log(`[${new Date().toISOString()}] Could not find best LP, skipping trade\n`);
         await new Promise(r => setTimeout(r, TRADE_INTERVAL_MS));
