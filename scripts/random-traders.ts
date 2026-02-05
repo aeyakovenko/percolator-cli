@@ -22,6 +22,7 @@ const LP_INDEX = marketInfo.lp.index;
 
 interface LpInfo {
   index: number;
+  owner: PublicKey;  // LP owner (needed for trade-cpi accounts)
   matcherProgram: PublicKey;
   matcherContext: PublicKey;
   lpPda: PublicKey;
@@ -95,6 +96,7 @@ async function findAllLps(slabData: Buffer): Promise<LpInfo[]> {
     if (isLp) {
       lps.push({
         index: idx,
+        owner: account.owner,  // Store actual LP owner for trade-cpi
         matcherProgram: account.matcherProgram,
         matcherContext: account.matcherContext,
         lpPda: deriveLpPda(SLAB, idx),
@@ -649,7 +651,7 @@ async function executeTrade(traderIdx: number, isLong: boolean, lp: LpInfo): Pro
 
   const tradeKeys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
     payer.publicKey,       // user
-    payer.publicKey,       // lpOwner (same wallet)
+    lp.owner,              // lpOwner (from slab - LP owner, not signer)
     SLAB,                  // slab
     SYSVAR_CLOCK_PUBKEY,   // clock
     ORACLE,                // oracle
@@ -735,7 +737,7 @@ async function realizePnL(): Promise<{ closed: number; adlTriggered: boolean }> 
 
       const tradeKeys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
         payer.publicKey,
-        payer.publicKey,
+        bestLp.owner,          // lpOwner (from slab - LP owner, not signer)
         SLAB,
         SYSVAR_CLOCK_PUBKEY,
         ORACLE,
