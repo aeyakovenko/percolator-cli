@@ -132,6 +132,74 @@ percolator set-oracle-authority \
   --authority 11111111111111111111111111111111
 ```
 
+### Scenario 5: Binary/Premarket (Event-Based Resolution)
+
+Binary markets resolve to one of two outcomes (YES/NO). Unlike perpetuals, they have a finite lifecycle ending in settlement.
+
+#### Creating a Binary Market
+
+```bash
+# 1. Create slab and vault as in Scenario 1
+
+# 2. Initialize as Hyperp mode (admin oracle, no external feed)
+percolator init-market \
+  --slab <SLAB_PUBKEY> \
+  --mint So11111111111111111111111111111111111111112 \
+  --index-feed-id 0000000000000000000000000000000000000000000000000000000000000000 \
+  --initial-mark-price 500000 \  # 50% probability (0.5 in e6)
+  --max-staleness-secs 3600 \
+  # ... other params
+
+# 3. Set oracle authority (for pushing settlement price)
+percolator set-oracle-authority \
+  --slab <SLAB_PUBKEY> \
+  --authority <ADMIN_PUBKEY>
+```
+
+#### Settlement Workflow
+
+```typescript
+// 1. Push settlement price when outcome is known
+//    YES outcome = 1_000_000 (1.0 in e6)
+//    NO outcome  = 1 (essentially 0)
+await encodePushOraclePrice({ priceE6: "1000000", timestamp: Date.now() / 1000 });
+
+// 2. Resolve market (blocks new activity)
+await encodeResolveMarket();
+
+// 3. Force-close all positions via KeeperCrank (paginated, 64 accounts per crank)
+while (hasOpenPositions) {
+  await encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+}
+
+// 4. Withdraw insurance fund (only after all positions closed)
+await encodeWithdrawInsurance();
+
+// 5. Users withdraw remaining capital and close accounts
+await encodeWithdrawCollateral({ userIdx, amount });
+await encodeCloseAccount({ userIdx });
+
+// 6. Admin closes slab
+await encodeCloseSlab();
+```
+
+#### Binary Market State Flags
+
+- **RESOLVED flag** (header offset 13, bit 0): When set:
+  - `InitUser`, `InitLP`, `DepositCollateral`, `Trade*`, `TopUpInsurance` are BLOCKED
+  - `WithdrawCollateral`, `CloseAccount` are ALLOWED
+  - `KeeperCrank` enters force-close branch (settles positions at admin oracle price)
+
+#### Settlement Math
+
+```
+PnL = position_size * (settlement_price - entry_price) / 1_000_000
+
+Example (YES outcome, price=1_000_000):
+  LONG 100 @ 500_000 entry → PnL = 100 * (1_000_000 - 500_000) / 1e6 = +50
+  SHORT 100 @ 500_000 entry → PnL = -100 * (1_000_000 - 500_000) / 1e6 = -50
+```
+
 ---
 
 ## Account Management

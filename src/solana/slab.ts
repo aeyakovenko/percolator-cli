@@ -15,6 +15,9 @@ const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
 const CONFIG_LEN = 320;
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
+// Flag bits in header._padding[0] at offset 13
+const FLAG_RESOLVED = 1 << 0;
+
 /**
  * Slab header (72 bytes)
  */
@@ -22,6 +25,8 @@ export interface SlabHeader {
   magic: bigint;
   version: number;
   bump: number;
+  flags: number;
+  resolved: boolean;
   admin: PublicKey;
   nonce: bigint;
   lastThrUpdateSlot: bigint;
@@ -94,6 +99,7 @@ export function parseHeader(data: Buffer): SlabHeader {
 
   const version = data.readUInt32LE(8);
   const bump = data.readUInt8(12);
+  const flags = data.readUInt8(13);  // _padding[0] contains flags
   const admin = new PublicKey(data.subarray(16, 48));
 
   // Reserved field: nonce at [0..8], lastThrUpdateSlot at [8..16]
@@ -104,6 +110,8 @@ export function parseHeader(data: Buffer): SlabHeader {
     magic,
     version,
     bump,
+    flags,
+    resolved: (flags & FLAG_RESOLVED) !== 0,
     admin,
     nonce,
     lastThrUpdateSlot,

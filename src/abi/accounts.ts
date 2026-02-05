@@ -213,6 +213,28 @@ export const ACCOUNTS_PUSH_ORACLE_PRICE: readonly AccountSpec[] = [
   { name: "slab", signer: false, writable: true },
 ] as const;
 
+/**
+ * ResolveMarket: 2 accounts
+ * Resolves a binary/premarket (admin only)
+ */
+export const ACCOUNTS_RESOLVE_MARKET: readonly AccountSpec[] = [
+  { name: "admin", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+] as const;
+
+/**
+ * WithdrawInsurance: 6 accounts
+ * Withdraw insurance fund after market resolution (admin only)
+ */
+export const ACCOUNTS_WITHDRAW_INSURANCE: readonly AccountSpec[] = [
+  { name: "admin", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+  { name: "adminAta", signer: false, writable: true },
+  { name: "vault", signer: false, writable: true },
+  { name: "tokenProgram", signer: false, writable: false },
+  { name: "vaultPda", signer: false, writable: false },
+] as const;
+
 // ============================================================================
 // ACCOUNT META BUILDERS
 // ============================================================================

@@ -33,6 +33,8 @@ export const IX_TAG = {
   SetOracleAuthority: 16,
   PushOraclePrice: 17,
   SetOraclePriceCap: 18,
+  ResolveMarket: 19,
+  WithdrawInsurance: 20,
 } as const;
 
 /**
@@ -394,4 +396,21 @@ export function encodeSetOraclePriceCap(args: SetOraclePriceCapArgs): Buffer {
     encU8(IX_TAG.SetOraclePriceCap),
     encU64(args.maxChangeE2bps),
   ]);
+}
+
+/**
+ * ResolveMarket instruction data (1 byte)
+ * Resolves a binary/premarket - sets RESOLVED flag, positions force-closed via crank.
+ * Requires admin oracle price (authority_price_e6) to be set first.
+ */
+export function encodeResolveMarket(): Buffer {
+  return encU8(IX_TAG.ResolveMarket);
+}
+
+/**
+ * WithdrawInsurance instruction data (1 byte)
+ * Withdraw insurance fund to admin (requires RESOLVED and all positions closed).
+ */
+export function encodeWithdrawInsurance(): Buffer {
+  return encU8(IX_TAG.WithdrawInsurance);
 }
