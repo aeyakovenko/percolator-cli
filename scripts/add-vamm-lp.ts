@@ -88,7 +88,10 @@ async function main() {
   const userAta = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, payer.publicKey);
   console.log('User ATA:', userAta.address.toBase58());
 
-  // Get next free LP index (match percolator's bitmap scan)
+  // Get next free LP index
+  // NOTE: Percolator uses LIFO freelist, not bitmap scan. This works for fresh
+  // markets but may fail after GC frees slots in non-sequential order.
+  // For production, read the freelist from slab or use retry logic.
   const slabData = await fetchSlab(conn, SLAB);
   const usedIndices = new Set(parseUsedIndices(slabData));
   let lpIndex = 0;

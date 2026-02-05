@@ -564,18 +564,34 @@ await sendAndConfirmTransaction(conn, atomicTx, [payer, matcherCtxKp]);
 
 ### Critical: Finding the Correct LP Index
 
-The percolator program uses `first_free_slot` (scans bitmap for first 0 bit), NOT `max + 1`. You must match this algorithm:
+The percolator program uses a **LIFO freelist** for slot allocation:
+
+```rust
+// Percolator's allocate_slot():
+let idx = self.free_head;
+self.free_head = self.next_free[idx as usize];  // LIFO pop
+```
+
+**Important:** This differs from a bitmap scan after GC operations:
+
+| Scenario | Bitmap Scan | LIFO Freelist |
+|----------|-------------|---------------|
+| Fresh market (sequential alloc) | Same | Same |
+| After freeing slot 1, then slot 2 | Returns 1 (lowest free) | Returns 2 (most recently freed) |
 
 ```typescript
-// WRONG: May have gaps in bitmap
+// WRONG: May skip freed slots entirely
 const lpIndex = Math.max(...usedIndices) + 1;
 
-// CORRECT: Match percolator's bitmap scan
+// WRONG after GC: Bitmap scan doesn't match LIFO order
 const usedSet = new Set(parseUsedIndices(slabData));
 let lpIndex = 0;
 while (usedSet.has(lpIndex)) {
   lpIndex++;
 }
+
+// SAFE: For fresh markets only (no GC history), bitmap scan works.
+// After GC, you must read the freelist from the slab or use retry logic.
 ```
 
 ### Matcher Security Checks

@@ -637,6 +637,63 @@ async function refundAllTraders(userAta: PublicKey): Promise<void> {
 }
 
 /**
+ * Revalidate trader indices - remove any that no longer exist in slab
+ * This handles accounts that were force-closed or liquidated
+ */
+async function revalidateTraderIndices(): Promise<void> {
+  const slabData = await fetchSlab(connection, SLAB);
+  const lps = await findAllLps(slabData);
+  const lpIndices = new Set(lps.map(lp => lp.index));
+
+  const validIndices: number[] = [];
+  const removedIndices: number[] = [];
+
+  for (const idx of traderIndices) {
+    if (lpIndices.has(idx)) {
+      // This index is now an LP, remove it
+      removedIndices.push(idx);
+      continue;
+    }
+    if (!isAccountUsed(slabData, idx)) {
+      // Account no longer exists (force-closed)
+      removedIndices.push(idx);
+      continue;
+    }
+    const account = parseAccount(slabData, idx);
+    if (!account || !account.owner.equals(payer.publicKey)) {
+      // Not our account anymore
+      removedIndices.push(idx);
+      continue;
+    }
+    validIndices.push(idx);
+  }
+
+  if (removedIndices.length > 0) {
+    console.log(`[Revalidate] Removed stale trader indices: ${removedIndices.join(', ')}`);
+    traderIndices = validIndices;
+    console.log(`[Revalidate] Active trader indices: ${traderIndices.join(', ')}`);
+  }
+
+  // If we lost traders, find new ones to replace them
+  if (traderIndices.length < NUM_TRADERS) {
+    const needed = NUM_TRADERS - traderIndices.length;
+    console.log(`[Revalidate] Looking for ${needed} replacement trader accounts...`);
+
+    const existingSet = new Set(traderIndices);
+    for (let i = 0; i < 100 && traderIndices.length < NUM_TRADERS; i++) {
+      if (existingSet.has(i)) continue; // Already tracking
+      if (lpIndices.has(i)) continue; // Skip LPs
+      if (!isAccountUsed(slabData, i)) continue; // Skip empty slots
+      const account = parseAccount(slabData, i);
+      if (account && account.owner.equals(payer.publicKey)) {
+        traderIndices.push(i);
+        console.log(`[Revalidate] Added trader ${i} (capital: ${Number(account.capital)/1e9} SOL)`);
+      }
+    }
+  }
+}
+
+/**
  * Top up traders that are low on capital (before bank run)
  */
 async function topUpTradersIfNeeded(userAta: PublicKey): Promise<void> {
@@ -699,6 +756,7 @@ async function executeTrade(traderIdx: number, isLong: boolean, lp: LpInfo): Pro
 
 const BANK_RUN_INTERVAL = 20; // Trigger bank run every N trades
 const PNL_REALIZATION_INTERVAL = 15; // Try to realize PnL every N trades
+const REVALIDATE_INTERVAL = 10; // Revalidate trader indices every N trades
 
 /**
  * Close all positions to realize PnL - this should trigger ADL if one side can't pay
@@ -828,7 +886,8 @@ async function tradeLoop(): Promise<void> {
   console.log(`Trading every ${TRADE_INTERVAL_MS / 1000} seconds`);
   console.log(`MAX LEVERAGE MODE: Always INCREASE current position direction!`);
   console.log(`BANK RUNS: Every ${BANK_RUN_INTERVAL} trades`);
-  console.log(`PNL REALIZATION: Every ${PNL_REALIZATION_INTERVAL} trades (to trigger ADL)\n`);
+  console.log(`PNL REALIZATION: Every ${PNL_REALIZATION_INTERVAL} trades (to trigger ADL)`);
+  console.log(`REVALIDATION: Every ${REVALIDATE_INTERVAL} trades\n`);
 
   let tradeCount = 0;
   let failCount = 0;
@@ -857,6 +916,11 @@ async function tradeLoop(): Promise<void> {
         continue;
       }
 
+      // Periodically revalidate trader indices (in case of force-closes)
+      if (tradeCount > 0 && tradeCount % REVALIDATE_INTERVAL === 0) {
+        await revalidateTraderIndices();
+      }
+
       // Check if it's time for a bank run
       if (tradeCount > 0 && tradeCount % BANK_RUN_INTERVAL === 0) {
         bankRunCount++;
@@ -879,6 +943,11 @@ async function tradeLoop(): Promise<void> {
       }
 
       // Pick random trader
+      if (traderIndices.length === 0) {
+        console.log(`[${new Date().toISOString()}] No valid traders, reinitializing...`);
+        await initTraders();
+        continue;
+      }
       const traderIdx = traderIndices[Math.floor(Math.random() * traderIndices.length)];
 
       // Fetch current state
