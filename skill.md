@@ -723,3 +723,105 @@ Total: 256 bytes (stored at offset 64 in 320-byte context account)
 7. [ ] Test with small trades before production
 8. [ ] Set up keeper bot for regular cranks
 9. [ ] (Optional) Remove admin for decentralization
+
+---
+
+## Program Deployment
+
+### Standard Deployment
+
+```bash
+cd percolator-prog
+
+# Build program
+cargo build-sbf
+
+# Deploy to devnet
+solana program deploy target/deploy/percolator_prog.so \
+  --program-id <PROGRAM_KEYPAIR> \
+  -u devnet
+```
+
+### With unsafe_close Feature
+
+The `unsafe_close` feature allows closing slabs without draining vault/insurance first. Useful for recovering rent from abandoned test markets.
+
+```bash
+# Build with feature
+cargo build-sbf --features unsafe_close
+
+# Deploy
+solana program deploy target/deploy/percolator_prog.so \
+  --program-id <EXISTING_PROGRAM_ID> \
+  -u devnet
+
+# Close old slab (bypasses vault/insurance validation)
+npx tsx scripts/close-old-slab.ts
+```
+
+**Warning**: Only enable `unsafe_close` on devnet/test deployments. Production should NOT have this feature.
+
+---
+
+## Binary Market CLI Commands
+
+### Create Binary Market
+
+```bash
+# 1. Create slab (same as perpetual)
+solana-keygen new -o slab-keypair.json
+SLAB=$(solana-keygen pubkey slab-keypair.json)
+solana create-account slab-keypair.json 200000 2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp -u devnet
+
+# 2. Create vault
+spl-token create-account So11111111111111111111111111111111111111112 --owner <VAULT_PDA>
+
+# 3. Initialize as binary market (hyperp mode, no oracle feed)
+npx tsx src/cli.ts init-market \
+  --slab $SLAB \
+  --mint So11111111111111111111111111111111111111112 \
+  --index-feed-id 0000000000000000000000000000000000000000000000000000000000000000 \
+  --initial-mark-price 500000 \
+  --max-staleness-secs 86400 \
+  -u devnet
+
+# 4. Set admin as oracle authority
+npx tsx src/cli.ts set-oracle-authority --slab $SLAB --authority <ADMIN> -u devnet
+```
+
+### Resolve Binary Market
+
+```bash
+# 1. Push settlement price (YES=1000000, NO=1)
+npx tsx src/cli.ts push-oracle-price --slab $SLAB --price 1000000 -u devnet
+
+# 2. Resolve market (sets RESOLVED flag)
+# This blocks all new trading activity
+npx tsx -e "
+import { encodeResolveMarket } from './src/abi/instructions.js';
+import { buildAccountMetas, ACCOUNTS_RESOLVE_MARKET } from './src/abi/accounts.js';
+// ... build and send transaction
+"
+
+# 3. Force-close all positions (run until all closed)
+npx tsx src/commands/keeper-crank.ts --slab $SLAB --caller-idx 65535 -u devnet
+
+# 4. Withdraw insurance fund
+# (Uses WithdrawInsurance instruction after all positions closed)
+
+# 5. Users withdraw capital
+npx tsx src/commands/withdraw.ts --slab $SLAB --user-idx <IDX> --amount <AMT> -u devnet
+
+# 6. Close slab
+npx tsx src/commands/close-slab.ts --slab $SLAB -u devnet
+```
+
+### Verify Binary Market Instructions
+
+```bash
+# Test encoding (offline)
+npx tsx scripts/verify-binary-instructions.ts
+
+# Test on devnet (simulates against real program)
+npx tsx scripts/verify-binary-devnet.ts
+```
