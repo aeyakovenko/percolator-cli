@@ -109,53 +109,84 @@ async function findAllLps(slabData: Buffer): Promise<LpInfo[]> {
   return lps;
 }
 
-// Passive matcher magic: "PERCPASS" in little-endian
-const PASSIVE_MAGIC = 0x5353_4150_4352_4550n;
-// Default passive spread (50 bps)
+// Default passive spread (50 bps) for unknown matchers
 const DEFAULT_PASSIVE_SPREAD_BPS = 50;
 
 /**
  * Fetch and parse matcher context params for an LP
- * Supports both vAMM and passive matchers
+ * Supports unified MatcherCtx layout (version 3)
+ *
+ * Layout at CTX_VAMM_OFFSET (64):
+ *   magic: u64              offset 0
+ *   version: u32            offset 8
+ *   kind: u8                offset 12  (0=Passive, 1=vAMM)
+ *   _pad: [u8; 3]           offset 13
+ *   lp_pda: [u8; 32]        offset 16
+ *   trading_fee_bps: u32    offset 48
+ *   base_spread_bps: u32    offset 52
+ *   max_total_bps: u32      offset 56
+ *   impact_k_bps: u32       offset 60
+ *   liquidity_notional_e6: u128 offset 64
+ *
+ * @param matcherContext - The matcher context account
+ * @param expectedLpPda - The expected LP PDA (to verify context is correctly initialized)
+ * @param lpIndex - LP index for logging
  */
-async function fetchMatcherParams(matcherContext: PublicKey): Promise<MatcherParams | null> {
+async function fetchMatcherParams(
+  matcherContext: PublicKey,
+  expectedLpPda: PublicKey,
+  lpIndex: number
+): Promise<MatcherParams | null> {
   try {
     const info = await connection.getAccountInfo(matcherContext);
-    if (!info || info.data.length < CTX_VAMM_OFFSET + 16) return null;
+    if (!info || info.data.length < CTX_VAMM_OFFSET + 80) return null;
 
     const data = info.data.subarray(CTX_VAMM_OFFSET);
     const magic = data.readBigUInt64LE(0);
 
-    // vAMM matcher
-    if (magic === VAMM_MAGIC && info.data.length >= CTX_VAMM_OFFSET + 64) {
+    // Check for unified matcher magic
+    if (magic !== VAMM_MAGIC) {
+      console.log(`  [Router] Unknown matcher magic ${magic.toString(16)}, assuming passive 50bps`);
       return {
-        mode: 1, // vAMM
-        tradingFeeBps: data.readUInt32LE(16),
-        baseSpreadBps: data.readUInt32LE(20),
-        maxTotalBps: data.readUInt32LE(24),
-        impactKBps: data.readUInt32LE(28),
-        liquidityNotionalE6: data.readBigUInt64LE(32) + (data.readBigUInt64LE(40) << 64n),
-      };
-    }
-
-    // Passive matcher - try to read spread, default to 50bps
-    if (magic === PASSIVE_MAGIC) {
-      // Passive context format: magic(8) + reserved(4) + spread_bps(4)
-      const spreadBps = info.data.length >= CTX_VAMM_OFFSET + 16
-        ? data.readUInt32LE(12)
-        : DEFAULT_PASSIVE_SPREAD_BPS;
-      return {
-        mode: 0, // Passive
+        mode: 0,
         tradingFeeBps: 0,
-        baseSpreadBps: spreadBps || DEFAULT_PASSIVE_SPREAD_BPS,
-        maxTotalBps: spreadBps || DEFAULT_PASSIVE_SPREAD_BPS,
+        baseSpreadBps: DEFAULT_PASSIVE_SPREAD_BPS,
+        maxTotalBps: DEFAULT_PASSIVE_SPREAD_BPS,
         impactKBps: 0,
         liquidityNotionalE6: 0n,
       };
     }
 
-    // Unknown matcher type - assume passive with default spread
-    console.log(`  [Router] Unknown matcher magic ${magic.toString(16)}, assuming passive 50bps`);
+    const version = data.readUInt32LE(8);
+    const kind = data.readUInt8(12);
+
+    // Version 3 unified layout
+    if (version === 3) {
+      // Verify LP PDA matches expected
+      const storedLpPda = new PublicKey(data.subarray(16, 48));
+      if (!storedLpPda.equals(expectedLpPda)) {
+        console.log(`  [Router] LP ${lpIndex}: PDA mismatch (broken context), skipping`);
+        return null;
+      }
+
+      const tradingFeeBps = data.readUInt32LE(48);
+      const baseSpreadBps = data.readUInt32LE(52);
+      const maxTotalBps = data.readUInt32LE(56);
+      const impactKBps = data.readUInt32LE(60);
+      const liquidityNotionalE6 = data.readBigUInt64LE(64) + (data.readBigUInt64LE(72) << 64n);
+
+      return {
+        mode: kind, // 0=Passive, 1=vAMM
+        tradingFeeBps,
+        baseSpreadBps,
+        maxTotalBps,
+        impactKBps,
+        liquidityNotionalE6,
+      };
+    }
+
+    // Unknown version - use defaults
+    console.log(`  [Router] Unknown matcher version ${version}, assuming passive 50bps`);
     return {
       mode: 0,
       tradingFeeBps: 0,
@@ -229,9 +260,9 @@ async function findBestLp(lps: LpInfo[], isLong: boolean): Promise<LpInfo | null
   const quotes: { lp: LpInfo; price: bigint; spreadBps: number; mode: string }[] = [];
 
   for (const lp of lps) {
-    const params = await fetchMatcherParams(lp.matcherContext);
+    const params = await fetchMatcherParams(lp.matcherContext, lp.lpPda, lp.index);
     if (!params) {
-      console.log(`  [Router] LP ${lp.index}: no params, skipping`);
+      // Already logged in fetchMatcherParams
       continue;
     }
 

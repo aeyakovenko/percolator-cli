@@ -88,32 +88,25 @@ async function main() {
   const userAta = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, payer.publicKey);
   console.log('User ATA:', userAta.address.toBase58());
 
-  // Get current LP index
+  // Get next free LP index (match percolator's bitmap scan)
   const slabData = await fetchSlab(conn, SLAB);
-  const usedIndices = parseUsedIndices(slabData);
-  const lpIndex = Math.max(...usedIndices) + 1;
-  console.log('New LP index:', lpIndex);
+  const usedIndices = new Set(parseUsedIndices(slabData));
+  let lpIndex = 0;
+  while (usedIndices.has(lpIndex)) {
+    lpIndex++;
+  }
+  console.log('Next free LP index:', lpIndex);
 
-  // Create matcher context account
+  // Derive LP PDA first (needed for matcher init)
+  const [lpPda] = deriveLpPda(PROGRAM_ID, SLAB, lpIndex);
+  console.log('LP PDA:', lpPda.toBase58());
+
+  // Create matcher context keypair
   const matcherCtxKp = Keypair.generate();
   const matcherRent = await conn.getMinimumBalanceForRentExemption(MATCHER_CTX_SIZE);
+  console.log('Matcher context:', matcherCtxKp.publicKey.toBase58());
 
-  console.log('\n1. Creating matcher context account...');
-  const createCtxTx = new Transaction().add(
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }),
-    SystemProgram.createAccount({
-      fromPubkey: payer.publicKey,
-      newAccountPubkey: matcherCtxKp.publicKey,
-      lamports: matcherRent,
-      space: MATCHER_CTX_SIZE,
-      programId: MATCHER_PROGRAM_ID,
-    })
-  );
-  await sendAndConfirmTransaction(conn, createCtxTx, [payer, matcherCtxKp], { commitment: 'confirmed' });
-  console.log('   Matcher context:', matcherCtxKp.publicKey.toBase58());
-
-  // Initialize vAMM context
-  console.log('\n2. Initializing vAMM context...');
+  // Encode vAMM init instruction
   const initVammData = encodeInitVamm({
     mode: VAMM_MODE,
     tradingFeeBps: TRADING_FEE_BPS,
@@ -125,30 +118,7 @@ async function main() {
     maxInventoryAbs: MAX_INVENTORY_ABS,
   });
 
-  const initVammTx = new Transaction().add(
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }),
-    {
-      programId: MATCHER_PROGRAM_ID,
-      keys: [
-        { pubkey: matcherCtxKp.publicKey, isSigner: false, isWritable: true },
-      ],
-      data: initVammData,
-    }
-  );
-  await sendAndConfirmTransaction(conn, initVammTx, [payer], { commitment: 'confirmed' });
-  console.log('   vAMM initialized with:');
-  console.log('   - Mode: vAMM');
-  console.log('   - Trading fee:', TRADING_FEE_BPS, 'bps');
-  console.log('   - Base spread:', BASE_SPREAD_BPS, 'bps');
-  console.log('   - Max total:', MAX_TOTAL_BPS, 'bps');
-  console.log('   - Impact K:', IMPACT_K_BPS, 'bps');
-
-  // Derive LP PDA
-  const [lpPda] = deriveLpPda(PROGRAM_ID, SLAB, lpIndex);
-  console.log('\n3. LP PDA:', lpPda.toBase58());
-
-  // Initialize LP account
-  console.log('\n4. Initializing LP account...');
+  // Encode LP init instruction
   const initLpData = encodeInitLP({
     matcherProgram: MATCHER_PROGRAM_ID,
     matcherContext: matcherCtxKp.publicKey,
@@ -162,12 +132,39 @@ async function main() {
     TOKEN_PROGRAM_ID,
   ]);
 
-  const initLpTx = new Transaction().add(
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
+  // ATOMIC COMPOUND TRANSACTION:
+  // 1. Create matcher context account
+  // 2. Initialize matcher context with LP PDA
+  // 3. Initialize LP in percolator
+  console.log('\nCreating LP atomically (compound transaction)...');
+  const atomicTx = new Transaction().add(
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 300000 }),
+    // 1. Create matcher context account
+    SystemProgram.createAccount({
+      fromPubkey: payer.publicKey,
+      newAccountPubkey: matcherCtxKp.publicKey,
+      lamports: matcherRent,
+      space: MATCHER_CTX_SIZE,
+      programId: MATCHER_PROGRAM_ID,
+    }),
+    // 2. Initialize matcher context (accounts: [lp_pda, ctx_account])
+    {
+      programId: MATCHER_PROGRAM_ID,
+      keys: [
+        { pubkey: lpPda, isSigner: false, isWritable: false },  // LP PDA (stored for sig verification)
+        { pubkey: matcherCtxKp.publicKey, isSigner: false, isWritable: true },  // Matcher context
+      ],
+      data: initVammData,
+    },
+    // 3. Initialize LP in percolator
     buildIx({ programId: PROGRAM_ID, keys: initLpKeys, data: initLpData })
   );
-  await sendAndConfirmTransaction(conn, initLpTx, [payer], { commitment: 'confirmed' });
-  console.log('   LP initialized at index', lpIndex);
+
+  await sendAndConfirmTransaction(conn, atomicTx, [payer, matcherCtxKp], { commitment: 'confirmed' });
+  console.log('   LP created atomically!');
+  console.log('   - Matcher context created and initialized');
+  console.log('   - LP PDA stored in matcher for signature verification');
+  console.log('   - LP initialized at index', lpIndex);
 
   // Deposit collateral
   console.log('\n5. Depositing', Number(LP_COLLATERAL) / 1e9, 'SOL collateral...');
