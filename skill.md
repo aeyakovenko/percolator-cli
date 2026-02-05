@@ -786,34 +786,36 @@ npx tsx src/cli.ts init-market \
   -u devnet
 
 # 4. Set admin as oracle authority
-npx tsx src/cli.ts set-oracle-authority --slab $SLAB --authority <ADMIN> -u devnet
+node dist/index.js set-oracle-authority --slab $SLAB --authority <ADMIN> --rpc https://api.devnet.solana.com
 ```
 
 ### Resolve Binary Market
 
 ```bash
 # 1. Push settlement price (YES=1000000, NO=1)
-npx tsx src/cli.ts push-oracle-price --slab $SLAB --price 1000000 -u devnet
+node dist/index.js push-oracle-price --slab $SLAB --price 1000000 --rpc https://api.devnet.solana.com
 
-# 2. Resolve market (sets RESOLVED flag)
-# This blocks all new trading activity
-npx tsx -e "
-import { encodeResolveMarket } from './src/abi/instructions.js';
-import { buildAccountMetas, ACCOUNTS_RESOLVE_MARKET } from './src/abi/accounts.js';
-// ... build and send transaction
-"
+# 2. Resolve market (sets RESOLVED flag, blocks new trading)
+node dist/index.js resolve-market --slab $SLAB --rpc https://api.devnet.solana.com
 
 # 3. Force-close all positions (run until all closed)
-npx tsx src/commands/keeper-crank.ts --slab $SLAB --caller-idx 65535 -u devnet
+# The crank will settle each position at the admin oracle price
+while node dist/index.js slab:engine --slab $SLAB --rpc https://api.devnet.solana.com | grep "Total Open Interest" | grep -v ": *0"; do
+  node dist/index.js keeper-crank --slab $SLAB --oracle $ORACLE --rpc https://api.devnet.solana.com
+  sleep 2
+done
 
-# 4. Withdraw insurance fund
-# (Uses WithdrawInsurance instruction after all positions closed)
+# 4. Withdraw insurance fund (after all positions closed)
+node dist/index.js withdraw-insurance --slab $SLAB --rpc https://api.devnet.solana.com
 
-# 5. Users withdraw capital
-npx tsx src/commands/withdraw.ts --slab $SLAB --user-idx <IDX> --amount <AMT> -u devnet
+# 5. Users withdraw remaining capital
+node dist/index.js withdraw --slab $SLAB --user-idx <IDX> --amount <AMT> --rpc https://api.devnet.solana.com
 
-# 6. Close slab
-npx tsx src/commands/close-slab.ts --slab $SLAB -u devnet
+# 6. Close user accounts (optional, recovers rent)
+node dist/index.js close-account --slab $SLAB --user-idx <IDX> --rpc https://api.devnet.solana.com
+
+# 7. Close slab (admin only, after all accounts closed)
+node dist/index.js close-slab --slab $SLAB --rpc https://api.devnet.solana.com
 ```
 
 ### Verify Binary Market Instructions
