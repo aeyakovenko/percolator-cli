@@ -62,10 +62,10 @@ LP 0 (Passive Matcher - 50bps spread):
   Matcher Ctx:  5n3jT6iy9TK3XNMQarC1sK26zS8ofjLG3dvE9iDEFYhK
   Collateral:   ~15 SOL
 
-LP 14 (vAMM Matcher - tighter spreads):
-  Index:        14
-  PDA:          HUfQJ2Zsh9uikbAtbV1xMNNsj6cCpqvaDB7SqLZrNfqu
-  Matcher Ctx:  Gg3BadkVAkVjZbiTxwbPzsXP5M7MXZPanQfxGuybTjSr
+LP 4 (vAMM Matcher - tighter spreads):
+  Index:        4
+  PDA:          CwfVwVayiuVxXmagcP8Rha7eow29NUtHzFNdzikCzA8h
+  Matcher Ctx:  BUWfYszAAUuGkGiaMT9ahnkHeHFQ5MbC7STQdhS28cZF
   Collateral:   5 SOL
   Config:       5bps fee + 10bps base spread + impact pricing
 
@@ -189,16 +189,18 @@ Matchers are programs that determine trade pricing. The 50bps passive matcher ac
 
 A matcher program must implement:
 
-1. **Match instruction** (discriminator: `0x00`): Called by percolator during `trade-cpi`
+1. **Init instruction** (tag `0x02`): Initialize context with LP PDA for security
+2. **Match instruction** (tag `0x00`): Called by percolator during `trade-cpi`
 
-Initialization is up to you - the percolator program never calls init. You can use any custom init function to set up your matcher context.
+### Security Requirements
+
+**CRITICAL**: The matcher context must store the LP PDA and verify it on every trade call. This prevents unauthorized programs from using your matcher.
 
 ### Creating a Custom Matcher
 
 #### Step 1: Write the matcher program
 
 ```rust
-// Example: Simple spread matcher
 use solana_program::{account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey};
 
 entrypoint!(process_instruction);
@@ -210,38 +212,81 @@ fn process_instruction(
 ) -> Result<(), ProgramError> {
     match data[0] {
         0x00 => {
-            // Match instruction - verify LP PDA and accept trade
-            // LP PDA is accounts[0], context is accounts[1]
-            // Return Ok(()) to accept, Err to reject
+            // Match instruction - MUST verify LP PDA signature
+            let lp_pda = &accounts[0];
+            let ctx = &accounts[1];
+
+            // Verify LP PDA is a signer (signed by percolator via CPI)
+            if !lp_pda.is_signer {
+                return Err(ProgramError::MissingRequiredSignature);
+            }
+
+            // Verify LP PDA matches stored PDA in context
+            let ctx_data = ctx.try_borrow_data()?;
+            let stored_pda = Pubkey::new_from_array(ctx_data[16..48].try_into().unwrap());
+            if *lp_pda.key != stored_pda {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            // Process trade...
             Ok(())
         }
-        // Add your own init instruction(s) as needed
+        0x02 => {
+            // Init instruction - store LP PDA for verification
+            let lp_pda = &accounts[0];
+            let ctx = &accounts[1];
+
+            // Store LP PDA in context at offset 16
+            let mut ctx_data = ctx.try_borrow_mut_data()?;
+            ctx_data[16..48].copy_from_slice(&lp_pda.key.to_bytes());
+            Ok(())
+        }
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
 ```
 
-#### Step 2: Deploy and create context account
+#### Step 2: Create LP with ATOMIC transaction
 
-```bash
-# Deploy your matcher program
-solana program deploy target/deploy/my_matcher.so --url devnet
+**CRITICAL**: You must create the matcher context AND initialize the LP in a single atomic transaction. This prevents race conditions where an attacker could initialize your context with their LP PDA.
 
-# Create context account (owned by your matcher program)
-# Size depends on your matcher's needs (minimum 320 bytes recommended)
+```typescript
+// Find the FIRST FREE slot (match percolator's bitmap scan)
+const usedSet = new Set(parseUsedIndices(slabData));
+let lpIndex = 0;
+while (usedSet.has(lpIndex)) {
+  lpIndex++;
+}
+
+// Derive LP PDA for the index we'll create
+const [lpPda] = deriveLpPda(PROGRAM_ID, SLAB, lpIndex);
+
+// ATOMIC: All three in ONE transaction
+const atomicTx = new Transaction().add(
+  // 1. Create matcher context account
+  SystemProgram.createAccount({
+    fromPubkey: payer.publicKey,
+    newAccountPubkey: matcherCtxKp.publicKey,
+    lamports: rent,
+    space: 320,
+    programId: MATCHER_PROGRAM_ID,
+  }),
+  // 2. Initialize matcher context WITH LP PDA
+  {
+    programId: MATCHER_PROGRAM_ID,
+    keys: [
+      { pubkey: lpPda, isSigner: false, isWritable: false },
+      { pubkey: matcherCtxKp.publicKey, isSigner: false, isWritable: true },
+    ],
+    data: initMatcherData,
+  },
+  // 3. Initialize LP in percolator
+  buildIx({ programId: PROGRAM_ID, keys: initLpKeys, data: initLpData })
+);
+await sendAndConfirmTransaction(conn, atomicTx, [payer, matcherCtxKp]);
 ```
 
-#### Step 3: Initialize LP with your matcher
-
-```bash
-# Initialize LP with custom matcher
-percolator-cli init-lp \
-  --slab <slab-pubkey> \
-  --matcher-program <your-matcher-program> \
-  --matcher-ctx <your-context-account>
-```
-
-#### Step 4: Deposit collateral to LP
+#### Step 3: Deposit collateral to LP
 
 ```bash
 percolator-cli deposit \
@@ -250,17 +295,31 @@ percolator-cli deposit \
   --amount <amount>
 ```
 
-### Matcher Context Layout (50bps Passive Matcher)
+### Matcher Context Layout (Unified Version 3)
 
-The standard 50bps passive matcher uses this context layout:
+The current matcher uses this unified context layout:
 
 ```
-Offset  Size  Field
-0       32    LP PDA (set during init)
-32      32    Slab pubkey (set during init)
-64      8     Spread BPS (50 = 0.5%)
-...
+Offset  Size  Field                    Description
+0       8     magic                    0x5045_5243_4d41_5443 ("PERCMATC")
+8       4     version                  3
+12      1     kind                     0=Passive, 1=vAMM
+13      3     _pad0
+16      32    lp_pda                   LP PDA for signature verification
+48      4     trading_fee_bps          Fee on fills
+52      4     base_spread_bps          Minimum spread
+56      4     max_total_bps            Cap on total cost
+60      4     impact_k_bps             Impact multiplier
+64      16    liquidity_notional_e6    Quoting depth (u128)
+80      16    max_fill_abs             Max fill per trade (u128)
+96      16    inventory_base           LP inventory state (i128)
+112     8     last_oracle_price_e6     Last oracle price
+120     8     last_exec_price_e6       Last execution price
+128     16    max_inventory_abs        Inventory limit (u128)
+144     112   _reserved
 ```
+
+The context data starts at offset 64 in the 320-byte account (first 64 bytes reserved for matcher return data).
 
 ## Commands Reference
 

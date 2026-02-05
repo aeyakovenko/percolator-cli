@@ -517,13 +517,125 @@ Common errors and solutions:
 
 ---
 
+## Creating Secure Matcher Contexts
+
+### Security Requirements
+
+When creating an LP with a custom matcher, you **MUST** use an atomic compound transaction to prevent race conditions. The matcher context must store the LP PDA for signature verification.
+
+### Why Atomicity Matters
+
+The matcher context stores the LP PDA that will sign trade calls. If you create the matcher context in a separate transaction from the LP, an attacker could:
+1. Initialize your matcher context with their own LP PDA
+2. Use your context to execute unauthorized trades
+
+### Correct: Atomic Compound Transaction
+
+```typescript
+// All three operations in ONE atomic transaction
+const atomicTx = new Transaction().add(
+  ComputeBudgetProgram.setComputeUnitLimit({ units: 300000 }),
+
+  // 1. Create matcher context account (owned by matcher program)
+  SystemProgram.createAccount({
+    fromPubkey: payer.publicKey,
+    newAccountPubkey: matcherCtxKp.publicKey,
+    lamports: matcherRent,
+    space: MATCHER_CTX_SIZE,  // 320 bytes minimum
+    programId: MATCHER_PROGRAM_ID,
+  }),
+
+  // 2. Initialize matcher context WITH LP PDA
+  {
+    programId: MATCHER_PROGRAM_ID,
+    keys: [
+      { pubkey: lpPda, isSigner: false, isWritable: false },  // LP PDA stored for verification
+      { pubkey: matcherCtxKp.publicKey, isSigner: false, isWritable: true },
+    ],
+    data: initMatcherData,
+  },
+
+  // 3. Initialize LP in percolator (references the matcher context)
+  buildIx({ programId: PROGRAM_ID, keys: initLpKeys, data: initLpData })
+);
+
+await sendAndConfirmTransaction(conn, atomicTx, [payer, matcherCtxKp]);
+```
+
+### Critical: Finding the Correct LP Index
+
+The percolator program uses `first_free_slot` (scans bitmap for first 0 bit), NOT `max + 1`. You must match this algorithm:
+
+```typescript
+// WRONG: May have gaps in bitmap
+const lpIndex = Math.max(...usedIndices) + 1;
+
+// CORRECT: Match percolator's bitmap scan
+const usedSet = new Set(parseUsedIndices(slabData));
+let lpIndex = 0;
+while (usedSet.has(lpIndex)) {
+  lpIndex++;
+}
+```
+
+### Matcher Security Checks
+
+The matcher program must verify:
+
+```rust
+// 1. Context must be initialized before accepting trades
+if !MatcherCtx::is_initialized(&data) {
+    return Err(ProgramError::UninitializedAccount);
+}
+
+// 2. LP PDA must match the stored PDA (prevents unauthorized callers)
+if !lp_pda.is_signer {
+    return Err(ProgramError::MissingRequiredSignature);
+}
+let stored_pda = Pubkey::new_from_array(ctx.lp_pda);
+if *lp_pda.key != stored_pda {
+    return Err(ProgramError::InvalidAccountData);
+}
+
+// 3. Cannot re-initialize (prevents state manipulation)
+if MatcherCtx::is_initialized(&data) {
+    return Err(ProgramError::AccountAlreadyInitialized);
+}
+```
+
+### Unified MatcherCtx Layout (Version 3)
+
+```
+Offset  Size  Field                    Description
+0       8     magic                    0x5045_5243_4d41_5443 ("PERCMATC")
+8       4     version                  3
+12      1     kind                     0=Passive, 1=vAMM
+13      3     _pad0
+16      32    lp_pda                   LP PDA for signature verification
+48      4     trading_fee_bps          Fee on fills (e.g., 5 = 0.05%)
+52      4     base_spread_bps          Minimum spread (e.g., 10 = 0.10%)
+56      4     max_total_bps            Cap on total cost
+60      4     impact_k_bps             Impact at full liquidity
+64      16    liquidity_notional_e6    Quoting depth (u128)
+80      16    max_fill_abs             Max fill per trade (u128)
+96      16    inventory_base           LP inventory state (i128)
+112     8     last_oracle_price_e6     Last oracle price seen
+120     8     last_exec_price_e6       Last execution price
+128     16    max_inventory_abs        Inventory limit (u128)
+144     112   _reserved
+Total: 256 bytes (stored at offset 64 in 320-byte context account)
+```
+
+---
+
 ## Deployment Checklist
 
 1. [ ] Create slab account with sufficient space (200KB recommended)
 2. [ ] Create vault token account owned by vault PDA
 3. [ ] Initialize market with correct parameters
-4. [ ] Initialize LP account with matcher config
-5. [ ] Fund insurance with initial capital
-6. [ ] Test with small trades before production
-7. [ ] Set up keeper bot for regular cranks
-8. [ ] (Optional) Remove admin for decentralization
+4. [ ] **Use atomic transaction** for LP + matcher context creation
+5. [ ] Verify LP PDA stored in matcher context matches expected
+6. [ ] Fund insurance with initial capital
+7. [ ] Test with small trades before production
+8. [ ] Set up keeper bot for regular cranks
+9. [ ] (Optional) Remove admin for decentralization
