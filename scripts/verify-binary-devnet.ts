@@ -48,7 +48,8 @@ async function testResolveMarket(): Promise<boolean> {
       // Check for expected error - authority_price_e6 == 0 means InvalidAccountData
       const hasExpectedError = logs.some(l =>
         l.includes('custom program error: 0x4') || // InvalidAccountData
-        l.includes('custom program error: 0x3')    // InvalidArgument
+        l.includes('custom program error: 0x3') || // InvalidArgument
+        l.includes('invalid account data for instruction') // Built-in validation error
       );
 
       if (hasExpectedError) {
@@ -101,7 +102,8 @@ async function testWithdrawInsurance(): Promise<boolean> {
       // Expected error: market not resolved (InvalidAccountData)
       const hasExpectedError = logs.some(l =>
         l.includes('custom program error: 0x4') || // InvalidAccountData (not resolved)
-        l.includes('custom program error: 0x3')    // InvalidArgument
+        l.includes('custom program error: 0x3') || // InvalidArgument
+        l.includes('invalid account data for instruction') // Built-in validation error
       );
 
       if (hasExpectedError) {
