@@ -1,33 +1,33 @@
 {
   "_meta": {
-    "timestamp": "2026-02-04T02:06:39.916Z",
-    "slabAddress": "WzwZMuQq4SpJVYCLwpR1mN98eZW4ntZFkq9K2obWYLr",
+    "timestamp": "2026-02-05T02:04:20.245Z",
+    "slabAddress": "A7wQtRT9DhFqYho8wTVqQCDc7kYPTUXGPATiyVbZKVFs",
     "oracleAddress": "99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR",
     "slabDataBytes": 992560
   },
   "header": {
     "magic": "504552434f4c4154",
     "version": 1,
-    "bump": 255,
+    "bump": 253,
     "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
-    "nonce": "545",
-    "lastThresholdUpdateSlot": "439547019"
+    "nonce": "3499",
+    "lastThresholdUpdateSlot": "439951873"
   },
   "config": {
     "collateralMint": "So11111111111111111111111111111111111111112",
-    "vault": "6DfS9bRdXYkvM4Aod7GNebLrcfefu8ZtBrGRNE3FCjUh",
+    "vault": "63juJmvm1XHCHveWv9WdanxqJX6tD6DLFTZD7dvH12dc",
     "indexFeedId": "99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR",
     "maxStalenessSlots": "3600",
     "confFilterBps": 500,
-    "vaultAuthorityBump": 255,
+    "vaultAuthorityBump": 253,
     "invert": 1,
     "unitScale": 0,
     "funding": {
       "horizonSlots": "500",
       "kBps": 100,
-      "invScaleNotionalE6": "1000000000000",
-      "maxPremiumBps": 500,
-      "maxBpsPerSlot": 5
+      "invScaleNotionalE6": "1000000",
+      "maxPremiumBps": 5000,
+      "maxBpsPerSlot": 50
     },
     "threshold": {
       "floor": {
@@ -52,9 +52,9 @@
       }
     },
     "oracleAuthority": {
-      "authority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
-      "authorityPriceE6": "9623",
-      "authorityTimestamp": "1770102631"
+      "authority": "11111111111111111111111111111111",
+      "authorityPriceE6": "0",
+      "authorityTimestamp": "0"
     }
   },
   "riskParams": {
@@ -70,8 +70,8 @@
       "sol": 0.001
     },
     "riskReductionThreshold": {
-      "raw": "4517735",
-      "sol": 0.004517735
+      "raw": "3465",
+      "sol": 0.000003465
     },
     "maintenanceFeePerSlot": {
       "raw": "0",
@@ -92,70 +92,196 @@
   },
   "engine": {
     "vault": {
-      "raw": "1529391245",
-      "sol": 1.529391245
+      "raw": "38085530878",
+      "sol": 38.085530878
     },
     "insuranceFund": {
       "balance": {
-        "raw": "664814559",
-        "sol": 0.664814559
+        "raw": "14048510974",
+        "sol": 14.048510974
       },
       "feeRevenue": {
-        "raw": "164814559",
-        "sol": 0.164814559
+        "raw": "3048510974",
+        "sol": 3.048510974
       },
       "threshold": {
-        "raw": "4517735",
-        "sol": 0.004517735
+        "raw": "3465",
+        "sol": 0.000003465
       },
       "surplus": {
-        "raw": "660296824",
-        "sol": 0.660296824
+        "raw": "14048507509",
+        "sol": 14.048507509
       }
     },
     "slots": {
-      "current": "439547027",
-      "lastFunding": "439547019",
-      "lastCrank": "200",
-      "maxCrankStaleness": "102678745830",
-      "lastSweepStart": "439547019",
-      "lastSweepComplete": "0"
+      "current": "439951874",
+      "lastFunding": "439951874",
+      "lastCrank": "439951874",
+      "maxCrankStaleness": "200",
+      "lastSweepStart": "439951874",
+      "lastSweepComplete": "439951874"
     },
     "funding": {
-      "indexQpbE6": "0"
+      "indexQpbE6": "-115337661"
     },
     "openInterest": {
-      "totalUnits": "14474484923806787383486054400",
-      "totalSol": 146481787428924700
+      "totalUnits": "220000000",
+      "totalSol": 0.00240284
     },
     "lpAggregates": {
-      "netLpPos": "1562654010161238220842811260927",
-      "netLpPosSol": 15814058582831730000,
-      "lpSumAbs": "1654887730511339234849101709312"
+      "netLpPos": "-10000000",
+      "netLpPosSol": 0.00010922,
+      "lpSumAbs": "110000000"
     },
     "counters": {
-      "lifetimeLiquidations": 0,
-      "lifetimeForceCloses": 18446743988997908000,
-      "numUsedAccounts": 128,
-      "nextAccountId": "844433520132104"
+      "lifetimeLiquidations": 22,
+      "lifetimeForceCloses": 8,
+      "numUsedAccounts": 14,
+      "nextAccountId": "133"
     }
   },
   "oracle": {
-    "rawUsd": 98.81,
-    "rawE6": "98810000",
+    "rawUsd": 91.556295,
+    "rawE6": "91556295",
     "decimals": 8,
     "inverted": true,
-    "effectivePriceE6": "10120"
+    "effectivePriceE6": "10922"
   },
   "accounts": [
     {
-      "index": 4035,
-      "kind": "USER",
+      "index": 0,
+      "kind": "LP",
       "accountId": "0",
-      "owner": "11111111111111111111111111111111",
+      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
       "capital": {
-        "raw": "0",
-        "sol": 0
+        "raw": "14999998500",
+        "sol": 14.9999985
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "50",
+          "sol": 5e-8
+        }
+      },
+      "effectiveCapital": {
+        "raw": "14999998550",
+        "sol": 14.99999855
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439951874",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "-50000000",
+        "direction": "SHORT",
+        "entryPriceE6": "10923",
+        "notional": {
+          "raw": "546100",
+          "sol": 0.0005461
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "27305",
+          "sol": 0.000027305
+        },
+        "ratioPercent": 2746749.41,
+        "buffer": {
+          "raw": "14999971245",
+          "sol": 14.999971245
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy",
+        "context": "5n3jT6iy9TK3XNMQarC1sK26zS8ofjLG3dvE9iDEFYhK"
+      },
+      "fees": {
+        "feeCredits": "0",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 1,
+      "kind": "LP",
+      "accountId": "132",
+      "owner": "8LJmEC1dRvXoyNPDeVmYsb6zrDyXrXecqZHFVFukRgCo",
+      "capital": {
+        "raw": "299999850",
+        "sol": 0.29999985
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "10",
+          "sol": 1e-8
+        }
+      },
+      "effectiveCapital": {
+        "raw": "299999860",
+        "sol": 0.29999986
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439951874",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "-10000000",
+        "direction": "SHORT",
+        "entryPriceE6": "10923",
+        "notional": {
+          "raw": "109220",
+          "sol": 0.00010922
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "5461",
+          "sol": 0.000005461
+        },
+        "ratioPercent": 274674.83,
+        "buffer": {
+          "raw": "299994399",
+          "sol": 0.299994399
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy",
+        "context": "EkYfdsPGhdfHXzXk4j8BaJuHxuUUMG6mcyst2PbNtuL2"
+      },
+      "fees": {
+        "feeCredits": "0",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 3,
+      "kind": "USER",
+      "accountId": "35",
+      "owner": "8LJmEC1dRvXoyNPDeVmYsb6zrDyXrXecqZHFVFukRgCo",
+      "capital": {
+        "raw": "100000000",
+        "sol": 0.1
       },
       "pnl": {
         "realized": {
@@ -168,13 +294,13 @@
         }
       },
       "effectiveCapital": {
-        "raw": "0",
-        "sol": 0
+        "raw": "100000000",
+        "sol": 0.1
       },
       "warmup": {
         "reservedPnl": "0",
         "reservedPnlSol": 0,
-        "warmupStartedAtSlot": "0",
+        "warmupStartedAtSlot": "439739107",
         "warmupSlopePerStep": "0",
         "warmupSlopePerStepSol": 0
       },
@@ -194,13 +320,13 @@
         },
         "ratioPercent": 999.99,
         "buffer": {
-          "raw": "0",
-          "sol": 0
+          "raw": "100000000",
+          "sol": 0.1
         },
         "status": "SAFE"
       },
       "funding": {
-        "fundingIndex": "0"
+        "fundingIndex": "-115337661"
       },
       "matcher": {
         "program": "11111111111111111111111111111111",
@@ -208,35 +334,728 @@
       },
       "fees": {
         "feeCredits": "0",
-        "lastFeeSlot": "0"
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 4,
+      "kind": "USER",
+      "accountId": "130",
+      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "capital": {
+        "raw": "1333372497",
+        "sol": 1.333372497
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "20",
+          "sol": 2e-8
+        }
+      },
+      "effectiveCapital": {
+        "raw": "1333372517",
+        "sol": 1.333372517
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439951874",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "-20000000",
+        "direction": "SHORT",
+        "entryPriceE6": "10923",
+        "notional": {
+          "raw": "218440",
+          "sol": 0.00021844
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "10922",
+          "sol": 0.000010922
+        },
+        "ratioPercent": 610406.75,
+        "buffer": {
+          "raw": "1333361595",
+          "sol": 1.333361595
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "12445",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 5,
+      "kind": "USER",
+      "accountId": "56",
+      "owner": "Btts1KrwkU6P8rvEbpgTNDk2NPNDmGUEtWajjK3sS5ur",
+      "capital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "effectiveCapital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439754636",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPriceE6": "0",
+        "notional": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "0",
+          "sol": 0
+        },
+        "ratioPercent": 999.99,
+        "buffer": {
+          "raw": "40000000",
+          "sol": 0.04
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "0",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 6,
+      "kind": "USER",
+      "accountId": "128",
+      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "capital": {
+        "raw": "667966218",
+        "sol": 0.667966218
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "40",
+          "sol": 4e-8
+        }
+      },
+      "effectiveCapital": {
+        "raw": "667966258",
+        "sol": 0.667966258
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439951874",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "-40000000",
+        "direction": "SHORT",
+        "entryPriceE6": "10923",
+        "notional": {
+          "raw": "436880",
+          "sol": 0.00043688
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "21844",
+          "sol": 0.000021844
+        },
+        "ratioPercent": 152894.67,
+        "buffer": {
+          "raw": "667944414",
+          "sol": 0.667944414
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "20326",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 7,
+      "kind": "USER",
+      "accountId": "129",
+      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "capital": {
+        "raw": "1343747766",
+        "sol": 1.343747766
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "40",
+          "sol": 4e-8
+        }
+      },
+      "effectiveCapital": {
+        "raw": "1343747806",
+        "sol": 1.343747806
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439951874",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "-40000000",
+        "direction": "SHORT",
+        "entryPriceE6": "10923",
+        "notional": {
+          "raw": "436880",
+          "sol": 0.00043688
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "21844",
+          "sol": 0.000021844
+        },
+        "ratioPercent": 307578.23,
+        "buffer": {
+          "raw": "1343725962",
+          "sol": 1.343725962
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "14412",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 8,
+      "kind": "USER",
+      "accountId": "55",
+      "owner": "HwU7YUm9jHnQNXjGQjzKyZ1UEBK9EjnXbn7a59f84foR",
+      "capital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "effectiveCapital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439754622",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPriceE6": "0",
+        "notional": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "0",
+          "sol": 0
+        },
+        "ratioPercent": 999.99,
+        "buffer": {
+          "raw": "40000000",
+          "sol": 0.04
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "0",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 9,
+      "kind": "USER",
+      "accountId": "54",
+      "owner": "FsaiC26FzDrvzAxVEVNb8rzP6ipqiY9XrT4q5zD8VnYa",
+      "capital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "effectiveCapital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439754612",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPriceE6": "0",
+        "notional": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "0",
+          "sol": 0
+        },
+        "ratioPercent": 999.99,
+        "buffer": {
+          "raw": "40000000",
+          "sol": 0.04
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "0",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 10,
+      "kind": "USER",
+      "accountId": "53",
+      "owner": "DALMJrwg21r6nt8WJXTb66TNyW3kCHaLBs7QPoMPJZtd",
+      "capital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "effectiveCapital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439749576",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPriceE6": "0",
+        "notional": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "0",
+          "sol": 0
+        },
+        "ratioPercent": 999.99,
+        "buffer": {
+          "raw": "40000000",
+          "sol": 0.04
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "0",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 11,
+      "kind": "USER",
+      "accountId": "52",
+      "owner": "qjtR3JBDMS63a1jndiaXJnuHYurk9d1ErM2W5JMnStA",
+      "capital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "effectiveCapital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439749567",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPriceE6": "0",
+        "notional": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "0",
+          "sol": 0
+        },
+        "ratioPercent": 999.99,
+        "buffer": {
+          "raw": "40000000",
+          "sol": 0.04
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "0",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 12,
+      "kind": "USER",
+      "accountId": "51",
+      "owner": "49bWZpbSmfU1xt5QdJ5AUNrrcNekxGLLmMcKKUuC4pSk",
+      "capital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "pnl": {
+        "realized": {
+          "raw": "0",
+          "sol": 0
+        },
+        "unrealized": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "effectiveCapital": {
+        "raw": "40000000",
+        "sol": 0.04
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439749552",
+        "warmupSlopePerStep": "0",
+        "warmupSlopePerStepSol": 0
+      },
+      "position": {
+        "sizeUnits": "0",
+        "direction": "FLAT",
+        "entryPriceE6": "0",
+        "notional": {
+          "raw": "0",
+          "sol": 0
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "0",
+          "sol": 0
+        },
+        "ratioPercent": 999.99,
+        "buffer": {
+          "raw": "40000000",
+          "sol": 0.04
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "0",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 13,
+      "kind": "USER",
+      "accountId": "49",
+      "owner": "8LJmEC1dRvXoyNPDeVmYsb6zrDyXrXecqZHFVFukRgCo",
+      "capital": {
+        "raw": "49999424",
+        "sol": 0.049999424
+      },
+      "pnl": {
+        "realized": {
+          "raw": "7",
+          "sol": 7e-9
+        },
+        "unrealized": {
+          "raw": "-10",
+          "sol": -1e-8
+        }
+      },
+      "effectiveCapital": {
+        "raw": "49999421",
+        "sol": 0.049999421
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439951874",
+        "warmupSlopePerStep": "1",
+        "warmupSlopePerStepSol": 1e-9
+      },
+      "position": {
+        "sizeUnits": "10000000",
+        "direction": "LONG",
+        "entryPriceE6": "10923",
+        "notional": {
+          "raw": "109220",
+          "sol": 0.00010922
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "5461",
+          "sol": 0.000005461
+        },
+        "ratioPercent": 45778.63,
+        "buffer": {
+          "raw": "49993960",
+          "sol": 0.04999396
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "11111111111111111111111111111111",
+        "context": "11111111111111111111111111111111"
+      },
+      "fees": {
+        "feeCredits": "255",
+        "lastFeeSlot": "439951874"
+      }
+    },
+    {
+      "index": 14,
+      "kind": "LP",
+      "accountId": "64",
+      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "capital": {
+        "raw": "5001857257",
+        "sol": 5.001857257
+      },
+      "pnl": {
+        "realized": {
+          "raw": "22",
+          "sol": 2.2e-8
+        },
+        "unrealized": {
+          "raw": "-50",
+          "sol": -5e-8
+        }
+      },
+      "effectiveCapital": {
+        "raw": "5001857229",
+        "sol": 5.001857229
+      },
+      "warmup": {
+        "reservedPnl": "0",
+        "reservedPnlSol": 0,
+        "warmupStartedAtSlot": "439951874",
+        "warmupSlopePerStep": "2",
+        "warmupSlopePerStepSol": 2e-9
+      },
+      "position": {
+        "sizeUnits": "50000000",
+        "direction": "LONG",
+        "entryPriceE6": "10923",
+        "notional": {
+          "raw": "546100",
+          "sol": 0.0005461
+        }
+      },
+      "margin": {
+        "maintenanceRequired": {
+          "raw": "27305",
+          "sol": 0.000027305
+        },
+        "ratioPercent": 915923.31,
+        "buffer": {
+          "raw": "5001829924",
+          "sol": 5.001829924
+        },
+        "status": "SAFE"
+      },
+      "funding": {
+        "fundingIndex": "-115337661"
+      },
+      "matcher": {
+        "program": "4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy",
+        "context": "Gg3BadkVAkVjZbiTxwbPzsXP5M7MXZPanQfxGuybTjSr"
+      },
+      "fees": {
+        "feeCredits": "0",
+        "lastFeeSlot": "439951874"
       }
     }
   ],
   "solvency": {
     "vault": {
-      "raw": "1529391245",
-      "sol": 1.529391245
+      "raw": "38085530878",
+      "sol": 38.085530878
     },
     "totalCapital": {
-      "raw": "0",
-      "sol": 0
+      "raw": "24036941512",
+      "sol": 24.036941512
     },
     "insurance": {
-      "raw": "664814559",
-      "sol": 0.664814559
+      "raw": "14048510974",
+      "sol": 14.048510974
     },
     "totalClaims": {
-      "raw": "664814559",
-      "sol": 0.664814559
+      "raw": "38085452486",
+      "sol": 38.085452486
     },
     "surplus": {
-      "raw": "864576686",
-      "sol": 0.864576686
+      "raw": "78392",
+      "sol": 0.000078392
     },
     "solvent": true,
     "strandedFunds": {
-      "raw": "864576686",
-      "sol": 0.864576686,
+      "raw": "78392",
+      "sol": 0.000078392,
       "note": "Vault balance minus all claims (capital + insurance). Positive value indicates funds with no current owner."
     }
   }
