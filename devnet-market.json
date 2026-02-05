@@ -20,9 +20,9 @@
   "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "adminAta": "7PTXsfTKCpQHPKZTsU1Mrdb3bwtExDeJGUmkaqkEbCrb",
   "vammLp": {
-    "index": 14,
-    "pda": "HUfQJ2Zsh9uikbAtbV1xMNNsj6cCpqvaDB7SqLZrNfqu",
-    "matcherContext": "Gg3BadkVAkVjZbiTxwbPzsXP5M7MXZPanQfxGuybTjSr",
+    "index": 4,
+    "pda": "CwfVwVayiuVxXmagcP8Rha7eow29NUtHzFNdzikCzA8h",
+    "matcherContext": "BUWfYszAAUuGkGiaMT9ahnkHeHFQ5MbC7STQdhS28cZF",
     "collateral": 5,
     "config": {
       "mode": "vAMM",
