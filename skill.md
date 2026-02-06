@@ -664,7 +664,9 @@ while (usedSet.has(lpIndex)) {
 
 ### Matcher Security Checks
 
-The matcher program must verify:
+**CRITICAL**: The matcher program MUST error if the LP PDA is not a signer. The percolator program signs the LP PDA via `invoke_signed` during CPI - if the matcher accepts unsigned calls, attackers can bypass LP authorization and execute unauthorized trades.
+
+The matcher program MUST verify:
 
 ```rust
 // 1. Context must be initialized before accepting trades

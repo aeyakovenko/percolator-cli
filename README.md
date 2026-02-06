@@ -194,7 +194,9 @@ A matcher program must implement:
 
 ### Security Requirements
 
-**CRITICAL**: The matcher context must store the LP PDA and verify it on every trade call. This prevents unauthorized programs from using your matcher.
+**CRITICAL**: The matcher program MUST error if the LP PDA is not a signer. The percolator program signs the LP PDA via `invoke_signed` during CPI. If your matcher accepts unsigned calls, attackers can bypass LP authorization and steal funds. Always check `lp_pda.is_signer` and return `MissingRequiredSignature` if false.
+
+The matcher context must also store the LP PDA and verify it matches on every trade call. This prevents unauthorized programs from using your matcher.
 
 ### Creating a Custom Matcher
 
