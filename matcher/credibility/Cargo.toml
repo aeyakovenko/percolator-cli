@@ -1,0 +1,17 @@
+[package]
+name = "credibility-matcher"
+version = "0.1.0"
+edition = "2021"
+description = "Credibility-aware matcher for adminless perpetual markets on Percolator"
+
+[dependencies]
+solana-program = "2.2"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+opt-level = "z"

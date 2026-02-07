@@ -35,6 +35,20 @@ import { registerPushOraclePrice } from "./commands/push-oracle-price.js";
 import { registerResolveMarket } from "./commands/resolve-market.js";
 import { registerWithdrawInsurance } from "./commands/withdraw-insurance.js";
 
+// Provenance: adminless market lifecycle
+import { registerBurnAdmin } from "./commands/burn-admin.js";
+import { registerVerifyImmutability } from "./commands/verify-immutability.js";
+
+// Provenance: insurance fund observability
+import { registerInsuranceStatus } from "./commands/insurance-status.js";
+import { registerInsuranceHealth } from "./commands/insurance-health.js";
+
+// Provenance: credibility metrics
+import { registerCredibilityStatus } from "./commands/credibility-status.js";
+
+// Provenance: liveness proof
+import { registerProveLiveness } from "./commands/prove-liveness.js";
+
 export function createCli(): Command {
   const program = new Command();
 
@@ -91,6 +105,20 @@ export function createCli(): Command {
   registerPushOraclePrice(program);
   registerResolveMarket(program);
   registerWithdrawInsurance(program);
+
+  // Provenance: adminless market lifecycle
+  registerBurnAdmin(program);
+  registerVerifyImmutability(program);
+
+  // Provenance: insurance fund observability
+  registerInsuranceStatus(program);
+  registerInsuranceHealth(program);
+
+  // Provenance: credibility metrics
+  registerCredibilityStatus(program);
+
+  // Provenance: liveness proof
+  registerProveLiveness(program);
 
   return program;
 }
