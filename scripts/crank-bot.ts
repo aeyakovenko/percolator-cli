@@ -1,6 +1,7 @@
 /**
  * Keeper crank bot - runs continuously to keep the market fresh
  */
+import "dotenv/config";
 import { Connection, Keypair, Transaction, ComputeBudgetProgram, SYSVAR_CLOCK_PUBKEY, sendAndConfirmTransaction, PublicKey } from '@solana/web3.js';
 import * as fs from 'fs';
 import { encodeKeeperCrank } from '../src/abi/instructions.js';

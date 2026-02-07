@@ -1,6 +1,7 @@
 /**
  * Add a vAMM-configured LP to the existing market
  */
+import "dotenv/config";
 import {
   Connection, Keypair, PublicKey, Transaction,
   sendAndConfirmTransaction, ComputeBudgetProgram, SystemProgram,

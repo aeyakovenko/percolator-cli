@@ -9,6 +9,7 @@
  * Run with: npx tsx tests/t22-devnet-stress.ts
  */
 
+import "dotenv/config";
 import {
   Connection,
   Keypair,

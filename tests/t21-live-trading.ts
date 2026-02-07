@@ -11,6 +11,7 @@
  * Run with: npx tsx tests/t21-live-trading.ts [duration_mins] [--inverted]
  */
 
+import "dotenv/config";
 import {
   Connection,
   Keypair,

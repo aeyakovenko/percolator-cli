@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Connection, PublicKey } from '@solana/web3.js';
 import * as fs from 'fs';
 import { fetchSlab, parseUsedIndices, parseAccount, AccountKind } from '../src/solana/slab.js';

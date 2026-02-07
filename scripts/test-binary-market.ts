@@ -12,6 +12,7 @@
  * 8. Users withdraw remaining capital
  * 9. Close all accounts and slab
  */
+import "dotenv/config";
 import {
   Connection, Keypair, PublicKey, Transaction, SystemProgram,
   sendAndConfirmTransaction, ComputeBudgetProgram, SYSVAR_CLOCK_PUBKEY,

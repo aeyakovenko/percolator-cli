@@ -9,6 +9,7 @@
  * - Chainlink provides SOL/USD (not BTC/USD) on devnet
  */
 
+import "dotenv/config";
 import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction, ComputeBudgetProgram, SystemProgram, SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { createMint, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as fs from "fs";

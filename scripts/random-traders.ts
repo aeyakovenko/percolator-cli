@@ -1,6 +1,7 @@
 /**
  * Random trading bot - 5 traders making random long/short trades
  */
+import "dotenv/config";
 import { Connection, Keypair, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction, PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js';
 import { getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID, NATIVE_MINT } from '@solana/spl-token';
 import * as fs from 'fs';
