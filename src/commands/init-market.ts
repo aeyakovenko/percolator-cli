@@ -24,6 +24,7 @@ export function registerInitMarket(program: Command): void {
     .requiredOption("--conf-filter-bps <number>", "Oracle confidence filter (bps)")
     .option("--invert <number>", "Invert oracle price (0=no, 1=yes)", "0")
     .option("--unit-scale <number>", "Lamports per unit scale (0=no scaling)", "0")
+    .option("--initial-mark-price <string>", "Initial mark price e6 (required non-zero for Hyperp mode)", "0")
     .requiredOption("--warmup-period <string>", "Warmup period (slots)")
     .requiredOption("--maintenance-margin-bps <string>", "Maintenance margin (bps)")
     .requiredOption("--initial-margin-bps <string>", "Initial margin (bps)")
@@ -65,6 +66,7 @@ export function registerInitMarket(program: Command): void {
         confFilterBps: parseInt(opts.confFilterBps, 10),
         invert: parseInt(opts.invert, 10),
         unitScale: parseInt(opts.unitScale, 10),
+        initialMarkPriceE6: opts.initialMarkPrice,
         warmupPeriodSlots: opts.warmupPeriod,
         maintenanceMarginBps: opts.maintenanceMarginBps,
         initialMarginBps: opts.initialMarginBps,
