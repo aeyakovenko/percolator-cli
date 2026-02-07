@@ -8,6 +8,7 @@
  * - CU measurement
  */
 
+import "dotenv/config";
 import {
   Connection,
   Keypair,
@@ -80,7 +81,7 @@ import {
 // CONSTANTS
 // ============================================================================
 
-export const RPC_URL = process.env.SOLANA_RPC_URL || "https://devnet.helius-rpc.com/?api-key=2dfa2086-c6cd-4cb4-8a13-08ecdee36a0f";
+export const RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 export const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 
 // Sentinel value for permissionless crank (no caller account required)
