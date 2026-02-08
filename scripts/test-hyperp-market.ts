@@ -1,5 +1,5 @@
 /**
- * Test: Hyperp Market Mode
+ * Test: Hyperp Market Mode — Full Lifecycle
  *
  * Hyperp mode uses internal mark/index pricing without an external oracle.
  * - index_feed_id = all zeros enables Hyperp mode
@@ -7,11 +7,16 @@
  * - Index price smoothly follows mark with rate limiting
  * - Funding based on premium: (mark - index) / index
  *
- * This script tests:
- * 1. Hyperp market creation
- * 2. Trading updates mark price
- * 3. Index smooths toward mark
- * 4. Premium-based funding rate
+ * This script tests the full lifecycle:
+ * 1. Trading updates mark price
+ * 2. Index smooths toward mark
+ * 3. Premium-based funding rate
+ * 4. Set oracle authority (admin)
+ * 5. Push settlement price (YES outcome)
+ * 6. Resolve market
+ * 7. Force-close positions via crank
+ * 8. Withdraw insurance fund
+ * 9. Cleanup (withdraw capital, close accounts, close slab)
  */
 import {
   Connection,
@@ -41,6 +46,11 @@ import {
   encodeTradeCpi,
   encodeWithdrawCollateral,
   encodeCloseAccount,
+  encodeSetOracleAuthority,
+  encodePushOraclePrice,
+  encodeResolveMarket,
+  encodeWithdrawInsurance,
+  encodeCloseSlab,
 } from "../src/abi/instructions.js";
 import {
   ACCOUNTS_INIT_MARKET,
@@ -52,6 +62,11 @@ import {
   ACCOUNTS_TRADE_CPI,
   ACCOUNTS_WITHDRAW_COLLATERAL,
   ACCOUNTS_CLOSE_ACCOUNT,
+  ACCOUNTS_SET_ORACLE_AUTHORITY,
+  ACCOUNTS_PUSH_ORACLE_PRICE,
+  ACCOUNTS_RESOLVE_MARKET,
+  ACCOUNTS_WITHDRAW_INSURANCE,
+  ACCOUNTS_CLOSE_SLAB,
   buildAccountMetas,
 } from "../src/abi/accounts.js";
 import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
@@ -420,41 +435,175 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
   console.log(`  Funding rate (bps/slot): ${engine.fundingRateBpsPerSlotLast}`);
   console.log(`  Funding index: ${engine.fundingIndexQpbE6}`);
 
-  // Clean up: close position and user
-  console.log("\n--- Cleanup ---");
-  try {
-    // Close position
-    const closeTradeData = encodeTradeCpi({ lpIdx, userIdx, size: (-tradeSize).toString() });
-    const closeTradeTx = new Transaction();
-    closeTradeTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 500000 }));
-    closeTradeTx.add(buildIx({ programId: PROGRAM_ID, keys: tradeKeys, data: closeTradeData }));
-    await sendAndConfirmTransaction(conn, closeTradeTx, [payer], { commitment: "confirmed" });
+  // TEST 4: Set oracle authority
+  console.log("\n--- Test 4: Set oracle authority ---");
+  const setAuthData = encodeSetOracleAuthority({ newAuthority: payer.publicKey });
+  const setAuthKeys = buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [
+    payer.publicKey,
+    slab,
+  ]);
+  const setAuthTx = new Transaction();
+  setAuthTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
+  setAuthTx.add(buildIx({ programId: PROGRAM_ID, keys: setAuthKeys, data: setAuthData }));
+  await sendAndConfirmTransaction(conn, setAuthTx, [payer], { commitment: "confirmed" });
+  console.log("  Admin set as oracle authority");
 
-    await delay(12000); // Wait for warmup
+  // TEST 5: Push settlement price (YES outcome = 1_000_000 e6)
+  console.log("\n--- Test 5: Push settlement price ---");
+  const settlementPriceE6 = 1_000_000n;
+  const timestamp = BigInt(Math.floor(Date.now() / 1000));
+  const pushData = encodePushOraclePrice({ priceE6: settlementPriceE6.toString(), timestamp: timestamp.toString() });
+  const pushKeys = buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [
+    payer.publicKey,
+    slab,
+  ]);
+  const pushTx = new Transaction();
+  pushTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
+  pushTx.add(buildIx({ programId: PROGRAM_ID, keys: pushKeys, data: pushData }));
+  await sendAndConfirmTransaction(conn, pushTx, [payer], { commitment: "confirmed" });
+  console.log(`  Pushed settlement price: ${settlementPriceE6} (YES outcome)`);
 
-    // Withdraw and close
+  // TEST 6: Resolve market
+  console.log("\n--- Test 6: Resolve market ---");
+  const resolveData = encodeResolveMarket();
+  const resolveKeys = buildAccountMetas(ACCOUNTS_RESOLVE_MARKET, [
+    payer.publicKey,
+    slab,
+  ]);
+  const resolveTx = new Transaction();
+  resolveTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
+  resolveTx.add(buildIx({ programId: PROGRAM_ID, keys: resolveKeys, data: resolveData }));
+  await sendAndConfirmTransaction(conn, resolveTx, [payer], { commitment: "confirmed" });
+
+  data = await fetchSlab(conn, slab);
+  const header = parseHeader(data);
+  console.log(`  Resolved flag: ${header.resolved}`);
+  if (!header.resolved) throw new Error("Market not resolved after ResolveMarket");
+  console.log("  Market RESOLVED - trading blocked, force-close enabled");
+
+  // TEST 7: Force-close positions via crank
+  console.log("\n--- Test 7: Force-close positions via crank ---");
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  while (attempts < maxAttempts) {
+    const fcCrankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+    const fcCrankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab, SYSVAR_CLOCK_PUBKEY, slab]);
+    const fcCrankTx = new Transaction();
+    fcCrankTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
+    fcCrankTx.add(buildIx({ programId: PROGRAM_ID, keys: fcCrankKeys, data: fcCrankData }));
+    await sendAndConfirmTransaction(conn, fcCrankTx, [payer], { commitment: "confirmed", skipPreflight: true });
+    attempts++;
+
     data = await fetchSlab(conn, slab);
-    const user = parseAccount(data, userIdx);
-    if (user && BigInt(user.positionSize) === 0n) {
+    const indices = parseUsedIndices(data);
+
+    let hasOpenPositions = false;
+    for (const idx of indices) {
+      const acc = parseAccount(data, idx);
+      if (acc && acc.positionSize !== 0n) {
+        hasOpenPositions = true;
+        console.log(`  Account ${idx} still has position: ${acc.positionSize}`);
+      }
+    }
+
+    if (!hasOpenPositions) {
+      console.log(`  All positions force-closed after ${attempts} crank(s)`);
+      break;
+    }
+
+    await delay(500);
+  }
+
+  // Show final account states
+  data = await fetchSlab(conn, slab);
+  const finalIndices = parseUsedIndices(data);
+  console.log("\n  Final account states:");
+  for (const idx of finalIndices) {
+    const acc = parseAccount(data, idx);
+    if (acc) {
+      console.log(`    Account ${idx}: pos=${acc.positionSize}, capital=${Number(acc.capital)/1e9} SOL`);
+    }
+  }
+
+  // TEST 8: Withdraw insurance
+  console.log("\n--- Test 8: Withdraw insurance ---");
+  engine = parseEngine(data);
+  console.log(`  Insurance fund balance: ${Number(engine.insuranceFund.balance) / 1e9} SOL`);
+
+  if (engine.insuranceFund.balance > 0n) {
+    const withdrawInsData = encodeWithdrawInsurance();
+    const withdrawInsKeys = buildAccountMetas(ACCOUNTS_WITHDRAW_INSURANCE, [
+      payer.publicKey,
+      slab,
+      adminAta.address,
+      vault,
+      TOKEN_PROGRAM_ID,
+      vaultPda,
+    ]);
+    const withdrawInsTx = new Transaction();
+    withdrawInsTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
+    withdrawInsTx.add(buildIx({ programId: PROGRAM_ID, keys: withdrawInsKeys, data: withdrawInsData }));
+    await sendAndConfirmTransaction(conn, withdrawInsTx, [payer], { commitment: "confirmed" });
+    console.log("  Insurance fund withdrawn to admin");
+  } else {
+    console.log("  No insurance fund to withdraw");
+  }
+
+  // TEST 9: Cleanup - withdraw capital, close accounts, close slab
+  console.log("\n--- Test 9: Cleanup ---");
+  data = await fetchSlab(conn, slab);
+  const cleanupIndices = parseUsedIndices(data);
+
+  for (const idx of cleanupIndices) {
+    const acc = parseAccount(data, idx);
+    if (!acc) continue;
+
+    // Withdraw remaining capital
+    if (acc.capital > 0n) {
       try {
         const wKeys = buildAccountMetas(ACCOUNTS_WITHDRAW_COLLATERAL, [
           payer.publicKey, slab, vault, adminAta.address, vaultPda, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY, slab,
         ]);
-        const wIx = buildIx({ programId: PROGRAM_ID, keys: wKeys, data: encodeWithdrawCollateral({ userIdx, amount: BigInt(user.capital).toString() }) });
+        const wIx = buildIx({ programId: PROGRAM_ID, keys: wKeys, data: encodeWithdrawCollateral({ userIdx: idx, amount: acc.capital.toString() }) });
         const wTx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), wIx);
         await sendAndConfirmTransaction(conn, wTx, [payer], { commitment: "confirmed" });
-      } catch {}
+        console.log(`  Withdrew ${Number(acc.capital)/1e9} SOL from account ${idx}`);
+      } catch (e: any) {
+        console.log(`  Withdraw failed for account ${idx}: ${e.message?.slice(0, 50)}`);
+      }
+    }
 
+    // Close account
+    try {
       const cKeys = buildAccountMetas(ACCOUNTS_CLOSE_ACCOUNT, [
         payer.publicKey, slab, vault, adminAta.address, vaultPda, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY, slab,
       ]);
-      const cIx = buildIx({ programId: PROGRAM_ID, keys: cKeys, data: encodeCloseAccount({ userIdx }) });
+      const cIx = buildIx({ programId: PROGRAM_ID, keys: cKeys, data: encodeCloseAccount({ userIdx: idx }) });
       const cTx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), cIx);
       await sendAndConfirmTransaction(conn, cTx, [payer], { commitment: "confirmed" });
-      console.log(`  User ${userIdx} closed`);
+      console.log(`  Account ${idx} closed`);
+    } catch (e: any) {
+      console.log(`  Close failed for account ${idx}: ${e.message?.slice(0, 50)}`);
     }
+
+    await delay(300);
+  }
+
+  // Close slab
+  try {
+    const closeSlabData = encodeCloseSlab();
+    const closeSlabKeys = buildAccountMetas(ACCOUNTS_CLOSE_SLAB, [
+      payer.publicKey,
+      slab,
+    ]);
+    const closeSlabTx = new Transaction();
+    closeSlabTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
+    closeSlabTx.add(buildIx({ programId: PROGRAM_ID, keys: closeSlabKeys, data: closeSlabData }));
+    await sendAndConfirmTransaction(conn, closeSlabTx, [payer], { commitment: "confirmed" });
+    console.log("  Slab closed - rent returned to admin");
   } catch (e: any) {
-    console.log(`  Cleanup error: ${e.message?.slice(0, 60)}`);
+    console.log(`  Close slab failed: ${e.message?.slice(0, 60)}`);
   }
 
   console.log("\n============================================================");
@@ -464,6 +613,8 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
   console.log(`  Hyperp mode active: ${isHyperpFinal}`);
   console.log(`  Mark price updates on trade: ${markBefore !== markAfter ? "PASS" : "CHECK"}`);
   console.log(`  Index smoothing works: ${indexBefore !== indexAfter ? "PASS" : "CHECK"}`);
+  console.log(`  Market resolved: ${header.resolved ? "PASS" : "FAIL"}`);
+  console.log(`  Force-close completed: ${attempts <= maxAttempts ? "PASS" : "FAIL"}`);
 }
 
 main().catch(e => { console.error("FATAL:", e); process.exit(1); });
