@@ -73,13 +73,13 @@ import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
 import { fetchSlab, parseHeader, parseConfig, parseEngine, parseUsedIndices, parseAccount, AccountKind } from "../src/solana/slab.js";
 import { buildIx } from "../src/runtime/tx.js";
 
-// Program IDs (same as main market)
+// Program IDs
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
-const MATCHER_CTX_SIZE = 320;
 const SLAB_SIZE = 992560;
+const MATCHER_CTX_SIZE = 320;
 
-const conn = new Connection("https://api.devnet.solana.com", "confirmed");
+const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
 const payer = Keypair.fromSecretKey(
   Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
 );
@@ -94,46 +94,12 @@ async function main() {
 
   const mint = NATIVE_MINT;
 
-  // Check if hyperp-market.json already exists
   let slab: Keypair;
   let vault: PublicKey;
   let vaultPda: PublicKey;
-  let matcherCtx: Keypair;
-  let lpPda: PublicKey;
   let lpIdx: number;
-  let needsSetup = true;
 
-  if (fs.existsSync("hyperp-market.json")) {
-    const info = JSON.parse(fs.readFileSync("hyperp-market.json", "utf-8"));
-    slab = Keypair.generate(); // Dummy, we'll use the pubkey from file
-    const slabPubkey = new PublicKey(info.slab);
-
-    // Check if market is initialized
-    const slabInfo = await conn.getAccountInfo(slabPubkey);
-    if (slabInfo && slabInfo.data.length > 0) {
-      console.log("  Using existing Hyperp market from hyperp-market.json");
-      needsSetup = false;
-      vault = new PublicKey(info.vault);
-      vaultPda = new PublicKey(info.vaultPda);
-      matcherCtx = Keypair.generate(); // Dummy
-      lpPda = new PublicKey(info.lp.pda);
-      lpIdx = info.lp.index;
-
-      // Read current state
-      const data = await fetchSlab(conn, slabPubkey);
-      const config = parseConfig(data);
-      const engine = parseEngine(data);
-      console.log(`  Mark price (authority_price_e6): ${config.authorityPriceE6}`);
-      console.log(`  Index price (last_effective_price_e6): ${config.lastEffectivePriceE6}`);
-      console.log(`  Is Hyperp: ${config.indexFeedId === "0".repeat(64)}`);
-
-      // Run tests on existing market
-      await runTests(slabPubkey, vault, vaultPda, lpPda, lpIdx, new PublicKey(info.lp.matcherContext));
-      return;
-    }
-  }
-
-  // Create new Hyperp market
+  // Always create a fresh market for clean test
   console.log("\n--- Creating Hyperp Market ---");
 
   // Create slab account
@@ -207,37 +173,6 @@ async function main() {
   await sendAndConfirmTransaction(conn, initTx, [payer], { commitment: "confirmed" });
   console.log("  Hyperp market initialized");
 
-  // Create matcher context for LP
-  matcherCtx = Keypair.generate();
-  const matcherRent = await conn.getMinimumBalanceForRentExemption(MATCHER_CTX_SIZE);
-  const createMatcherTx = new Transaction();
-  createMatcherTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
-  createMatcherTx.add(SystemProgram.createAccount({
-    fromPubkey: payer.publicKey,
-    newAccountPubkey: matcherCtx.publicKey,
-    lamports: matcherRent,
-    space: MATCHER_CTX_SIZE,
-    programId: MATCHER_PROGRAM_ID,
-  }));
-  await sendAndConfirmTransaction(conn, createMatcherTx, [payer, matcherCtx], { commitment: "confirmed" });
-
-  // Derive LP PDA for matcher init (need lpIdx=0 since we're creating first LP)
-  const [lpPdaForInit] = deriveLpPda(PROGRAM_ID, slab.publicKey, 0);
-
-  // Initialize matcher context with matcher program
-  const initMatcherTx = new Transaction();
-  initMatcherTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
-  initMatcherTx.add({
-    programId: MATCHER_PROGRAM_ID,
-    keys: [
-      { pubkey: lpPdaForInit, isSigner: false, isWritable: false },
-      { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
-    ],
-    data: Buffer.from([1]),  // Init instruction
-  });
-  await sendAndConfirmTransaction(conn, initMatcherTx, [payer], { commitment: "confirmed" });
-  console.log("  Matcher context initialized");
-
   // Run initial crank (use slab pubkey as dummy oracle in Hyperp mode)
   const crankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
   const crankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
@@ -257,21 +192,35 @@ async function main() {
   wrapTx.add(SystemProgram.transfer({
     fromPubkey: payer.publicKey,
     toPubkey: adminAta.address,
-    lamports: 3 * LAMPORTS_PER_SOL,
+    lamports: Math.floor(0.5 * LAMPORTS_PER_SOL),
   }));
   wrapTx.add({ programId: TOKEN_PROGRAM_ID, keys: [{ pubkey: adminAta.address, isSigner: false, isWritable: true }], data: Buffer.from([17]) });
   await sendAndConfirmTransaction(conn, wrapTx, [payer], { commitment: "confirmed" });
 
   // Top up insurance
-  const insData = encodeTopUpInsurance({ amount: (LAMPORTS_PER_SOL / 2).toString() });
+  const insData = encodeTopUpInsurance({ amount: Math.floor(0.05 * LAMPORTS_PER_SOL).toString() });
   const insKeys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [payer.publicKey, slab.publicKey, adminAta.address, vault, TOKEN_PROGRAM_ID]);
   const insTx = new Transaction();
   insTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
   insTx.add(buildIx({ programId: PROGRAM_ID, keys: insKeys, data: insData }));
   await sendAndConfirmTransaction(conn, insTx, [payer], { commitment: "confirmed" });
 
-  // Create LP
-  [lpPda] = deriveLpPda(PROGRAM_ID, slab.publicKey, 0);
+  // Create matcher context account (320 bytes, owned by matcher program)
+  const matcherCtx = Keypair.generate();
+  const matcherRent = await conn.getMinimumBalanceForRentExemption(MATCHER_CTX_SIZE);
+  const createMatcherTx = new Transaction();
+  createMatcherTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
+  createMatcherTx.add(SystemProgram.createAccount({
+    fromPubkey: payer.publicKey,
+    newAccountPubkey: matcherCtx.publicKey,
+    lamports: matcherRent,
+    space: MATCHER_CTX_SIZE,
+    programId: MATCHER_PROGRAM_ID,
+  }));
+  await sendAndConfirmTransaction(conn, createMatcherTx, [payer, matcherCtx], { commitment: "confirmed" });
+  console.log(`  Matcher context: ${matcherCtx.publicKey.toBase58()}`);
+
+  // Create LP with matcher program
   const initLpData = encodeInitLP({
     matcherProgram: MATCHER_PROGRAM_ID,
     matcherContext: matcherCtx.publicKey,
@@ -294,8 +243,41 @@ async function main() {
     }
   }
 
+  // Derive LP PDA (needed for matcher init and TradeCpi)
+  const [lpPda] = deriveLpPda(PROGRAM_ID, slab.publicKey, lpIdx);
+  console.log(`  LP index: ${lpIdx}, LP PDA: ${lpPda.toBase58()}`);
+
+  // Initialize matcher with tag=2 (VAMM), Passive kind
+  // Layout: [tag(1), kind(1), trading_fee_bps(4), base_spread_bps(4), max_total_bps(4),
+  //          impact_k_bps(4), liquidity_notional_e6(16), max_fill_abs(16), max_inventory_abs(16)]
+  const matcherInitData = Buffer.alloc(66);
+  matcherInitData[0] = 2;  // MATCHER_INIT_VAMM_TAG
+  matcherInitData[1] = 0;  // kind = Passive
+  matcherInitData.writeUInt32LE(5, 2);    // trading_fee_bps = 5
+  matcherInitData.writeUInt32LE(50, 6);   // base_spread_bps = 50
+  matcherInitData.writeUInt32LE(200, 10); // max_total_bps = 200
+  matcherInitData.writeUInt32LE(0, 14);   // impact_k_bps = 0 (passive)
+  // liquidity_notional_e6 = 0 (u128 LE at offset 18, passive allows 0)
+  // max_fill_abs = 1_000_000_000 (u128 LE at offset 34)
+  matcherInitData.writeBigUInt64LE(1_000_000_000n, 34);
+  // max_inventory_abs = 0 (u128 LE at offset 50, no limit)
+
+  const matcherInitIx = {
+    programId: MATCHER_PROGRAM_ID,
+    keys: [
+      { pubkey: lpPda, isSigner: false, isWritable: false },
+      { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
+    ],
+    data: matcherInitData,
+  };
+  const matcherInitTx = new Transaction();
+  matcherInitTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
+  matcherInitTx.add(matcherInitIx);
+  await sendAndConfirmTransaction(conn, matcherInitTx, [payer], { commitment: "confirmed" });
+  console.log("  Matcher initialized (Passive, fee=5bps, spread=50bps)");
+
   // Deposit to LP
-  const lpDepData = encodeDepositCollateral({ userIdx: lpIdx, amount: (LAMPORTS_PER_SOL / 2).toString() });
+  const lpDepData = encodeDepositCollateral({ userIdx: lpIdx, amount: Math.floor(0.1 * LAMPORTS_PER_SOL).toString() });
   const lpDepKeys = buildAccountMetas(ACCOUNTS_DEPOSIT_COLLATERAL, [payer.publicKey, slab.publicKey, adminAta.address, vault, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]);
   const lpDepTx = new Transaction();
   lpDepTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
@@ -304,32 +286,10 @@ async function main() {
 
   console.log("  LP created and funded");
 
-  // Save market info
-  const marketInfo = {
-    network: "devnet",
-    mode: "hyperp",
-    createdAt: new Date().toISOString(),
-    programId: PROGRAM_ID.toBase58(),
-    matcherProgramId: MATCHER_PROGRAM_ID.toBase58(),
-    slab: slab.publicKey.toBase58(),
-    mint: mint.toBase58(),
-    vault: vault.toBase58(),
-    vaultPda: vaultPda.toBase58(),
-    initialMarkPrice: Number(INITIAL_MARK_PRICE),
-    lp: {
-      index: lpIdx,
-      pda: lpPda.toBase58(),
-      matcherContext: matcherCtx.publicKey.toBase58(),
-    },
-    admin: payer.publicKey.toBase58(),
-  };
-  fs.writeFileSync("hyperp-market.json", JSON.stringify(marketInfo, null, 2));
-  console.log("  Market info saved to hyperp-market.json");
-
-  await runTests(slab.publicKey, vault, vaultPda, lpPda, lpIdx, matcherCtx.publicKey);
+  await runTests(slab.publicKey, vault, vaultPda, lpIdx, matcherCtx.publicKey, lpPda);
 }
 
-async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, lpPda: PublicKey, lpIdx: number, matcherCtx: PublicKey) {
+async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, lpIdx: number, matcherCtx: PublicKey, lpPda: PublicKey) {
   console.log("\n--- Running Hyperp Tests ---");
 
   const mint = NATIVE_MINT;
@@ -377,18 +337,34 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
   depTx.add(buildIx({ programId: PROGRAM_ID, keys: depKeys, data: depData }));
   await sendAndConfirmTransaction(conn, depTx, [payer], { commitment: "confirmed" });
 
+  // Crank before trading (ensures crank is fresh)
+  {
+    const preCrankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+    const preCrankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab, SYSVAR_CLOCK_PUBKEY, slab]);
+    const preCrankTx = new Transaction();
+    preCrankTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
+    preCrankTx.add(buildIx({ programId: PROGRAM_ID, keys: preCrankKeys, data: preCrankData }));
+    await sendAndConfirmTransaction(conn, preCrankTx, [payer], { commitment: "confirmed", skipPreflight: true });
+  }
+
   // Record mark price before trade
   data = await fetchSlab(conn, slab);
   config = parseConfig(data);
   const markBefore = config.authorityPriceE6;
   console.log(`  Mark before trade: ${markBefore}`);
 
-  // Execute trade
+  // Execute trade (TradeCpi - required for Hyperp mode, goes through matcher)
   const tradeSize = 1_000_000_000n; // 1B size
   const tradeData = encodeTradeCpi({ lpIdx, userIdx, size: tradeSize.toString() });
   const tradeKeys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
-    payer.publicKey, payer.publicKey, slab, SYSVAR_CLOCK_PUBKEY, slab, // slab as dummy oracle
-    MATCHER_PROGRAM_ID, matcherCtx, lpPda,
+    payer.publicKey,      // user (trader owner)
+    payer.publicKey,      // lpOwner (LP owner, non-signer in CPI mode)
+    slab,
+    SYSVAR_CLOCK_PUBKEY,
+    slab,                 // Oracle = slab for Hyperp mode
+    MATCHER_PROGRAM_ID,
+    matcherCtx,
+    lpPda,
   ]);
   const tradeTx = new Transaction();
   tradeTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 500000 }));
