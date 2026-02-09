@@ -4,15 +4,21 @@ A perpetual market with no admin key, no governance, and no way to change its pa
 
 **Verify the claim:**
 
+| What | Address | Solscan |
+|------|---------|---------|
+| Market (adminless slab) | `75h2kF58m3ms77c8WwzQh6h4iT2XMA1F5Mk13FZ6CCUs` | [view](https://solscan.io/account/75h2kF58m3ms77c8WwzQh6h4iT2XMA1F5Mk13FZ6CCUs?cluster=devnet) |
+| Credibility Matcher (verified, immutable) | `3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2` | [view](https://solscan.io/account/3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2?cluster=devnet) |
+
 ```bash
-solana account <SLAB_PUBKEY> --url devnet --output json
+solana account 75h2kF58m3ms77c8WwzQh6h4iT2XMA1F5Mk13FZ6CCUs --url devnet --output json
 # Bytes 16-48 are the admin key. After burn: all zeros (system program). No private key exists.
 ```
 
 **What you can check on-chain:**
-1. Admin key is the system program -- no entity can modify fees, risk params, or withdraw insurance.
+1. Admin key is the system program -- no entity can modify fees, risk params, or withdraw insurance. [Solscan](https://solscan.io/account/75h2kF58m3ms77c8WwzQh6h4iT2XMA1F5Mk13FZ6CCUs?cluster=devnet)
 2. Insurance fund grows with every trade and cannot be extracted.
 3. Spreads tighten automatically as the insurance/OI ratio increases. [See the math.](matcher/credibility/src/lib.rs#L203-L241)
+4. Credibility matcher build is verified and upgrade authority is burned. [Solscan](https://solscan.io/account/3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2?cluster=devnet)
 
 ---
 
@@ -34,18 +40,30 @@ After `burn-admin`, the slab admin key (bytes 16-48) is set to the system progra
 
 The on-chain programs are **not part of this repository**. They are deployed by the Percolator team:
 
-| Program | ID | Upgrade Authority | Immutable? |
-|---|---|---|---|
-| percolator-prog | `2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp` | `A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK` | **No** |
-| percolator-match | `4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy` | `A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK` | **No** |
+| Program | ID | Upgrade Authority | Immutable? | Solscan |
+|---|---|---|---|---|
+| percolator-prog | `2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp` | `A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK` | **No** | [view](https://solscan.io/account/2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp?cluster=devnet) |
+| percolator-match | `4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy` | `A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK` | **No** | [view](https://solscan.io/account/4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy?cluster=devnet) |
+| **credibility-matcher** | `3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2` | **none** (burned) | **Yes** | [view](https://solscan.io/account/3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2?cluster=devnet) |
 
-Both programs are upgradeable by a single keypair. A program upgrade could redefine what every instruction does, including ignoring the burned admin check.
+The Percolator programs (`percolator-prog`, `percolator-match`) are upgradeable by a single keypair. A program upgrade could redefine what every instruction does, including ignoring the burned admin check.
+
+The `credibility-matcher` is **ours**. Its build is [verified on-chain](https://solscan.io/account/3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2?cluster=devnet) and its upgrade authority has been permanently burned. No one -- including us -- can change it.
 
 The "adminless market" guarantee is **only as strong as the assumption that the underlying programs won't be maliciously upgraded**. For full trustlessness: verified builds, burned upgrade authority, or multisig.
 
 ```bash
-# Verify yourself
+# Verify the Percolator programs yourself
 solana program show 2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp --url devnet
+
+# Verify our matcher: build is verified, authority is "none"
+solana program show 3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2 --url devnet
+
+# Reproduce the build and compare hashes
+solana-verify verify-from-repo --url devnet \
+  --program-id 3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2 \
+  https://github.com/millw14/provenance \
+  --mount-path matcher/credibility
 ```
 
 ## How to verify the market has no admin

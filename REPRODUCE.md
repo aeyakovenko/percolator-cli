@@ -134,6 +134,25 @@ cd ui && npm install && npm run dev
 
 Open `http://localhost:5173/?slab=<SLAB_PUBKEY>`.
 
+## Verify on Solscan
+
+| What | Address | Solscan |
+|------|---------|---------|
+| Market (adminless slab) | `75h2kF58m3ms77c8WwzQh6h4iT2XMA1F5Mk13FZ6CCUs` | [view](https://solscan.io/account/75h2kF58m3ms77c8WwzQh6h4iT2XMA1F5Mk13FZ6CCUs?cluster=devnet) |
+| Credibility Matcher (verified build, immutable) | `3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2` | [view](https://solscan.io/account/3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2?cluster=devnet) |
+| percolator-prog | `2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp` | [view](https://solscan.io/account/2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp?cluster=devnet) |
+| percolator-match | `4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy` | [view](https://solscan.io/account/4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy?cluster=devnet) |
+
+Reproduce the matcher build independently:
+
+```bash
+solana-verify verify-from-repo --url devnet \
+  --program-id 3Yg6brhpvLt7enU4rzvMkzexCexA1LFfAQqT3CSmGAH2 \
+  https://github.com/millw14/provenance \
+  --mount-path matcher/credibility
+# Expected: Program hash matches ✅
+```
+
 ## What you just proved
 
 1. The market was created and its admin key was burned in one sequence.
@@ -141,5 +160,6 @@ Open `http://localhost:5173/?slab=<SLAB_PUBKEY>`.
 3. Trading generates fees that flow irreversibly into the insurance fund.
 4. The insurance fund cannot be withdrawn.
 5. The market operates without admin intervention.
+6. The credibility matcher build is verified and its upgrade authority is permanently burned.
 
 The insurance fund balance is the market's reputation. It grows with volume. It can never be taken out.
