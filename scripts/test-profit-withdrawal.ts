@@ -84,7 +84,7 @@ async function tryWithdraw(userIdx: number, amount: bigint): Promise<{ success: 
       vaultPda,
       TOKEN_PROGRAM_ID,
       SYSVAR_CLOCK_PUBKEY,
-      config.indexFeedId,
+      ORACLE,
     ]);
 
     const ix = buildIx({

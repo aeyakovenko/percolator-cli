@@ -1,19 +1,247 @@
 .root {
   display: flex;
   flex-direction: column;
+  gap: 1.5rem;
+}
+
+.heading {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #e5e5e5;
+  margin: 0;
+}
+
+/* Connect prompt */
+.connectPrompt {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 40vh;
+  min-height: 30vh;
+  gap: 0.5rem;
+  color: #525252;
+  font-size: 0.875rem;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: #333;
+}
+
+/* Init section */
+.initSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  color: #737373;
+  font-size: 0.875rem;
+}
+
+/* Account status bar */
+.accountBar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
 }
 
-.statement {
-  font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
-  font-size: 0.875rem;
-  color: #525252;
+/* Tier + Spread info bar */
+.tierBar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid;
+  border-radius: 4px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+  color: #737373;
 }
 
-.detail {
+.tierName {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 0.8125rem;
+}
+
+/* Panels */
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: #111111;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+}
+
+.panelTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #a3a3a3;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Input rows */
+.inputRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input {
+  flex: 1;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  border-radius: 4px;
+  color: #e5e5e5;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.8125rem;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: #404040;
+}
+
+.input::placeholder {
+  color: #333;
+}
+
+/* Buttons */
+.primaryBtn {
+  background: #1a1a1a;
+  color: #e5e5e5;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.primaryBtn:hover {
+  background: #262626;
+  border-color: #404040;
+}
+
+.actionBtn {
+  composes: primaryBtn;
+  background: #0a1a0a;
+  border-color: #1a3a1a;
+  color: #4ade80;
+}
+
+.actionBtn:hover {
+  background: #0a2a0a;
+  border-color: #22c55e;
+}
+
+.actionBtnSecondary {
+  composes: primaryBtn;
+  background: #1a0a0a;
+  border-color: #3a1a1a;
+  color: #f87171;
+}
+
+.actionBtnSecondary:hover {
+  background: #2a0a0a;
+  border-color: #ef4444;
+}
+
+/* Side toggle */
+.sideToggle {
+  display: flex;
+  gap: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #262626;
+}
+
+.sideBtn {
+  flex: 1;
+  background: #0a0a0a;
+  border: none;
+  color: #525252;
+  font-size: 0.8125rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sideBtn:first-child {
+  border-right: 1px solid #262626;
+}
+
+.sideLong {
+  background: #0a1a0a;
+  color: #4ade80;
+}
+
+.sideShort {
+  background: #1a0a0a;
+  color: #f87171;
+}
+
+/* Estimate */
+.estimate {
+  display: flex;
+  justify-content: space-between;
   font-size: 0.75rem;
-  color: #333333;
+  color: #525252;
+  padding: 0.25rem 0;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+/* Transaction messages */
+.txMsg {
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  margin: 0;
+  text-align: center;
+}
+
+.sending {
+  color: #a3a3a3;
+  background: #111;
+}
+
+.success {
+  color: #4ade80;
+  background: #0a1a0a;
+}
+
+.error {
+  color: #f87171;
+  background: #1a0a0a;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .accountBar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .panels {
+    grid-template-columns: 1fr;
+  }
+
+  .spreadBar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: space-around;
+  }
 }

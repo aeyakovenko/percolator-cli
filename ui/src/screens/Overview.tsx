@@ -2,8 +2,10 @@ import { TimeElapsed } from "../components/TimeElapsed";
 import { StatCard } from "../components/StatCard";
 import { Signal } from "../components/Signal";
 import { lamportsToSol, bpsToPercent, coverageRatio, slotsToHumanDuration, shortAddr } from "../lib/format";
+import { computeTier } from "../lib/tiers";
 import type { SlabSnapshot } from "../hooks/use-slab";
 import { useProgramTrust } from "../hooks/use-program-trust";
+import { useKeeperHealth } from "../hooks/use-keeper-health";
 import styles from "./Overview.module.css";
 
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
@@ -18,19 +20,15 @@ interface OverviewProps {
 export function Overview({ data, rpcUrl }: OverviewProps) {
   const { header, engine, params } = data;
   const { programs } = useProgramTrust(rpcUrl, [PERCOLATOR_PROG, PERCOLATOR_MATCH]);
+  const keeper = useKeeperHealth(data);
 
   const adminBurned = header.admin.toBase58() === SYSTEM_PROGRAM;
   const insuranceBal = engine.insuranceFund.balance;
   const feeRevenue = engine.insuranceFund.feeRevenue;
   const oi = engine.totalOpenInterest;
-  const keeperStaleness =
-    engine.currentSlot > engine.lastCrankSlot
-      ? engine.currentSlot - engine.lastCrankSlot
-      : 0n;
-  const keeperFresh =
-    keeperStaleness < engine.maxCrankStalenessSlots;
   const haircutSafe = engine.pnlPosTot <= engine.cTot;
   const lossesAbsorbed = feeRevenue > insuranceBal ? feeRevenue - insuranceBal : 0n;
+  const tier = computeTier(insuranceBal, oi);
 
   return (
     <div className={styles.root}>
@@ -45,7 +43,7 @@ export function Overview({ data, rpcUrl }: OverviewProps) {
         <StatCard
           label="Coverage"
           value={coverageRatio(insuranceBal, oi)}
-          sub="insurance / open interest"
+          sub={`Tier: ${tier.name}`}
         />
         <StatCard
           label="Open Interest"
@@ -77,17 +75,40 @@ export function Overview({ data, rpcUrl }: OverviewProps) {
         />
       </div>
 
+      {/* Keeper Health */}
+      {keeper && (
+        <div className={styles.signals}>
+          <h3 className={styles.signalTitle}>Keeper Health</h3>
+          <Signal
+            label={keeper.isFresh ? "Keeper: active" : "Keeper: stale"}
+            healthy={keeper.isFresh}
+            detail={`${slotsToHumanDuration(keeper.staleness)} since last crank`}
+          />
+          <Signal
+            label={keeper.isFresh ? "Trades: enabled" : "Trades: blocked"}
+            healthy={keeper.isFresh}
+            detail={`staleness ${keeper.staleness.toString()} / ${keeper.maxStaleness.toString()} slots`}
+          />
+          <div className={styles.keeperBar}>
+            <div className={styles.keeperBarTrack}>
+              <div
+                className={`${styles.keeperBarFill} ${keeper.isFresh ? styles.keeperFresh : styles.keeperStale}`}
+                style={{ width: `${keeper.healthPct}%` }}
+              />
+            </div>
+            <span className={styles.keeperBarLabel}>
+              {keeper.healthPct.toFixed(0)}% health
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className={styles.signals}>
         <h3 className={styles.signalTitle}>Credibility Signals</h3>
         <Signal
           label="Admin key burned"
           healthy={adminBurned}
           detail={adminBurned ? SYSTEM_PROGRAM.slice(0, 8) + "..." : header.admin.toBase58().slice(0, 8) + "..."}
-        />
-        <Signal
-          label="Keeper active"
-          healthy={keeperFresh}
-          detail={`${slotsToHumanDuration(keeperStaleness)} since last crank`}
         />
         <Signal
           label="No insolvency events"

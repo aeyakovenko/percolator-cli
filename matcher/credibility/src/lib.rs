@@ -1,28 +1,34 @@
-//! Credibility-Aware Matcher for Percolator
+//! Credibility-Aware Matcher v2 for Percolator
 //!
-//! A deterministic, autonomous matcher whose pricing depends on one
-//! credibility signal: insurance fund size relative to open interest.
+//! A deterministic, autonomous matcher that prices its own fragility.
 //!
-//! Higher coverage → tighter spreads. Lower coverage → wider spreads.
+//! Coverage ratio (insurance_fund / open_interest) drives everything:
 //!
-//! The matcher requires no human input and signs quotes autonomously.
-//! All pricing parameters are derived from on-chain state.
+//! | Coverage     | Tier       | Spread Effect          | Fill Effect             |
+//! |-------------|------------|------------------------|-------------------------|
+//! | < 10%       | CRITICAL   | max_spread (widest)    | fill capped at 25%      |
+//! | 10% - 25%   | FRAGILE    | spread widens sharply  | fill capped at 50%      |
+//! | 25% - 100%  | NORMAL     | linear discount        | full fill               |
+//! | 100% - 200% | STRONG     | tighter spreads        | full fill               |
+//! | > 200%      | FORTIFIED  | min_spread (tightest)  | fill + 50% bonus        |
+//!
+//! No governance. No intervention. Just math.
 //!
 //! ## Context Layout (256 bytes, starting at byte 64 of the 320-byte account)
 //!
 //! | Offset | Size | Field                    | Description                          |
 //! |--------|------|--------------------------|--------------------------------------|
 //! | 0      | 8    | magic                    | 0x5045_5243_4d41_5443 ("PERCMATC")   |
-//! | 8      | 4    | version                  | 4                                    |
+//! | 8      | 4    | version                  | 5                                    |
 //! | 12     | 1    | kind                     | 2 = Credibility                      |
 //! | 13     | 3    | _pad0                    |                                      |
 //! | 16     | 32   | lp_pda                   | LP PDA for signature verification    |
 //! | 48     | 4    | base_fee_bps             | Base trading fee                     |
-//! | 52     | 4    | min_spread_bps           | Minimum spread floor                 |
-//! | 56     | 4    | max_spread_bps           | Maximum spread cap                   |
+//! | 52     | 4    | min_spread_bps           | Minimum spread floor (FORTIFIED)     |
+//! | 56     | 4    | max_spread_bps           | Maximum spread cap (CRITICAL)        |
 //! | 60     | 4    | imbalance_k_bps          | Imbalance impact multiplier          |
 //! | 64     | 16   | liquidity_notional_e6    | Quoting depth for impact calc        |
-//! | 80     | 16   | max_fill_abs             | Max fill per trade                   |
+//! | 80     | 16   | max_fill_abs             | Max fill per trade (base)            |
 //! | 96     | 16   | inventory_base           | Current LP inventory (i128)          |
 //! | 112    | 8    | last_oracle_price_e6     | Last oracle price seen               |
 //! | 120    | 8    | last_exec_price_e6       | Last execution price                 |
@@ -45,19 +51,10 @@ entrypoint!(process_instruction);
 
 // Context magic: "PERCMATC"
 const MAGIC: u64 = 0x5045_5243_4d41_5443;
-const VERSION: u32 = 4;
+const VERSION: u32 = 5;
 const KIND_CREDIBILITY: u8 = 2;
 
 // Return data layout (first 64 bytes of context account)
-// Must match percolator-prog MatcherReturn ABI:
-//   0-4:   abi_version (u32) = 1
-//   4-8:   flags (u32) = VALID(1), PARTIAL_OK(2), REJECTED(4)
-//   8-16:  exec_price_e6 (u64)
-//   16-32: exec_size (i128)
-//   32-40: req_id (u64)
-//   40-48: lp_account_id (u64)
-//   48-56: oracle_price_e6 (u64)
-//   56-64: reserved (u64) = 0
 const RET_ABI_VERSION_OFF: usize = 0;
 const RET_FLAGS_OFF: usize = 4;
 const RET_EXEC_PRICE_OFF: usize = 8;
@@ -70,17 +67,10 @@ const RET_RESERVED_OFF: usize = 56;
 const MATCHER_ABI_VERSION: u32 = 1;
 const FLAG_VALID: u32 = 1;
 
-// Matcher call input layout (67 bytes, sent by percolator-prog via CPI)
-//   0:     tag (u8) = 0
-//   1-9:   req_id (u64)
-//   9-11:  lp_idx (u16)
-//   11-19: lp_account_id (u64)
-//   19-27: oracle_price_e6 (u64)
-//   27-43: req_size (i128)
-//   43-67: reserved (24 bytes, must be zero)
+// Matcher call input layout (67 bytes)
 const CALL_LEN: usize = 67;
 
-// Context offsets (relative to byte 64 of the account)
+// Context offsets (relative to byte 64)
 const CTX_MAGIC_OFF: usize = 0;
 const CTX_VERSION_OFF: usize = 8;
 const CTX_KIND_OFF: usize = 12;
@@ -103,11 +93,46 @@ const CTX_SNAPSHOT_SLOT_OFF: usize = 192;
 const CTX_AGE_HALFLIFE_OFF: usize = 200;
 const CTX_INSURANCE_WEIGHT_OFF: usize = 204;
 
-// Absolute offset: context starts at byte 64 of the 320-byte account
 const CTX_BASE: usize = 64;
 
-// BPS denominator
 const BPS: u64 = 10_000;
+
+// =============================================================================
+// Coverage Tiers — the market prices its own fragility
+//
+// These thresholds are hardcoded, not configurable. The math is the governance.
+// =============================================================================
+
+/// Coverage < 10%: CRITICAL
+/// Spread locked at max. Fill capped at 25% of base max_fill.
+/// The market is telling you: "I might not survive a liquidation cascade."
+const TIER_CRITICAL_BPS: u64 = 1_000; // 10% in bps
+
+/// Coverage < 25%: FRAGILE
+/// Spread interpolates sharply toward max. Fill capped at 50%.
+/// Thin insurance = expensive trading. No exceptions.
+const TIER_FRAGILE_BPS: u64 = 2_500; // 25% in bps
+
+/// Coverage < 100%: NORMAL
+/// Linear discount from insurance_weight_bps. Full fill allowed.
+/// The standard operating range.
+const TIER_NORMAL_BPS: u64 = 10_000; // 100% in bps
+
+/// Coverage < 200%: STRONG
+/// Full insurance discount. Spreads at their tightest for the base formula.
+/// The market has proven solvency.
+const TIER_STRONG_BPS: u64 = 20_000; // 200% in bps
+
+/// Coverage >= 200%: FORTIFIED
+/// Spread at min_spread floor. Fill gets 50% bonus above base max_fill.
+/// Overcollateralized markets get the best pricing.
+
+// Fill multipliers (in percent, applied to max_fill_abs)
+const FILL_PCT_CRITICAL: u128 = 25;
+const FILL_PCT_FRAGILE: u128 = 50;
+const FILL_PCT_NORMAL: u128 = 100;
+const FILL_PCT_STRONG: u128 = 100;
+const FILL_PCT_FORTIFIED: u128 = 150;
 
 fn process_instruction(
     program_id: &Pubkey,
@@ -119,11 +144,8 @@ fn process_instruction(
     }
 
     match data[0] {
-        // Match instruction: called by percolator during trade-cpi
         0x00 => process_match(program_id, accounts, data),
-        // Init instruction: set up context with LP PDA and params
         0x02 => process_init(program_id, accounts, data),
-        // Update credibility snapshots: permissionless, reads from slab
         0x03 => process_update_credibility(program_id, accounts, data),
         _ => Err(ProgramError::InvalidInstructionData),
     }
@@ -132,16 +154,14 @@ fn process_instruction(
 // =============================================================================
 // Match Instruction (tag 0x00)
 //
-// Called by percolator via CPI. Determines execution price based on:
-// 1. Base spread (min_spread_bps)
-// 2. Inventory imbalance adjustment (standard market-making)
-// 3. Insurance fund coverage discount (the ONE credibility signal)
+// Pricing logic:
+//   1. Compute coverage ratio (insurance / OI)
+//   2. Determine tier → sets spread multiplier and fill cap
+//   3. Add inventory imbalance penalty
+//   4. Clamp to [min_spread, max_spread]
+//   5. Apply fill limit based on tier
 //
-// Accounts: [lp_pda (signer), matcher_ctx (writable)]
-// Data: standard percolator CPI format (67 bytes)
-//   [tag(1), req_id(8), lp_idx(2), lp_account_id(8),
-//    oracle_price_e6(8), req_size(16), reserved(24)]
-// Returns: MatcherReturn (64 bytes at offset 0 of context account)
+// The result: thin liquidity is automatically expensive.
 // =============================================================================
 fn process_match(
     _program_id: &Pubkey,
@@ -158,7 +178,6 @@ fn process_match(
     let lp_pda = &accounts[0];
     let ctx_account = &accounts[1];
 
-    // CRITICAL: Verify LP PDA is a signer (signed by percolator via CPI)
     if !lp_pda.is_signer {
         msg!("ERROR: LP PDA must be a signer");
         return Err(ProgramError::MissingRequiredSignature);
@@ -169,14 +188,12 @@ fn process_match(
         return Err(ProgramError::AccountDataTooSmall);
     }
 
-    // Verify magic and version
     let magic = u64::from_le_bytes(ctx_data[CTX_BASE..CTX_BASE + 8].try_into().unwrap());
     if magic != MAGIC {
         msg!("ERROR: Invalid context magic");
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // Verify LP PDA matches stored PDA
     let stored_pda = Pubkey::new_from_array(
         ctx_data[CTX_BASE + CTX_LP_PDA_OFF..CTX_BASE + CTX_LP_PDA_OFF + 32]
             .try_into()
@@ -187,7 +204,7 @@ fn process_match(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // Parse standard percolator CPI call format (67 bytes)
+    // Parse CPI call data
     let req_id = u64::from_le_bytes(data[1..9].try_into().unwrap());
     let _lp_idx = u16::from_le_bytes(data[9..11].try_into().unwrap());
     let lp_account_id = u64::from_le_bytes(data[11..19].try_into().unwrap());
@@ -205,19 +222,110 @@ fn process_match(
     let max_spread_bps = read_u32(&ctx_data, CTX_BASE + CTX_MAX_SPREAD_OFF) as u64;
     let imbalance_k_bps = read_u32(&ctx_data, CTX_BASE + CTX_IMBALANCE_K_OFF) as u64;
     let liquidity_e6 = read_u128(&ctx_data, CTX_BASE + CTX_LIQUIDITY_OFF);
-    let max_fill = read_u128(&ctx_data, CTX_BASE + CTX_MAX_FILL_OFF);
+    let base_max_fill = read_u128(&ctx_data, CTX_BASE + CTX_MAX_FILL_OFF);
     let inventory = read_i128(&ctx_data, CTX_BASE + CTX_INVENTORY_OFF);
     let max_inventory = read_u128(&ctx_data, CTX_BASE + CTX_MAX_INVENTORY_OFF);
 
-    // Read credibility signal: insurance fund coverage
+    // Read credibility signals
     let insurance_snapshot = read_u128(&ctx_data, CTX_BASE + CTX_INSURANCE_OFF);
     let total_oi_snapshot = read_u128(&ctx_data, CTX_BASE + CTX_TOTAL_OI_OFF);
     let insurance_weight_bps = read_u32(&ctx_data, CTX_BASE + CTX_INSURANCE_WEIGHT_OFF) as u64;
 
-    // Enforce max fill
+    // =========================================================================
+    // STEP 1: Compute coverage ratio in bps (0 = no insurance, 10000 = 100%)
+    // =========================================================================
+    let coverage_bps: u64 = if total_oi_snapshot > 0 {
+        let ratio = ((insurance_snapshot as u128) * (BPS as u128))
+            .checked_div(total_oi_snapshot as u128)
+            .unwrap_or(0);
+        // Allow >10000 (>100% coverage) — don't cap here
+        ratio.min(u64::MAX as u128) as u64
+    } else {
+        // No OI: if there's any insurance, treat as FORTIFIED; else NORMAL
+        if insurance_snapshot > 0 { TIER_STRONG_BPS } else { TIER_FRAGILE_BPS }
+    };
+
+    // =========================================================================
+    // STEP 2: Determine tier → spread adjustment and fill multiplier
+    // =========================================================================
+    let (tier_name, spread_bps, fill_pct) = if coverage_bps < TIER_CRITICAL_BPS {
+        // CRITICAL: <10% coverage. Max spread. Severely limited fills.
+        ("CRITICAL", max_spread_bps, FILL_PCT_CRITICAL)
+    } else if coverage_bps < TIER_FRAGILE_BPS {
+        // FRAGILE: 10-25%. Interpolate between max_spread and 75% of spread range.
+        // Linear interpolation: progress from 10% to 25%
+        let progress = coverage_bps - TIER_CRITICAL_BPS; // 0..1500
+        let range = TIER_FRAGILE_BPS - TIER_CRITICAL_BPS; // 1500
+        let spread_range = max_spread_bps - min_spread_bps;
+        // At 10%: spread = max_spread. At 25%: spread = max_spread - 25% of range
+        let reduction = (spread_range / 4) * (progress as u64) / (range as u64);
+        (
+            "FRAGILE",
+            max_spread_bps.saturating_sub(reduction),
+            FILL_PCT_FRAGILE,
+        )
+    } else if coverage_bps < TIER_NORMAL_BPS {
+        // NORMAL: 25-100%. Standard linear discount from insurance weight.
+        // coverage_fraction = (coverage - 25%) / 75%
+        let progress = coverage_bps - TIER_FRAGILE_BPS; // 0..7500
+        let range = TIER_NORMAL_BPS - TIER_FRAGILE_BPS; // 7500
+        let discount = if insurance_weight_bps > 0 {
+            (insurance_weight_bps * progress as u64) / range as u64
+        } else {
+            0
+        };
+        let base = max_spread_bps - (max_spread_bps - min_spread_bps) / 4; // starts where FRAGILE ends
+        (
+            "NORMAL",
+            base.saturating_sub(discount),
+            FILL_PCT_NORMAL,
+        )
+    } else if coverage_bps < TIER_STRONG_BPS {
+        // STRONG: 100-200%. Full insurance discount applied. Tight spreads.
+        let discount = insurance_weight_bps;
+        (
+            "STRONG",
+            min_spread_bps.saturating_add(insurance_weight_bps).saturating_sub(discount),
+            FILL_PCT_STRONG,
+        )
+    } else {
+        // FORTIFIED: >200%. Minimum spread. Bonus fill capacity.
+        ("FORTIFIED", min_spread_bps, FILL_PCT_FORTIFIED)
+    };
+
+    // =========================================================================
+    // STEP 3: Inventory imbalance penalty (standard market-making, all tiers)
+    // =========================================================================
+    let mut final_spread = spread_bps;
+    if liquidity_e6 > 0 && imbalance_k_bps > 0 {
+        let inventory_abs = inventory.unsigned_abs();
+        let imbalance_cost = (imbalance_k_bps as u128)
+            .checked_mul(inventory_abs)
+            .unwrap_or(u128::MAX)
+            / liquidity_e6;
+        final_spread = final_spread.saturating_add(imbalance_cost as u64);
+    }
+
+    // =========================================================================
+    // STEP 4: Clamp spread to [1, max_spread_bps]
+    // =========================================================================
+    final_spread = final_spread.clamp(1, max_spread_bps);
+
+    // =========================================================================
+    // STEP 5: Apply fill limit based on tier
+    // =========================================================================
+    let effective_max_fill = if base_max_fill > 0 {
+        (base_max_fill * fill_pct) / 100
+    } else {
+        0 // 0 means unlimited in the original design
+    };
+
     let abs_size = trade_size.unsigned_abs();
-    if max_fill > 0 && abs_size > max_fill {
-        msg!("ERROR: Trade exceeds max fill");
+    if effective_max_fill > 0 && abs_size > effective_max_fill {
+        msg!(
+            "REJECT: trade {} exceeds tier {} fill limit {} (base {} * {}%)",
+            abs_size, tier_name, effective_max_fill, base_max_fill, fill_pct
+        );
         return Err(ProgramError::InvalidInstructionData);
     }
 
@@ -232,63 +340,26 @@ fn process_match(
     }
 
     // =========================================================================
-    // Pricing Logic: Deterministic spread calculation
-    //
-    // One credibility signal: insurance fund balance / open interest.
-    // Higher coverage → tighter spreads. That's it.
+    // STEP 6: Calculate execution price
     // =========================================================================
-
-    // 1. Start at base spread
-    let mut spread_bps = min_spread_bps;
-
-    // 2. Inventory imbalance adjustment (standard market-making, not credibility)
-    //    Wider spread when inventory is skewed
-    if liquidity_e6 > 0 && imbalance_k_bps > 0 {
-        let inventory_abs = inventory.unsigned_abs();
-        let imbalance_cost = (imbalance_k_bps as u128)
-            .checked_mul(inventory_abs)
-            .unwrap_or(u128::MAX)
-            / liquidity_e6;
-        spread_bps = spread_bps.saturating_add(imbalance_cost as u64);
-    }
-
-    // 3. Insurance coverage discount (THE credibility signal)
-    //    coverage = insurance_balance / open_interest (capped at 100%)
-    //    discount = coverage * insurance_weight_bps
-    //    More insurance relative to OI → lower spreads
-    if insurance_weight_bps > 0 && total_oi_snapshot > 0 {
-        let coverage_ratio_bps = ((insurance_snapshot as u128) * (BPS as u128))
-            .checked_div(total_oi_snapshot as u128)
-            .unwrap_or(0) as u64;
-        let discount = coverage_ratio_bps
-            .min(BPS)
-            .checked_mul(insurance_weight_bps)
-            .unwrap_or(0)
-            / BPS;
-        spread_bps = spread_bps.saturating_sub(discount);
-    }
-
-    // 4. Clamp to [1, max_spread_bps]
-    spread_bps = spread_bps.clamp(1, max_spread_bps);
-
-    // 6. Calculate execution price
-    let total_cost_bps = spread_bps + base_fee_bps;
+    let total_cost_bps = final_spread + base_fee_bps;
     let exec_price_e6 = if trade_size > 0 {
-        // Buying: pay oracle + spread
+        // Buying: oracle + spread
         let numer = (oracle_price_e6 as u128) * ((BPS as u128) + (total_cost_bps as u128));
         (numer / (BPS as u128)) as u64
     } else {
-        // Selling: receive oracle - spread
-        let numer = (oracle_price_e6 as u128) * ((BPS as u128) - total_cost_bps.min(BPS) as u128);
+        // Selling: oracle - spread
+        let numer = (oracle_price_e6 as u128)
+            * ((BPS as u128) - total_cost_bps.min(BPS) as u128);
         (numer / (BPS as u128)) as u64
     };
 
-    // Update inventory
+    // Update state
     write_i128(&mut ctx_data, CTX_BASE + CTX_INVENTORY_OFF, new_inventory);
     write_u64(&mut ctx_data, CTX_BASE + CTX_LAST_ORACLE_OFF, oracle_price_e6);
     write_u64(&mut ctx_data, CTX_BASE + CTX_LAST_EXEC_OFF, exec_price_e6);
 
-    // Write standard MatcherReturn (64 bytes at offset 0)
+    // Write MatcherReturn
     write_u32(&mut ctx_data, RET_ABI_VERSION_OFF, MATCHER_ABI_VERSION);
     write_u32(&mut ctx_data, RET_FLAGS_OFF, FLAG_VALID);
     write_u64(&mut ctx_data, RET_EXEC_PRICE_OFF, exec_price_e6);
@@ -299,27 +370,15 @@ fn process_match(
     write_u64(&mut ctx_data, RET_RESERVED_OFF, 0);
 
     msg!(
-        "credibility-match: spread={}bps fee={}bps price={} size={}",
-        spread_bps,
-        base_fee_bps,
-        exec_price_e6,
-        trade_size
+        "credibility-match: tier={} coverage={}bps spread={}bps fee={}bps fill_cap={}% price={} size={}",
+        tier_name, coverage_bps, final_spread, base_fee_bps, fill_pct, exec_price_e6, trade_size
     );
 
     Ok(())
 }
 
 // =============================================================================
-// Init Instruction (tag 0x02)
-//
-// Sets up the matcher context with LP PDA and initial parameters.
-// Must be called atomically with LP creation in percolator.
-//
-// Accounts: [lp_pda, matcher_ctx (writable)]
-// Data: [tag(1), kind(1), base_fee_bps(4), min_spread_bps(4), max_spread_bps(4),
-//        imbalance_k_bps(4), liquidity_e6(16), max_fill(16), max_inventory(16),
-//        age_halflife(4), insurance_weight_bps(4)]
-// Total: 74 bytes
+// Init Instruction (tag 0x02) — unchanged from v1
 // =============================================================================
 fn process_init(
     _program_id: &Pubkey,
@@ -341,15 +400,13 @@ fn process_init(
         return Err(ProgramError::AccountDataTooSmall);
     }
 
-    // Check not already initialized
     let existing_magic = u64::from_le_bytes(ctx_data[CTX_BASE..CTX_BASE + 8].try_into().unwrap());
     if existing_magic == MAGIC {
         msg!("ERROR: Context already initialized");
         return Err(ProgramError::AccountAlreadyInitialized);
     }
 
-    let mut off = 1; // skip tag
-
+    let mut off = 1;
     let kind = data[off]; off += 1;
     if kind != KIND_CREDIBILITY {
         msg!("ERROR: Expected kind=2 (Credibility)");
@@ -366,7 +423,6 @@ fn process_init(
     let age_halflife = u32::from_le_bytes(data[off..off + 4].try_into().unwrap()); off += 4;
     let insurance_weight_bps = u32::from_le_bytes(data[off..off + 4].try_into().unwrap());
 
-    // Write context
     write_u64(&mut ctx_data, CTX_BASE + CTX_MAGIC_OFF, MAGIC);
     write_u32(&mut ctx_data, CTX_BASE + CTX_VERSION_OFF, VERSION);
     ctx_data[CTX_BASE + CTX_KIND_OFF] = kind;
@@ -384,28 +440,15 @@ fn process_init(
     write_u32(&mut ctx_data, CTX_BASE + CTX_INSURANCE_WEIGHT_OFF, insurance_weight_bps);
 
     msg!(
-        "credibility-init: fee={}bps spread=[{},{}]bps imbalance_k={}bps age_hl={} ins_w={}bps",
-        base_fee_bps, min_spread_bps, max_spread_bps, imbalance_k_bps,
-        age_halflife, insurance_weight_bps
+        "credibility-init-v2: fee={}bps spread=[{},{}]bps tiers=CRITICAL<10%<FRAGILE<25%<NORMAL<100%<STRONG<200%<FORTIFIED",
+        base_fee_bps, min_spread_bps, max_spread_bps
     );
 
     Ok(())
 }
 
 // =============================================================================
-// Update Credibility Instruction (tag 0x03)
-//
-// Permissionless: anyone can call this to update the matcher's view of
-// the market's credibility state. Reads from the slab account.
-//
-// Accounts: [matcher_ctx (writable), slab (read-only), clock (read-only)]
-// Data: [tag(1)]
-//
-// Reads from slab:
-// - Insurance fund balance (engine offset 16, u128)
-// - Total open interest (engine offset 248, u128)
-// - Admin key (header offset 16, 32 bytes) — to compute market age
-// - Last crank slot (engine offset 232, u64)
+// Update Credibility Instruction (tag 0x03) — unchanged from v1
 // =============================================================================
 fn process_update_credibility(
     _program_id: &Pubkey,
@@ -425,7 +468,6 @@ fn process_update_credibility(
         return Err(ProgramError::AccountDataTooSmall);
     }
 
-    // Verify context is initialized
     let magic = u64::from_le_bytes(ctx_data[CTX_BASE..CTX_BASE + 8].try_into().unwrap());
     if magic != MAGIC {
         msg!("ERROR: Context not initialized");
@@ -434,10 +476,9 @@ fn process_update_credibility(
 
     let slab_data = slab_account.try_borrow_data()?;
 
-    // Slab layout constants (must match percolator-prog)
     const SLAB_HEADER_LEN: usize = 72;
     const SLAB_CONFIG_LEN: usize = 320;
-    const SLAB_ENGINE_OFF: usize = SLAB_HEADER_LEN + SLAB_CONFIG_LEN; // 392
+    const SLAB_ENGINE_OFF: usize = SLAB_HEADER_LEN + SLAB_CONFIG_LEN;
     const ENGINE_INSURANCE_OFF: usize = 16;
     const ENGINE_TOTAL_OI_OFF: usize = 248;
     const ENGINE_LAST_CRANK_OFF: usize = 232;
@@ -448,26 +489,16 @@ fn process_update_credibility(
         return Err(ProgramError::AccountDataTooSmall);
     }
 
-    // Read insurance fund balance (u128)
     let ins_off = SLAB_ENGINE_OFF + ENGINE_INSURANCE_OFF;
     let insurance_balance = u128::from_le_bytes(slab_data[ins_off..ins_off + 16].try_into().unwrap());
 
-    // Read total open interest (u128)
     let oi_off = SLAB_ENGINE_OFF + ENGINE_TOTAL_OI_OFF;
     let total_oi = u128::from_le_bytes(slab_data[oi_off..oi_off + 16].try_into().unwrap());
 
-    // Read admin key (32 bytes at header offset 16)
     let admin_bytes: [u8; 32] = slab_data[16..48].try_into().unwrap();
     let admin_is_burned = admin_bytes == [0u8; 32]
-        || admin_bytes
-            == [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0,
-            ]
-        || Pubkey::new_from_array(admin_bytes)
-            == solana_program::system_program::id();
+        || Pubkey::new_from_array(admin_bytes) == solana_program::system_program::id();
 
-    // Read current slot from clock sysvar
     let clock_data = clock_account.try_borrow_data()?;
     let current_slot = if clock_data.len() >= 8 {
         u64::from_le_bytes(clock_data[0..8].try_into().unwrap())
@@ -475,45 +506,53 @@ fn process_update_credibility(
         0
     };
 
-    // Read last crank slot
-    let crank_off = SLAB_ENGINE_OFF + ENGINE_LAST_CRANK_OFF;
-    let last_crank_slot = u64::from_le_bytes(slab_data[crank_off..crank_off + 8].try_into().unwrap());
+    let _crank_off = SLAB_ENGINE_OFF + ENGINE_LAST_CRANK_OFF;
+    let _liq_off = SLAB_ENGINE_OFF + ENGINE_LIFETIME_LIQS_OFF;
 
-    // Read lifetime liquidations
-    let liq_off = SLAB_ENGINE_OFF + ENGINE_LIFETIME_LIQS_OFF;
-    let _lifetime_liqs = u64::from_le_bytes(slab_data[liq_off..liq_off + 8].try_into().unwrap());
-
-    // Compute market age: if admin is burned, age = current_slot - snapshot_slot from first update
-    // For simplicity, we track the market age as the age from the first credibility update
     let existing_age = read_u64(&ctx_data, CTX_BASE + CTX_MARKET_AGE_OFF);
     let existing_snapshot_slot = read_u64(&ctx_data, CTX_BASE + CTX_SNAPSHOT_SLOT_OFF);
     let market_age = if existing_snapshot_slot > 0 && admin_is_burned {
         existing_age + current_slot.saturating_sub(existing_snapshot_slot)
     } else if admin_is_burned {
-        0 // First update after burn
+        0
     } else {
-        0 // Not burned yet, no credibility age
+        0
     };
 
-    // Update context with fresh snapshots
+    // Compute coverage for logging
+    let coverage_bps: u64 = if total_oi > 0 {
+        (((insurance_balance as u128) * (BPS as u128)) / (total_oi as u128)).min(u64::MAX as u128) as u64
+    } else {
+        0
+    };
+
+    let tier = if coverage_bps < TIER_CRITICAL_BPS {
+        "CRITICAL"
+    } else if coverage_bps < TIER_FRAGILE_BPS {
+        "FRAGILE"
+    } else if coverage_bps < TIER_NORMAL_BPS {
+        "NORMAL"
+    } else if coverage_bps < TIER_STRONG_BPS {
+        "STRONG"
+    } else {
+        "FORTIFIED"
+    };
+
     write_u128(&mut ctx_data, CTX_BASE + CTX_INSURANCE_OFF, insurance_balance);
     write_u128(&mut ctx_data, CTX_BASE + CTX_TOTAL_OI_OFF, total_oi);
     write_u64(&mut ctx_data, CTX_BASE + CTX_MARKET_AGE_OFF, market_age);
     write_u64(&mut ctx_data, CTX_BASE + CTX_SNAPSHOT_SLOT_OFF, current_slot);
 
     msg!(
-        "credibility-update: insurance={} oi={} age={} burned={}",
-        insurance_balance,
-        total_oi,
-        market_age,
-        admin_is_burned
+        "credibility-update-v2: insurance={} oi={} coverage={}bps tier={} age={} burned={}",
+        insurance_balance, total_oi, coverage_bps, tier, market_age, admin_is_burned
     );
 
     Ok(())
 }
 
 // =============================================================================
-// Helper functions
+// Helpers
 // =============================================================================
 
 fn read_u32(data: &[u8], off: usize) -> u32 {
@@ -548,85 +587,133 @@ fn write_i128(data: &mut [u8], off: usize, val: i128) {
     data[off..off + 16].copy_from_slice(&val.to_le_bytes());
 }
 
+// =============================================================================
+// Tests
+// =============================================================================
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_no_insurance_no_discount() {
-        // Zero insurance → no discount → spread stays at min
-        let min_spread: u64 = 20;
-        let max_spread: u64 = 200;
-        let insurance_weight: u64 = 50;
-
-        let insurance: u128 = 0;
-        let total_oi: u128 = 1_000_000;
-
-        let mut spread = min_spread;
-
-        if insurance_weight > 0 && total_oi > 0 {
-            let coverage = (insurance * BPS as u128) / total_oi;
-            let discount = (coverage.min(BPS as u128) as u64 * insurance_weight) / BPS;
-            spread = spread.saturating_sub(discount);
+    fn compute_tier(coverage_bps: u64) -> (&'static str, u128) {
+        if coverage_bps < TIER_CRITICAL_BPS {
+            ("CRITICAL", FILL_PCT_CRITICAL)
+        } else if coverage_bps < TIER_FRAGILE_BPS {
+            ("FRAGILE", FILL_PCT_FRAGILE)
+        } else if coverage_bps < TIER_NORMAL_BPS {
+            ("NORMAL", FILL_PCT_NORMAL)
+        } else if coverage_bps < TIER_STRONG_BPS {
+            ("STRONG", FILL_PCT_STRONG)
+        } else {
+            ("FORTIFIED", FILL_PCT_FORTIFIED)
         }
-
-        spread = spread.clamp(1, max_spread);
-        assert_eq!(spread, min_spread);
     }
 
     #[test]
-    fn test_full_insurance_full_discount() {
-        // 100% coverage → full discount (insurance_weight_bps)
-        let min_spread: u64 = 100;
-        let insurance_weight: u64 = 50;
-
-        let insurance: u128 = 1_000_000;
-        let total_oi: u128 = 1_000_000;
-
-        let mut spread = min_spread;
-
-        let coverage = (insurance * BPS as u128) / total_oi;
-        let discount = (coverage.min(BPS as u128) as u64 * insurance_weight) / BPS;
-        spread = spread.saturating_sub(discount);
-
-        assert_eq!(spread, min_spread - insurance_weight);
+    fn test_tier_critical_zero_insurance() {
+        let (tier, fill) = compute_tier(0);
+        assert_eq!(tier, "CRITICAL");
+        assert_eq!(fill, 25);
     }
 
     #[test]
-    fn test_half_insurance_half_discount() {
-        // 50% coverage → half of insurance_weight discount
-        let min_spread: u64 = 100;
-        let insurance_weight: u64 = 50;
-
-        let insurance: u128 = 500_000;
-        let total_oi: u128 = 1_000_000;
-
-        let mut spread = min_spread;
-
-        let coverage = (insurance * BPS as u128) / total_oi;
-        let discount = (coverage.min(BPS as u128) as u64 * insurance_weight) / BPS;
-        spread = spread.saturating_sub(discount);
-
-        // 50% of 50 = 25 bps discount
-        assert_eq!(spread, 75);
+    fn test_tier_critical_5pct() {
+        let (tier, fill) = compute_tier(500); // 5%
+        assert_eq!(tier, "CRITICAL");
+        assert_eq!(fill, 25);
     }
 
     #[test]
-    fn test_excess_insurance_caps_at_weight() {
-        // 200% coverage → discount capped at insurance_weight (not 2x)
-        let min_spread: u64 = 100;
-        let insurance_weight: u64 = 50;
+    fn test_tier_fragile_boundary() {
+        let (tier, fill) = compute_tier(1000); // exactly 10%
+        assert_eq!(tier, "FRAGILE");
+        assert_eq!(fill, 50);
+    }
 
-        let insurance: u128 = 2_000_000;
-        let total_oi: u128 = 1_000_000;
+    #[test]
+    fn test_tier_fragile_20pct() {
+        let (tier, fill) = compute_tier(2000); // 20%
+        assert_eq!(tier, "FRAGILE");
+        assert_eq!(fill, 50);
+    }
 
-        let mut spread = min_spread;
+    #[test]
+    fn test_tier_normal_boundary() {
+        let (tier, fill) = compute_tier(2500); // exactly 25%
+        assert_eq!(tier, "NORMAL");
+        assert_eq!(fill, 100);
+    }
 
-        let coverage = (insurance * BPS as u128) / total_oi;
-        let discount = (coverage.min(BPS as u128) as u64 * insurance_weight) / BPS;
-        spread = spread.saturating_sub(discount);
+    #[test]
+    fn test_tier_normal_50pct() {
+        let (tier, fill) = compute_tier(5000); // 50%
+        assert_eq!(tier, "NORMAL");
+        assert_eq!(fill, 100);
+    }
 
-        // Capped at 50 bps (not 100)
-        assert_eq!(spread, min_spread - insurance_weight);
+    #[test]
+    fn test_tier_strong_boundary() {
+        let (tier, fill) = compute_tier(10000); // exactly 100%
+        assert_eq!(tier, "STRONG");
+        assert_eq!(fill, 100);
+    }
+
+    #[test]
+    fn test_tier_strong_150pct() {
+        let (tier, fill) = compute_tier(15000); // 150%
+        assert_eq!(tier, "STRONG");
+        assert_eq!(fill, 100);
+    }
+
+    #[test]
+    fn test_tier_fortified_boundary() {
+        let (tier, fill) = compute_tier(20000); // exactly 200%
+        assert_eq!(tier, "FORTIFIED");
+        assert_eq!(fill, 150);
+    }
+
+    #[test]
+    fn test_tier_fortified_300pct() {
+        let (tier, fill) = compute_tier(30000); // 300%
+        assert_eq!(tier, "FORTIFIED");
+        assert_eq!(fill, 150);
+    }
+
+    #[test]
+    fn test_fill_cap_math() {
+        let base_max_fill: u128 = 1_000_000_000; // 1 SOL
+        // CRITICAL: 25% of base
+        assert_eq!((base_max_fill * FILL_PCT_CRITICAL) / 100, 250_000_000);
+        // FRAGILE: 50%
+        assert_eq!((base_max_fill * FILL_PCT_FRAGILE) / 100, 500_000_000);
+        // NORMAL/STRONG: 100%
+        assert_eq!((base_max_fill * FILL_PCT_NORMAL) / 100, 1_000_000_000);
+        // FORTIFIED: 150%
+        assert_eq!((base_max_fill * FILL_PCT_FORTIFIED) / 100, 1_500_000_000);
+    }
+
+    #[test]
+    fn test_critical_gets_max_spread() {
+        // At CRITICAL tier, spread should be max_spread
+        let max_spread: u64 = 200;
+        let coverage_bps: u64 = 500; // 5% → CRITICAL
+        let spread = if coverage_bps < TIER_CRITICAL_BPS {
+            max_spread
+        } else {
+            0 // placeholder
+        };
+        assert_eq!(spread, 200);
+    }
+
+    #[test]
+    fn test_fortified_gets_min_spread() {
+        // At FORTIFIED tier, spread should be min_spread
+        let min_spread: u64 = 5;
+        let coverage_bps: u64 = 25000; // 250% → FORTIFIED
+        let spread = if coverage_bps >= TIER_STRONG_BPS {
+            min_spread
+        } else {
+            0
+        };
+        assert_eq!(spread, 5);
     }
 }

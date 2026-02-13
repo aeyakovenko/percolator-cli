@@ -35,6 +35,7 @@ export interface TxResult {
   hint?: string;
   logs: string[];
   unitsConsumed?: number;
+  cluster?: string;
 }
 
 export interface SimulateOrSendParams {
@@ -95,6 +96,7 @@ export async function simulateOrSend(
       hint,
       logs,
       unitsConsumed: result.value.unitsConsumed ?? undefined,
+      cluster: detectCluster(connection.rpcEndpoint),
     };
   }
 
@@ -142,6 +144,7 @@ export async function simulateOrSend(
       err,
       hint,
       logs,
+      cluster: detectCluster(connection.rpcEndpoint),
     };
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
@@ -150,8 +153,18 @@ export async function simulateOrSend(
       slot: 0,
       err: message,
       logs: [],
+      cluster: detectCluster(connection.rpcEndpoint),
     };
   }
+}
+
+/**
+ * Detect Solana cluster from RPC endpoint URL.
+ */
+function detectCluster(rpcUrl: string): string | undefined {
+  if (rpcUrl.includes("devnet")) return "devnet";
+  if (rpcUrl.includes("testnet")) return "testnet";
+  return undefined; // mainnet or unknown — no query param needed
 }
 
 /**
@@ -183,7 +196,7 @@ export function formatResult(result: TxResult, jsonMode: boolean): string {
       lines.push(`Compute Units: ${result.unitsConsumed.toLocaleString()}`);
     }
     if (result.signature !== "(simulated)") {
-      lines.push(`Explorer: https://explorer.solana.com/tx/${result.signature}`);
+      lines.push(`Explorer: https://explorer.solana.com/tx/${result.signature}${result.cluster ? `?cluster=${result.cluster}` : ""}`);
     }
   }
 

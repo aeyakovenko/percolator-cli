@@ -108,14 +108,28 @@ Trading, deposits, withdrawals, account creation, keeper cranks, liquidations, i
 
 All trading fees flow into the insurance fund. Non-withdrawable after admin burn. Non-upgradeable. Usable only for liquidation shortfalls. Its growth is the market's primary credibility signal.
 
-### One credibility signal drives pricing
+### The market prices its own fragility
 
-The credibility-aware matcher uses a single input to adjust spreads: **insurance fund balance relative to open interest**.
+The credibility-aware matcher (v2) uses **coverage ratio** (insurance fund / open interest) to determine five explicit tiers. Each tier controls spread width and maximum fill size. Thin liquidity is automatically expensive. No governance. No intervention. Just math.
 
-- Higher coverage ratio (insurance / OI) -> tighter spreads
-- Lower coverage ratio -> wider spreads
+| Coverage | Tier | Spread | Fill Cap | What it means |
+|----------|------|--------|----------|---------------|
+| < 10% | **CRITICAL** | max spread | 25% | "I might not survive a liquidation cascade." |
+| 10% – 25% | **FRAGILE** | widens sharply | 50% | Thin insurance = expensive trading. |
+| 25% – 100% | **NORMAL** | linear discount | 100% | Standard operating range. |
+| 100% – 200% | **STRONG** | tight spreads | 100% | Market has proven solvency. |
+| > 200% | **FORTIFIED** | min spread | 150% | Overcollateralized. Best pricing + bonus fills. |
 
-No compound scoring. No governance. One observable ratio, derived from on-chain state, that directly affects the cost of trading. If the market survives and fees accumulate, trading gets cheaper. Automatically.
+This directly answers the question: *"What happens if liquidity is thin?"*
+
+It becomes automatically expensive. The fill limits drop. The market tells you, in real-time, how much it trusts itself.
+
+```
+coverage drops → tier degrades → spreads widen → fills shrink → risk priced in
+coverage grows → tier improves → spreads tighten → fills expand → trust earned
+```
+
+No human decides when to tighten or loosen. The insurance fund ratio is the only input. The tier table is hardcoded — not configurable, not governable. The math **is** the governance.
 
 ### What Percolator handles (not modified)
 

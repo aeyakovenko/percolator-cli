@@ -113,7 +113,7 @@ async function withdraw(userIdx: number, amount: bigint) {
   const [vaultPda] = deriveVaultAuthority(PROGRAM_ID, SLAB);
   const keys = buildAccountMetas(ACCOUNTS_WITHDRAW_COLLATERAL, [
     payer.publicKey, SLAB, config.vaultPubkey, userAta.address,
-    vaultPda, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY, config.indexFeedId,
+    vaultPda, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY, ORACLE,
   ]);
   const ix = buildIx({
     programId: PROGRAM_ID, keys,

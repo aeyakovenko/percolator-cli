@@ -13,9 +13,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "paths": {
-      "@parsers/*": ["../src/solana/*"]
+      "@parsers/*": ["../src/solana/*"],
+      "@abi/*": ["../src/abi/*"]
     },
     "baseUrl": "."
   },
-  "include": ["src", "../src/solana/slab.ts", "../src/solana/pda.ts"]
+  "include": ["src", "../src/solana/slab.ts", "../src/solana/pda.ts", "../src/abi/encode.ts", "../src/abi/instructions.ts", "../src/abi/accounts.ts"]
 }

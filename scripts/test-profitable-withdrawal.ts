@@ -215,7 +215,7 @@ async function tryWithdraw(accountIdx: number, amount: bigint): Promise<{ succes
       vaultPda,
       TOKEN_PROGRAM_ID,
       SYSVAR_CLOCK_PUBKEY,
-      config.indexFeedId,
+      ORACLE,
     ]);
 
     const ix = buildIx({

@@ -45,7 +45,7 @@ export function loadConfig(flags: GlobalFlags): Config {
 
   // Merge: CLI flags override file config
   const merged = {
-    rpcUrl: flags.rpc ?? fileConfig.rpcUrl ?? "https://api.mainnet-beta.solana.com",
+    rpcUrl: flags.rpc ?? fileConfig.rpcUrl ?? "https://api.devnet.solana.com",
     programId: flags.program ?? fileConfig.programId,
     wallet: flags.wallet ?? fileConfig.wallet ?? "~/.config/solana/id.json",
     commitment: flags.commitment ?? fileConfig.commitment ?? "confirmed",

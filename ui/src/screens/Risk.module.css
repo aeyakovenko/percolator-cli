@@ -32,7 +32,107 @@
   line-height: 1.5;
 }
 
-/* Imbalance bar */
+/* ---- Active Tier Banner ---- */
+.tierBanner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border: 1px solid;
+  border-radius: 6px;
+  margin-bottom: 2rem;
+  gap: 2rem;
+}
+
+.tierBannerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tierLabel {
+  font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.tierCoverage {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.8125rem;
+  color: #a3a3a3;
+}
+
+.tierBannerRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.tierEffect {
+  font-size: 0.8125rem;
+  color: #a3a3a3;
+  text-align: right;
+}
+
+.tierFill {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+  color: #525252;
+}
+
+/* ---- Tier Ladder ---- */
+.tierLadder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 500px;
+}
+
+.tierRow {
+  display: grid;
+  grid-template-columns: 100px 100px 80px 1fr;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.tierRowActive {
+  border-style: solid;
+  border-width: 1px;
+}
+
+.tierName {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.tierThreshold {
+  font-size: 0.75rem;
+  color: #525252;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.tierFillCap {
+  font-size: 0.6875rem;
+  color: #404040;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.tierActiveIndicator {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: right;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+/* ---- Imbalance bar ---- */
 .imbalanceBar {
   max-width: 600px;
 }
@@ -135,9 +235,66 @@
   max-width: 500px;
 }
 
+/* Spread dim value (floor/cap) */
+.spreadValueDim {
+  font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+  font-size: 0.8125rem;
+  color: #404040;
+}
+
+/* Data source indicator */
+.sourceBar {
+  font-size: 0.6875rem;
+  margin-bottom: 0.5rem;
+}
+
+.sourceLive {
+  color: #22c55e;
+}
+
+.sourceLoading {
+  color: #525252;
+}
+
+.sourceFallback {
+  color: #a16207;
+}
+
+/* Inventory detail */
+.inventoryDetail {
+  display: flex;
+  gap: 2rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #525252;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
 /* Summary grid */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 0.75rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tierBanner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .tierBannerRight {
+    align-items: flex-start;
+  }
+
+  .tierRow {
+    grid-template-columns: 80px 80px 60px 1fr;
+    font-size: 0.6875rem;
+  }
+
+  .fundingGrid {
+    grid-template-columns: 1fr;
+  }
 }
