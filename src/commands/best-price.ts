@@ -96,11 +96,48 @@ function computeQuote(
   };
 }
 
+// Chainlink OCR2 on Solana
+const CHAINLINK_OCR2_PROGRAM = new PublicKey("HEvSKofvBgfaexv23kMabbYqxasxU3mQ4ibBMEmJWHny");
+const CL_OFF_DECIMALS = 138;
+const CL_OFF_TIMESTAMP = 208;
+const CL_OFF_ANSWER = 216;
+const CL_MIN_DATA_LEN = 224;
+
 async function getChainlinkPrice(connection: Connection, oracle: PublicKey): Promise<{ price: bigint; decimals: number }> {
   const info = await connection.getAccountInfo(oracle);
-  if (!info) throw new Error("Oracle not found");
-  const decimals = info.data.readUInt8(138);
-  const answer = info.data.readBigInt64LE(216);
+  if (!info) throw new Error(`Oracle account not found: ${oracle.toBase58()}`);
+
+  if (!info.owner.equals(CHAINLINK_OCR2_PROGRAM)) {
+    throw new Error(
+      `Oracle ${oracle.toBase58()} not owned by Chainlink program ` +
+      `(owner: ${info.owner.toBase58()}, expected: ${CHAINLINK_OCR2_PROGRAM.toBase58()})`
+    );
+  }
+
+  if (info.data.length < CL_MIN_DATA_LEN) {
+    throw new Error(`Oracle data too small: ${info.data.length} bytes (need >= ${CL_MIN_DATA_LEN})`);
+  }
+
+  const decimals = info.data.readUInt8(CL_OFF_DECIMALS);
+  const answer = info.data.readBigInt64LE(CL_OFF_ANSWER);
+
+  if (answer <= 0n) {
+    throw new Error(`Oracle returned non-positive price: ${answer}`);
+  }
+
+  if (decimals > 18) {
+    throw new Error(`Oracle reports ${decimals} decimals — likely corrupt data`);
+  }
+
+  // Warn on stale price (non-fatal)
+  const timestamp = Number(info.data.readBigUInt64LE(CL_OFF_TIMESTAMP));
+  if (timestamp > 0) {
+    const ageSec = Math.floor(Date.now() / 1000) - timestamp;
+    if (ageSec > 3600) {
+      console.error(`WARNING: Oracle price is ${(ageSec / 60).toFixed(0)}m old — may not reflect current market`);
+    }
+  }
+
   return { price: answer, decimals };
 }
 
