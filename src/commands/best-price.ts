@@ -130,11 +130,71 @@ function computeQuote(
   };
 }
 
+// Chainlink OCR2 program on Solana (devnet + mainnet)
+const CHAINLINK_OCR2_PROGRAM = new PublicKey("HEvSKofvBgfaexv23kMabbYqxasxU3mQ4ibBMEmJWHny");
+
+// Chainlink account layout offsets
+const CL_OFF_DECIMALS = 138;    // u8
+const CL_OFF_SLOT = 200;        // u64  — slot when last updated
+const CL_OFF_TIMESTAMP = 208;   // u64  — unix timestamp of last update
+const CL_OFF_ANSWER = 216;      // i128 — price answer (lower 8 bytes typically used)
+const CL_MIN_DATA_LEN = 224;    // minimum bytes needed to read all fields
+const CL_MAX_STALENESS_SEC = 3600; // 1 hour — warn if oracle is older than this
+
 async function getChainlinkPrice(connection: Connection, oracle: PublicKey): Promise<{ price: bigint; decimals: number }> {
   const info = await connection.getAccountInfo(oracle);
-  if (!info) throw new Error("Oracle not found");
-  const decimals = info.data.readUInt8(138);
-  const answer = info.data.readBigInt64LE(216);
+  if (!info) throw new Error(`Oracle account not found: ${oracle.toBase58()}`);
+
+  // Validate account owner is the Chainlink OCR2 program
+  if (!info.owner.equals(CHAINLINK_OCR2_PROGRAM)) {
+    throw new Error(
+      `Oracle account ${oracle.toBase58()} is not owned by the Chainlink program.\n` +
+      `  Expected owner: ${CHAINLINK_OCR2_PROGRAM.toBase58()}\n` +
+      `  Actual owner:   ${info.owner.toBase58()}\n` +
+      `  This is not a valid Chainlink price feed.`
+    );
+  }
+
+  // Validate data length
+  if (info.data.length < CL_MIN_DATA_LEN) {
+    throw new Error(
+      `Oracle account data too small: ${info.data.length} bytes (need >= ${CL_MIN_DATA_LEN}).\n` +
+      `  This does not look like a valid Chainlink aggregator account.`
+    );
+  }
+
+  const decimals = info.data.readUInt8(CL_OFF_DECIMALS);
+  const answer = info.data.readBigInt64LE(CL_OFF_ANSWER);
+
+  // Validate price is positive
+  if (answer <= 0n) {
+    throw new Error(
+      `Oracle returned non-positive price: ${answer}.\n` +
+      `  Oracle: ${oracle.toBase58()}\n` +
+      `  This may indicate a stale or misconfigured feed.`
+    );
+  }
+
+  // Validate decimals are sane (Chainlink typically uses 8)
+  if (decimals > 18) {
+    throw new Error(
+      `Oracle reports ${decimals} decimals — this is likely corrupt data.\n` +
+      `  Oracle: ${oracle.toBase58()}`
+    );
+  }
+
+  // Read timestamp and warn about staleness (non-fatal)
+  const timestamp = Number(info.data.readBigUInt64LE(CL_OFF_TIMESTAMP));
+  if (timestamp > 0) {
+    const ageSec = Math.floor(Date.now() / 1000) - timestamp;
+    if (ageSec > CL_MAX_STALENESS_SEC) {
+      console.error(
+        `WARNING: Oracle price is ${(ageSec / 60).toFixed(0)} minutes old ` +
+        `(threshold: ${CL_MAX_STALENESS_SEC / 60}m). Prices shown may not reflect current market.`
+      );
+    }
+  }
+
   return { price: answer, decimals };
 }
 
