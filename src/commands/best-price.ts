@@ -4,6 +4,7 @@ import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
 import { fetchSlab, parseUsedIndices, parseAccount, AccountKind } from "../solana/slab.js";
+import { parseChainlinkPrice } from "../solana/oracle.js";
 import { validatePublicKey } from "../validation.js";
 
 const BPS_DENOM = 10000n;
@@ -98,10 +99,8 @@ function computeQuote(
 
 async function getChainlinkPrice(connection: Connection, oracle: PublicKey): Promise<{ price: bigint; decimals: number }> {
   const info = await connection.getAccountInfo(oracle);
-  if (!info) throw new Error("Oracle not found");
-  const decimals = info.data.readUInt8(138);
-  const answer = info.data.readBigInt64LE(216);
-  return { price: answer, decimals };
+  if (!info) throw new Error("Oracle account not found: " + oracle.toBase58());
+  return parseChainlinkPrice(info.data as Buffer);
 }
 
 export function registerBestPrice(program: Command): void {

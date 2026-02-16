@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "pnpm build && node dist/index.js",
-    "test": "tsx test/abi.test.ts && tsx test/pda.test.ts && tsx test/slab.test.ts && tsx test/validation.test.ts"
+    "test": "tsx test/abi.test.ts && tsx test/pda.test.ts && tsx test/slab.test.ts && tsx test/validation.test.ts && tsx test/oracle.test.ts"
   },
   "dependencies": {
     "@pythnetwork/hermes-client": "^2.1.0",
