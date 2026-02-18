@@ -11,8 +11,10 @@ const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
 //               thresh_floor(16) + thresh_risk_bps(8) + thresh_update_interval_slots(8) +
 //               thresh_step_bps(8) + thresh_alpha_bps(8) + thresh_min(16) + thresh_max(16) + thresh_min_step(16) +
 //               oracle_authority(32) + authority_price_e6(8) + authority_timestamp(8) +
-//               oracle_price_cap_e2bps(8) + last_effective_price_e6(8)
-const CONFIG_LEN = 320;
+//               oracle_price_cap_e2bps(8) + last_effective_price_e6(8) +
+//               max_maintenance_fee_per_slot(16) + max_risk_threshold(16) +
+//               min_oracle_price_cap_e2bps(8) + _limits_reserved(8)
+const CONFIG_LEN = 368;
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 // Flag bits in header._padding[0] at offset 13
@@ -68,6 +70,10 @@ export interface MarketConfig {
   // Oracle price circuit breaker
   oraclePriceCapE2bps: bigint;
   lastEffectivePriceE6: bigint;
+  // Per-market admin limits (immutable after init)
+  maxMaintenanceFeePerSlot: bigint;
+  maxRiskThreshold: bigint;
+  minOraclePriceCapE2bps: bigint;
 }
 
 /**
@@ -212,6 +218,17 @@ export function parseConfig(data: Buffer): MarketConfig {
   off += 8;
 
   const lastEffectivePriceE6 = data.readBigUInt64LE(off);
+  off += 8;
+
+  // Per-market admin limits
+  const maxMaintenanceFeePerSlot = readU128LE(data, off);
+  off += 16;
+
+  const maxRiskThreshold = readU128LE(data, off);
+  off += 16;
+
+  const minOraclePriceCapE2bps = data.readBigUInt64LE(off);
+  // off += 8; // _limits_reserved follows but we don't parse it
 
   return {
     collateralMint,
@@ -240,6 +257,9 @@ export function parseConfig(data: Buffer): MarketConfig {
     authorityTimestamp,
     oraclePriceCapE2bps,
     lastEffectivePriceE6,
+    maxMaintenanceFeePerSlot,
+    maxRiskThreshold,
+    minOraclePriceCapE2bps,
   };
 }
 
@@ -272,7 +292,7 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 //          adl_*_scratch arrays, pending_* deferred socialization fields.
 // Added: c_tot, pnl_pos_tot (O(1) aggregates for haircut calculation).
 // =============================================================================
-const ENGINE_OFF = 392;
+const ENGINE_OFF = 440;
 // RiskEngine struct layout (repr(C), SBF uses 8-byte alignment for u128):
 // - vault: u128 (16 bytes) at offset 0
 // - insurance_fund: InsuranceFund { balance: u128, fee_revenue: u128 } (32 bytes) at offset 16

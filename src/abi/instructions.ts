@@ -35,6 +35,9 @@ export const IX_TAG = {
   SetOraclePriceCap: 18,
   ResolveMarket: 19,
   WithdrawInsurance: 20,
+  AdminForceCloseAccount: 21,
+  SetInsuranceWithdrawPolicy: 22,
+  WithdrawInsuranceLimited: 23,
 } as const;
 
 /**
@@ -55,6 +58,11 @@ export interface InitMarketArgs {
   invert: number;              // 0 = no inversion, 1 = invert oracle price (USD/SOL -> SOL/USD)
   unitScale: number;           // Lamports per unit (0 = no scaling, e.g. 1000 = 1 SOL = 1,000,000 units)
   initialMarkPriceE6: bigint | string;  // Initial mark price (required non-zero for Hyperp mode)
+  // Per-market admin limits (immutable after init)
+  maxMaintenanceFeePerSlot: bigint | string;  // Max maintenance fee admin can set (u128, must be > 0)
+  maxRiskThreshold: bigint | string;          // Max risk threshold admin can set (u128, must be > 0)
+  minOraclePriceCapE2bps: bigint | string;    // Min oracle price cap floor (u64, 0 = no floor)
+  // Risk params
   warmupPeriodSlots: bigint | string;
   maintenanceMarginBps: bigint | string;
   initialMarginBps: bigint | string;
@@ -96,6 +104,9 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encU8(args.invert),
     encU32(args.unitScale),
     encU64(args.initialMarkPriceE6),  // initial_mark_price_e6 (required non-zero for Hyperp)
+    encU128(args.maxMaintenanceFeePerSlot),  // per-market admin limit
+    encU128(args.maxRiskThreshold),          // per-market admin limit
+    encU64(args.minOraclePriceCapE2bps),     // per-market admin limit
     encU64(args.warmupPeriodSlots),
     encU64(args.maintenanceMarginBps),
     encU64(args.initialMarginBps),
@@ -413,4 +424,58 @@ export function encodeResolveMarket(): Buffer {
  */
 export function encodeWithdrawInsurance(): Buffer {
   return encU8(IX_TAG.WithdrawInsurance);
+}
+
+/**
+ * AdminForceCloseAccount instruction data (3 bytes)
+ * Force-close an abandoned account after market resolution.
+ * Requires RESOLVED flag, zero position, admin signer.
+ */
+export interface AdminForceCloseAccountArgs {
+  userIdx: number;
+}
+
+export function encodeAdminForceCloseAccount(args: AdminForceCloseAccountArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.AdminForceCloseAccount),
+    encU16(args.userIdx),
+  ]);
+}
+
+/**
+ * SetInsuranceWithdrawPolicy instruction data (51 bytes)
+ * Layout: tag(1) + authority(32) + min_withdraw_base(8) + max_withdraw_bps(2) + cooldown_slots(8)
+ * Set limited insurance-withdraw policy (admin only, resolved market).
+ */
+export interface SetInsuranceWithdrawPolicyArgs {
+  authority: PublicKey | string;
+  minWithdrawBase: bigint | string;
+  maxWithdrawBps: number;
+  cooldownSlots: bigint | string;
+}
+
+export function encodeSetInsuranceWithdrawPolicy(args: SetInsuranceWithdrawPolicyArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.SetInsuranceWithdrawPolicy),
+    encPubkey(args.authority),
+    encU64(args.minWithdrawBase),
+    encU16(args.maxWithdrawBps),
+    encU64(args.cooldownSlots),
+  ]);
+}
+
+/**
+ * WithdrawInsuranceLimited instruction data (9 bytes)
+ * Layout: tag(1) + amount(8)
+ * Withdraw insurance under configured min/max/cooldown constraints.
+ */
+export interface WithdrawInsuranceLimitedArgs {
+  amount: bigint | string;
+}
+
+export function encodeWithdrawInsuranceLimited(args: WithdrawInsuranceLimitedArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.WithdrawInsuranceLimited),
+    encU64(args.amount),
+  ]);
 }

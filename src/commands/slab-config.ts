@@ -33,6 +33,9 @@ export function registerSlabConfig(program: Command): void {
               vaultAuthorityBump: mktConfig.vaultAuthorityBump,
               invert: mktConfig.invert,
               unitScale: mktConfig.unitScale,
+              maxMaintenanceFeePerSlot: mktConfig.maxMaintenanceFeePerSlot.toString(),
+              maxRiskThreshold: mktConfig.maxRiskThreshold.toString(),
+              minOraclePriceCapE2bps: mktConfig.minOraclePriceCapE2bps.toString(),
             },
             null,
             2
@@ -48,6 +51,9 @@ export function registerSlabConfig(program: Command): void {
         console.log(`Vault Auth Bump:    ${mktConfig.vaultAuthorityBump}`);
         console.log(`Invert:             ${mktConfig.invert}`);
         console.log(`Unit Scale:         ${mktConfig.unitScale}`);
+        console.log(`Max Maint Fee/Slot: ${mktConfig.maxMaintenanceFeePerSlot}`);
+        console.log(`Max Risk Threshold: ${mktConfig.maxRiskThreshold}`);
+        console.log(`Min Oracle Cap:     ${mktConfig.minOraclePriceCapE2bps} e2bps`);
       }
     });
 }
