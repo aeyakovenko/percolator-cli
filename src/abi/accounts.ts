@@ -235,6 +235,44 @@ export const ACCOUNTS_WITHDRAW_INSURANCE: readonly AccountSpec[] = [
   { name: "vaultPda", signer: false, writable: false },
 ] as const;
 
+/**
+ * AdminForceCloseAccount: 8 accounts
+ * Force-close an abandoned account after resolution (admin only)
+ */
+export const ACCOUNTS_ADMIN_FORCE_CLOSE: readonly AccountSpec[] = [
+  { name: "admin", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+  { name: "vault", signer: false, writable: true },
+  { name: "userAta", signer: false, writable: true },
+  { name: "vaultPda", signer: false, writable: false },
+  { name: "tokenProgram", signer: false, writable: false },
+  { name: "clock", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
+] as const;
+
+/**
+ * SetInsuranceWithdrawPolicy: 2 accounts
+ * Set limited insurance-withdraw policy (admin only, resolved market)
+ */
+export const ACCOUNTS_SET_INSURANCE_WITHDRAW_POLICY: readonly AccountSpec[] = [
+  { name: "admin", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+] as const;
+
+/**
+ * WithdrawInsuranceLimited: 7 accounts
+ * Withdraw insurance under configured min/max/cooldown constraints
+ */
+export const ACCOUNTS_WITHDRAW_INSURANCE_LIMITED: readonly AccountSpec[] = [
+  { name: "authority", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+  { name: "authorityAta", signer: false, writable: true },
+  { name: "vault", signer: false, writable: true },
+  { name: "tokenProgram", signer: false, writable: false },
+  { name: "vaultPda", signer: false, writable: false },
+  { name: "clock", signer: false, writable: false },
+] as const;
+
 // ============================================================================
 // ACCOUNT META BUILDERS
 // ============================================================================

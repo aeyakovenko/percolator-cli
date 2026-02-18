@@ -76,7 +76,7 @@ import { buildIx } from "../src/runtime/tx.js";
 // Program IDs
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
-const SLAB_SIZE = 992560;
+const SLAB_SIZE = 992616;
 const MATCHER_CTX_SIZE = 320;
 
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
@@ -140,6 +140,9 @@ async function main() {
     invert: 0,                         // No inversion
     unitScale: 0,
     initialMarkPriceE6: INITIAL_MARK_PRICE.toString(), // Required for Hyperp
+    maxMaintenanceFeePerSlot: "1000000000",  // Per-market admin limit
+    maxRiskThreshold: "10000000000000000000", // Per-market admin limit
+    minOraclePriceCapE2bps: "0",             // No floor
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",

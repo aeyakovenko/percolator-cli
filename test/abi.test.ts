@@ -22,6 +22,9 @@ import {
   encodeSetRiskThreshold,
   encodeUpdateAdmin,
   encodeInitLP,
+  encodeAdminForceCloseAccount,
+  encodeSetInsuranceWithdrawPolicy,
+  encodeWithdrawInsuranceLimited,
   IX_TAG,
 } from "../src/abi/instructions.js";
 
@@ -315,9 +318,10 @@ console.log("\nTesting instruction encoders...\n");
   console.log("✓ encodeInitLP");
 }
 
-// Test InitMarket encoding (256 bytes total)
+// Test InitMarket encoding (304 bytes total)
 // Layout: tag(1) + admin(32) + mint(32) + indexFeedId(32) +
-//         maxStaleSecs(8) + confFilter(2) + invert(1) + unitScale(4) +
+//         maxStaleSecs(8) + confFilter(2) + invert(1) + unitScale(4) + initialMarkPrice(8) +
+//         maxMaintenanceFee(16) + maxRiskThreshold(16) + minOraclePriceCap(8) +
 //         RiskParams(144)
 {
   // Use keypair-generated valid pubkeys
@@ -335,6 +339,9 @@ console.log("\nTesting instruction encoders...\n");
     invert: 0,
     unitScale: 0,
     initialMarkPriceE6: "0",  // Standard market (not Hyperp)
+    maxMaintenanceFeePerSlot: "1000000",
+    maxRiskThreshold: "10000000000",
+    minOraclePriceCapE2bps: "0",
     warmupPeriodSlots: "1000",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",
@@ -349,9 +356,40 @@ console.log("\nTesting instruction encoders...\n");
     liquidationBufferBps: "50",
     minLiquidationAbs: "1000000",
   });
-  assert(data.length === 264, `InitMarket length: expected 264, got ${data.length}`);
+  assert(data.length === 304, `InitMarket length: expected 304, got ${data.length}`);
   assert(data[0] === IX_TAG.InitMarket, "InitMarket tag byte");
   console.log("✓ encodeInitMarket");
+}
+
+// Test AdminForceCloseAccount encoding (3 bytes: tag + u16)
+{
+  const data = encodeAdminForceCloseAccount({ userIdx: 7 });
+  assert(data.length === 3, "AdminForceCloseAccount length");
+  assert(data[0] === IX_TAG.AdminForceCloseAccount, "AdminForceCloseAccount tag byte");
+  assertBuf(data.subarray(1, 3), [7, 0], "AdminForceCloseAccount userIdx");
+  console.log("✓ encodeAdminForceCloseAccount");
+}
+
+// Test SetInsuranceWithdrawPolicy encoding (51 bytes: tag + pubkey(32) + u64(8) + u16(2) + u64(8))
+{
+  const authority = PublicKey.unique();
+  const data = encodeSetInsuranceWithdrawPolicy({
+    authority,
+    minWithdrawBase: "1000",
+    maxWithdrawBps: 100,
+    cooldownSlots: "400000",
+  });
+  assert(data.length === 51, `SetInsuranceWithdrawPolicy length: expected 51, got ${data.length}`);
+  assert(data[0] === IX_TAG.SetInsuranceWithdrawPolicy, "SetInsuranceWithdrawPolicy tag byte");
+  console.log("✓ encodeSetInsuranceWithdrawPolicy");
+}
+
+// Test WithdrawInsuranceLimited encoding (9 bytes: tag + u64)
+{
+  const data = encodeWithdrawInsuranceLimited({ amount: "5000" });
+  assert(data.length === 9, "WithdrawInsuranceLimited length");
+  assert(data[0] === IX_TAG.WithdrawInsuranceLimited, "WithdrawInsuranceLimited tag byte");
+  console.log("✓ encodeWithdrawInsuranceLimited");
 }
 
 console.log("\n✅ All tests passed!");

@@ -112,6 +112,14 @@ export const PERCOLATOR_ERRORS: Record<number, ErrorInfo> = {
     name: "InvalidTokenProgram",
     hint: "Invalid token program. Ensure SPL Token program is accessible.",
   },
+  26: {
+    name: "InvalidConfigParam",
+    hint: "Invalid configuration parameter. Check per-market admin limits and parameter constraints.",
+  },
+  27: {
+    name: "HyperpTradeNoCpiDisabled",
+    hint: "Hyperp mode requires TradeCpi, not TradeNoCpi. Use the trade-cpi command instead.",
+  },
 };
 
 /**

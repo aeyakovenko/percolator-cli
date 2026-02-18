@@ -20,7 +20,7 @@ console.log("Testing slab parsing...\n");
 
 // Create a mock slab buffer
 function createMockSlab(): Buffer {
-  const buf = Buffer.alloc(400);  // HEADER_LEN(72) + CONFIG_LEN(256) = 328 minimum
+  const buf = Buffer.alloc(448);  // HEADER_LEN(72) + CONFIG_LEN(368) = 440 minimum
 
   // Header (72 bytes)
   // magic: "PERCOLAT" = 0x504552434f4c4154
@@ -158,7 +158,7 @@ console.log("\n✅ All basic slab tests passed!");
 console.log("\nTesting account parsing...\n");
 
 // Constants from slab.ts for testing (keep in sync with slab.ts)
-const ENGINE_OFF = 392;
+const ENGINE_OFF = 440;
 const ENGINE_ACCOUNTS_OFF = 9136;
 const ACCOUNT_SIZE = 240;
 const ENGINE_BITMAP_OFF = 408;
