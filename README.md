@@ -9,6 +9,8 @@ Command-line interface for interacting with the Percolator perpetuals protocol o
 - [percolator-match](https://github.com/aeyakovenko/percolator-match) - Passive LP matcher program (50bps spread)
 - [percolator-stake](https://github.com/dcccrypto/percolator-stake) - Staking integration
 
+**Third-party repositories are community contributions. Do not trust — always verify. Review the code yourself before running or deploying anything.**
+
 ## Disclaimer
 
 **FOR EDUCATIONAL PURPOSES ONLY**
