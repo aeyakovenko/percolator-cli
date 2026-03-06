@@ -20,6 +20,7 @@ export function registerCloseAccount(program: Command): void {
     .description("Close a user account and withdraw remaining collateral")
     .requiredOption("--slab <pubkey>", "Slab account public key")
     .requiredOption("--user-idx <number>", "User account index to close")
+    .requiredOption("--oracle <pubkey>", "Price oracle account")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -27,6 +28,7 @@ export function registerCloseAccount(program: Command): void {
 
       // Validate inputs
       const slabPk = validatePublicKey(opts.slab, "--slab");
+      const oracle = validatePublicKey(opts.oracle, "--oracle");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
 
       // Fetch slab config for vault and oracle
@@ -51,7 +53,7 @@ export function registerCloseAccount(program: Command): void {
         vaultPda, // vaultPda
         WELL_KNOWN.tokenProgram, // tokenProgram
         WELL_KNOWN.clock, // clock
-        mktConfig.indexFeedId, // oracle
+        oracle, // oracle
       ]);
 
       const ix = buildIx({
