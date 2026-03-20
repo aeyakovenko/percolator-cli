@@ -29,13 +29,15 @@ export function registerSlabParams(program: Command): void {
               tradingFeeBps: params.tradingFeeBps.toString(),
               maxAccounts: params.maxAccounts.toString(),
               newAccountFee: params.newAccountFee.toString(),
-              riskReductionThreshold: params.riskReductionThreshold.toString(),
               maintenanceFeePerSlot: params.maintenanceFeePerSlot.toString(),
               maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
               liquidationFeeBps: params.liquidationFeeBps.toString(),
               liquidationFeeCap: params.liquidationFeeCap.toString(),
               liquidationBufferBps: params.liquidationBufferBps.toString(),
               minLiquidationAbs: params.minLiquidationAbs.toString(),
+              minInitialDeposit: params.minInitialDeposit.toString(),
+              minNonzeroMmReq: params.minNonzeroMmReq.toString(),
+              minNonzeroImReq: params.minNonzeroImReq.toString(),
             },
             null,
             2
@@ -45,6 +47,8 @@ export function registerSlabParams(program: Command): void {
         console.log("--- Margins ---");
         console.log(`Initial Margin:          ${params.initialMarginBps} bps`);
         console.log(`Maintenance Margin:      ${params.maintenanceMarginBps} bps`);
+        console.log(`Min Nonzero MM Req:      ${params.minNonzeroMmReq}`);
+        console.log(`Min Nonzero IM Req:      ${params.minNonzeroImReq}`);
         console.log("");
         console.log("--- Fees ---");
         console.log(`Trading Fee:             ${params.tradingFeeBps} bps`);
@@ -57,8 +61,8 @@ export function registerSlabParams(program: Command): void {
         console.log(`Liquidation Buffer:      ${params.liquidationBufferBps} bps`);
         console.log(`Min Liquidation Abs:     ${params.minLiquidationAbs}`);
         console.log("");
-        console.log("--- Thresholds ---");
-        console.log(`Risk Reduction Thresh:   ${params.riskReductionThreshold}`);
+        console.log("--- Deposits ---");
+        console.log(`Min Initial Deposit:     ${params.minInitialDeposit}`);
         console.log(`Max Crank Staleness:     ${params.maxCrankStalenessSlots} slots`);
         console.log("");
         console.log("--- Capacity ---");

@@ -273,6 +273,15 @@ export const ACCOUNTS_WITHDRAW_INSURANCE_LIMITED: readonly AccountSpec[] = [
   { name: "clock", signer: false, writable: false },
 ] as const;
 
+/**
+ * QueryLpFees: 2 accounts
+ * Query cumulative fees earned by an LP position (read-only)
+ */
+export const ACCOUNTS_QUERY_LP_FEES: readonly AccountSpec[] = [
+  { name: "caller", signer: false, writable: false },
+  { name: "slab", signer: false, writable: false },
+] as const;
+
 // ============================================================================
 // ACCOUNT META BUILDERS
 // ============================================================================

@@ -340,7 +340,7 @@ console.log("\nTesting instruction encoders...\n");
     unitScale: 0,
     initialMarkPriceE6: "0",  // Standard market (not Hyperp)
     maxMaintenanceFeePerSlot: "1000000",
-    maxRiskThreshold: "10000000000",
+    maxInsuranceFloor: "10000000000",
     minOraclePriceCapE2bps: "0",
     warmupPeriodSlots: "1000",
     maintenanceMarginBps: "500",
@@ -348,7 +348,7 @@ console.log("\nTesting instruction encoders...\n");
     tradingFeeBps: "10",
     maxAccounts: "1000",
     newAccountFee: "1000000",
-    riskReductionThreshold: "1000000000",
+    insuranceFloor: "1000000000",
     maintenanceFeePerSlot: "100",
     maxCrankStalenessSlots: "50",
     liquidationFeeBps: "100",

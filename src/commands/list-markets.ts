@@ -7,9 +7,9 @@ import { parseHeader, parseConfig, parseEngine, parseParams } from "../solana/sl
 
 // PERCOLAT magic bytes
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
-// New slab size after haircut-ratio refactor (removed ADL scratch arrays)
-// = ENGINE_OFF(376) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(248)
-const SLAB_SIZE = 992560;
+// Slab size after ADL refactor
+// = ENGINE_OFF(440) + ENGINE_ACCOUNTS_OFF(9336) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
+const SLAB_SIZE = 1156656;
 
 export function registerListMarkets(program: Command): void {
   program
@@ -63,7 +63,8 @@ export function registerListMarkets(program: Command): void {
             unitScale: config.unitScale,
             numAccounts: engine.numUsedAccounts,
             insuranceFund: engine.insuranceFund.balance.toString(),
-            totalOI: engine.totalOpenInterest.toString(),
+            oiEffLongQ: engine.oiEffLongQ.toString(),
+            oiEffShortQ: engine.oiEffShortQ.toString(),
             cTot: engine.cTot.toString(),
             initialMarginBps: Number(params.initialMarginBps),
             maintenanceMarginBps: Number(params.maintenanceMarginBps),
@@ -87,7 +88,8 @@ export function registerListMarkets(program: Command): void {
         console.log(`  Inverted: ${config.invert === 1 ? "Yes" : "No"}`);
         console.log(`  Accounts: ${engine.numUsedAccounts}`);
         console.log(`  Insurance: ${Number(engine.insuranceFund.balance) / 1e6} USDC`);
-        console.log(`  Open Interest: ${engine.totalOpenInterest}`);
+        console.log(`  OI Eff Long Q: ${engine.oiEffLongQ}`);
+        console.log(`  OI Eff Short Q: ${engine.oiEffShortQ}`);
 
         if (verbose) {
           console.log(`  Version: ${header.version}`);
@@ -97,7 +99,7 @@ export function registerListMarkets(program: Command): void {
           console.log(`  Liquidation Fee: ${Number(params.liquidationFeeBps) / 100}%`);
           console.log(`  Trading Fee: ${Number(params.tradingFeeBps) / 100}%`);
           console.log(`  C_tot: ${engine.cTot}`);
-          console.log(`  Funding Index: ${engine.fundingIndexQpbE6}`);
+          console.log(`  Funding Rate (bps/slot): ${engine.fundingRateBpsPerSlotLast}`);
           console.log(`  Rent: ${account.lamports / 1e9} SOL`);
         }
         console.log();

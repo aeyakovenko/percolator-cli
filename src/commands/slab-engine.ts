@@ -29,18 +29,30 @@ export function registerSlabEngine(program: Command): void {
                 feeRevenue: engine.insuranceFund.feeRevenue.toString(),
               },
               currentSlot: engine.currentSlot.toString(),
-              fundingIndexQpbE6: engine.fundingIndexQpbE6.toString(),
-              lastFundingSlot: engine.lastFundingSlot.toString(),
+              fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
               lastCrankSlot: engine.lastCrankSlot.toString(),
               maxCrankStalenessSlots: engine.maxCrankStalenessSlots.toString(),
-              totalOpenInterest: engine.totalOpenInterest.toString(),
               cTot: engine.cTot.toString(),
               pnlPosTot: engine.pnlPosTot.toString(),
+              pnlMaturedPosTot: engine.pnlMaturedPosTot.toString(),
               lifetimeLiquidations: engine.lifetimeLiquidations.toString(),
-              lifetimeForceCloses: engine.lifetimeForceCloses.toString(),
-              netLpPos: engine.netLpPos.toString(),
-              lpSumAbs: engine.lpSumAbs.toString(),
-              lpMaxAbs: engine.lpMaxAbs.toString(),
+              adlMultLong: engine.adlMultLong.toString(),
+              adlMultShort: engine.adlMultShort.toString(),
+              adlCoeffLong: engine.adlCoeffLong.toString(),
+              adlCoeffShort: engine.adlCoeffShort.toString(),
+              adlEpochLong: engine.adlEpochLong.toString(),
+              adlEpochShort: engine.adlEpochShort.toString(),
+              oiEffLongQ: engine.oiEffLongQ.toString(),
+              oiEffShortQ: engine.oiEffShortQ.toString(),
+              sideModeLong: engine.sideModeLong,
+              sideModeShort: engine.sideModeShort,
+              storedPosCountLong: engine.storedPosCountLong.toString(),
+              storedPosCountShort: engine.storedPosCountShort.toString(),
+              materializedAccountCount: engine.materializedAccountCount.toString(),
+              lastOraclePrice: engine.lastOraclePrice.toString(),
+              lastMarketSlot: engine.lastMarketSlot.toString(),
+              fundingPriceSampleLast: engine.fundingPriceSampleLast.toString(),
+              insuranceFloor: engine.insuranceFloor.toString(),
               numUsedAccounts: engine.numUsedAccounts,
               nextAccountId: engine.nextAccountId.toString(),
             },
@@ -53,30 +65,44 @@ export function registerSlabEngine(program: Command): void {
         console.log(`Vault Balance:           ${engine.vault}`);
         console.log(`Insurance Balance:       ${engine.insuranceFund.balance}`);
         console.log(`Insurance Fee Revenue:   ${engine.insuranceFund.feeRevenue}`);
+        console.log(`Insurance Floor:         ${engine.insuranceFloor}`);
         console.log("");
         console.log("--- Funding ---");
-        console.log(`Funding Index (qpb*1e6): ${engine.fundingIndexQpbE6}`);
-        console.log(`Last Funding Slot:       ${engine.lastFundingSlot}`);
+        console.log(`Funding Rate (bps/slot): ${engine.fundingRateBpsPerSlotLast}`);
+        console.log(`Funding Price Sample:    ${engine.fundingPriceSampleLast}`);
         console.log(`Current Slot:            ${engine.currentSlot}`);
         console.log("");
         console.log("--- Aggregates ---");
-        console.log(`Total Open Interest:     ${engine.totalOpenInterest}`);
         console.log(`C_tot (total capital):   ${engine.cTot}`);
         console.log(`PnL_pos_tot (pos PnL):   ${engine.pnlPosTot}`);
+        console.log(`PnL_matured_pos_tot:     ${engine.pnlMaturedPosTot}`);
+        console.log(`OI Eff Long Q:           ${engine.oiEffLongQ}`);
+        console.log(`OI Eff Short Q:          ${engine.oiEffShortQ}`);
         console.log("");
-        console.log("--- LP ---");
-        console.log(`Net LP Position:         ${engine.netLpPos}`);
-        console.log(`LP Sum Abs:              ${engine.lpSumAbs}`);
-        console.log(`LP Max Abs:              ${engine.lpMaxAbs}`);
+        console.log("--- ADL State ---");
+        console.log(`ADL Mult Long:           ${engine.adlMultLong}`);
+        console.log(`ADL Mult Short:          ${engine.adlMultShort}`);
+        console.log(`ADL Coeff Long:          ${engine.adlCoeffLong}`);
+        console.log(`ADL Coeff Short:         ${engine.adlCoeffShort}`);
+        console.log(`ADL Epoch Long:          ${engine.adlEpochLong}`);
+        console.log(`ADL Epoch Short:         ${engine.adlEpochShort}`);
+        console.log("");
+        console.log("--- Side Modes ---");
+        console.log(`Side Mode Long:          ${engine.sideModeLong}`);
+        console.log(`Side Mode Short:         ${engine.sideModeShort}`);
+        console.log(`Stored Pos Count Long:   ${engine.storedPosCountLong}`);
+        console.log(`Stored Pos Count Short:  ${engine.storedPosCountShort}`);
         console.log("");
         console.log("--- Keeper ---");
         console.log(`Last Crank Slot:         ${engine.lastCrankSlot}`);
         console.log(`Max Crank Staleness:     ${engine.maxCrankStalenessSlots}`);
         console.log(`Lifetime Liquidations:   ${engine.lifetimeLiquidations}`);
-        console.log(`Lifetime Force Closes:   ${engine.lifetimeForceCloses}`);
+        console.log(`Last Oracle Price:       ${engine.lastOraclePrice}`);
+        console.log(`Last Market Slot:        ${engine.lastMarketSlot}`);
         console.log("");
         console.log("--- Accounts ---");
         console.log(`Num Used Accounts:       ${engine.numUsedAccounts}`);
+        console.log(`Materialized Accounts:   ${engine.materializedAccountCount}`);
         console.log(`Next Account ID:         ${engine.nextAccountId}`);
       }
     });

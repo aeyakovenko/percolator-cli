@@ -184,7 +184,7 @@ export function registerBestPrice(program: Command): void {
           feeBps: quote.feeBps,
           spreadBps: quote.spreadBps,
           capital: account.capital,
-          position: account.positionSize,
+          position: account.positionBasisQ,
         });
       }
 

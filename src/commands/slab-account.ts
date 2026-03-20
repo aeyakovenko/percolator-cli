@@ -44,11 +44,13 @@ export function registerSlabAccount(program: Command): void {
               capital: account.capital.toString(),
               pnl: account.pnl.toString(),
               reservedPnl: account.reservedPnl.toString(),
-              positionSize: account.positionSize.toString(),
-              entryPrice: account.entryPrice.toString(),
-              fundingIndex: account.fundingIndex.toString(),
+              positionBasisQ: account.positionBasisQ.toString(),
+              adlABasis: account.adlABasis.toString(),
+              adlKSnap: account.adlKSnap.toString(),
+              adlEpochSnap: account.adlEpochSnap.toString(),
               feeCredits: account.feeCredits.toString(),
               lastFeeSlot: account.lastFeeSlot.toString(),
+              feesEarnedTotal: account.feesEarnedTotal.toString(),
               warmupStartedAtSlot: account.warmupStartedAtSlot.toString(),
               warmupSlopePerStep: account.warmupSlopePerStep.toString(),
               matcherProgram: account.matcherProgram.toBase58(),
@@ -69,11 +71,13 @@ export function registerSlabAccount(program: Command): void {
         console.log(`Reserved PnL:            ${account.reservedPnl}`);
         console.log(`Fee Credits:             ${account.feeCredits}`);
         console.log(`Last Fee Slot:           ${account.lastFeeSlot}`);
+        console.log(`Fees Earned Total:       ${account.feesEarnedTotal}`);
         console.log("");
         console.log("--- Position ---");
-        console.log(`Position Size:           ${account.positionSize}`);
-        console.log(`Entry Price:             ${account.entryPrice}`);
-        console.log(`Funding Index:           ${account.fundingIndex}`);
+        console.log(`Position Basis Q:        ${account.positionBasisQ}`);
+        console.log(`ADL A Basis:             ${account.adlABasis}`);
+        console.log(`ADL K Snap:              ${account.adlKSnap}`);
+        console.log(`ADL Epoch Snap:          ${account.adlEpochSnap}`);
         console.log("");
         console.log("--- Warmup ---");
         console.log(`Warmup Started:          ${account.warmupStartedAtSlot}`);
