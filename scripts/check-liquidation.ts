@@ -27,7 +27,7 @@ async function main() {
     const acc = parseAccount(data, idx);
     const label = acc.kind === AccountKind.LP ? 'LP' : `Trader ${idx}`;
 
-    const posAbs = acc.positionSize < 0n ? -acc.positionSize : acc.positionSize;
+    const posAbs = acc.positionBasisQ < 0n ? -acc.positionBasisQ : acc.positionBasisQ;
     const notional = posAbs * price / 1_000_000n;  // in lamports
     const maintenanceReq = notional * params.maintenanceMarginBps / 10_000n;
 
@@ -46,7 +46,7 @@ async function main() {
                    marginRatio < params.maintenanceMarginBps * 2n ? '🟡 AT RISK' : '🟢 SAFE';
 
     console.log(`[${idx}] ${label}: ${status}`);
-    console.log(`    Position: ${acc.positionSize} (${acc.positionSize > 0n ? 'LONG' : acc.positionSize < 0n ? 'SHORT' : 'FLAT'})`);
+    console.log(`    Position: ${acc.positionBasisQ} (${acc.positionBasisQ > 0n ? 'LONG' : acc.positionBasisQ < 0n ? 'SHORT' : 'FLAT'})`);
     console.log(`    Capital: ${Number(acc.capital) / 1e9} SOL`);
     console.log(`    PnL: ${Number(pnl) / 1e9} SOL`);
     console.log(`    Effective Capital: ${Number(effectiveCapital) / 1e9} SOL`);

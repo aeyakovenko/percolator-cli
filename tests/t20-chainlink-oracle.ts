@@ -151,7 +151,7 @@ async function main() {
     tradingFeeBps: "10",             // 0.1%
     maxAccounts: "64",
     newAccountFee: "1000000",        // 1 USDC
-    riskReductionThreshold: "0",
+    insuranceFloor: "0",
     maintenanceFeePerSlot: "0",
     maxCrankStalenessSlots: "200",
     liquidationFeeBps: "100",        // 1%
@@ -180,7 +180,7 @@ async function main() {
   });
 
   // Calculate rent
-  const slabSize = 992560;
+  const slabSize = 1156656;
   const rentExempt = await connection.getMinimumBalanceForRentExemption(slabSize);
   console.log(`  Rent: ${(rentExempt / 1e9).toFixed(4)} SOL`);
 
@@ -322,8 +322,7 @@ async function main() {
     if (slabInfo) {
       const engine = parseEngine(slabInfo.data);
       console.log(`\n  Engine state after crank:`);
-      console.log(`    Last funding slot: ${engine.lastFundingSlot}`);
-      console.log(`    Funding index: ${engine.fundingIndexQpbE6}`);
+      console.log(`    Funding rate (bps/slot, last): ${engine.fundingRateBpsPerSlotLast}`);
       console.log(`    Insurance fund: ${engine.insuranceFund.balance}`);
     }
 

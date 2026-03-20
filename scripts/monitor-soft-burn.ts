@@ -16,8 +16,7 @@ interface Snapshot {
   time: Date;
   insurance: bigint;
   threshold: bigint;
-  lpSumAbs: bigint;
-  totalOI: bigint;
+  // lpSumAbs, totalOI removed from engine state
 }
 
 const history: Snapshot[] = [];
@@ -31,9 +30,7 @@ async function getSnapshot(): Promise<Snapshot> {
   return {
     time: new Date(),
     insurance: BigInt(engine.insuranceFund?.balance || 0),
-    threshold: BigInt(params.riskReductionThreshold || 0),
-    lpSumAbs: BigInt(engine.lpSumAbs || 0),
-    totalOI: BigInt(engine.totalOpenInterest || 0),
+    threshold: BigInt(params.insuranceFloor || 0),
   };
 }
 

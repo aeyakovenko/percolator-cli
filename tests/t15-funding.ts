@@ -10,12 +10,11 @@
  * - Rate is calculated based on price difference and time
  *
  * Key fields:
- * - engine.fundingIndexQpbE6: Global cumulative funding index (Q6 precision)
- * - engine.lastFundingSlot: Last slot when funding was applied
- * - account.fundingIndex: Account's funding index at last settlement
+ * - engine.fundingRateBpsPerSlotLast: Last funding rate in bps per slot
+ * - account.adlKSnap: Account's ADL K snapshot at last settlement
  *
  * Funding settlement formula:
- *   payment = positionSize * (globalFundingIndex - accountFundingIndex)
+ *   payment = positionBasisQ * fundingDelta
  *   - Positive position (long): pays when index increases
  *   - Negative position (short): receives when index increases
  *
@@ -49,20 +48,19 @@ async function runT15Tests(): Promise<void> {
 
     // Get initial funding state
     const snapshot = await harness.snapshot(ctx);
-    console.log(`    Funding index: ${snapshot.engine.fundingIndexQpbE6}`);
-    console.log(`    Last funding slot: ${snapshot.engine.lastFundingSlot}`);
+    console.log(`    Funding rate (bps/slot, last): ${snapshot.engine.fundingRateBpsPerSlotLast}`);
     console.log(`    Current slot: ${snapshot.engine.currentSlot}`);
 
-    // Initial funding index should be 0 or initialized value
+    // Funding rate should be a valid value
     TestHarness.assert(
-      snapshot.engine.fundingIndexQpbE6 >= 0n || snapshot.engine.fundingIndexQpbE6 < 0n,
-      "Funding index should be a valid value"
+      snapshot.engine.fundingRateBpsPerSlotLast >= 0n || snapshot.engine.fundingRateBpsPerSlotLast < 0n,
+      "Funding rate should be a valid value"
     );
 
-    // Last funding slot should be set to current or recent slot
+    // Current slot should be set
     TestHarness.assert(
-      snapshot.engine.lastFundingSlot > 0n,
-      "Last funding slot should be initialized"
+      snapshot.engine.currentSlot > 0n,
+      "Current slot should be initialized"
     );
   });
 
@@ -93,14 +91,14 @@ async function runT15Tests(): Promise<void> {
 
     // Get state before crank
     let snapshot = await harness.snapshot(ctx);
-    const fundingIndexBefore = snapshot.engine.fundingIndexQpbE6;
-    const lastFundingSlotBefore = snapshot.engine.lastFundingSlot;
-    console.log(`    Before crank - Funding index: ${fundingIndexBefore}`);
-    console.log(`    Before crank - Last funding slot: ${lastFundingSlotBefore}`);
+    const fundingIndexBefore = snapshot.engine.fundingRateBpsPerSlotLast;
+    const currentSlotBefore = snapshot.engine.currentSlot;
+    console.log(`    Before crank - Funding rate: ${fundingIndexBefore}`);
+    console.log(`    Before crank - Current slot: ${currentSlotBefore}`);
 
     // Get user account funding index
     let userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-    const userFundingBefore = userAcct?.account.fundingIndex ?? 0n;
+    const userFundingBefore = userAcct?.account.adlKSnap ?? 0n;
     const userCapitalBefore = userAcct?.account.capital ?? 0n;
     console.log(`    User funding index before: ${userFundingBefore}`);
     console.log(`    User capital before: ${userCapitalBefore}`);
@@ -111,20 +109,20 @@ async function runT15Tests(): Promise<void> {
 
     // Get state after crank
     snapshot = await harness.snapshot(ctx);
-    const fundingIndexAfter = snapshot.engine.fundingIndexQpbE6;
-    const lastFundingSlotAfter = snapshot.engine.lastFundingSlot;
-    console.log(`    After crank - Funding index: ${fundingIndexAfter}`);
-    console.log(`    After crank - Last funding slot: ${lastFundingSlotAfter}`);
+    const fundingIndexAfter = snapshot.engine.fundingRateBpsPerSlotLast;
+    const currentSlotAfter = snapshot.engine.currentSlot;
+    console.log(`    After crank - Funding rate: ${fundingIndexAfter}`);
+    console.log(`    After crank - Current slot: ${currentSlotAfter}`);
 
     userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-    const userFundingAfter = userAcct?.account.fundingIndex ?? 0n;
+    const userFundingAfter = userAcct?.account.adlKSnap ?? 0n;
     const userCapitalAfter = userAcct?.account.capital ?? 0n;
     console.log(`    User funding index after: ${userFundingAfter}`);
     console.log(`    User capital after: ${userCapitalAfter}`);
 
-    // Funding slot should advance
-    if (lastFundingSlotAfter > lastFundingSlotBefore) {
-      console.log(`    Funding slot advanced: ${lastFundingSlotBefore} -> ${lastFundingSlotAfter}`);
+    // Current slot should advance
+    if (currentSlotAfter > currentSlotBefore) {
+      console.log(`    Slot advanced: ${currentSlotBefore} -> ${currentSlotAfter}`);
     }
 
     // Capital might change due to funding
@@ -163,12 +161,12 @@ async function runT15Tests(): Promise<void> {
     let userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
     let lpAcct = snapshot.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    User position: ${userAcct?.account.positionSize}`);
-    console.log(`    LP position: ${lpAcct?.account.positionSize}`);
+    console.log(`    User position: ${userAcct?.account.positionBasisQ}`);
+    console.log(`    LP position: ${lpAcct?.account.positionBasisQ}`);
 
     // Verify opposing positions
-    const userPos = userAcct?.account.positionSize ?? 0n;
-    const lpPos = lpAcct?.account.positionSize ?? 0n;
+    const userPos = userAcct?.account.positionBasisQ ?? 0n;
+    const lpPos = lpAcct?.account.positionBasisQ ?? 0n;
 
     TestHarness.assert(userPos > 0n, "User should be long");
     TestHarness.assert(lpPos < 0n, "LP should be short");
@@ -307,9 +305,9 @@ async function runT15Tests(): Promise<void> {
     let userAcct = snap.accounts.find(a => a.idx === user.accountIndex);
     let lpAcct = snap.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    User position (inverted): ${userAcct?.account.positionSize}`);
-    console.log(`    LP position (inverted): ${lpAcct?.account.positionSize}`);
-    console.log(`    Global funding index: ${snap.engine.fundingIndexQpbE6}`);
+    console.log(`    User position (inverted): ${userAcct?.account.positionBasisQ}`);
+    console.log(`    LP position (inverted): ${lpAcct?.account.positionBasisQ}`);
+    console.log(`    Global funding index: ${snap.engine.fundingRateBpsPerSlotLast}`);
 
     // Run crank
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -317,7 +315,7 @@ async function runT15Tests(): Promise<void> {
 
     // Check funding after
     snap = await harness.snapshot(ctx);
-    console.log(`    Funding index after crank: ${snap.engine.fundingIndexQpbE6}`);
+    console.log(`    Funding index after crank: ${snap.engine.fundingRateBpsPerSlotLast}`);
   });
 
   // -------------------------------------------------------------------------
@@ -353,9 +351,9 @@ async function runT15Tests(): Promise<void> {
     let user2Acct = snapshot.accounts.find(a => a.idx === user2.accountIndex);
     let lpAcct = snapshot.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    User1 position: ${user1Acct?.account.positionSize}`);
-    console.log(`    User2 position: ${user2Acct?.account.positionSize}`);
-    console.log(`    LP position: ${lpAcct?.account.positionSize}`);
+    console.log(`    User1 position: ${user1Acct?.account.positionBasisQ}`);
+    console.log(`    User2 position: ${user2Acct?.account.positionBasisQ}`);
+    console.log(`    LP position: ${lpAcct?.account.positionBasisQ}`);
 
     const user1CapBefore = user1Acct?.account.capital ?? 0n;
     const user2CapBefore = user2Acct?.account.capital ?? 0n;
@@ -379,8 +377,8 @@ async function runT15Tests(): Promise<void> {
     console.log(`    LP capital change: ${lpCapAfter - lpCapBefore}`);
 
     // Open interest balance check
-    const totalLong = (user1Acct?.account.positionSize ?? 0n) + (user2Acct?.account.positionSize ?? 0n);
-    const totalShort = -(lpAcct?.account.positionSize ?? 0n);
+    const totalLong = (user1Acct?.account.positionBasisQ ?? 0n) + (user2Acct?.account.positionBasisQ ?? 0n);
+    const totalShort = -(lpAcct?.account.positionBasisQ ?? 0n);
     console.log(`    Total long: ${totalLong}`);
     console.log(`    Total short: ${totalShort}`);
 

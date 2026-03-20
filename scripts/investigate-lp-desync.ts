@@ -32,20 +32,15 @@ async function investigate() {
 
   // Find LP
   const lpAccount = accounts.find(a => a.kind === AccountKind.LP);
-  const lpPosition = BigInt(lpAccount?.positionSize || 0);
-  const netLpPos = BigInt(engine.netLpPos || 0);
+  const lpPosition = BigInt(lpAccount?.positionBasisQ || 0);
+  // netLpPos, lpSumAbs, totalOpenInterest removed from engine state
 
   console.log('Engine State:');
-  console.log(`  net_lp_pos:              ${netLpPos}`);
-  console.log(`  lp_sum_abs:              ${engine.lpSumAbs}`);
-  console.log(`  total_open_interest:     ${engine.totalOpenInterest}`);
-  console.log(`  lifetime_force_closes:   ${engine.lifetimeForceRealizeCloses}`);
   console.log(`  lifetime_liquidations:   ${engine.lifetimeLiquidations}`);
   console.log();
 
   console.log('LP Account:');
-  console.log(`  position_size:           ${lpPosition}`);
-  console.log(`  Matches net_lp_pos:      ${lpPosition === netLpPos}`);
+  console.log(`  position_basis_q:        ${lpPosition}`);
   console.log();
 
   // Sum user positions
@@ -53,7 +48,7 @@ async function investigate() {
   console.log('User Accounts:');
   for (const acc of accounts) {
     if (acc.kind === AccountKind.User) {
-      const pos = BigInt(acc.positionSize || 0);
+      const pos = BigInt(acc.positionBasisQ || 0);
       userPositionSum += pos;
       console.log(`  Account ${acc.idx}: position = ${pos}`);
     }
@@ -76,14 +71,12 @@ async function investigate() {
   // Calculate OI consistency
   let calculatedOI = 0n;
   for (const acc of accounts) {
-    const pos = BigInt(acc.positionSize || 0);
+    const pos = BigInt(acc.positionBasisQ || 0);
     calculatedOI += pos < 0n ? -pos : pos;
   }
 
-  console.log('OI Consistency:');
-  console.log(`  Reported OI:             ${engine.totalOpenInterest}`);
+  console.log('OI Consistency (calculated from positions):');
   console.log(`  Calculated OI:           ${calculatedOI}`);
-  console.log(`  Match:                   ${BigInt(engine.totalOpenInterest || 0) === calculatedOI}`);
   console.log();
 
   // Impact analysis

@@ -71,8 +71,8 @@ async function runT13Tests(): Promise<void> {
 
     console.log(`    LP initial capital: ${lpAcctInit?.account.capital}`);
     console.log(`    User initial capital: ${userAcctInit?.account.capital}`);
-    console.log(`    LP initial position: ${lpAcctInit?.account.positionSize}`);
-    console.log(`    User initial position: ${userAcctInit?.account.positionSize}`);
+    console.log(`    LP initial position: ${lpAcctInit?.account.positionBasisQ}`);
+    console.log(`    User initial position: ${userAcctInit?.account.positionBasisQ}`);
 
     // Execute trade: user goes long
     const longResult = await harness.tradeCpi(ctx, user, lp, "1000");
@@ -83,7 +83,7 @@ async function runT13Tests(): Promise<void> {
 
     snapshot = await harness.snapshot(ctx);
     let userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-    console.log(`    After long: User position = ${userAcct?.account.positionSize}`);
+    console.log(`    After long: User position = ${userAcct?.account.positionBasisQ}`);
 
     // Execute trade: user closes position (goes short same amount)
     const shortResult = await harness.tradeCpi(ctx, user, lp, "-1000");
@@ -96,19 +96,19 @@ async function runT13Tests(): Promise<void> {
     userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
     const lpAcct = snapshot.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    After close: User position = ${userAcct?.account.positionSize}`);
-    console.log(`    After close: LP position = ${lpAcct?.account.positionSize}`);
+    console.log(`    After close: User position = ${userAcct?.account.positionBasisQ}`);
+    console.log(`    After close: LP position = ${lpAcct?.account.positionBasisQ}`);
     console.log(`    After close: User capital = ${userAcct?.account.capital}`);
     console.log(`    After close: LP capital = ${lpAcct?.account.capital}`);
 
     // Both should be flat
     TestHarness.assertBigIntEqual(
-      userAcct!.account.positionSize,
+      userAcct!.account.positionBasisQ,
       0n,
       "User should be flat after round-trip"
     );
     TestHarness.assertBigIntEqual(
-      lpAcct!.account.positionSize,
+      lpAcct!.account.positionBasisQ,
       0n,
       "LP should be flat after round-trip"
     );

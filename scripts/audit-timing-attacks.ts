@@ -220,7 +220,7 @@ async function testMultiTradeSameSlot(): Promise<TestResult> {
   const state = await getMarketState();
 
   const account = state.accounts.find((a: any) =>
-    a.kind === AccountKind.User && Number(a.capital || 0) > 100000000 && BigInt(a.positionSize || 0) === 0n
+    a.kind === AccountKind.User && Number(a.capital || 0) > 100000000 && BigInt(a.positionBasisQ || 0) === 0n
   );
 
   if (!account) {
@@ -280,21 +280,19 @@ async function testFundingTiming(): Promise<TestResult> {
 
   const stateBefore = await getMarketState();
 
-  const fundingIndexBefore = BigInt(stateBefore.engine.fundingIndexQpbE6 || 0);
-  const lastFundingSlot = Number(stateBefore.engine.lastFundingSlot || 0);
+  const fundingIndexBefore = BigInt(stateBefore.engine.fundingRateBpsPerSlotLast || 0);
+  // lastFundingSlot removed from engine state
   const currentSlot = stateBefore.currentSlot;
 
-  console.log(`  Funding index: ${fundingIndexBefore}`);
-  console.log(`  Last funding slot: ${lastFundingSlot}`);
+  console.log(`  Funding rate: ${fundingIndexBefore}`);
   console.log(`  Current slot: ${currentSlot}`);
-  console.log(`  Slots since funding: ${currentSlot - lastFundingSlot}`);
 
   // Run crank to settle funding
   await runCrank();
   await delay(2000);
 
   const stateAfter = await getMarketState();
-  const fundingIndexAfter = BigInt(stateAfter.engine.fundingIndexQpbE6 || 0);
+  const fundingIndexAfter = BigInt(stateAfter.engine.fundingRateBpsPerSlotLast || 0);
   const fundingDelta = fundingIndexAfter - fundingIndexBefore;
 
   console.log(`  Funding delta after crank: ${fundingDelta}`);
@@ -302,7 +300,7 @@ async function testFundingTiming(): Promise<TestResult> {
   // Check if any accounts have pending funding
   let maxUnsettledFunding = 0n;
   for (const account of stateAfter.accounts) {
-    const accountFundingIndex = BigInt(account.fundingIndex || 0);
+    const accountFundingIndex = BigInt(account.adlKSnap || 0);
     const diff = fundingIndexAfter > accountFundingIndex ? fundingIndexAfter - accountFundingIndex : 0n;
     if (diff > maxUnsettledFunding) {
       maxUnsettledFunding = diff;
@@ -332,7 +330,7 @@ async function testLiquidationFrontRun(): Promise<TestResult> {
 
   for (const account of state.accounts) {
     if (account.kind !== AccountKind.User) continue;
-    const pos = BigInt(account.positionSize || 0);
+    const pos = BigInt(account.positionBasisQ || 0);
     if (pos === 0n) continue;
 
     const capital = Number(account.capital || 0);
@@ -365,7 +363,7 @@ async function testLiquidationFrontRun(): Promise<TestResult> {
 
   // If below 10% margin, try to close position before crank liquidates
   if (mostAtRisk.marginRatio < 0.10) {
-    const pos = BigInt(mostAtRisk.positionSize || 0);
+    const pos = BigInt(mostAtRisk.positionBasisQ || 0);
     console.log(`  Attempting to close position to escape liquidation...`);
 
     const closeResult = await trade(mostAtRisk.idx, 0, -pos);
@@ -435,7 +433,7 @@ async function testWithdrawAfterTrade(): Promise<TestResult> {
   const account = state.accounts.find((a: any) =>
     a.kind === AccountKind.User &&
     Number(a.capital || 0) > 50000000 &&
-    BigInt(a.positionSize || 0) !== 0n
+    BigInt(a.positionBasisQ || 0) !== 0n
   );
 
   if (!account) {
@@ -448,7 +446,7 @@ async function testWithdrawAfterTrade(): Promise<TestResult> {
   }
 
   const capitalBefore = Number(account.capital || 0);
-  const pos = BigInt(account.positionSize || 0);
+  const pos = BigInt(account.positionBasisQ || 0);
   console.log(`  Account ${account.idx}: capital ${(capitalBefore / 1e9).toFixed(4)} SOL, pos ${pos}`);
 
   // Close position
@@ -505,7 +503,7 @@ async function testRapidCycle(): Promise<TestResult> {
   const account = state.accounts.find((a: any) =>
     a.kind === AccountKind.User &&
     Number(a.capital || 0) > 100000000 &&
-    BigInt(a.positionSize || 0) === 0n
+    BigInt(a.positionBasisQ || 0) === 0n
   );
 
   if (!account) {
@@ -611,8 +609,8 @@ async function testOraclePriceChange(): Promise<TestResult> {
   // Get entry prices
   const entryPrices1 = new Map<number, bigint>();
   for (const account of accounts1) {
-    if (BigInt(account.positionSize || 0) !== 0n) {
-      entryPrices1.set(account.idx, BigInt(account.entryPrice || 0));
+    if (BigInt(account.positionBasisQ || 0) !== 0n) {
+      entryPrices1.set(account.idx, BigInt(account.adlABasis || 0));
     }
   }
 
@@ -635,7 +633,7 @@ async function testOraclePriceChange(): Promise<TestResult> {
   let priceChanges = 0;
   for (const account of state2.accounts) {
     const oldEntry = entryPrices1.get(account.idx);
-    const newEntry = BigInt(account.entryPrice || 0);
+    const newEntry = BigInt(account.adlABasis || 0);
     if (oldEntry !== undefined && oldEntry !== newEntry) {
       priceChanges++;
       console.log(`  Account ${account.idx}: entry ${oldEntry} -> ${newEntry}`);

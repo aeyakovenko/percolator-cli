@@ -102,7 +102,7 @@ async function findAllLps(slabData: Buffer): Promise<LpInfo[]> {
         matcherContext: account.matcherContext,
         lpPda: deriveLpPda(SLAB, idx),
         capital: account.capital,
-        position: account.positionSize,
+        position: account.positionBasisQ,
       });
     }
   }
@@ -545,7 +545,7 @@ async function simulateBankRun(userAta: PublicKey): Promise<{ success: number; f
       idx: traderIdx,
       capital: account.capital,
       pnl: account.pnl,
-      position: account.positionSize,
+      position: account.positionBasisQ,
     });
   }
 
@@ -779,10 +779,10 @@ async function realizePnL(): Promise<{ closed: number; adlTriggered: boolean }> 
   const traderData: { idx: number; position: bigint; pnl: bigint; capital: bigint }[] = [];
   for (const traderIdx of traderIndices) {
     const account = parseAccount(slabData, traderIdx);
-    if (!account || account.positionSize === 0n) continue;
+    if (!account || account.positionBasisQ === 0n) continue;
     traderData.push({
       idx: traderIdx,
-      position: account.positionSize,
+      position: account.positionBasisQ,
       pnl: account.pnl,
       capital: account.capital,
     });
@@ -844,7 +844,7 @@ async function realizePnL(): Promise<{ closed: number; adlTriggered: boolean }> 
       // Check if position actually closed
       const postSlabData = await fetchSlab(connection, SLAB);
       const postAccount = parseAccount(postSlabData, traderIdx);
-      const newPos = postAccount?.positionSize || 0n;
+      const newPos = postAccount?.positionBasisQ || 0n;
       const newPnl = postAccount?.pnl || 0n;
 
       if (newPos === 0n) {
@@ -954,7 +954,7 @@ async function tradeLoop(): Promise<void> {
       // Fetch current state
       const slabData = await fetchSlab(connection, SLAB);
       const account = parseAccount(slabData, traderIdx);
-      const currentPos = account?.positionSize || 0n;
+      const currentPos = account?.positionBasisQ || 0n;
 
       // Always INCREASE current position (if long->more long, if short->more short)
       // If flat, random 50/50
@@ -993,7 +993,7 @@ async function tradeLoop(): Promise<void> {
       const postSlabData = await fetchSlab(connection, SLAB);
       const postAccount = parseAccount(postSlabData, traderIdx);
       if (postAccount) {
-        console.log(`  Position: ${postAccount.positionSize}, Capital: ${Number(postAccount.capital) / 1e9} SOL`);
+        console.log(`  Position: ${postAccount.positionBasisQ}, Capital: ${Number(postAccount.capital) / 1e9} SOL`);
       }
 
       const failRate = tradeCount > 0 ? ((failCount / tradeCount) * 100).toFixed(0) : '0';

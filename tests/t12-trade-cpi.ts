@@ -68,8 +68,8 @@ async function runT12Tests(): Promise<void> {
 
     console.log(`    LP capital: ${lpAcct?.account.capital}`);
     console.log(`    User capital: ${userAcct?.account.capital}`);
-    console.log(`    LP position: ${lpAcct?.account.positionSize}`);
-    console.log(`    User position: ${userAcct?.account.positionSize}`);
+    console.log(`    LP position: ${lpAcct?.account.positionBasisQ}`);
+    console.log(`    User position: ${userAcct?.account.positionBasisQ}`);
   });
 
   // -------------------------------------------------------------------------
@@ -80,8 +80,8 @@ async function runT12Tests(): Promise<void> {
     const userAcctBefore = snapshotBefore.accounts.find(a => a.idx === user.accountIndex);
     const lpAcctBefore = snapshotBefore.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    Before - User position: ${userAcctBefore?.account.positionSize}`);
-    console.log(`    Before - LP position: ${lpAcctBefore?.account.positionSize}`);
+    console.log(`    Before - User position: ${userAcctBefore?.account.positionBasisQ}`);
+    console.log(`    Before - LP position: ${lpAcctBefore?.account.positionBasisQ}`);
 
     // User buys 1000 units (positive size = long)
     const tradeSize = "1000";
@@ -100,26 +100,26 @@ async function runT12Tests(): Promise<void> {
     const userAcctAfter = snapshotAfter.accounts.find(a => a.idx === user.accountIndex);
     const lpAcctAfter = snapshotAfter.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    After - User position: ${userAcctAfter?.account.positionSize}`);
-    console.log(`    After - LP position: ${lpAcctAfter?.account.positionSize}`);
+    console.log(`    After - User position: ${userAcctAfter?.account.positionBasisQ}`);
+    console.log(`    After - LP position: ${lpAcctAfter?.account.positionBasisQ}`);
 
     // Verify positions changed
     TestHarness.assert(
-      userAcctAfter!.account.positionSize !== userAcctBefore!.account.positionSize,
+      userAcctAfter!.account.positionBasisQ !== userAcctBefore!.account.positionBasisQ,
       "User position should change after trade"
     );
     TestHarness.assert(
-      lpAcctAfter!.account.positionSize !== lpAcctBefore!.account.positionSize,
+      lpAcctAfter!.account.positionBasisQ !== lpAcctBefore!.account.positionBasisQ,
       "LP position should change after trade"
     );
 
     // User should be long, LP should be short (opposite sides)
     TestHarness.assert(
-      userAcctAfter!.account.positionSize > 0n,
+      userAcctAfter!.account.positionBasisQ > 0n,
       "User should be long after buying"
     );
     TestHarness.assert(
-      lpAcctAfter!.account.positionSize < 0n,
+      lpAcctAfter!.account.positionBasisQ < 0n,
       "LP should be short after selling to user"
     );
   });
@@ -146,7 +146,7 @@ async function runT12Tests(): Promise<void> {
     const snapshotBefore = await harness.snapshot(ctx);
     const userAcctBefore = snapshotBefore.accounts.find(a => a.idx === user.accountIndex);
 
-    console.log(`    Before - User position: ${userAcctBefore?.account.positionSize}`);
+    console.log(`    Before - User position: ${userAcctBefore?.account.positionBasisQ}`);
 
     // User sells 1000 units (negative size = short)
     const tradeSize = "-1000";
@@ -164,17 +164,17 @@ async function runT12Tests(): Promise<void> {
     const userAcctAfter = snapshotAfter.accounts.find(a => a.idx === user.accountIndex);
     const lpAcctAfter = snapshotAfter.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    After - User position: ${userAcctAfter?.account.positionSize}`);
-    console.log(`    After - LP position: ${lpAcctAfter?.account.positionSize}`);
+    console.log(`    After - User position: ${userAcctAfter?.account.positionBasisQ}`);
+    console.log(`    After - LP position: ${lpAcctAfter?.account.positionBasisQ}`);
 
     // User should be short, LP should be long
-    if (userAcctAfter!.account.positionSize !== 0n) {
+    if (userAcctAfter!.account.positionBasisQ !== 0n) {
       TestHarness.assert(
-        userAcctAfter!.account.positionSize < 0n,
+        userAcctAfter!.account.positionBasisQ < 0n,
         "User should be short after selling"
       );
       TestHarness.assert(
-        lpAcctAfter!.account.positionSize > 0n,
+        lpAcctAfter!.account.positionBasisQ > 0n,
         "LP should be long after buying from user"
       );
     }
@@ -207,7 +207,7 @@ async function runT12Tests(): Promise<void> {
 
     let snapshot = await harness.snapshot(ctx);
     let userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-    console.log(`    After long: User position = ${userAcct?.account.positionSize}`);
+    console.log(`    After long: User position = ${userAcct?.account.positionBasisQ}`);
 
     // Go short to close (sell same amount)
     const shortResult = await harness.tradeCpi(ctx, user, lp, "-1000");
@@ -220,17 +220,17 @@ async function runT12Tests(): Promise<void> {
     userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
     const lpAcct = snapshot.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    After close: User position = ${userAcct?.account.positionSize}`);
-    console.log(`    After close: LP position = ${lpAcct?.account.positionSize}`);
+    console.log(`    After close: User position = ${userAcct?.account.positionBasisQ}`);
+    console.log(`    After close: LP position = ${lpAcct?.account.positionBasisQ}`);
 
     // Both should be flat after round-trip
     TestHarness.assertBigIntEqual(
-      userAcct!.account.positionSize,
+      userAcct!.account.positionBasisQ,
       0n,
       "User should be flat after round-trip"
     );
     TestHarness.assertBigIntEqual(
-      lpAcct!.account.positionSize,
+      lpAcct!.account.positionBasisQ,
       0n,
       "LP should be flat after round-trip"
     );

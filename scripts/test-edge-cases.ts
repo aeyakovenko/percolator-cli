@@ -222,7 +222,7 @@ async function testPositionFlip(basePrice: bigint): Promise<TestResult> {
   await trade(idx, LONG_SIZE);
   let state = await getState();
   let acc = state.accounts.find((a: any) => a.idx === idx);
-  const posAfterLong = BigInt(acc?.positionSize || 0);
+  const posAfterLong = BigInt(acc?.positionBasisQ || 0);
   console.log(`  After LONG: position=${posAfterLong}, capital=${fmt(BigInt(acc?.capital || 0))}`);
 
   if (posAfterLong <= 0n) return { name: "Position Flip", pass: false, details: `Expected positive position, got ${posAfterLong}` };
@@ -239,7 +239,7 @@ async function testPositionFlip(basePrice: bigint): Promise<TestResult> {
 
   state = await getState();
   acc = state.accounts.find((a: any) => a.idx === idx);
-  const posAfterFlip = BigInt(acc?.positionSize || 0);
+  const posAfterFlip = BigInt(acc?.positionBasisQ || 0);
   const capAfterFlip = BigInt(acc?.capital || 0);
   console.log(`  After flip trade: position=${posAfterFlip}, capital=${fmt(capAfterFlip)}, flipOk=${flipOk}`);
 
@@ -624,7 +624,7 @@ async function testConcurrentAccounts(basePrice: bigint): Promise<TestResult> {
   console.log("  After all LONG:");
   for (const idx of indices) {
     const acc = state.accounts.find((a: any) => a.idx === idx);
-    console.log(`    [${idx}] pos=${acc?.positionSize}, cap=${fmt(BigInt(acc?.capital || 0))}`);
+    console.log(`    [${idx}] pos=${acc?.positionBasisQ}, cap=${fmt(BigInt(acc?.capital || 0))}`);
   }
 
   // Price up 1%
@@ -636,7 +636,7 @@ async function testConcurrentAccounts(basePrice: bigint): Promise<TestResult> {
   for (const idx of indices) {
     try {
       const acc = state.accounts.find((a: any) => a.idx === idx);
-      const pos = BigInt(acc?.positionSize || 0);
+      const pos = BigInt(acc?.positionBasisQ || 0);
       if (pos !== 0n) await trade(idx, -pos);
     } catch {}
   }
@@ -679,7 +679,7 @@ async function testLpCapitalHealth(basePrice: bigint): Promise<TestResult> {
   if (!lp) return { name: "LP Health", pass: false, details: "No LP account found" };
 
   const lpCap = BigInt(lp.capital);
-  const lpPos = BigInt(lp.positionSize);
+  const lpPos = BigInt(lp.positionBasisQ);
   const lpPnl = BigInt(lp.pnl);
   const vault = state.engine.vault;
   const insurance = state.engine.insuranceFund.balance;
@@ -710,7 +710,7 @@ async function main() {
   console.log("\n--- Cleaning stale accounts ---");
   const state = await getState();
   for (const acc of state.accounts) {
-    if (acc.kind === "USER" && BigInt(acc.positionSize) === 0n && BigInt(acc.capital) === 0n) {
+    if (acc.kind === "USER" && BigInt(acc.positionBasisQ) === 0n && BigInt(acc.capital) === 0n) {
       try {
         await closeAccount(acc.idx);
         console.log(`  Closed stale account ${acc.idx}`);

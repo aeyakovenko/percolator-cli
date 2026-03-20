@@ -269,10 +269,10 @@ export class InvariantChecker {
       const acc = accountMap.get(idx);
       if (!acc) continue;
 
-      if (acc.positionSize > 0n) {
-        totalLong += acc.positionSize;
-      } else if (acc.positionSize < 0n) {
-        totalShort += -acc.positionSize;
+      if (acc.positionBasisQ > 0n) {
+        totalLong += acc.positionBasisQ;
+      } else if (acc.positionBasisQ < 0n) {
+        totalShort += -acc.positionBasisQ;
       }
     }
 
@@ -375,9 +375,9 @@ export class InvariantChecker {
     results.push({
       name: "D3: Engine state match",
       passed: a.engine.insuranceFund.balance === b.engine.insuranceFund.balance &&
-              a.engine.lastFundingSlot === b.engine.lastFundingSlot,
-      expected: `insurance=${a.engine.insuranceFund.balance}, fundingSlot=${a.engine.lastFundingSlot}`,
-      actual: `insurance=${b.engine.insuranceFund.balance}, fundingSlot=${b.engine.lastFundingSlot}`,
+              true, // lastFundingSlot removed from engine
+      expected: `insurance=${a.engine.insuranceFund.balance}`,
+      actual: `insurance=${b.engine.insuranceFund.balance}`,
     });
 
     // Used indices comparison

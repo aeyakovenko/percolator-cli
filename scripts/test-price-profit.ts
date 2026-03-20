@@ -45,7 +45,7 @@ async function getState() {
       accounts.push({
         idx,
         kind: acc.kind === AccountKind.LP ? "LP" : "USER",
-        position: BigInt(acc.positionSize || 0),
+        position: BigInt(acc.positionBasisQ || 0),
         capital: BigInt(acc.capital || 0),
         pnl: BigInt(acc.pnl || 0),
       });

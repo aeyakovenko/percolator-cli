@@ -135,7 +135,7 @@ function printState(label: string, state: any) {
   const insurance = BigInt(engine.insuranceFund?.balance || 0);
   const vault = BigInt(engine.vault || 0);
   const lossAccum = BigInt(engine.lossAccum || 0);
-  const threshold = BigInt(state.params.riskReductionThreshold || 0);
+  const threshold = BigInt(state.params.insuranceFloor || 0);
   const surplus = insurance > threshold ? insurance - threshold : 0n;
 
   console.log(`\n>>> ${label} <<<`);
@@ -143,10 +143,10 @@ function printState(label: string, state: any) {
   console.log(`  Insurance:  ${fmt(insurance)} SOL (threshold: ${fmt(threshold)}, surplus: ${fmt(surplus)})`);
   console.log(`  LossAccum:  ${fmt(lossAccum)} SOL`);
   console.log(`  RiskReduce: ${engine.riskReductionOnly}`);
-  console.log(`  Liqs: ${engine.lifetimeLiquidations}, ForceClose: ${engine.lifetimeForceCloses}`);
+  console.log(`  Liqs: ${engine.lifetimeLiquidations}`);
   console.log(`  Accounts:`);
   for (const acc of state.accounts) {
-    const pos = BigInt(acc.positionSize || 0);
+    const pos = BigInt(acc.positionBasisQ || 0);
     const cap = BigInt(acc.capital || 0);
     const pnl = BigInt(acc.pnl || 0);
     const dir = pos > 0n ? "LONG" : pos < 0n ? "SHORT" : "FLAT";
@@ -164,7 +164,7 @@ async function main() {
   printState("INITIAL STATE", state);
 
   const initialLiqs = state.engine.lifetimeLiquidations;
-  const initialForceCloses = state.engine.lifetimeForceCloses;
+  // lifetimeForceCloses removed from engine state
   const initialInsurance = BigInt(state.engine.insuranceFund?.balance || 0);
   const initialLossAccum = BigInt(state.engine.lossAccum || 0);
 
@@ -289,9 +289,9 @@ async function main() {
   console.log("\n>>> THEORETICAL DAMAGE ANALYSIS <<<");
   for (const acc of state.accounts) {
     if (acc.kind === "USER") {
-      const pos = BigInt(acc.positionSize || 0);
+      const pos = BigInt(acc.positionBasisQ || 0);
       const cap = BigInt(acc.capital || 0);
-      const entry = BigInt(acc.entryPriceE6 || 0);
+      const entry = BigInt(acc.adlABasisE6 || 0);
       if (pos !== 0n) {
         const crashPrice = basePrice * 80n / 100n;
         const pnl = pos * (crashPrice - entry) / 1_000_000n;
@@ -371,7 +371,7 @@ async function main() {
   const lp = state.accounts.find((a: any) => a.kind === "LP");
   if (lp) {
     const lpCap = BigInt(lp.capital || 0);
-    const lpPos = BigInt(lp.positionSize || 0);
+    const lpPos = BigInt(lp.positionBasisQ || 0);
     console.log(`\n  LP: capital=${fmt(lpCap)}, position=${lpPos}`);
 
     // LP can't withdraw with open position exceeding margin, try small amounts
@@ -392,7 +392,7 @@ async function main() {
   for (const acc of state.accounts) {
     if (acc.kind === "USER") {
       const cap = BigInt(acc.capital || 0);
-      const pos = BigInt(acc.positionSize || 0);
+      const pos = BigInt(acc.positionBasisQ || 0);
       if (cap > 0n) {
         const label = pos === 0n ? "(flat)" : "(has position)";
         try {
@@ -426,11 +426,9 @@ async function main() {
   const finalVault = BigInt(state.engine.vault || 0);
   const riskReduction = state.engine.riskReductionOnly;
   const newLiqs = state.engine.lifetimeLiquidations - initialLiqs;
-  const newForceCloses = state.engine.lifetimeForceCloses - initialForceCloses;
 
   console.log(`\n  === Counters ===`);
   console.log(`  New liquidations:  ${newLiqs}`);
-  console.log(`  New force closes:  ${newForceCloses}`);
   console.log(`  Risk-reduction:    ${riskReduction}`);
 
   console.log(`\n  === Insurance ===`);

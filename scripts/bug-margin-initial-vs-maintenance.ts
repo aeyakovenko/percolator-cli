@@ -208,7 +208,7 @@ async function main() {
     await delay(12_000);
     const s2 = await getState();
     const a2 = s2.accounts.find((a: any) => a.idx === idx);
-    if (a2 && BigInt(a2.positionSize) === 0n) {
+    if (a2 && BigInt(a2.positionBasisQ) === 0n) {
       try {
         const userAta = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, payer.publicKey);
         const [vaultPda] = deriveVaultAuthority(PROGRAM_ID, SLAB);

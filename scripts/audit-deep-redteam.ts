@@ -219,7 +219,7 @@ async function attack_SelfLiquidationProfit(): Promise<TestResult> {
 
   for (const acc of state.accounts) {
     if (acc.kind !== AccountKind.User) continue;
-    const pos = BigInt(acc.positionSize || 0);
+    const pos = BigInt(acc.positionBasisQ || 0);
     if (pos === 0n) continue;
 
     const capital = Number(acc.capital || 0);
@@ -242,7 +242,7 @@ async function attack_SelfLiquidationProfit(): Promise<TestResult> {
   const capitalBefore = BigInt(targetAccount.capital || 0);
 
   // Try to increase position to push into liquidation
-  const pos = BigInt(targetAccount.positionSize || 0);
+  const pos = BigInt(targetAccount.positionBasisQ || 0);
   const sameDirection = pos > 0n ? 10_000_000_000n : -10_000_000_000n;
 
   await trade(targetAccount.idx, 0, sameDirection);
@@ -330,7 +330,7 @@ async function attack_MaxOraclePriceBoundary(): Promise<TestResult> {
   const MAX_ORACLE = 1000000000000000n; // 10^15
 
   for (const acc of state.accounts) {
-    const absPos = BigInt(acc.positionSize || 0);
+    const absPos = BigInt(acc.positionBasisQ || 0);
     const abs = absPos < 0n ? -absPos : absPos;
     // notional = pos * price / 1e6
     // At MAX_ORACLE: notional = pos * 10^15 / 10^6 = pos * 10^9
@@ -341,7 +341,7 @@ async function attack_MaxOraclePriceBoundary(): Promise<TestResult> {
   }
 
   console.log(`  Max position: ${state.accounts.reduce((max: bigint, a: any) => {
-    const p = BigInt(a.positionSize || 0);
+    const p = BigInt(a.positionBasisQ || 0);
     const abs = p < 0n ? -p : p;
     return abs > max ? abs : max;
   }, 0n)}`);
@@ -423,7 +423,7 @@ async function attack_RoundingExploitation(): Promise<TestResult> {
 
   const account = state.accounts.find((a: any) =>
     a.kind === AccountKind.User && Number(a.capital || 0) > 100000000 &&
-    BigInt(a.positionSize || 0) === 0n
+    BigInt(a.positionBasisQ || 0) === 0n
   );
 
   if (!account) {
@@ -487,7 +487,7 @@ async function attack_DivisionByZero(): Promise<TestResult> {
   // Check for zero positions
   let zeroPositionAccounts = 0;
   for (const acc of state.accounts) {
-    if (BigInt(acc.positionSize || 0) === 0n) {
+    if (BigInt(acc.positionBasisQ || 0) === 0n) {
       zeroPositionAccounts++;
     }
   }
@@ -516,7 +516,7 @@ async function attack_ForceRiskMode(): Promise<TestResult> {
 
   const riskModeBefore = state.engine.riskReductionOnly;
   const insurance = BigInt(state.engine.insuranceFund?.balance || 0);
-  const threshold = BigInt(state.params.riskReductionThreshold || 0);
+  const threshold = BigInt(state.params.insuranceFloor || 0);
 
   console.log(`  Risk mode: ${riskModeBefore}`);
   console.log(`  Insurance: ${insurance}`);
@@ -578,7 +578,7 @@ async function attack_WedgePendingSocialization(): Promise<TestResult> {
   // Check if withdrawals are blocked
   const account = state.accounts.find((a: any) =>
     a.kind === AccountKind.User && Number(a.capital || 0) > 10000000 &&
-    BigInt(a.positionSize || 0) === 0n
+    BigInt(a.positionBasisQ || 0) === 0n
   );
 
   if (account && (pendingProfit > 0n || pendingLoss > 0n)) {
@@ -822,7 +822,7 @@ async function attack_LPMarginManipulation(): Promise<TestResult> {
       details: 'No LP found', severity: 'low' };
   }
 
-  const lpPos = BigInt(lpAccount.positionSize || 0);
+  const lpPos = BigInt(lpAccount.positionBasisQ || 0);
   const lpCapital = BigInt(lpAccount.capital || 0);
   const lpPnl = BigInt(lpAccount.pnl || 0);
 

@@ -77,7 +77,7 @@ const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChp
 const MATCHER_CTX_SIZE = 320;
 
 // Test parameters
-const SLAB_SIZE = 992560;
+const SLAB_SIZE = 1156656;
 const DEFAULT_DURATION_MINS = 3;
 const TRADE_INTERVAL_MS = 15000; // Trade every 15 seconds
 const CRANK_INTERVAL_MS = 10000; // Crank every 10 seconds
@@ -119,8 +119,8 @@ interface AccountSnapshot {
   index: number;
   owner: string;
   capital: bigint;
-  positionSize: bigint;
-  entryPrice: bigint;
+  positionBasisQ: bigint;
+  adlABasis: bigint;
   pnl: bigint;
   isLp: boolean;
 }
@@ -235,7 +235,7 @@ async function setupMarket(
     tradingFeeBps: "10",
     maxAccounts: "256",
     newAccountFee: "1000000",
-    riskReductionThreshold: "0",
+    insuranceFloor: "0",
     maintenanceFeePerSlot: "0",
     maxCrankStalenessSlots: "200",
     liquidationFeeBps: "100",
@@ -459,7 +459,7 @@ async function topUpInsurance(
 function calculateExpectedPnL(
   positionBefore: bigint,
   positionAfter: bigint,
-  entryPrice: bigint,
+  adlABasis: bigint,
   exitPrice: bigint
 ): bigint {
   // Position delta (negative = reducing/closing position)
@@ -487,11 +487,11 @@ function calculateExpectedPnL(
   if (positionBefore > 0n) {
     // Was long, reducing position
     // PnL = (exit_price - entry_price) * position_closed / 1e6 (to normalize)
-    return ((exitPrice - entryPrice) * positionClosed) / 1000000n;
+    return ((exitPrice - adlABasis) * positionClosed) / 1000000n;
   } else {
     // Was short, reducing position (positionClosed is negative)
-    // PnL = (entry_price - exit_price) * |position_closed| / 1e6
-    return ((entryPrice - exitPrice) * (-positionClosed)) / 1000000n;
+    // PnL = (adlABasis - exit_price) * |position_closed| / 1e6
+    return ((adlABasis - exitPrice) * (-positionClosed)) / 1000000n;
   }
 }
 
@@ -593,9 +593,9 @@ async function executeTradeWithValidation(
 
   // Calculate expected PnL for user
   const userExpectedPnL = calculateExpectedPnL(
-    userBefore.positionSize,
-    userAfter.positionSize,
-    userBefore.entryPrice,
+    userBefore.positionBasisQ,
+    userAfter.positionBasisQ,
+    userBefore.adlABasis,
     oraclePrice
   );
 
@@ -604,9 +604,9 @@ async function executeTradeWithValidation(
 
   // LP takes opposite side - their PnL is opposite
   const lpExpectedPnL = calculateExpectedPnL(
-    lpBefore.positionSize,
-    lpAfter.positionSize,
-    lpBefore.entryPrice,
+    lpBefore.positionBasisQ,
+    lpAfter.positionBasisQ,
+    lpBefore.adlABasis,
     oraclePrice
   );
   const expectedLpCapitalDelta = lpExpectedPnL - tradingFee;
@@ -630,14 +630,14 @@ async function executeTradeWithValidation(
 
   if (success) {
     // Verify position changed correctly (this is the critical validation)
-    const expectedUserPos = userBefore.positionSize + tradeSizeDelta;
-    const expectedLpPos = lpBefore.positionSize - tradeSizeDelta; // LP takes opposite
+    const expectedUserPos = userBefore.positionBasisQ + tradeSizeDelta;
+    const expectedLpPos = lpBefore.positionBasisQ - tradeSizeDelta; // LP takes opposite
 
-    if (userAfter.positionSize !== expectedUserPos) {
-      validationError = `User position mismatch: expected ${expectedUserPos}, got ${userAfter.positionSize}`;
+    if (userAfter.positionBasisQ !== expectedUserPos) {
+      validationError = `User position mismatch: expected ${expectedUserPos}, got ${userAfter.positionBasisQ}`;
       pnlValidationPassed = false;
-    } else if (lpAfter.positionSize !== expectedLpPos) {
-      validationError = `LP position mismatch: expected ${expectedLpPos}, got ${lpAfter.positionSize}`;
+    } else if (lpAfter.positionBasisQ !== expectedLpPos) {
+      validationError = `LP position mismatch: expected ${expectedLpPos}, got ${lpAfter.positionBasisQ}`;
       pnlValidationPassed = false;
     } else if (userDiffAbs > tolerance && !inverted) {
       // Only fail on capital delta for non-inverted markets
@@ -730,8 +730,8 @@ async function getAccountSnapshot(
       index: accountIndex,
       owner: account.owner.toBase58().slice(0, 8),
       capital: account.capital,
-      positionSize: account.positionSize,
-      entryPrice: account.entryPrice,
+      positionBasisQ: account.positionBasisQ,
+      adlABasis: account.adlABasis,
       pnl: account.pnl,
       isLp: account.kind === 1,
     };
@@ -752,8 +752,8 @@ async function getAccountSnapshots(
     index: idx,
     owner: account.owner.toBase58().slice(0, 8),
     capital: account.capital,
-    positionSize: account.positionSize,
-    entryPrice: account.entryPrice,
+    positionBasisQ: account.positionBasisQ,
+    adlABasis: account.adlABasis,
     pnl: account.pnl,
     isLp: account.kind === 1, // AccountKind.LP = 1
   }));
@@ -784,7 +784,7 @@ async function validateInvariants(
   // Check 1: Sum of positions should be zero (every long has a short)
   let totalPosition = 0n;
   for (const { account } of accounts) {
-    totalPosition += account.positionSize;
+    totalPosition += account.positionBasisQ;
   }
   if (totalPosition !== 0n) {
     errors.push(`Position sum != 0: ${totalPosition}`);
@@ -932,8 +932,8 @@ async function runLiveTradingTest(config: TestConfig): Promise<void> {
 
         // Log trade details
         const capitalDelta = Number(result.actualUserCapitalDelta) / 1e6;
-        const posChange = result.userAfter.positionSize - result.userBefore.positionSize;
-        console.log(`    Position: ${formatPosition(result.userBefore.positionSize)} -> ${formatPosition(result.userAfter.positionSize)}`);
+        const posChange = result.userAfter.positionBasisQ - result.userBefore.positionBasisQ;
+        console.log(`    Position: ${formatPosition(result.userBefore.positionBasisQ)} -> ${formatPosition(result.userAfter.positionBasisQ)}`);
         console.log(`    Capital delta: ${capitalDelta >= 0 ? "+" : ""}${capitalDelta.toFixed(4)} tokens`);
 
         if (result.pnlValidationPassed) {
@@ -984,9 +984,9 @@ async function runLiveTradingTest(config: TestConfig): Promise<void> {
     const name = participant?.name || `Account ${snap.index}`;
     console.log(`  ${name} (idx=${snap.index}, ${snap.isLp ? "LP" : "User"}):`);
     console.log(`    Capital: ${formatBalance(snap.capital)} tokens`);
-    console.log(`    Position: ${formatPosition(snap.positionSize)} contracts`);
-    if (snap.entryPrice > 0n) {
-      console.log(`    Entry price: ${Number(snap.entryPrice) / 1e6}`);
+    console.log(`    Position: ${formatPosition(snap.positionBasisQ)} contracts`);
+    if (snap.adlABasis > 0n) {
+      console.log(`    Entry price: ${Number(snap.adlABasis) / 1e6}`);
     }
   }
 
@@ -1014,8 +1014,8 @@ async function runLiveTradingTest(config: TestConfig): Promise<void> {
         continue;
       }
 
-      const posBefore = r.userBefore.positionSize;
-      const posAfter = r.userAfter.positionSize;
+      const posBefore = r.userBefore.positionBasisQ;
+      const posAfter = r.userAfter.positionBasisQ;
       const isOpening = posBefore === 0n;
       const isClosing = posAfter === 0n && posBefore !== 0n;
       const tradeType = isOpening ? "OPEN" : isClosing ? "CLOSE" : "ADJUST";

@@ -122,16 +122,16 @@ async function runT18Tests(): Promise<void> {
     const user1Acct = snapshot.accounts.find(a => a.idx === user1.accountIndex);
     const lpAcct = snapshot.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    User1 position: ${user1Acct?.account.positionSize} (long)`);
-    console.log(`    User1 entry price: ${user1Acct?.account.entryPrice}`);
-    console.log(`    LP position: ${lpAcct?.account.positionSize} (short, counterparty)`);
+    console.log(`    User1 position: ${user1Acct?.account.positionBasisQ} (long)`);
+    console.log(`    User1 entry price: ${user1Acct?.account.adlABasis}`);
+    console.log(`    LP position: ${lpAcct?.account.positionBasisQ} (short, counterparty)`);
 
     TestHarness.assert(
-      (user1Acct?.account.positionSize ?? 0n) > 0n,
+      (user1Acct?.account.positionBasisQ ?? 0n) > 0n,
       "User1 should have positive position (long)"
     );
     TestHarness.assert(
-      (lpAcct?.account.positionSize ?? 0n) < 0n,
+      (lpAcct?.account.positionBasisQ ?? 0n) < 0n,
       "LP should have negative position (short, counterparty)"
     );
   });
@@ -153,12 +153,12 @@ async function runT18Tests(): Promise<void> {
     const user2Acct = snapshot.accounts.find(a => a.idx === user2.accountIndex);
     const lpAcct = snapshot.accounts.find(a => a.idx === lp.accountIndex);
 
-    console.log(`    User2 position: ${user2Acct?.account.positionSize} (short)`);
-    console.log(`    User2 entry price: ${user2Acct?.account.entryPrice}`);
-    console.log(`    LP position now: ${lpAcct?.account.positionSize}`);
+    console.log(`    User2 position: ${user2Acct?.account.positionBasisQ} (short)`);
+    console.log(`    User2 entry price: ${user2Acct?.account.adlABasis}`);
+    console.log(`    LP position now: ${lpAcct?.account.positionBasisQ}`);
 
     TestHarness.assert(
-      (user2Acct?.account.positionSize ?? 0n) < 0n,
+      (user2Acct?.account.positionBasisQ ?? 0n) < 0n,
       "User2 should have negative position (short)"
     );
   });
@@ -172,8 +172,8 @@ async function runT18Tests(): Promise<void> {
     let user1Acct = snapshot.accounts.find(a => a.idx === user1.accountIndex);
     let user2Acct = snapshot.accounts.find(a => a.idx === user2.accountIndex);
 
-    const user1PosBefore = user1Acct?.account.positionSize ?? 0n;
-    const user2PosBefore = user2Acct?.account.positionSize ?? 0n;
+    const user1PosBefore = user1Acct?.account.positionBasisQ ?? 0n;
+    const user2PosBefore = user2Acct?.account.positionBasisQ ?? 0n;
     const user1CapBefore = user1Acct?.account.capital ?? 0n;
     const user2CapBefore = user2Acct?.account.capital ?? 0n;
 
@@ -197,8 +197,8 @@ async function runT18Tests(): Promise<void> {
     user1Acct = snapshot.accounts.find(a => a.idx === user1.accountIndex);
     user2Acct = snapshot.accounts.find(a => a.idx === user2.accountIndex);
 
-    const user1PosAfter = user1Acct?.account.positionSize ?? 1n;
-    const user2PosAfter = user2Acct?.account.positionSize ?? 1n;
+    const user1PosAfter = user1Acct?.account.positionBasisQ ?? 1n;
+    const user2PosAfter = user2Acct?.account.positionBasisQ ?? 1n;
     const user1CapAfter = user1Acct?.account.capital ?? 0n;
     const user2CapAfter = user2Acct?.account.capital ?? 0n;
 
@@ -223,10 +223,10 @@ async function runT18Tests(): Promise<void> {
 
     // Get funding state before
     let snapshot = await harness.snapshot(ctx);
-    const fundingBefore = snapshot.engine.fundingIndexQpbE6;
-    const lastFundingSlotBefore = snapshot.engine.lastFundingSlot;
-    console.log(`    Funding index before: ${fundingBefore}`);
-    console.log(`    Last funding slot: ${lastFundingSlotBefore}`);
+    const fundingBefore = snapshot.engine.fundingRateBpsPerSlotLast;
+    const currentSlotBefore = snapshot.engine.currentSlot;
+    console.log(`    Funding rate before: ${fundingBefore}`);
+    console.log(`    Current slot: ${currentSlotBefore}`);
 
     // Wait and run crank to apply funding
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -234,20 +234,20 @@ async function runT18Tests(): Promise<void> {
 
     // Get funding state after
     snapshot = await harness.snapshot(ctx);
-    const fundingAfter = snapshot.engine.fundingIndexQpbE6;
-    const lastFundingSlotAfter = snapshot.engine.lastFundingSlot;
-    console.log(`    Funding index after: ${fundingAfter}`);
-    console.log(`    Last funding slot: ${lastFundingSlotAfter}`);
+    const fundingAfter = snapshot.engine.fundingRateBpsPerSlotLast;
+    const currentSlotAfter = snapshot.engine.currentSlot;
+    console.log(`    Funding rate after: ${fundingAfter}`);
+    console.log(`    Current slot: ${currentSlotAfter}`);
 
     // Check user position funding index was updated
     const user1Acct = snapshot.accounts.find(a => a.idx === user1.accountIndex);
-    console.log(`    User1 funding index: ${user1Acct?.account.fundingIndex}`);
-    console.log(`    User1 position: ${user1Acct?.account.positionSize}`);
+    console.log(`    User1 funding index: ${user1Acct?.account.adlKSnap}`);
+    console.log(`    User1 position: ${user1Acct?.account.positionBasisQ}`);
 
     // Funding slot should have advanced
     TestHarness.assert(
-      lastFundingSlotAfter >= lastFundingSlotBefore,
-      "Funding slot should advance after crank"
+      currentSlotAfter >= currentSlotBefore,
+      "Current slot should advance after crank"
     );
   });
 
@@ -280,7 +280,7 @@ async function runT18Tests(): Promise<void> {
     console.log(`      Insurance fund: ${snapshot.engine.insuranceFund.balance}`);
     console.log(`      Loss accumulator: ${snapshot.engine.lossAccum}`);
     console.log(`      Risk reduction mode: ${snapshot.engine.riskReductionOnly}`);
-    console.log(`      Total OI: ${snapshot.engine.totalOpenInterest}`);
+    // totalOpenInterest removed from engine state
   });
 
   // -------------------------------------------------------------------------

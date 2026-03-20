@@ -6,7 +6,7 @@
  * Key concepts:
  * - lossAccum: Accumulated losses from underwater accounts
  * - riskReductionOnly: Flag indicating system is in risk reduction mode
- * - riskReductionThreshold: Threshold that triggers risk reduction mode
+ * - insuranceFloor: Threshold that triggers risk reduction mode
  * - When triggered, only position-closing trades are allowed
  *
  * T16.1: Verify risk reduction fields exist and are initialized
@@ -39,7 +39,7 @@ async function runT16Tests(): Promise<void> {
     let snapshot = await harness.snapshot(ctx);
 
     // Check risk reduction fields in params
-    console.log(`    Risk reduction threshold: ${snapshot.params.riskReductionThreshold}`);
+    console.log(`    Risk reduction threshold: ${snapshot.params.insuranceFloor}`);
 
     // Check risk reduction fields in engine state (before crank)
     console.log(`    Loss accumulator: ${snapshot.engine.lossAccum}`);
@@ -60,7 +60,7 @@ async function runT16Tests(): Promise<void> {
 
     // Verify threshold is set correctly
     TestHarness.assertBigIntEqual(
-      snapshot.params.riskReductionThreshold,
+      snapshot.params.insuranceFloor,
       0n,
       "Risk reduction threshold should be 0 (disabled)"
     );
@@ -121,7 +121,7 @@ async function runT16Tests(): Promise<void> {
     // Check initial state
     let snapshot = await harness.snapshot(ctx);
     const initialRiskMode = snapshot.engine.riskReductionOnly;
-    const threshold = snapshot.params.riskReductionThreshold;
+    const threshold = snapshot.params.insuranceFloor;
 
     console.log(`    Initial risk reduction mode: ${initialRiskMode}`);
     console.log(`    Risk reduction threshold: ${threshold}`);
@@ -181,7 +181,7 @@ async function runT16Tests(): Promise<void> {
 
     let snapshot = await harness.snapshot(ctx);
     let userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-    const positionBefore = userAcct?.account.positionSize ?? 0n;
+    const positionBefore = userAcct?.account.positionBasisQ ?? 0n;
     console.log(`    Position before close: ${positionBefore}`);
 
     TestHarness.assert(positionBefore !== 0n, "Should have position");
@@ -194,7 +194,7 @@ async function runT16Tests(): Promise<void> {
 
     snapshot = await harness.snapshot(ctx);
     userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-    const positionAfter = userAcct?.account.positionSize ?? 0n;
+    const positionAfter = userAcct?.account.positionBasisQ ?? 0n;
     console.log(`    Position after close: ${positionAfter}`);
 
     // Position should be closed

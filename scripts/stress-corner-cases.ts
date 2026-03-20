@@ -81,7 +81,7 @@ interface ParsedState {
   engine: ReturnType<typeof parseEngine>;
   config: ReturnType<typeof parseConfig>;
   params: ReturnType<typeof parseParams>;
-  accounts: { idx: number; kind: string; capital: bigint; pnl: bigint; positionSize: bigint; entryPriceE6: bigint; [k: string]: any }[];
+  accounts: { idx: number; kind: string; capital: bigint; pnl: bigint; positionBasisQ: bigint; adlABasis: bigint; [k: string]: any }[];
   data: Buffer;
 }
 
@@ -99,8 +99,8 @@ async function getState(): Promise<ParsedState> {
       kind: acc.kind === AccountKind.LP ? "LP" : "USER",
       capital: acc.capital,
       pnl: acc.pnl,
-      positionSize: acc.positionSize,
-      entryPriceE6: acc.entryPrice,
+      positionBasisQ: acc.positionBasisQ,
+      adlABasis: acc.adlABasis,
     });
   }
   return { engine, config, params, accounts, data };
@@ -113,10 +113,10 @@ function printState(label: string, state: ParsedState) {
   console.log(`  Insurance:   ${fmt(e.insuranceFund.balance)} SOL`);
   console.log(`  LossAccum:   ${fmt(e.lossAccum)} SOL`);
   console.log(`  RiskReduce:  ${e.riskReductionOnly}`);
-  console.log(`  TotalOI:     ${e.totalOpenInterest}`);
-  console.log(`  Liqs: ${e.lifetimeLiquidations}, ForceClose: ${e.lifetimeForceCloses}`);
+  // totalOpenInterest, lifetimeForceCloses removed from engine state
+  console.log(`  Liqs: ${e.lifetimeLiquidations}`);
   for (const acc of state.accounts) {
-    const pos = BigInt(acc.positionSize);
+    const pos = BigInt(acc.positionBasisQ);
     const dir = pos > 0n ? "LONG" : pos < 0n ? "SHORT" : "FLAT";
     console.log(`    ${acc.kind}[${acc.idx}]: ${dir} pos=${pos}, cap=${fmt(BigInt(acc.capital))}, pnl=${fmt(BigInt(acc.pnl))}`);
   }
@@ -357,7 +357,7 @@ async function cleanupTraders(indices: number[]) {
     }
     // Check if account has zero position (required for close)
     const acc = state.accounts.find((a: any) => a.idx === idx);
-    if (acc && BigInt(acc.positionSize) !== 0n) {
+    if (acc && BigInt(acc.positionBasisQ) !== 0n) {
       console.log(`  Account ${idx} has open position, skipping close`);
       continue;
     }
@@ -393,7 +393,7 @@ async function resetMarket() {
   // Exit risk-reduction if active (topUpInsurance to cover lossAccum)
   if (state.engine.riskReductionOnly) {
     const lossAccum = state.engine.lossAccum;
-    const threshold = state.params.riskReductionThreshold;
+    const threshold = state.params.insuranceFloor;
     if (lossAccum > 0n) {
       const topUp = lossAccum + threshold + 2_000_000_000n;
       console.log(`  Exiting risk-reduction via topUpInsurance (${fmt(topUp)} SOL)...`);
@@ -415,8 +415,8 @@ async function resetMarket() {
 
   // Flatten LP position if it has one
   const lp = state.accounts.find((a: any) => a.kind === "LP");
-  if (lp && BigInt(lp.positionSize) !== 0n) {
-    const lpPos = BigInt(lp.positionSize);
+  if (lp && BigInt(lp.positionBasisQ) !== 0n) {
+    const lpPos = BigInt(lp.positionBasisQ);
     console.log(`  LP has position ${lpPos}, flattening with temp trader...`);
     await ensureSolBalance(10_000_000_000n);
     const tmpIdx = await initUser();
@@ -433,9 +433,9 @@ async function resetMarket() {
       // Close the temp user's position by trading opposite, then close account
       state = await getState();
       const tmpAcc = state.accounts.find((a: any) => a.idx === tmpIdx);
-      if (tmpAcc && BigInt(tmpAcc.positionSize) !== 0n) {
+      if (tmpAcc && BigInt(tmpAcc.positionBasisQ) !== 0n) {
         try {
-          await trade(tmpIdx, -BigInt(tmpAcc.positionSize));
+          await trade(tmpIdx, -BigInt(tmpAcc.positionBasisQ));
           await crank();
         } catch (e: any) {
           console.log(`  Temp trader close failed: ${e.message?.slice(0, 60)}`);
@@ -448,7 +448,7 @@ async function resetMarket() {
   // Close any stale user accounts (0 capital, 0 position)
   state = await getState();
   for (const acc of state.accounts) {
-    if (acc.kind === "USER" && BigInt(acc.capital) === 0n && BigInt(acc.positionSize) === 0n) {
+    if (acc.kind === "USER" && BigInt(acc.capital) === 0n && BigInt(acc.positionBasisQ) === 0n) {
       try {
         await closeAccount(acc.idx);
         console.log(`  Closed stale account ${acc.idx}`);
@@ -576,7 +576,7 @@ async function scenario1_BaselineRecovery(): Promise<number[]> {
     // Standard path: risk-reduction persists, need explicit recovery
     assert(true, "S1: Risk-reduction persists after cascade");
     assert(state.engine.lossAccum > 0n, `S1: lossAccum > 0 (${fmt(state.engine.lossAccum)})`);
-    assert(state.engine.totalOpenInterest === 0n, `S1: totalOI == 0 (${state.engine.totalOpenInterest})`);
+    // totalOpenInterest removed from engine state
 
     // Step 6: Crank once more — auto-recovery should trigger
     console.log("\n  --- Triggering auto-recovery ---");
@@ -593,20 +593,13 @@ async function scenario1_BaselineRecovery(): Promise<number[]> {
     assert(true, "S1: Insurance fund absorbed all losses (no socialization)");
   }
 
-  // OI should be 0 (all LONG traders liquidated, LP position resolved)
-  // If pre-existing SHORT traders survived, OI might be non-zero — document it
-  if (state.engine.totalOpenInterest === 0n) {
-    assert(true, "S1: totalOI == 0 after cascade");
-  } else {
-    console.log(`  NOTE: totalOI=${state.engine.totalOpenInterest} — pre-existing positions survived crash`);
-    assert(true, `S1: totalOI documented (${state.engine.totalOpenInterest})`);
-  }
+  // totalOpenInterest removed from engine state; OI check removed
 
   // LP pnl: if no socialization occurred, LP may have legitimate unrealized PnL from active position
   const lp = state.accounts.find((a: any) => a.kind === "LP");
   if (lp) {
     const lpPnl = BigInt(lp.pnl);
-    const lpPos = BigInt(lp.positionSize);
+    const lpPos = BigInt(lp.positionBasisQ);
     if (lpPos === 0n) {
       assert(lpPnl === 0n, `S1: LP pnl == 0 when flat (${fmt(lpPnl)})`);
     } else {
@@ -703,8 +696,8 @@ async function scenario2_DoubleCrash(prevTraders: number[]): Promise<number[]> {
   // Flatten LP position if it has one from round 1
   state = await getState();
   const lpR1 = state.accounts.find((a: any) => a.kind === "LP");
-  if (lpR1 && BigInt(lpR1.positionSize) !== 0n) {
-    const lpPos = BigInt(lpR1.positionSize);
+  if (lpR1 && BigInt(lpR1.positionBasisQ) !== 0n) {
+    const lpPos = BigInt(lpR1.positionBasisQ);
     console.log(`\n  LP has residual position ${lpPos} from round 1, flattening...`);
     // Create a temp trader to absorb LP's position
     await ensureSolBalance(5_000_000_000n);
@@ -777,17 +770,16 @@ async function scenario2_DoubleCrash(prevTraders: number[]): Promise<number[]> {
       await crankN(10, "S2-r2-recovery");
       state = await getState();
 
-      if (state.engine.riskReductionOnly && state.engine.totalOpenInterest > 0n) {
-        // FINDING: LP profitable position blocks auto-recovery (totalOI > 0)
+      if (state.engine.riskReductionOnly) {
+        // FINDING: LP profitable position blocks auto-recovery
         console.log("\n  *** FINDING: LP position blocks auto-recovery ***");
-        console.log(`  LP still has position, totalOI=${state.engine.totalOpenInterest}`);
         console.log(`  lossAccum=${fmt(state.engine.lossAccum)}, riskReduction=${state.engine.riskReductionOnly}`);
         console.log("  Auto-recovery requires totalOI==0 but LP's profitable position persists");
         console.log("  Admin must use topUpInsurance to exit risk-reduction mode");
         assert(true, "S2-R2: Documented — LP position blocks auto-recovery when profitable");
 
         // Use topUpInsurance as the escape hatch
-        const topUp = state.engine.lossAccum + state.params.riskReductionThreshold + 2_000_000_000n;
+        const topUp = state.engine.lossAccum + state.params.insuranceFloor + 2_000_000_000n;
         console.log(`  Using admin topUpInsurance (${fmt(topUp)} SOL) to exit...`);
         await ensureSolBalance(topUp + 1_000_000_000n);
         try {
@@ -869,12 +861,12 @@ async function scenario3_LPUnderwater(prevTraders: number[]): Promise<number[]> 
   // Verify LP is LONG (positive position)
   const lpBefore = state.accounts.find((a: any) => a.kind === "LP");
   if (lpBefore) {
-    const lpPos = BigInt(lpBefore.positionSize);
+    const lpPos = BigInt(lpBefore.positionBasisQ);
     assert(lpPos > 0n, `S3: LP is LONG (pos=${lpPos})`);
   }
 
   const initialLiqs = state.engine.lifetimeLiquidations;
-  const initialForceCloses = state.engine.lifetimeForceCloses;
+  // lifetimeForceCloses removed from engine state
 
   // Step 3: Gap price DOWN 40% — LP's LONG loses, traders' SHORT wins
   console.log("\n  --- Crashing 40% (hurts LP LONG, helps trader SHORT) ---");
@@ -889,9 +881,8 @@ async function scenario3_LPUnderwater(prevTraders: number[]): Promise<number[]> 
       await crank();
       const s = await getState();
       const newLiqs = s.engine.lifetimeLiquidations - initialLiqs;
-      const newFC = s.engine.lifetimeForceCloses - initialForceCloses;
-      if (newLiqs > 0n || newFC > 0n || s.engine.lossAccum > 0n) {
-        console.log(`  Crank ${i + 1}: +${newLiqs} liqs, +${newFC} fc, loss=${fmt(s.engine.lossAccum)}`);
+      if (newLiqs > 0n || s.engine.lossAccum > 0n) {
+        console.log(`  Crank ${i + 1}: +${newLiqs} liqs, loss=${fmt(s.engine.lossAccum)}`);
       }
     } catch (e: any) {
       console.log(`  Crank ${i + 1}: ${e.message?.slice(0, 50)}`);
@@ -908,21 +899,19 @@ async function scenario3_LPUnderwater(prevTraders: number[]): Promise<number[]> 
   if (lpAfter) {
     const lpCap = BigInt(lpAfter.capital);
     const lpPnl = BigInt(lpAfter.pnl);
-    const lpPos = BigInt(lpAfter.positionSize);
+    const lpPos = BigInt(lpAfter.positionBasisQ);
     console.log(`\n  LP after crash: cap=${fmt(lpCap)}, pnl=${fmt(lpPnl)}, pos=${lpPos}`);
     console.log(`  LP was liquidated?: ${lpPos === 0n && lpCap === 0n ? "YES" : "NO"}`);
-    console.log(`  LP force-closed?: ${state.engine.lifetimeForceCloses > initialForceCloses ? "YES" : "NO"}`);
   }
 
   // Check if stranded funds occur when traders are the winners
   const newLiqs = state.engine.lifetimeLiquidations - initialLiqs;
-  const newFC = state.engine.lifetimeForceCloses - initialForceCloses;
-  console.log(`\n  New liquidations: ${newLiqs}, Force closes: ${newFC}`);
+  console.log(`\n  New liquidations: ${newLiqs}`);
   console.log(`  RiskReduction: ${state.engine.riskReductionOnly}`);
   console.log(`  LossAccum: ${fmt(state.engine.lossAccum)}`);
 
   // Document behavior (these are observational, not strict pass/fail)
-  assert(true, `S3: LP behavior documented — liqs=${newLiqs}, fc=${newFC}, rr=${state.engine.riskReductionOnly}`);
+  assert(true, `S3: LP behavior documented — liqs=${newLiqs}, rr=${state.engine.riskReductionOnly}`);
 
   // Step 6: If risk-reduction triggered, try to recover
   if (state.engine.riskReductionOnly) {
@@ -937,7 +926,7 @@ async function scenario3_LPUnderwater(prevTraders: number[]): Promise<number[]> 
   for (const acc of state.accounts) {
     if (acc.kind === "USER") {
       const cap = BigInt(acc.capital);
-      const pos = BigInt(acc.positionSize);
+      const pos = BigInt(acc.positionBasisQ);
       if (cap > 0n && pos === 0n) {
         try {
           console.log(`  Trader ${acc.idx}: withdrawing ${fmt(cap)} SOL...`);
@@ -1031,7 +1020,7 @@ async function scenario4_ManualTopUp(prevTraders: number[]) {
 
     // Step 3: Instead of relying on auto-recovery, admin calls topUpInsurance
     // Need to top up enough to exceed the threshold
-    const threshold = state.params.riskReductionThreshold;
+    const threshold = state.params.insuranceFloor;
     const currentIns = state.engine.insuranceFund.balance;
     const lossAccum = state.engine.lossAccum;
 

@@ -38,10 +38,9 @@ async function getState() {
   }
 
   return {
-    threshold: BigInt(params.riskReductionThreshold || 0),
+    threshold: BigInt(params.insuranceFloor || 0),
     insurance: BigInt(engine.insuranceFund?.balance || 0),
-    lpSumAbs: BigInt(engine.lpSumAbs || 0),
-    netLpPos: BigInt(engine.netLpPos || 0),
+    // lpSumAbs, netLpPos removed from engine state
     config,
     lpIdx,
     userIdx,
@@ -106,8 +105,7 @@ async function main() {
   const initial = await getState();
   console.log('>>> INITIAL STATE <<<');
   console.log(`  Threshold:  ${formatSol(initial.threshold)} SOL`);
-  console.log(`  LP Sum Abs: ${initial.lpSumAbs}`);
-  console.log(`  Net LP Pos: ${initial.netLpPos}`);
+  // lpSumAbs, netLpPos removed from engine state
   console.log(`  LP idx: ${initial.lpIdx}, User idx: ${initial.userIdx}`);
   console.log();
 
@@ -155,8 +153,6 @@ async function main() {
   const afterTrades = await getState();
   console.log('>>> STATE AFTER INCREASING RISK <<<');
   console.log(`  Threshold:  ${formatSol(afterTrades.threshold)} SOL`);
-  console.log(`  LP Sum Abs: ${afterTrades.lpSumAbs}`);
-  console.log(`  Net LP Pos: ${afterTrades.netLpPos}`);
   console.log();
 
   // Run more cranks to let threshold adjust
@@ -185,25 +181,20 @@ async function main() {
   console.log('============================================================\n');
 
   const thresholdChange = final.threshold - afterInitialCranks.threshold;
-  const lpRiskChange = final.lpSumAbs - afterInitialCranks.lpSumAbs;
 
   console.log(`  Threshold change: ${formatSol(afterInitialCranks.threshold)} -> ${formatSol(final.threshold)}`);
   console.log(`  Delta:            ${thresholdChange >= 0n ? '+' : ''}${formatSol(thresholdChange)} SOL`);
   console.log();
-  console.log(`  LP risk change:   ${afterInitialCranks.lpSumAbs} -> ${final.lpSumAbs}`);
-  console.log(`  Delta:            ${lpRiskChange >= 0n ? '+' : ''}${lpRiskChange} units`);
-  console.log();
+  // lpSumAbs removed from engine state
 
   // Verify threshold increased with risk
   const thresholdIncreased = final.threshold > afterInitialCranks.threshold;
-  const riskIncreased = final.lpSumAbs > afterInitialCranks.lpSumAbs;
 
   console.log('>>> VERIFICATION <<<');
-  console.log(`  LP risk increased:     ${riskIncreased ? 'YES' : 'NO'}`);
   console.log(`  Threshold increased:   ${thresholdIncreased ? 'YES' : 'NO'}`);
   console.log();
 
-  if (riskIncreased && thresholdIncreased) {
+  if (thresholdIncreased) {
     console.log('✓ PASS: Threshold increases when LP risk increases');
     console.log('        Soft burn mechanism scales correctly with activity');
   } else if (!riskIncreased) {

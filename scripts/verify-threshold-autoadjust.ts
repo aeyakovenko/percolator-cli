@@ -69,15 +69,14 @@ async function main() {
 
   // Get initial state
   const initial = await getState();
-  const initialThreshold = BigInt(initial.params.riskReductionThreshold || 0);
+  const initialThreshold = BigInt(initial.params.insuranceFloor || 0);
   const initialInsurance = BigInt(initial.engine.insuranceFund?.balance || 0);
-  const initialLpSumAbs = BigInt(initial.engine.lpSumAbs || 0);
+  // lpSumAbs removed from engine state
   const initialSlot = BigInt(initial.engine.lastCrankSlot || 0);
 
   console.log('>>> INITIAL STATE <<<\n');
   console.log(`  Threshold:       ${initialThreshold} (${(Number(initialThreshold) / 1e9).toFixed(6)} SOL)`);
   console.log(`  Insurance:       ${initialInsurance} (${(Number(initialInsurance) / 1e9).toFixed(4)} SOL)`);
-  console.log(`  LP Sum Abs:      ${initialLpSumAbs}`);
   console.log(`  Slot:            ${initialSlot}`);
   console.log(`  Buffer:          ${initialInsurance - initialThreshold} (${((Number(initialInsurance - initialThreshold)) / 1e9).toFixed(4)} SOL)`);
   console.log();
@@ -92,7 +91,7 @@ async function main() {
     const success = await runCrank();
     if (success) {
       const state = await getState();
-      const newThreshold = BigInt(state.params.riskReductionThreshold || 0);
+      const newThreshold = BigInt(state.params.insuranceFloor || 0);
       thresholdHistory.push(newThreshold);
 
       const change = newThreshold - lastThreshold;
@@ -109,9 +108,9 @@ async function main() {
 
   // Get final state
   const final = await getState();
-  const finalThreshold = BigInt(final.params.riskReductionThreshold || 0);
+  const finalThreshold = BigInt(final.params.insuranceFloor || 0);
   const finalInsurance = BigInt(final.engine.insuranceFund?.balance || 0);
-  const finalLpSumAbs = BigInt(final.engine.lpSumAbs || 0);
+  // lpSumAbs removed from engine state
 
   console.log('>>> FINAL STATE <<<\n');
   console.log(`  Threshold:       ${finalThreshold} (${(Number(finalThreshold) / 1e9).toFixed(6)} SOL)`);

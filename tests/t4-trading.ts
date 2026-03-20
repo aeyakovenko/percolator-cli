@@ -43,9 +43,9 @@ async function runT4Tests(): Promise<void> {
       console.log(`    CU used: ${result.unitsConsumed}`);
 
       // Check user position
-      const userAccount = snapshot.accounts.find(a => a.account.positionSize !== 0n);
+      const userAccount = snapshot.accounts.find(a => a.account.positionBasisQ !== 0n);
       if (userAccount) {
-        console.log(`    User position: ${userAccount.account.positionSize}`);
+        console.log(`    User position: ${userAccount.account.positionBasisQ}`);
       }
     }
   });
