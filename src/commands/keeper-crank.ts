@@ -10,6 +10,13 @@ import {
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import {
+  fetchSlab,
+  parseUsedIndices,
+  parseAccount,
+  parseEngine,
+  parseParams,
+} from "../solana/slab.js";
+import {
   validatePublicKey,
   validateIndex,
 } from "../validation.js";
@@ -17,10 +24,42 @@ import {
 // Sentinel value for permissionless crank (no caller account required)
 const CRANK_NO_CALLER = 65535; // u16::MAX
 
+/**
+ * Compute optimal liquidation candidates off-chain.
+ * Returns account indices sorted by margin shortfall (most undercollateralized first).
+ */
+function computeCandidates(data: Buffer, oraclePrice: bigint): number[] {
+  const indices = parseUsedIndices(data);
+  const params = parseParams(data);
+  const mmBps = params.maintenanceMarginBps;
+
+  const scored: { idx: number; shortfall: bigint }[] = [];
+  for (const idx of indices) {
+    const acc = parseAccount(data, idx);
+    const posQ = acc.positionBasisQ < 0n ? -acc.positionBasisQ : acc.positionBasisQ;
+    if (posQ === 0n) continue; // Skip flat accounts
+
+    // Notional = |pos| * price / 1e6
+    const notional = (posQ * oraclePrice) / 1_000_000n;
+    // MM_req = notional * mm_bps / 10000
+    const mmReq = (notional * mmBps) / 10_000n;
+    // Equity ~= capital + pnl (simplified, ignores warmup/ADL effects)
+    const equity = BigInt.asIntN(128, acc.capital) + acc.pnl;
+
+    if (equity < mmReq) {
+      scored.push({ idx, shortfall: mmReq - equity });
+    }
+  }
+
+  // Sort by shortfall descending (most undercollateralized first)
+  scored.sort((a, b) => (b.shortfall > a.shortfall ? 1 : b.shortfall < a.shortfall ? -1 : 0));
+  return scored.map(s => s.idx);
+}
+
 export function registerKeeperCrank(program: Command): void {
   program
     .command("keeper-crank")
-    .description("Execute keeper crank operation (permissionless by default, funding rate computed on-chain)")
+    .description("Execute keeper crank with off-chain liquidation candidate shortlist")
     .requiredOption("--slab <pubkey>", "Slab account public key")
     .option("--caller-idx <number>", "Caller account index (default: 65535 for permissionless)")
     .option("--allow-panic", "Allow panic mode")
@@ -42,10 +81,16 @@ export function registerKeeperCrank(program: Command): void {
 
       const allowPanic = opts.allowPanic === true;
 
-      // Build instruction data (funding rate computed on-chain from LP inventory)
+      // Fetch slab data and compute liquidation candidates off-chain
+      const slabData = await fetchSlab(ctx.connection, slabPk);
+      const engine = parseEngine(slabData);
+      const candidates = computeCandidates(slabData, engine.lastOraclePrice > 0n ? engine.lastOraclePrice : 1n);
+
+      // Build instruction data with candidate shortlist
       const ixData = encodeKeeperCrank({
         callerIdx,
         allowPanic,
+        candidates,
       });
 
       // Build account metas (order matches ACCOUNTS_KEEPER_CRANK)
