@@ -76,7 +76,7 @@ import { buildIx } from "../src/runtime/tx.js";
 // Program IDs
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
-const SLAB_SIZE = 992616;
+const SLAB_SIZE = 1156656;
 const MATCHER_CTX_SIZE = 320;
 
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
@@ -141,7 +141,7 @@ async function main() {
     unitScale: 0,
     initialMarkPriceE6: INITIAL_MARK_PRICE.toString(), // Required for Hyperp
     maxMaintenanceFeePerSlot: "1000000000",  // Per-market admin limit
-    maxRiskThreshold: "10000000000000000000", // Per-market admin limit
+    maxInsuranceFloor: "10000000000000000000", // Per-market admin limit
     minOraclePriceCapE2bps: "0",             // No floor
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",
@@ -149,7 +149,7 @@ async function main() {
     tradingFeeBps: "10",
     maxAccounts: "64",
     newAccountFee: "1000000",
-    riskReductionThreshold: "0",
+    insuranceFloor: "0",
     maintenanceFeePerSlot: "0",
     maxCrankStalenessSlots: "200",
     liquidationFeeBps: "100",
@@ -412,7 +412,7 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
   console.log("\n--- Test 3: Funding rate ---");
   engine = parseEngine(data);
   console.log(`  Funding rate (bps/slot): ${engine.fundingRateBpsPerSlotLast}`);
-  console.log(`  Funding index: ${engine.fundingIndexQpbE6}`);
+  console.log(`  Funding price sample: ${engine.fundingPriceSampleLast}`);
 
   // TEST 4: Set oracle authority
   console.log("\n--- Test 4: Set oracle authority ---");
@@ -480,9 +480,9 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
     let hasOpenPositions = false;
     for (const idx of indices) {
       const acc = parseAccount(data, idx);
-      if (acc && acc.positionSize !== 0n) {
+      if (acc && acc.positionBasisQ !== 0n) {
         hasOpenPositions = true;
-        console.log(`  Account ${idx} still has position: ${acc.positionSize}`);
+        console.log(`  Account ${idx} still has position: ${acc.positionBasisQ}`);
       }
     }
 
@@ -501,7 +501,7 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
   for (const idx of finalIndices) {
     const acc = parseAccount(data, idx);
     if (acc) {
-      console.log(`    Account ${idx}: pos=${acc.positionSize}, capital=${Number(acc.capital)/1e9} SOL`);
+      console.log(`    Account ${idx}: pos=${acc.positionBasisQ}, capital=${Number(acc.capital)/1e9} SOL`);
     }
   }
 

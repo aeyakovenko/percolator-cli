@@ -159,20 +159,19 @@ console.log("\nTesting account parsing...\n");
 
 // Constants from slab.ts for testing (keep in sync with slab.ts)
 const ENGINE_OFF = 440;
-const ENGINE_ACCOUNTS_OFF = 9136;
-const ACCOUNT_SIZE = 240;
-const ENGINE_BITMAP_OFF = 408;
+const ENGINE_ACCOUNTS_OFF = 9336;
+const ACCOUNT_SIZE = 280;
+const ENGINE_BITMAP_OFF = 608;
 
-// Account field offsets
+// Account field offsets (SBF layout, 8-byte alignment for u128/i128)
 const ACCT_ACCOUNT_ID_OFF = 0;
 const ACCT_CAPITAL_OFF = 8;
 const ACCT_KIND_OFF = 24;
 const ACCT_PNL_OFF = 32;
-const ACCT_POSITION_SIZE_OFF = 80;
-const ACCT_ENTRY_PRICE_OFF = 96;
-const ACCT_MATCHER_PROGRAM_OFF = 120;
-const ACCT_MATCHER_CONTEXT_OFF = 152;
-const ACCT_OWNER_OFF = 184;
+const ACCT_POSITION_BASIS_Q_OFF = 88;
+const ACCT_MATCHER_PROGRAM_OFF = 144;
+const ACCT_MATCHER_CONTEXT_OFF = 176;
+const ACCT_OWNER_OFF = 208;
 
 // Helper to write u128 as two u64s
 function writeU128LE(buf: Buffer, offset: number, value: bigint): void {
@@ -221,8 +220,7 @@ function createFullMockSlab(): Buffer {
   writeU128LE(buf, acc0Base + ACCT_CAPITAL_OFF, 1000000000n);  // capital: 1 SOL
   buf.writeUInt8(1, acc0Base + ACCT_KIND_OFF);  // kind: LP (1)
   writeI128LE(buf, acc0Base + ACCT_PNL_OFF, 0n);  // pnl: 0
-  writeI128LE(buf, acc0Base + ACCT_POSITION_SIZE_OFF, 0n);  // position: 0
-  buf.writeBigUInt64LE(150000000n, acc0Base + ACCT_ENTRY_PRICE_OFF);  // entry price: $150
+  writeI128LE(buf, acc0Base + ACCT_POSITION_BASIS_Q_OFF, 0n);  // position: 0
   // Set matcher_program (non-zero for LP)
   const matcherProg = Buffer.alloc(32);
   matcherProg[0] = 0xAA;
@@ -238,8 +236,7 @@ function createFullMockSlab(): Buffer {
   writeU128LE(buf, acc1Base + ACCT_CAPITAL_OFF, 500000000n);  // capital: 0.5 SOL
   buf.writeUInt8(0, acc1Base + ACCT_KIND_OFF);  // kind: User (0)
   writeI128LE(buf, acc1Base + ACCT_PNL_OFF, -100000n);  // pnl: -0.0001 SOL
-  writeI128LE(buf, acc1Base + ACCT_POSITION_SIZE_OFF, 1000000n);  // position: 1M units
-  buf.writeBigUInt64LE(145000000n, acc1Base + ACCT_ENTRY_PRICE_OFF);  // entry price: $145
+  writeI128LE(buf, acc1Base + ACCT_POSITION_BASIS_Q_OFF, 1000000n);  // position: 1M units
   // matcher_program stays zero (User accounts don't have matchers)
   // Set owner
   const owner1 = Buffer.alloc(32);
@@ -273,12 +270,11 @@ function createFullMockSlab(): Buffer {
   const slab = createFullMockSlab();
   const acc1 = parseAccount(slab, 1);
 
-  assert(acc1.positionSize === 1000000n, "account position size");
-  assert(acc1.entryPrice === 145000000n, "account entry price");
+  assert(acc1.positionBasisQ === 1000000n, "account position basis q");
   assert(acc1.pnl === -100000n, "account pnl (negative)");
   assert(acc1.owner instanceof PublicKey, "account owner is PublicKey");
 
-  console.log("✓ parseAccount fields (position, entry price, pnl, owner)");
+  console.log("✓ parseAccount fields (position, pnl, owner)");
 }
 
 // Test bitmap parsing

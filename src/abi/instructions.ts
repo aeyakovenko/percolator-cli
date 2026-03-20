@@ -38,6 +38,7 @@ export const IX_TAG = {
   AdminForceCloseAccount: 21,
   SetInsuranceWithdrawPolicy: 22,
   WithdrawInsuranceLimited: 23,
+  QueryLpFees: 24,
 } as const;
 
 /**
@@ -60,7 +61,7 @@ export interface InitMarketArgs {
   initialMarkPriceE6: bigint | string;  // Initial mark price (required non-zero for Hyperp mode)
   // Per-market admin limits (immutable after init)
   maxMaintenanceFeePerSlot: bigint | string;  // Max maintenance fee admin can set (u128, must be > 0)
-  maxRiskThreshold: bigint | string;          // Max risk threshold admin can set (u128, must be > 0)
+  maxInsuranceFloor: bigint | string;          // Max insurance floor admin can set (u128, must be > 0)
   minOraclePriceCapE2bps: bigint | string;    // Min oracle price cap floor (u64, 0 = no floor)
   // Risk params
   warmupPeriodSlots: bigint | string;
@@ -69,7 +70,7 @@ export interface InitMarketArgs {
   tradingFeeBps: bigint | string;
   maxAccounts: bigint | string;
   newAccountFee: bigint | string;
-  riskReductionThreshold: bigint | string;
+  insuranceFloor: bigint | string;
   maintenanceFeePerSlot: bigint | string;
   maxCrankStalenessSlots: bigint | string;
   liquidationFeeBps: bigint | string;
@@ -105,7 +106,7 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encU32(args.unitScale),
     encU64(args.initialMarkPriceE6),  // initial_mark_price_e6 (required non-zero for Hyperp)
     encU128(args.maxMaintenanceFeePerSlot),  // per-market admin limit
-    encU128(args.maxRiskThreshold),          // per-market admin limit
+    encU128(args.maxInsuranceFloor),          // per-market admin limit
     encU64(args.minOraclePriceCapE2bps),     // per-market admin limit
     encU64(args.warmupPeriodSlots),
     encU64(args.maintenanceMarginBps),
@@ -113,7 +114,7 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encU64(args.tradingFeeBps),
     encU64(args.maxAccounts),
     encU128(args.newAccountFee),
-    encU128(args.riskReductionThreshold),
+    encU128(args.insuranceFloor),
     encU128(args.maintenanceFeePerSlot),
     encU64(args.maxCrankStalenessSlots),
     encU64(args.liquidationFeeBps),
@@ -185,20 +186,27 @@ export function encodeWithdrawCollateral(args: WithdrawCollateralArgs): Buffer {
 }
 
 /**
- * KeeperCrank instruction data (4 bytes)
- * Funding rate is computed on-chain from LP inventory.
+ * KeeperCrank instruction data (4+ bytes)
+ * Two-phase crank: candidates computed off-chain, passed as u16 array.
  */
 export interface KeeperCrankArgs {
   callerIdx: number;
   allowPanic: boolean;
+  candidates?: number[];  // Off-chain computed account indices
 }
 
 export function encodeKeeperCrank(args: KeeperCrankArgs): Buffer {
-  return Buffer.concat([
+  const parts: Buffer[] = [
     encU8(IX_TAG.KeeperCrank),
     encU16(args.callerIdx),
     encU8(args.allowPanic ? 1 : 0),
-  ]);
+  ];
+  if (args.candidates) {
+    for (const idx of args.candidates) {
+      parts.push(encU16(idx));
+    }
+  }
+  return Buffer.concat(parts);
 }
 
 /**
@@ -477,5 +485,21 @@ export function encodeWithdrawInsuranceLimited(args: WithdrawInsuranceLimitedArg
   return Buffer.concat([
     encU8(IX_TAG.WithdrawInsuranceLimited),
     encU64(args.amount),
+  ]);
+}
+
+/**
+ * QueryLpFees instruction data (3 bytes)
+ * Layout: tag(1) + lp_idx(2)
+ * Query cumulative fees earned by an LP position. Returns via set_return_data.
+ */
+export interface QueryLpFeesArgs {
+  lpIdx: number;
+}
+
+export function encodeQueryLpFees(args: QueryLpFeesArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.QueryLpFees),
+    encU16(args.lpIdx),
   ]);
 }

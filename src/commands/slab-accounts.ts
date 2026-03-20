@@ -27,8 +27,8 @@ export function registerSlabAccounts(program: Command): void {
           owner: account.owner.toBase58(),
           capital: account.capital.toString(),
           pnl: account.pnl.toString(),
-          positionSize: account.positionSize.toString(),
-          entryPrice: account.entryPrice.toString(),
+          positionBasisQ: account.positionBasisQ.toString(),
+          adlABasis: account.adlABasis.toString(),
         }));
         console.log(JSON.stringify(output, null, 2));
       } else {
@@ -45,7 +45,7 @@ export function registerSlabAccounts(program: Command): void {
           const kindStr = account.kind === AccountKind.LP ? "LP  " : "User";
           const ownerShort = account.owner.toBase58();
           const capitalStr = account.capital.toString().padStart(19);
-          const posStr = account.positionSize.toString().padStart(20);
+          const posStr = account.positionBasisQ.toString().padStart(20);
           console.log(
             `${idx.toString().padStart(4)}  ${kindStr}  ${account.accountId.toString().padStart(6)}  ${ownerShort}  ${capitalStr}  ${posStr}`
           );
@@ -56,7 +56,7 @@ export function registerSlabAccounts(program: Command): void {
         const lps = accounts.filter(a => a.account.kind === AccountKind.LP);
         const totalCapital = accounts.reduce((sum, a) => sum + a.account.capital, 0n);
         const totalOI = accounts.reduce((sum, a) => {
-          const pos = a.account.positionSize;
+          const pos = a.account.positionBasisQ;
           return sum + (pos < 0n ? -pos : pos);
         }, 0n);
 

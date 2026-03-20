@@ -26,7 +26,7 @@ export function registerInitMarket(program: Command): void {
     .option("--unit-scale <number>", "Lamports per unit scale (0=no scaling)", "0")
     .option("--initial-mark-price <string>", "Initial mark price e6 (required non-zero for Hyperp mode)", "0")
     .requiredOption("--max-maintenance-fee <string>", "Max maintenance fee per slot admin can set (u128)")
-    .requiredOption("--max-risk-threshold <string>", "Max risk threshold admin can set (u128)")
+    .requiredOption("--max-insurance-floor <string>", "Max insurance floor admin can set (u128)")
     .option("--min-oracle-price-cap <string>", "Min oracle price cap e2bps floor (0=no floor)", "0")
     .requiredOption("--warmup-period <string>", "Warmup period (slots)")
     .requiredOption("--maintenance-margin-bps <string>", "Maintenance margin (bps)")
@@ -34,7 +34,7 @@ export function registerInitMarket(program: Command): void {
     .requiredOption("--trading-fee-bps <string>", "Trading fee (bps)")
     .requiredOption("--max-accounts <string>", "Max accounts")
     .requiredOption("--new-account-fee <string>", "New account fee (u128)")
-    .requiredOption("--risk-reduction-threshold <string>", "Risk reduction threshold (u128)")
+    .requiredOption("--insurance-floor <string>", "Insurance floor (u128)")
     .requiredOption("--maintenance-fee-per-slot <string>", "Maintenance fee per slot (u128)")
     .requiredOption("--max-crank-staleness <string>", "Max crank staleness (slots)")
     .requiredOption("--liquidation-fee-bps <string>", "Liquidation fee (bps)")
@@ -71,7 +71,7 @@ export function registerInitMarket(program: Command): void {
         unitScale: parseInt(opts.unitScale, 10),
         initialMarkPriceE6: opts.initialMarkPrice,
         maxMaintenanceFeePerSlot: opts.maxMaintenanceFee,
-        maxRiskThreshold: opts.maxRiskThreshold,
+        maxInsuranceFloor: opts.maxInsuranceFloor,
         minOraclePriceCapE2bps: opts.minOraclePriceCap,
         warmupPeriodSlots: opts.warmupPeriod,
         maintenanceMarginBps: opts.maintenanceMarginBps,
@@ -79,7 +79,7 @@ export function registerInitMarket(program: Command): void {
         tradingFeeBps: opts.tradingFeeBps,
         maxAccounts: opts.maxAccounts,
         newAccountFee: opts.newAccountFee,
-        riskReductionThreshold: opts.riskReductionThreshold,
+        insuranceFloor: opts.insuranceFloor,
         maintenanceFeePerSlot: opts.maintenanceFeePerSlot,
         maxCrankStalenessSlots: opts.maxCrankStaleness,
         liquidationFeeBps: opts.liquidationFeeBps,
