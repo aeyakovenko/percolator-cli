@@ -51,7 +51,7 @@ async function main() {
 
   // Derived engine values
   const insurance = engine.insuranceFund.balance;
-  const threshold = params.riskReductionThreshold;
+  const threshold = params.insuranceFloor;
   const surplus = insurance > threshold ? insurance - threshold : 0n;
 
   // Build accounts
@@ -59,10 +59,10 @@ async function main() {
     const acc = parseAccount(data, idx);
     if (!acc) return null;
 
-    const posAbs = acc.positionSize < 0n ? -acc.positionSize : acc.positionSize;
+    const posAbs = acc.positionBasisQ < 0n ? -acc.positionBasisQ : acc.positionBasisQ;
     const notional = posAbs * oraclePrice / 1_000_000n;
-    const unrealizedPnl = acc.positionSize * (oraclePrice - acc.entryPrice) / 1_000_000n;
-    const effectiveCapital = acc.capital + acc.pnl + unrealizedPnl;
+    // entryPrice no longer exists; unrealized PnL calculation removed
+    const effectiveCapital = acc.capital + acc.pnl;
     const maintenanceReq = notional * params.maintenanceMarginBps / 10_000n;
     const marginRatioBps = notional > 0n ? effectiveCapital * 10_000n / notional : 99999n;
 
@@ -86,7 +86,7 @@ async function main() {
       },
 
       warmup: {
-        reservedPnl: acc.reservedPnl.toString(),
+        reservedPnl: acc.reservedPnl.toString(), // now u128
         reservedPnlSol: sol(acc.reservedPnl),
         warmupStartedAtSlot: acc.warmupStartedAtSlot.toString(),
         warmupSlopePerStep: acc.warmupSlopePerStep.toString(),
@@ -94,9 +94,9 @@ async function main() {
       },
 
       position: {
-        sizeUnits: acc.positionSize.toString(),
-        direction: acc.positionSize > 0n ? "LONG" : acc.positionSize < 0n ? "SHORT" : "FLAT",
-        entryPriceE6: acc.entryPrice.toString(),
+        sizeUnits: acc.positionBasisQ.toString(),
+        direction: acc.positionBasisQ > 0n ? "LONG" : acc.positionBasisQ < 0n ? "SHORT" : "FLAT",
+        adlABasis: acc.adlABasis.toString(),
         notional: { raw: notional.toString(), sol: sol(notional) },
       },
 
@@ -109,7 +109,7 @@ async function main() {
       },
 
       funding: {
-        fundingIndex: acc.fundingIndex.toString(),
+        adlKSnap: acc.adlKSnap.toString(),
       },
 
       matcher: {
@@ -193,7 +193,7 @@ async function main() {
       tradingFeeBps: Number(params.tradingFeeBps),
       maxAccounts: params.maxAccounts.toString(),
       newAccountFee: { raw: params.newAccountFee.toString(), sol: sol(params.newAccountFee) },
-      riskReductionThreshold: { raw: params.riskReductionThreshold.toString(), sol: sol(params.riskReductionThreshold) },
+      insuranceFloor: { raw: params.insuranceFloor.toString(), sol: sol(params.insuranceFloor) },
       maintenanceFeePerSlot: { raw: params.maintenanceFeePerSlot.toString(), sol: sol(params.maintenanceFeePerSlot) },
       maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
       liquidationFeeBps: Number(params.liquidationFeeBps),
@@ -214,7 +214,6 @@ async function main() {
 
       slots: {
         current: engine.currentSlot.toString(),
-        lastFunding: engine.lastFundingSlot.toString(),
         lastCrank: engine.lastCrankSlot.toString(),
         maxCrankStaleness: engine.maxCrankStalenessSlots.toString(),
         lastSweepStart: engine.lastSweepStartSlot.toString(),
@@ -222,23 +221,13 @@ async function main() {
       },
 
       funding: {
-        indexQpbE6: engine.fundingIndexQpbE6.toString(),
+        fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
       },
 
-      openInterest: {
-        totalUnits: engine.totalOpenInterest.toString(),
-        totalSol: sol(engine.totalOpenInterest * oraclePrice / 1_000_000n),
-      },
-
-      lpAggregates: {
-        netLpPos: engine.netLpPos.toString(),
-        netLpPosSol: sol((engine.netLpPos < 0n ? -engine.netLpPos : engine.netLpPos) * oraclePrice / 1_000_000n),
-        lpSumAbs: engine.lpSumAbs.toString(),
-      },
+      // totalOpenInterest, netLpPos, lpSumAbs removed from engine
 
       counters: {
         lifetimeLiquidations: Number(engine.lifetimeLiquidations),
-        lifetimeForceCloses: Number(engine.lifetimeForceCloses),
         numUsedAccounts: engine.numUsedAccounts,
         nextAccountId: engine.nextAccountId.toString(),
       },

@@ -260,7 +260,7 @@ async function scenarioWinner(basePrice: bigint): Promise<TestResult> {
   acc = state.accounts.find((a: any) => a.idx === idx);
   const capitalAfterClose = BigInt(acc?.capital || 0);
   const pnlAfterClose = BigInt(acc?.pnl || 0);
-  const posAfterClose = BigInt(acc?.positionSize || 0);
+  const posAfterClose = BigInt(acc?.positionBasisQ || 0);
   console.log(`  After close: capital=${fmt(capitalAfterClose)}, pnl=${fmt(pnlAfterClose)}, position=${posAfterClose}`);
 
   if (posAfterClose !== 0n) {
@@ -392,7 +392,7 @@ async function scenarioLoser(basePrice: bigint): Promise<TestResult> {
   state = await getState();
   acc = state.accounts.find((a: any) => a.idx === idx);
   const capitalAfterClose = BigInt(acc?.capital || 0);
-  const posAfterClose = BigInt(acc?.positionSize || 0);
+  const posAfterClose = BigInt(acc?.positionBasisQ || 0);
   console.log(`  After close: capital=${fmt(capitalAfterClose)}, position=${posAfterClose}`);
 
   if (posAfterClose !== 0n) {
@@ -467,7 +467,7 @@ async function scenarioRoundTrip(basePrice: bigint): Promise<TestResult> {
   state = await getState();
   acc = state.accounts.find((a: any) => a.idx === idx);
   const capitalAfterClose = BigInt(acc?.capital || 0);
-  const posAfterClose = BigInt(acc?.positionSize || 0);
+  const posAfterClose = BigInt(acc?.positionBasisQ || 0);
   console.log(`  Closed: capital=${fmt(capitalAfterClose)}, position=${posAfterClose}`);
 
   // The user should have lost only the trading fees (2 × fee per trade)
@@ -540,7 +540,7 @@ async function scenarioMaxLeverageLong(basePrice: bigint): Promise<TestResult> {
 
   state = await getState();
   acc = state.accounts.find((a: any) => a.idx === idx);
-  const pos = BigInt(acc?.positionSize || 0);
+  const pos = BigInt(acc?.positionBasisQ || 0);
   const capitalAfterOpen = BigInt(acc?.capital || 0);
   const notional = (pos < 0n ? -pos : pos) * basePrice / 1_000_000n;
   const leverage = capitalAfterOpen > 0n ? Number(notional) / Number(capitalAfterOpen) : 0;
@@ -568,7 +568,7 @@ async function scenarioMaxLeverageLong(basePrice: bigint): Promise<TestResult> {
   state = await getState();
   acc = state.accounts.find((a: any) => a.idx === idx);
   const pnlAfterClose = BigInt(acc?.pnl || 0);
-  const posAfterClose = BigInt(acc?.positionSize || 0);
+  const posAfterClose = BigInt(acc?.positionBasisQ || 0);
   console.log(`  After close: capital=${fmt(BigInt(acc?.capital || 0))}, pnl=${fmt(pnlAfterClose)}, position=${posAfterClose}`);
 
   if (posAfterClose !== 0n) {
@@ -629,7 +629,7 @@ async function scenarioMaxLeverageShort(basePrice: bigint): Promise<TestResult> 
 
   let state = await getState();
   let acc = state.accounts.find((a: any) => a.idx === idx);
-  const pos = BigInt(acc?.positionSize || 0);
+  const pos = BigInt(acc?.positionBasisQ || 0);
   const capitalAfterOpen = BigInt(acc?.capital || 0);
   const absPos = pos < 0n ? -pos : pos;
   const notional = absPos * basePrice / 1_000_000n;
@@ -658,7 +658,7 @@ async function scenarioMaxLeverageShort(basePrice: bigint): Promise<TestResult> 
   state = await getState();
   acc = state.accounts.find((a: any) => a.idx === idx);
   const pnlAfterClose = BigInt(acc?.pnl || 0);
-  const posAfterClose = BigInt(acc?.positionSize || 0);
+  const posAfterClose = BigInt(acc?.positionBasisQ || 0);
   console.log(`  After close: capital=${fmt(BigInt(acc?.capital || 0))}, pnl=${fmt(pnlAfterClose)}, position=${posAfterClose}`);
 
   if (posAfterClose !== 0n) {
@@ -794,7 +794,7 @@ async function main() {
   {
     const cleanState = await getState();
     for (const a of cleanState.accounts) {
-      if (a.kind === "USER" && BigInt(a.positionSize || 0) === 0n) {
+      if (a.kind === "USER" && BigInt(a.positionBasisQ || 0) === 0n) {
         try {
           // Try to withdraw any remaining capital
           const cap = BigInt(a.capital || 0);
@@ -822,7 +822,7 @@ async function main() {
   // Show LP state for diagnostics
   const lpState = (await getState()).accounts.find((a: any) => a.kind === "LP");
   if (lpState) {
-    const lpPos = BigInt(lpState.positionSize || 0);
+    const lpPos = BigInt(lpState.positionBasisQ || 0);
     const lpCap = BigInt(lpState.capital || 0);
     const lpNotional = (lpPos < 0n ? -lpPos : lpPos) * basePrice / 1_000_000n;
     const lpMaintReq = lpNotional * 500n / 10_000n; // 5% maintenance

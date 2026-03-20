@@ -187,11 +187,11 @@ async function attackMultiAccountExtraction() {
   const a1M = stateM.accounts.find((a: any) => a.idx === attacker1);
   const a2M = stateM.accounts.find((a: any) => a.idx === attacker2);
   
-  if (a1M && a1M.positionSize !== 0n) {
-    await trade(attacker1, 0, -a1M.positionSize);
+  if (a1M && a1M.positionBasisQ !== 0n) {
+    await trade(attacker1, 0, -a1M.positionBasisQ);
   }
-  if (a2M && a2M.positionSize !== 0n) {
-    await trade(attacker2, 0, -a2M.positionSize);
+  if (a2M && a2M.positionBasisQ !== 0n) {
+    await trade(attacker2, 0, -a2M.positionBasisQ);
   }
   await runCrank();
   await delay(1000);
@@ -355,7 +355,7 @@ async function attackInsuranceDrain() {
   
   const stateBefore = await getMarketState();
   const insuranceBefore = Number(stateBefore.engine.insuranceFund.balance);
-  const floor = Number(stateBefore.params.riskReductionThreshold || 0);
+  const floor = Number(stateBefore.params.insuranceFloor || 0);
   
   console.log("  Insurance balance: " + (insuranceBefore / 1e9).toFixed(6) + " SOL");
   console.log("  Floor (threshold): " + (floor / 1e9).toFixed(6) + " SOL");

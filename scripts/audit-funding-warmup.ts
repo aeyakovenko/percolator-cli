@@ -119,7 +119,7 @@ async function testFundingRounding(): Promise<TestResult> {
 
   // Find account with position
   const accountWithPos = stateBefore.accounts.find((a: any) =>
-    BigInt(a.positionSize || 0) !== 0n
+    BigInt(a.positionBasisQ || 0) !== 0n
   );
 
   // Trigger crank to settle funding
@@ -129,8 +129,8 @@ async function testFundingRounding(): Promise<TestResult> {
   const stateAfter = await getMarketState();
 
   // Check funding index change
-  const fundingBefore = BigInt(stateBefore.engine.fundingIndexQpbE6 || 0);
-  const fundingAfter = BigInt(stateAfter.engine.fundingIndexQpbE6 || 0);
+  const fundingBefore = BigInt(stateBefore.engine.fundingRateBpsPerSlotLast || 0);
+  const fundingAfter = BigInt(stateAfter.engine.fundingRateBpsPerSlotLast || 0);
   const fundingDelta = fundingAfter - fundingBefore;
 
   console.log(`  Funding index before: ${fundingBefore}`);
@@ -266,7 +266,7 @@ async function testForceRealizeThreshold(): Promise<TestResult> {
   const state = await getMarketState();
 
   const insurance = Number(state.engine.insuranceFund?.balance || 0) / 1e9;
-  const threshold = Number(state.params.riskReductionThreshold || 0) / 1e9;
+  const threshold = Number(state.params.insuranceFloor || 0) / 1e9;
   const riskReductionOnly = state.engine.riskReductionOnly || false;
 
   console.log(`  Insurance balance: ${insurance.toFixed(6)} SOL`);
@@ -337,7 +337,7 @@ async function testRapidFlip(): Promise<TestResult> {
 
   // Find an account with capital and no position
   const account = stateBefore.accounts.find((a: any) =>
-    Number(a.capital || 0) > 50000000 && BigInt(a.positionSize || 0) === 0n && a.kind === AccountKind.User
+    Number(a.capital || 0) > 50000000 && BigInt(a.positionBasisQ || 0) === 0n && a.kind === AccountKind.User
   );
 
   if (!account) {
@@ -406,13 +406,13 @@ async function testLPPositionTracking(): Promise<TestResult> {
     };
   }
 
-  const lpPosition = BigInt(lpAccount.positionSize || 0);
+  const lpPosition = BigInt(lpAccount.positionBasisQ || 0);
 
   // Sum all user positions
   let userPositionSum = 0n;
   for (const account of state.accounts) {
     if (account.kind === AccountKind.User) {
-      userPositionSum += BigInt(account.positionSize || 0);
+      userPositionSum += BigInt(account.positionBasisQ || 0);
     }
   }
 

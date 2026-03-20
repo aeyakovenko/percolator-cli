@@ -36,7 +36,7 @@ async function getState() {
   const config = parseConfig(data);
 
   const insurance = BigInt(engine.insuranceFund?.balance || 0);
-  const threshold = BigInt(params.riskReductionThreshold || 0);
+  const threshold = BigInt(params.insuranceFloor || 0);
   const spendable = insurance > threshold ? insurance - threshold : 0n;
 
   const warmedPos = BigInt(engine.warmedPosTotal || 0);
@@ -152,7 +152,7 @@ async function main() {
         kind: acc.kind === AccountKind.LP ? 'LP' : 'USER',
         capital: BigInt(acc.capital || 0),
         pnl: BigInt(acc.pnl || 0),
-        position: BigInt(acc.positionSize || 0),
+        position: BigInt(acc.positionBasisQ || 0),
       });
     }
   }

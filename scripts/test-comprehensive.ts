@@ -251,7 +251,7 @@ async function testFullLifecycle(basePrice: bigint): Promise<TestResult> {
   await trade(idx, SIZE);
   state = await getState(); check(state, "1-trade");
   acc = state.accounts.find((a: any) => a.idx === idx);
-  const posAfterTrade = BigInt(acc.positionSize);
+  const posAfterTrade = BigInt(acc.positionBasisQ);
   console.log(`  After trade: pos=${posAfterTrade}, capital=${fmt(BigInt(acc.capital))}`);
   if (posAfterTrade !== SIZE) return { name: "Full Lifecycle", pass: false, details: `Position mismatch: ${posAfterTrade} != ${SIZE}` };
 
@@ -265,7 +265,7 @@ async function testFullLifecycle(basePrice: bigint): Promise<TestResult> {
   await trade(idx, -SIZE);
   state = await getState(); check(state, "1-close-pos");
   acc = state.accounts.find((a: any) => a.idx === idx);
-  const posAfterClose = BigInt(acc.positionSize);
+  const posAfterClose = BigInt(acc.positionBasisQ);
   const pnlAfterClose = BigInt(acc.pnl);
   console.log(`  After close: pos=${posAfterClose}, pnl=${fmt(pnlAfterClose)}, cap=${fmt(BigInt(acc.capital))}`);
 
@@ -373,7 +373,7 @@ async function testPnlAccounting(basePrice: bigint): Promise<TestResult> {
   await trade(idx, SIZE);
   let state = await getState(); check(state, "3-open");
   let acc = state.accounts.find((a: any) => a.idx === idx);
-  const entryPrice = BigInt(acc.entryPrice);
+  const entryPrice = BigInt(acc.adlABasis);
   console.log(`  Entry price: ${entryPrice}`);
 
   // Move price up 5%
@@ -528,7 +528,7 @@ async function testLiquidation(basePrice: bigint): Promise<TestResult> {
   }
   let state = await getState(); check(state, "5-open");
   let acc = state.accounts.find((a: any) => a.idx === idx);
-  console.log(`  Opened: pos=${BigInt(acc.positionSize)}, cap=${fmt(BigInt(acc.capital))}`);
+  console.log(`  Opened: pos=${BigInt(acc.positionBasisQ)}, cap=${fmt(BigInt(acc.capital))}`);
 
   // Move price down aggressively to trigger liquidation
   // Maintenance margin = 5% → liquidation when equity < 5% of notional
@@ -548,7 +548,7 @@ async function testLiquidation(basePrice: bigint): Promise<TestResult> {
     return { name: "Liquidation", pass: true, details: "Account fully liquidated and garbage collected at -15% move" };
   }
 
-  const posAfterLiq = BigInt(acc.positionSize);
+  const posAfterLiq = BigInt(acc.positionBasisQ);
   const capAfterLiq = BigInt(acc.capital);
   console.log(`  After crank: pos=${posAfterLiq}, cap=${fmt(capAfterLiq)}`);
 
@@ -700,7 +700,7 @@ async function testLpEquity(basePrice: bigint): Promise<TestResult> {
 
   const lpCapBefore = BigInt(lp.capital);
   const lpPnlBefore = BigInt(lp.pnl);
-  const lpPosBefore = BigInt(lp.positionSize);
+  const lpPosBefore = BigInt(lp.positionBasisQ);
   console.log(`  LP before: cap=${fmt(lpCapBefore)}, pnl=${fmt(lpPnlBefore)}, pos=${lpPosBefore}`);
 
   // Open a user position (LP takes opposite)
@@ -716,8 +716,8 @@ async function testLpEquity(basePrice: bigint): Promise<TestResult> {
   state = await getState(); check(state, "9-after-trade");
   const lp2 = state.accounts.find((a: any) => a.kind === "LP");
   const user = state.accounts.find((a: any) => a.idx === idx);
-  const lpPosAfter = BigInt(lp2.positionSize);
-  const userPosAfter = BigInt(user.positionSize);
+  const lpPosAfter = BigInt(lp2.positionBasisQ);
+  const userPosAfter = BigInt(user.positionBasisQ);
   console.log(`  LP pos: ${lpPosBefore} → ${lpPosAfter} (delta=${lpPosAfter - lpPosBefore})`);
   console.log(`  User pos: 0 → ${userPosAfter}`);
 
@@ -736,7 +736,7 @@ async function testLpEquity(basePrice: bigint): Promise<TestResult> {
   await trade(idx, -SIZE);
   state = await getState(); check(state, "9-close");
   const lp3 = state.accounts.find((a: any) => a.kind === "LP");
-  const lpPosRestored = BigInt(lp3.positionSize);
+  const lpPosRestored = BigInt(lp3.positionBasisQ);
   console.log(`  LP pos restored: ${lpPosRestored} (was ${lpPosBefore})`);
 
   await cleanup(idx, 0n);
@@ -763,13 +763,13 @@ async function testPositionFlip(basePrice: bigint): Promise<TestResult> {
   await trade(idx, SIZE);
   let state = await getState(); check(state, "10-long");
   let acc = state.accounts.find((a: any) => a.idx === idx);
-  console.log(`  After LONG: pos=${BigInt(acc.positionSize)}`);
+  console.log(`  After LONG: pos=${BigInt(acc.positionBasisQ)}`);
 
   // Flip to SHORT (trade -2x SIZE)
   await trade(idx, -SIZE * 2n);
   state = await getState(); check(state, "10-flip");
   acc = state.accounts.find((a: any) => a.idx === idx);
-  const flipPos = BigInt(acc.positionSize);
+  const flipPos = BigInt(acc.positionBasisQ);
   console.log(`  After flip: pos=${flipPos}`);
 
   const flipOk = flipPos === -SIZE;

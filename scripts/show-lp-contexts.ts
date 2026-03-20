@@ -24,7 +24,7 @@ async function main() {
       console.log(`  Matcher Program: ${account.matcherProgram.toBase58()}`);
       console.log(`  Matcher Context: ${account.matcherContext.toBase58()}`);
       console.log(`  Capital: ${Number(account.capital) / 1e9} SOL`);
-      console.log(`  Position: ${account.positionSize}`);
+      console.log(`  Position: ${account.positionBasisQ}`);
       console.log('');
     }
   }

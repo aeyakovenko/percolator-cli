@@ -25,12 +25,12 @@ async function main() {
     const isLP = matcher !== "null" && matcher !== "11111111111111111111111111111111";
 
     if (isLP) {
-      lpPosition += acc.positionSize;
+      lpPosition += acc.positionBasisQ;
     } else {
-      if (acc.positionSize > 0n) {
-        netUserLong += acc.positionSize;
+      if (acc.positionBasisQ > 0n) {
+        netUserLong += acc.positionBasisQ;
       } else {
-        netUserShort += acc.positionSize;
+        netUserShort += acc.positionBasisQ;
       }
     }
   }
@@ -41,9 +41,8 @@ async function main() {
   console.log("LP position:", lpPosition.toString());
 
   console.log("\nFunding state:");
-  console.log("  Funding index:", engine.fundingIndexQpbE6.toString());
-  console.log("  Last funding slot:", engine.lastFundingSlot.toString());
-  console.log("  Net LP position:", engine.netLpPos?.toString() || "N/A");
+  console.log("  Funding rate (bps/slot, last):", engine.fundingRateBpsPerSlotLast.toString());
+  // lastFundingSlot, netLpPos removed from engine state
 
   console.log("\nFunding config:");
   console.log("  Horizon slots:", config.fundingHorizonSlots?.toString());

@@ -41,8 +41,8 @@ async function main() {
     const account = parseAccount(slabData, lpIdx);
 
     // Verify we can close
-    if (account.positionSize !== 0n) {
-      console.log(`LP ${lpIdx}: Has position ${account.positionSize}, skipping`);
+    if (account.positionBasisQ !== 0n) {
+      console.log(`LP ${lpIdx}: Has position ${account.positionBasisQ}, skipping`);
       continue;
     }
 

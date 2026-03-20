@@ -30,7 +30,8 @@ async function runT5Tests(): Promise<void> {
     }
 
     const snapshotBefore = await harness.snapshot(ctx);
-    const fundingSlotBefore = snapshotBefore.engine.lastFundingSlot;
+    // lastFundingSlot removed from engine state
+    const currentSlotBefore = snapshotBefore.engine.currentSlot;
 
     // Run keeper crank
     const result = await harness.keeperCrank(ctx, 200000);
@@ -41,8 +42,8 @@ async function runT5Tests(): Promise<void> {
       const snapshotAfter = await harness.snapshot(ctx);
       console.log(`    Crank succeeded`);
       console.log(`    CU used: ${result.unitsConsumed}`);
-      console.log(`    Funding slot before: ${fundingSlotBefore}`);
-      console.log(`    Funding slot after: ${snapshotAfter.engine.lastFundingSlot}`);
+      console.log(`    Current slot before: ${currentSlotBefore}`);
+      console.log(`    Current slot after: ${snapshotAfter.engine.currentSlot}`);
     }
   });
 

@@ -125,18 +125,16 @@ async function main() {
   console.log(`  Price: ${basePrice}`);
   console.log(`  funding_horizon_slots: ${state.config.fundingHorizonSlots}`);
   console.log(`  funding_max_bps_per_slot: ${state.config.fundingMaxBpsPerSlot}`);
-  console.log(`  last_funding_slot: ${state.engine.lastFundingSlot}`);
-  console.log(`  funding_index_qpb_e6: ${state.engine.fundingIndexQpbE6}`);
+  // lastFundingSlot removed from engine state
+  console.log(`  funding_rate_bps_per_slot_last: ${state.engine.fundingRateBpsPerSlotLast}`);
 
   // Get current slot
   const slot = await conn.getSlot();
-  const slotsSinceLastFunding = BigInt(slot) - state.engine.lastFundingSlot;
   console.log(`  Current slot: ${slot}`);
-  console.log(`  Slots since last funding: ${slotsSinceLastFunding}`);
 
   // Check LP position
   const lp = state.accounts.find((a: any) => a.kind === "LP");
-  console.log(`\n  LP position: ${lp?.positionSize || 0}`);
+  console.log(`\n  LP position: ${lp?.positionBasisQ || 0}`);
   console.log(`  LP capital: ${fmt(BigInt(lp?.capital || 0))}`);
 
   await pushPrice(basePrice);
@@ -156,11 +154,11 @@ async function main() {
   let victim = state.accounts.find((a: any) => a.idx === victimIdx);
   const victimPnlBefore = BigInt(victim.pnl);
   const victimCapBefore = BigInt(victim.capital);
-  console.log(`  Victim: pos=${victim.positionSize}, capital=${fmt(victimCapBefore)}, pnl=${fmt(victimPnlBefore)}`);
+  console.log(`  Victim: pos=${victim.positionBasisQ}, capital=${fmt(victimCapBefore)}, pnl=${fmt(victimPnlBefore)}`);
 
   // Record LP state
   const lpBefore = state.accounts.find((a: any) => a.kind === "LP");
-  const lpPosBefore = BigInt(lpBefore.positionSize);
+  const lpPosBefore = BigInt(lpBefore.positionBasisQ);
   console.log(`  LP after victim trade: pos=${lpPosBefore}`);
 
   // Wait some time to accumulate slots
@@ -181,7 +179,7 @@ async function main() {
   const fundingDelta = victimPnlAfter - victimPnlBefore;
   console.log(`  Victim: pnl ${fmt(victimPnlBefore)} → ${fmt(victimPnlAfter)} (delta: ${fmt(fundingDelta)})`);
   console.log(`  Victim: capital ${fmt(victimCapBefore)} → ${fmt(victimCapAfter)}`);
-  console.log(`  Funding index: ${state.engine.fundingIndexQpbE6}`);
+  console.log(`  Funding index: ${state.engine.fundingRateBpsPerSlotLast}`);
 
   // Check if LP gained what victim lost (zero-sum)
   const lpAfter = state.accounts.find((a: any) => a.kind === "LP");
@@ -196,7 +194,7 @@ async function main() {
     await delay(12_000);
     state = await getState();
     victim = state.accounts.find((a: any) => a.idx === victimIdx);
-    if (victim && BigInt(victim.positionSize) === 0n) {
+    if (victim && BigInt(victim.positionBasisQ) === 0n) {
       const userAta = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, payer.publicKey);
       const [vaultPda] = deriveVaultAuthority(PROGRAM_ID, SLAB);
       try {

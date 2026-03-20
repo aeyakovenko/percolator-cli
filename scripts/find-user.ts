@@ -30,7 +30,7 @@ async function main() {
     const marker = isMatch ? ' <-- YOUR ACCOUNT' : '';
 
     console.log(`[${idx}] Owner: ${acc.owner.toBase58()}${marker}`);
-    console.log(`     Position: ${acc.positionSize}, Capital: ${Number(acc.capital) / 1e9} SOL`);
+    console.log(`     Position: ${acc.positionBasisQ}, Capital: ${Number(acc.capital) / 1e9} SOL`);
 
     if (isMatch) {
       console.log(`\n✓ Your user index is: ${idx}`);

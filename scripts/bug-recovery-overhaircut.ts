@@ -67,7 +67,7 @@ interface ParsedState {
   engine: ReturnType<typeof parseEngine>;
   config: ReturnType<typeof parseConfig>;
   params: ReturnType<typeof parseParams>;
-  accounts: { idx: number; kind: string; capital: bigint; pnl: bigint; positionSize: bigint; entryPriceE6: bigint; [k: string]: any }[];
+  accounts: { idx: number; kind: string; capital: bigint; pnl: bigint; positionBasisQ: bigint; adlABasis: bigint; [k: string]: any }[];
   data: Buffer;
 }
 
@@ -85,8 +85,8 @@ async function getState(): Promise<ParsedState> {
       kind: acc.kind === AccountKind.LP ? "LP" : "USER",
       capital: acc.capital,
       pnl: acc.pnl,
-      positionSize: acc.positionSize,
-      entryPriceE6: acc.entryPrice,
+      positionBasisQ: acc.positionBasisQ,
+      adlABasis: acc.adlABasis,
     });
   }
   return { engine, config, params, accounts, data };
@@ -99,10 +99,10 @@ function printState(label: string, state: ParsedState) {
   console.log(`  Insurance:   ${fmt(e.insuranceFund.balance)} SOL`);
   console.log(`  C_tot:       ${fmt(e.cTot)} SOL`);
   console.log(`  PnlPosTot:   ${fmt(e.pnlPosTot)} SOL`);
-  console.log(`  TotalOI:     ${e.totalOpenInterest}`);
-  console.log(`  Liqs: ${e.lifetimeLiquidations}, ForceClose: ${e.lifetimeForceCloses}`);
+  // totalOpenInterest, lifetimeForceCloses removed from engine state
+  console.log(`  Liqs: ${e.lifetimeLiquidations}`);
   for (const acc of state.accounts) {
-    const pos = BigInt(acc.positionSize);
+    const pos = BigInt(acc.positionBasisQ);
     const dir = pos > 0n ? "LONG" : pos < 0n ? "SHORT" : "FLAT";
     console.log(`    ${acc.kind}[${acc.idx}]: ${dir} pos=${pos}, cap=${fmt(BigInt(acc.capital))}, pnl=${fmt(BigInt(acc.pnl))}`);
   }
@@ -330,8 +330,8 @@ async function resetMarket() {
 
   // Flatten LP position if it has one
   const lp = state.accounts.find((a: any) => a.kind === "LP");
-  if (lp && BigInt(lp.positionSize) !== 0n) {
-    const lpPos = BigInt(lp.positionSize);
+  if (lp && BigInt(lp.positionBasisQ) !== 0n) {
+    const lpPos = BigInt(lp.positionBasisQ);
     console.log(`  LP has position ${lpPos}, flattening with temp trader...`);
     await ensureSolBalance(10_000_000_000n);
     const tmpIdx = await initUser();
@@ -346,9 +346,9 @@ async function resetMarket() {
       }
       state = await getState();
       const tmpAcc = state.accounts.find((a: any) => a.idx === tmpIdx);
-      if (tmpAcc && BigInt(tmpAcc.positionSize) !== 0n) {
+      if (tmpAcc && BigInt(tmpAcc.positionBasisQ) !== 0n) {
         try {
-          await trade(tmpIdx, -BigInt(tmpAcc.positionSize));
+          await trade(tmpIdx, -BigInt(tmpAcc.positionBasisQ));
           await crank();
         } catch (e: any) {
           console.log(`  Temp trader close failed: ${e.message?.slice(0, 60)}`);
@@ -362,7 +362,7 @@ async function resetMarket() {
   state = await getState();
   for (const acc of state.accounts) {
     if (acc.kind !== "USER") continue;
-    const pos = BigInt(acc.positionSize);
+    const pos = BigInt(acc.positionBasisQ);
     const cap = BigInt(acc.capital);
     if (pos !== 0n) {
       // Flatten position by trading opposite
@@ -516,7 +516,7 @@ async function reproduceOverHaircut() {
     pnlPosTot: state.engine.pnlPosTot,
     insurance: state.engine.insuranceFund.balance,
     vault: state.engine.vault,
-    totalOI: state.engine.totalOpenInterest,
+    // totalOI removed from engine state
     lpPnl: 0n,
     lpCapital: 0n,
     totalPositivePnl: 0n,
@@ -600,7 +600,7 @@ async function reproduceOverHaircut() {
     insurance: state.engine.insuranceFund.balance,
     vault: state.engine.vault,
     riskReduction: state.engine.riskReductionOnly,
-    totalOI: state.engine.totalOpenInterest,
+    // totalOI removed from engine state
     lpPnl: 0n,
     lpCapital: 0n,
   };

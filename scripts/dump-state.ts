@@ -64,19 +64,14 @@ async function main() {
     const label = acc.kind === AccountKind.LP ? 'LP' : `Trader ${idx}`;
 
     // Calculate margin metrics
-    const posAbs = acc.positionSize < 0n ? -acc.positionSize : acc.positionSize;
+    const posAbs = acc.positionBasisQ < 0n ? -acc.positionBasisQ : acc.positionBasisQ;
     const notionalLamports = posAbs * oraclePrice / 1_000_000n;
     const maintenanceReq = notionalLamports * params.maintenanceMarginBps / 10_000n;
     const initialReq = notionalLamports * params.initialMarginBps / 10_000n;
 
-    // Calculate unrealized PnL: position * (currentPrice - entryPrice) / 1e6
-    // For LONG: profit when price goes up
-    // For SHORT: profit when price goes down
-    const unrealizedPnl = acc.positionSize * (oraclePrice - acc.entryPrice) / 1_000_000n;
-
-    // Effective capital = capital + realized PnL + unrealized PnL
-    // CRITICAL: Must include acc.pnl (realized PnL) to match engine's equity calculation
-    const effectiveCapital = acc.capital + acc.pnl + unrealizedPnl;
+    // Effective capital = capital + realized PnL
+    // (entryPrice no longer exists; unrealized PnL calculation removed)
+    const effectiveCapital = acc.capital + acc.pnl;
 
     // Margin ratio calculation (bps)
     const marginRatioBps = notionalLamports > 0n ?
@@ -108,14 +103,13 @@ async function main() {
       kind: acc.kind === AccountKind.LP ? 'LP' : 'USER',
       owner: acc.owner.toBase58(),
       position: {
-        sizeUnits: acc.positionSize.toString(),
-        direction: acc.positionSize > 0n ? 'LONG' : acc.positionSize < 0n ? 'SHORT' : 'FLAT',
-        entryPrice: acc.entryPrice.toString(),
+        sizeUnits: acc.positionBasisQ.toString(),
+        direction: acc.positionBasisQ > 0n ? 'LONG' : acc.positionBasisQ < 0n ? 'SHORT' : 'FLAT',
+        adlABasis: acc.adlABasis.toString(),
         notionalSol: Number(notionalLamports) / 1e9,
       },
       capitalSol: Number(acc.capital) / 1e9,
       realizedPnlSol: Number(acc.pnl) / 1e9,  // Realized PnL (from funding, previous trades)
-      unrealizedPnlSol: Number(unrealizedPnl) / 1e9,
       effectiveCapitalSol: Number(effectiveCapital) / 1e9,
       margin: {
         maintenanceRequiredSol: Number(maintenanceReq) / 1e9,
@@ -162,7 +156,7 @@ async function main() {
       tradingFeeBps: Number(params.tradingFeeBps),
       maxAccounts: params.maxAccounts.toString(),
       newAccountFee: params.newAccountFee.toString(),
-      riskReductionThreshold: params.riskReductionThreshold.toString(),
+      insuranceFloor: params.insuranceFloor.toString(),
       maintenanceFeePerSlot: params.maintenanceFeePerSlot.toString(),
       maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
       liquidationFeeBps: Number(params.liquidationFeeBps),
@@ -181,68 +175,19 @@ async function main() {
         feeRevenue: engine.insuranceFund.feeRevenue.toString(),
       },
       currentSlot: engine.currentSlot.toString(),
-      fundingIndexQpbE6: engine.fundingIndexQpbE6.toString(),
-      lastFundingSlot: engine.lastFundingSlot.toString(),
+      fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
       lastCrankSlot: engine.lastCrankSlot.toString(),
       maxCrankStalenessSlots: engine.maxCrankStalenessSlots.toString(),
-      totalOpenInterestUnits: engine.totalOpenInterest.toString(),
-      totalOpenInterestSol: Number(engine.totalOpenInterest * oraclePrice / 1_000_000n) / 1e9,
       lastSweepStartSlot: engine.lastSweepStartSlot.toString(),
       lastSweepCompleteSlot: engine.lastSweepCompleteSlot.toString(),
       lifetimeLiquidations: Number(engine.lifetimeLiquidations),
-      lifetimeForceCloses: Number(engine.lifetimeForceCloses),
-      // LP Aggregates for funding
-      netLpPos: engine.netLpPos.toString(),
-      netLpPosNotionalSol: Number(engine.netLpPos * oraclePrice / 1_000_000n) / 1e9,
-      lpSumAbs: engine.lpSumAbs.toString(),
       numUsedAccounts: engine.numUsedAccounts,
     },
 
-    // Funding rate analysis
-    funding: (() => {
-      const netLpPos = engine.netLpPos;
-      const horizonSlots = config.fundingHorizonSlots;
-      const kBps = config.fundingKBps;
-      const invScale = config.fundingInvScaleNotionalE6;
-      const maxPremiumBps = config.fundingMaxPremiumBps;
-      const maxBpsPerSlot = config.fundingMaxBpsPerSlot;
-
-      // Calculate funding rate using same formula as contract
-      if (netLpPos === 0n || oraclePrice === 0n || horizonSlots === 0n) {
-        return {
-          currentIndexQpbE6: engine.fundingIndexQpbE6.toString(),
-          lastFundingSlot: engine.lastFundingSlot.toString(),
-          netLpPos: netLpPos.toString(),
-          calculatedRateBpsPerSlot: 0,
-          calculatedRateBpsPerHour: 0,
-          direction: 'NEUTRAL',
-          note: 'No funding (netLpPos=0 or oracle=0)',
-        };
-      }
-
-      const absPos = netLpPos < 0n ? -netLpPos : netLpPos;
-      const notionalE6 = absPos * oraclePrice / 1_000_000n;
-
-      // premium_bps = (notional / scale) * k_bps
-      let premiumBps = Number(notionalE6 * kBps / (invScale > 0n ? invScale : 1n));
-      if (premiumBps > Number(maxPremiumBps)) premiumBps = Number(maxPremiumBps);
-
-      // Apply sign and convert to per-slot
-      let perSlotBps = (netLpPos > 0n ? premiumBps : -premiumBps) / Number(horizonSlots);
-      if (perSlotBps > Number(maxBpsPerSlot)) perSlotBps = Number(maxBpsPerSlot);
-      if (perSlotBps < -Number(maxBpsPerSlot)) perSlotBps = -Number(maxBpsPerSlot);
-
-      return {
-        currentIndexQpbE6: engine.fundingIndexQpbE6.toString(),
-        lastFundingSlot: engine.lastFundingSlot.toString(),
-        netLpPos: netLpPos.toString(),
-        netLpPosNotionalSol: Number(notionalE6) / 1e6,
-        calculatedRateBpsPerSlot: perSlotBps,
-        calculatedRateBpsPerHour: perSlotBps * 7200,
-        direction: netLpPos > 0n ? 'LONGS_PAY' : 'SHORTS_PAY',
-        note: netLpPos > 0n ? 'LP net long - longs pay shorts to rebalance' : 'LP net short - shorts pay longs to rebalance',
-      };
-    })(),
+    // Funding rate info (netLpPos, fundingIndexQpbE6, lastFundingSlot removed from engine)
+    funding: {
+      fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
+    },
 
     accounts,
 

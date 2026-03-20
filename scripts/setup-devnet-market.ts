@@ -67,9 +67,9 @@ const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChp
 const MATCHER_CTX_SIZE = 320;
 
 // Market parameters
-// SLAB_SIZE = ENGINE_OFF(392) + ENGINE_ACCOUNTS_OFF(9128) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(240)
+// SLAB_SIZE = ENGINE_OFF(440) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
 // Updated for circuit breaker + padding removal
-const SLAB_SIZE = 992560;
+const SLAB_SIZE = 1156656;
 
 // Funding amounts (in lamports with 9 decimals for wrapped SOL)
 const INSURANCE_FUND_AMOUNT = 1_000_000_000n;  // 1 SOL
@@ -188,7 +188,7 @@ async function main() {
     tradingFeeBps: "10",             // 0.1% trading fee
     maxAccounts: "1024",             // Allow many accounts
     newAccountFee: "1000000",        // 0.001 SOL to create account
-    riskReductionThreshold: "0",
+    insuranceFloor: "0",
     maintenanceFeePerSlot: "0",
     maxCrankStalenessSlots: "200",
     liquidationFeeBps: "100",        // 1% liquidation fee

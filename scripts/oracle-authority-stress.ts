@@ -185,7 +185,7 @@ async function runStressScenario(scenario: StressScenario): Promise<{
     let liquidatableCount = 0;
     for (const idx of indices) {
       const acc = parseAccount(data, idx);
-      if (acc && acc.kind === AccountKind.User && acc.positionSize !== 0n) {
+      if (acc && acc.kind === AccountKind.User && acc.positionBasisQ !== 0n) {
         const capitalSol = Number(acc.capital) / 1e9;
         if (capitalSol < 0.1) liquidatableCount++;
       }

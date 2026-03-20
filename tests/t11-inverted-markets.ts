@@ -93,11 +93,11 @@ async function runT11Tests(): Promise<void> {
       const userAcctAfter = snapshotAfter.accounts.find(a => a.idx === user.accountIndex);
 
       console.log(`    Long trade succeeded, CU: ${result.unitsConsumed}`);
-      console.log(`    Position size: ${userAcctAfter?.account.positionSize}`);
-      console.log(`    Entry price: ${userAcctAfter?.account.entryPrice}`);
+      console.log(`    Position size: ${userAcctAfter?.account.positionBasisQ}`);
+      console.log(`    Entry price: ${userAcctAfter?.account.adlABasis}`);
 
       // Position should be positive (long)
-      if (userAcctAfter && userAcctAfter.account.positionSize > 0n) {
+      if (userAcctAfter && userAcctAfter.account.positionBasisQ > 0n) {
         console.log(`    Position is LONG as expected`);
       }
     }
@@ -136,11 +136,11 @@ async function runT11Tests(): Promise<void> {
       const userAcctAfter = snapshotAfter.accounts.find(a => a.idx === user.accountIndex);
 
       console.log(`    Short trade succeeded, CU: ${result.unitsConsumed}`);
-      console.log(`    Position size: ${userAcctAfter?.account.positionSize}`);
-      console.log(`    Entry price: ${userAcctAfter?.account.entryPrice}`);
+      console.log(`    Position size: ${userAcctAfter?.account.positionBasisQ}`);
+      console.log(`    Entry price: ${userAcctAfter?.account.adlABasis}`);
 
       // Position should be negative (short)
-      if (userAcctAfter && userAcctAfter.account.positionSize < 0n) {
+      if (userAcctAfter && userAcctAfter.account.positionBasisQ < 0n) {
         console.log(`    Position is SHORT as expected`);
       }
     }
@@ -201,10 +201,10 @@ async function runT11Tests(): Promise<void> {
     const snapshotBeforeWithdraw = await harness.snapshot(ctx);
     const userAcctBeforeWithdraw = snapshotBeforeWithdraw.accounts.find(a => a.idx === user.accountIndex);
     console.log(`    Capital before withdraw: ${userAcctBeforeWithdraw?.account.capital}`);
-    console.log(`    Position: ${userAcctBeforeWithdraw?.account.positionSize}`);
+    console.log(`    Position: ${userAcctBeforeWithdraw?.account.positionBasisQ}`);
 
     // Try to withdraw all capital (if position is flat)
-    if (userAcctBeforeWithdraw && userAcctBeforeWithdraw.account.positionSize === 0n) {
+    if (userAcctBeforeWithdraw && userAcctBeforeWithdraw.account.positionBasisQ === 0n) {
       const capitalToWithdraw = userAcctBeforeWithdraw.account.capital;
       if (capitalToWithdraw > 0n) {
         // Leave some for fees

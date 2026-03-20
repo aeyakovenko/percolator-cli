@@ -23,12 +23,12 @@ async function main() {
     const isLp = account.matcherProgram && !account.matcherProgram.equals(PublicKey.default);
     if (isLp) {
       const weOwn = account.owner.equals(ADMIN);
-      const canClose = account.positionSize === 0n && weOwn;
+      const canClose = account.positionBasisQ === 0n && weOwn;
       console.log(`LP ${idx}:`);
       console.log(`  Owner: ${account.owner.toBase58()}`);
       console.log(`  We own: ${weOwn}`);
       console.log(`  Capital: ${Number(account.capital) / 1e9} SOL`);
-      console.log(`  Position: ${account.positionSize}`);
+      console.log(`  Position: ${account.positionBasisQ}`);
       console.log(`  Can close: ${canClose}`);
       console.log('');
     }

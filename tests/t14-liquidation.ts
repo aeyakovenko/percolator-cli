@@ -21,14 +21,14 @@ import { InvariantChecker } from "./invariants.js";
 
 /**
  * Calculate the margin required for a position.
- * margin = positionSize * oraclePrice * marginBps / 10000
+ * margin = positionBasisQ * oraclePrice * marginBps / 10000
  */
 function calculateMarginRequired(
-  positionSize: bigint,
+  positionBasisQ: bigint,
   oraclePrice: bigint,
   marginBps: bigint
 ): bigint {
-  const absPosition = positionSize < 0n ? -positionSize : positionSize;
+  const absPosition = positionBasisQ < 0n ? -positionBasisQ : positionBasisQ;
   // Assuming oraclePrice is in collateral units per position unit
   const notional = absPosition * oraclePrice;
   return (notional * marginBps) / 10000n;
@@ -78,7 +78,7 @@ async function runT14Tests(): Promise<void> {
     let snapshot = await harness.snapshot(ctx);
     let userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
     const capitalBefore = userAcct?.account.capital ?? 0n;
-    const positionBefore = userAcct?.account.positionSize ?? 0n;
+    const positionBefore = userAcct?.account.positionBasisQ ?? 0n;
     console.log(`    Before - Capital: ${capitalBefore}, Position: ${positionBefore}`);
 
     // Try to liquidate the healthy account
@@ -89,7 +89,7 @@ async function runT14Tests(): Promise<void> {
     snapshot = await harness.snapshot(ctx);
     userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
     const capitalAfter = userAcct?.account.capital ?? 0n;
-    const positionAfter = userAcct?.account.positionSize ?? 0n;
+    const positionAfter = userAcct?.account.positionBasisQ ?? 0n;
     console.log(`    After - Capital: ${capitalAfter}, Position: ${positionAfter}`);
 
     // For a healthy account, position and capital should NOT change
@@ -126,7 +126,7 @@ async function runT14Tests(): Promise<void> {
     let snapshot = await harness.snapshot(ctx);
     let userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
     const capitalBefore = userAcct?.account.capital ?? 0n;
-    const positionBefore = userAcct?.account.positionSize ?? 0n;
+    const positionBefore = userAcct?.account.positionBasisQ ?? 0n;
     console.log(`    Before - Capital: ${capitalBefore}, Position: ${positionBefore}`);
 
     TestHarness.assertBigIntEqual(positionBefore, 0n, "User should have no position");
@@ -139,7 +139,7 @@ async function runT14Tests(): Promise<void> {
     snapshot = await harness.snapshot(ctx);
     userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
     const capitalAfter = userAcct?.account.capital ?? 0n;
-    const positionAfter = userAcct?.account.positionSize ?? 0n;
+    const positionAfter = userAcct?.account.positionBasisQ ?? 0n;
     console.log(`    After - Capital: ${capitalAfter}, Position: ${positionAfter}`);
 
     // Capital should not change for account with no position
@@ -203,7 +203,7 @@ async function runT14Tests(): Promise<void> {
       if (!finalTradeResult.err) {
         snapshot = await harness.snapshot(ctx);
         userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-        console.log(`    Position size: ${userAcct?.account.positionSize}`);
+        console.log(`    Position size: ${userAcct?.account.positionBasisQ}`);
         console.log(`    Capital after trade: ${userAcct?.account.capital}`);
 
         // Try liquidation - might work if position is at margin boundary
@@ -215,7 +215,7 @@ async function runT14Tests(): Promise<void> {
           // Verify position is now closed
           snapshot = await harness.snapshot(ctx);
           userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-          console.log(`    Post-liquidation position: ${userAcct?.account.positionSize}`);
+          console.log(`    Post-liquidation position: ${userAcct?.account.positionBasisQ}`);
           console.log(`    Post-liquidation capital: ${userAcct?.account.capital}`);
         }
       }

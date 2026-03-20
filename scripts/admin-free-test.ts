@@ -138,8 +138,8 @@ async function printStatus() {
   const { engine, params } = await getState();
 
   const insurance = BigInt(engine.insuranceFund?.balance || 0);
-  const threshold = BigInt(params.riskReductionThreshold || 0);
-  const lpSumAbs = BigInt(engine.lpSumAbs || 0);
+  const threshold = BigInt(params.insuranceFloor || 0);
+  // lpSumAbs removed from engine state
 
   const insuranceChange = insurance - startInsurance;
   const thresholdChange = threshold - startThreshold;
@@ -165,9 +165,7 @@ async function printStatus() {
   console.log(`    Change:          ${thresholdChange >= 0n ? '+' : ''}${(Number(thresholdChange) / 1e9).toFixed(6)} SOL`);
   console.log(`    Buffer:          ${(Number(insurance - threshold) / 1e9).toFixed(4)} SOL`);
   console.log();
-  console.log('  LP RISK:');
-  console.log(`    LP Sum Abs:      ${lpSumAbs} units`);
-  console.log(`    Notional:        ~${(Number(lpSumAbs) * 7700 / 1e6 / 1e9).toFixed(4)} SOL`);
+  // LP RISK fields (lpSumAbs) removed from engine state
   console.log();
 }
 
@@ -181,7 +179,7 @@ async function main() {
   // Get initial state
   const initial = await getState();
   startInsurance = BigInt(initial.engine.insuranceFund?.balance || 0);
-  startThreshold = BigInt(initial.params.riskReductionThreshold || 0);
+  startThreshold = BigInt(initial.params.insuranceFloor || 0);
 
   console.log(`Initial insurance: ${(Number(startInsurance) / 1e9).toFixed(6)} SOL`);
   console.log(`Initial threshold: ${(Number(startThreshold) / 1e9).toFixed(6)} SOL`);

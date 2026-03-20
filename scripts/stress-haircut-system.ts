@@ -60,7 +60,7 @@ interface ParsedState {
   engine: ReturnType<typeof parseEngine>;
   config: ReturnType<typeof parseConfig>;
   params: ReturnType<typeof parseParams>;
-  accounts: { idx: number; kind: string; capital: bigint; pnl: bigint; positionSize: bigint; entryPriceE6: bigint; feeCredits: bigint; [k: string]: any }[];
+  accounts: { idx: number; kind: string; capital: bigint; pnl: bigint; positionBasisQ: bigint; adlABasis: bigint; feeCredits: bigint; [k: string]: any }[];
   data: Buffer;
 }
 
@@ -78,8 +78,8 @@ async function getState(): Promise<ParsedState> {
       kind: acc.kind === AccountKind.LP ? "LP" : "USER",
       capital: acc.capital,
       pnl: acc.pnl,
-      positionSize: acc.positionSize,
-      entryPriceE6: acc.entryPrice,
+      positionBasisQ: acc.positionBasisQ,
+      adlABasis: acc.adlABasis,
       feeCredits: acc.feeCredits,
     });
   }
@@ -93,7 +93,7 @@ function printState(label: string, state: ParsedState) {
   console.log(`  Insurance:   ${fmt(e.insuranceFund.balance)} SOL`);
   console.log(`  C_tot:       ${fmt(e.cTot)} SOL`);
   console.log(`  PnlPosTot:   ${fmt(e.pnlPosTot)} SOL`);
-  console.log(`  TotalOI:     ${e.totalOpenInterest}`);
+  // totalOpenInterest removed from engine state
 
   // Compute haircut ratio
   const residual = e.vault - e.cTot - e.insuranceFund.balance;
@@ -105,9 +105,9 @@ function printState(label: string, state: ParsedState) {
   }
   console.log(`  Residual:    ${fmt(residual > 0n ? residual : 0n)} SOL`);
   console.log(`  Haircut:     ${haircutPct}%`);
-  console.log(`  Liqs: ${e.lifetimeLiquidations}, ForceClose: ${e.lifetimeForceCloses}`);
+  console.log(`  Liqs: ${e.lifetimeLiquidations}`);
   for (const acc of state.accounts) {
-    const pos = BigInt(acc.positionSize);
+    const pos = BigInt(acc.positionBasisQ);
     const dir = pos > 0n ? "LONG" : pos < 0n ? "SHORT" : "FLAT";
     console.log(`    ${acc.kind}[${acc.idx}]: ${dir} pos=${pos}, cap=${fmt(BigInt(acc.capital))}, pnl=${fmt(BigInt(acc.pnl))}, fc=${acc.feeCredits}`);
   }
@@ -311,9 +311,9 @@ async function scenario1_normalTrading(basePrice: bigint) {
   // Close position
   console.log("  Closing position...");
   const traderAcc = state.accounts.find((a: any) => a.idx === idx);
-  if (traderAcc && BigInt(traderAcc.positionSize) !== 0n) {
+  if (traderAcc && BigInt(traderAcc.positionBasisQ) !== 0n) {
     try {
-      await trade(idx, -BigInt(traderAcc.positionSize));
+      await trade(idx, -BigInt(traderAcc.positionBasisQ));
       await crank();
     } catch (e: any) {
       console.log(`  Close trade failed: ${e.message?.slice(0, 60)}`);
@@ -408,8 +408,8 @@ async function scenario2_crashInsurance(basePrice: bigint) {
   state = await getState();
   for (const acc of state.accounts) {
     if (acc.kind !== "USER") continue;
-    if (BigInt(acc.positionSize) !== 0n) {
-      try { await trade(acc.idx, -BigInt(acc.positionSize)); await crank(); } catch {}
+    if (BigInt(acc.positionBasisQ) !== 0n) {
+      try { await trade(acc.idx, -BigInt(acc.positionBasisQ)); await crank(); } catch {}
     }
     try { await closeAccount(acc.idx); } catch {}
     await delay(300);
@@ -496,8 +496,8 @@ async function scenario3_haircutTest(basePrice: bigint) {
   state = await getState();
   for (const acc of state.accounts) {
     if (acc.kind !== "USER") continue;
-    if (BigInt(acc.positionSize) !== 0n) {
-      try { await trade(acc.idx, -BigInt(acc.positionSize)); await crank(); } catch {}
+    if (BigInt(acc.positionBasisQ) !== 0n) {
+      try { await trade(acc.idx, -BigInt(acc.positionBasisQ)); await crank(); } catch {}
     }
     try { await closeAccount(acc.idx); } catch {}
     await delay(300);

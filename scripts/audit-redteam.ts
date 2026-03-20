@@ -147,7 +147,7 @@ async function attackInsuranceDrainage(): Promise<TestResult> {
   const state = await getMarketState();
 
   const insuranceBefore = BigInt(state.engine.insuranceFund?.balance || 0);
-  const threshold = BigInt(state.params.riskReductionThreshold || 0);
+  const threshold = BigInt(state.params.insuranceFloor || 0);
   const buffer = insuranceBefore - threshold;
 
   console.log(`  Insurance: ${(Number(insuranceBefore) / 1e9).toFixed(4)} SOL`);
@@ -218,7 +218,7 @@ async function attackPendingWedge(): Promise<TestResult> {
 
   // Check if anyone can withdraw
   const accountWithCapital = state.accounts.find((a: any) =>
-    Number(a.capital || 0) > 100000000 && BigInt(a.positionSize || 0) === 0n
+    Number(a.capital || 0) > 100000000 && BigInt(a.positionBasisQ || 0) === 0n
   );
 
   if (pendingProfit > 0n || pendingLoss > 0n) {
@@ -339,7 +339,7 @@ async function attackEntryPrice(): Promise<TestResult> {
 
   // Find account with existing position
   const accountWithPos = state.accounts.find((a: any) =>
-    a.kind === AccountKind.User && BigInt(a.positionSize || 0) !== 0n
+    a.kind === AccountKind.User && BigInt(a.positionBasisQ || 0) !== 0n
   );
 
   if (!accountWithPos) {
@@ -352,8 +352,8 @@ async function attackEntryPrice(): Promise<TestResult> {
     };
   }
 
-  const entryBefore = BigInt(accountWithPos.entryPrice || 0);
-  const posBefore = BigInt(accountWithPos.positionSize || 0);
+  const entryBefore = BigInt(accountWithPos.adlABasis || 0);
+  const posBefore = BigInt(accountWithPos.positionBasisQ || 0);
   const capitalBefore = BigInt(accountWithPos.capital || 0);
 
   console.log(`  Account ${accountWithPos.idx}: pos ${posBefore}, entry ${entryBefore}`);
@@ -383,8 +383,8 @@ async function attackEntryPrice(): Promise<TestResult> {
     };
   }
 
-  const entryAfter = BigInt(accountAfter.entryPrice || 0);
-  const posAfter = BigInt(accountAfter.positionSize || 0);
+  const entryAfter = BigInt(accountAfter.adlABasis || 0);
+  const posAfter = BigInt(accountAfter.positionBasisQ || 0);
   const capitalAfter = BigInt(accountAfter.capital || 0);
 
   console.log(`  After: pos ${posAfter}, entry ${entryAfter}, capital ${capitalAfter}`);
@@ -421,11 +421,10 @@ async function attackLPDesync(): Promise<TestResult> {
     };
   }
 
-  const lpPosBefore = BigInt(lpAccount.positionSize || 0);
-  const netLpPosBefore = BigInt(state.engine.netLpPos || 0);
+  const lpPosBefore = BigInt(lpAccount.positionBasisQ || 0);
+  // netLpPos removed from engine state
 
   console.log(`  LP position: ${lpPosBefore}`);
-  console.log(`  Engine net_lp_pos: ${netLpPosBefore}`);
 
   // Execute rapid trades on multiple accounts
   const userAccounts = state.accounts.filter((a: any) =>
@@ -442,19 +441,16 @@ async function attackLPDesync(): Promise<TestResult> {
 
   const stateAfter = await getMarketState();
   const lpAccountAfter = stateAfter.accounts.find((a: any) => a.kind === AccountKind.LP);
-  const lpPosAfter = BigInt(lpAccountAfter?.positionSize || 0);
-  const netLpPosAfter = BigInt(stateAfter.engine.netLpPos || 0);
+  const lpPosAfter = BigInt(lpAccountAfter?.positionBasisQ || 0);
+  // netLpPos removed from engine state
 
   console.log(`  After - LP position: ${lpPosAfter}`);
-  console.log(`  After - Engine net_lp_pos: ${netLpPosAfter}`);
-
-  const lpMismatch = lpPosAfter !== netLpPosAfter;
 
   // Also check LP vs sum of users
   let userPositionSum = 0n;
   for (const account of stateAfter.accounts) {
     if (account.kind === AccountKind.User) {
-      userPositionSum += BigInt(account.positionSize || 0);
+      userPositionSum += BigInt(account.positionBasisQ || 0);
     }
   }
   const expectedLp = -userPositionSum;
@@ -466,9 +462,9 @@ async function attackLPDesync(): Promise<TestResult> {
 
   return {
     name: 'LP Position Desync',
-    passed: !lpMismatch && !lpUserMismatch,
-    details: `LP: ${lpPosAfter}, net_lp_pos: ${netLpPosAfter}, users: ${-userPositionSum}`,
-    severity: (lpMismatch || lpUserMismatch) ? 'critical' : 'low',
+    passed: !lpUserMismatch,
+    details: `LP: ${lpPosAfter}, users: ${-userPositionSum}`,
+    severity: lpUserMismatch ? 'critical' : 'low',
     attackVector: 'Rapid trades to desync LP accounting'
   };
 }
@@ -481,15 +477,10 @@ async function attackFundingManipulation(): Promise<TestResult> {
 
   const state = await getMarketState();
 
-  const fundingIndexBefore = BigInt(state.engine.fundingIndexQpbE6 || 0);
-  const netLpPos = BigInt(state.engine.netLpPos || 0);
+  const fundingIndexBefore = BigInt(state.engine.fundingRateBpsPerSlotLast || 0);
+  // netLpPos removed from engine state
 
-  console.log(`  Funding index: ${fundingIndexBefore}`);
-  console.log(`  Net LP position: ${netLpPos}`);
-
-  // Current imbalance direction
-  const direction = netLpPos > 0n ? 'LP_LONG' : netLpPos < 0n ? 'LP_SHORT' : 'BALANCED';
-  console.log(`  Imbalance: ${direction}`);
+  console.log(`  Funding rate: ${fundingIndexBefore}`);
 
   // Try to create extreme imbalance by one-sided trades
   const userAccounts = state.accounts.filter((a: any) =>
@@ -508,12 +499,10 @@ async function attackFundingManipulation(): Promise<TestResult> {
   }
 
   const stateAfter = await getMarketState();
-  const fundingIndexAfter = BigInt(stateAfter.engine.fundingIndexQpbE6 || 0);
+  const fundingIndexAfter = BigInt(stateAfter.engine.fundingRateBpsPerSlotLast || 0);
   const fundingDelta = fundingIndexAfter - fundingIndexBefore;
-  const netLpPosAfter = BigInt(stateAfter.engine.netLpPos || 0);
 
   console.log(`  After - Funding delta: ${fundingDelta}`);
-  console.log(`  After - Net LP pos: ${netLpPosAfter}`);
 
   // Funding should be capped and not extreme
   const maxReasonableDelta = 1000000000000n; // Arbitrary large but bounded
@@ -521,7 +510,7 @@ async function attackFundingManipulation(): Promise<TestResult> {
   return {
     name: 'Funding Rate Manipulation',
     passed: fundingDelta < maxReasonableDelta && fundingDelta > -maxReasonableDelta,
-    details: `Funding delta: ${fundingDelta}, Net LP: ${netLpPos} -> ${netLpPosAfter}`,
+    details: `Funding delta: ${fundingDelta}`,
     severity: 'low',
     attackVector: 'Extreme position imbalance to manipulate funding'
   };
@@ -582,7 +571,7 @@ async function attackPositionBoundary(): Promise<TestResult> {
   // Find max position currently
   let maxCurrentPos = 0n;
   for (const account of state.accounts) {
-    const absPos = BigInt(account.positionSize || 0);
+    const absPos = BigInt(account.positionBasisQ || 0);
     const abs = absPos < 0n ? -absPos : absPos;
     if (abs > maxCurrentPos) maxCurrentPos = abs;
   }
@@ -606,7 +595,7 @@ async function attackPositionBoundary(): Promise<TestResult> {
       // This might be very bad - check state
       const stateAfter = await getMarketState();
       const accountAfter = stateAfter.accounts.find((a: any) => a.idx === account.idx);
-      const posAfter = BigInt(accountAfter?.positionSize || 0);
+      const posAfter = BigInt(accountAfter?.positionBasisQ || 0);
       console.log(`  Position after: ${posAfter}`);
     }
   }

@@ -163,10 +163,10 @@ async function runT17Tests(): Promise<void> {
     // Verify user has no position initially
     let snapshot = await harness.snapshot(ctx);
     let userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-    console.log(`    Initial position: ${userAcct?.account.positionSize}`);
+    console.log(`    Initial position: ${userAcct?.account.positionBasisQ}`);
 
     TestHarness.assertBigIntEqual(
-      userAcct?.account.positionSize ?? 1n,
+      userAcct?.account.positionBasisQ ?? 1n,
       0n,
       "Should have no position initially"
     );
@@ -179,7 +179,7 @@ async function runT17Tests(): Promise<void> {
     snapshot = await harness.snapshot(ctx);
     userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
     TestHarness.assertBigIntEqual(
-      userAcct?.account.positionSize ?? 1n,
+      userAcct?.account.positionBasisQ ?? 1n,
       0n,
       "Position should remain 0 after 0 trade"
     );
@@ -325,8 +325,8 @@ async function runT17Tests(): Promise<void> {
       // Check positions
       const afterSnapshot = await harness.snapshot(ctx);
       const userAcct = afterSnapshot.accounts.find(a => a.idx === user.accountIndex);
-      console.log(`    User position: ${userAcct?.account.positionSize}`);
-      console.log(`    Entry price: ${userAcct?.account.entryPrice}`);
+      console.log(`    User position: ${userAcct?.account.positionBasisQ}`);
+      console.log(`    Entry price: ${userAcct?.account.adlABasis}`);
     }
 
     // Check invariants

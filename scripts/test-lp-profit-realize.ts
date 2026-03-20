@@ -31,7 +31,7 @@ interface AccountState {
   capital: bigint;
   pnl: bigint;
   position: bigint;
-  entryPrice: number;
+  adlABasis: number;
 }
 
 async function getFullState() {
@@ -41,7 +41,7 @@ async function getFullState() {
   const config = parseConfig(data);
 
   const insurance = BigInt(engine.insuranceFund?.balance || 0);
-  const threshold = BigInt(params.riskReductionThreshold || 0);
+  const threshold = BigInt(params.insuranceFloor || 0);
   const surplus = insurance > threshold ? insurance - threshold : 0n;
 
   const accounts: AccountState[] = [];
@@ -53,8 +53,8 @@ async function getFullState() {
         kind: acc.kind === AccountKind.LP ? 'LP' : 'USER',
         capital: BigInt(acc.capital || 0),
         pnl: BigInt(acc.pnl || 0),
-        position: BigInt(acc.positionSize || 0),
-        entryPrice: acc.entryPriceE6 || 0,
+        position: BigInt(acc.positionBasisQ || 0),
+        adlABasis: acc.adlABasisE6 || 0,
       });
     }
   }
@@ -174,7 +174,7 @@ async function main() {
   console.log(`    Capital:  ${formatSol(lp.capital)} SOL`);
   console.log(`    PnL:      ${formatSol(lp.pnl)} SOL`);
   console.log(`    Position: ${lp.position} units`);
-  console.log(`    Entry:    ${lp.entryPrice}`);
+  console.log(`    Entry:    ${lp.adlABasis}`);
   console.log();
 
   // Run cranks to ensure fresh state

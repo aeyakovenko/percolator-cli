@@ -443,7 +443,7 @@ export class TestHarness {
       tradingFeeBps: "10",           // 0.1%
       maxAccounts: maxAccounts.toString(),
       newAccountFee: "1000000",      // 1 USDC
-      riskReductionThreshold: "0",
+      insuranceFloor: "0",
       maintenanceFeePerSlot: "0",
       maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100",      // 1%
@@ -505,15 +505,15 @@ export class TestHarness {
 
   /**
    * Calculate required slab size for given max accounts.
-   * The program expects a fixed slab size of SLAB_LEN = 0xfa528 (992560 bytes)
+   * The program expects a fixed slab size of SLAB_LEN = 1156656 bytes
    * for MAX_ACCOUNTS=4096. The slab size must exactly match the program's expected size.
    *
-   * SLAB_SIZE = ENGINE_OFF(376) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(248)
-   * Updated for haircut-ratio refactor (removed ADL scratch arrays).
+   * SLAB_SIZE = ENGINE_OFF(440) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
+   * Updated for new engine layout.
    */
   private calculateSlabSize(_maxAccounts: number): number {
-    // Fixed SLAB_LEN expected by the program (from error logs: 0xfa528)
-    return 992560;
+    // Fixed SLAB_LEN expected by the program
+    return 1156656;
   }
 
   // ==========================================================================

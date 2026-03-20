@@ -64,7 +64,7 @@ async function createMarket(): Promise<void> {
   vaultKp = Keypair.generate();
 
   // Calculate slab size - must match program's SLAB_LEN (~992KB for 4096 accounts)
-  const slabSize = 992_568;  // From program: ENGINE_OFF + ENGINE_LEN
+  const slabSize = 1_156_656;  // From program: ENGINE_OFF + ENGINE_LEN
   const slabRent = await conn.getMinimumBalanceForRentExemption(slabSize);
 
   // Create slab account
@@ -129,7 +129,7 @@ async function createMarket(): Promise<void> {
     tradingFeeBps: 10n,
     maxAccounts: 256n,
     newAccountFee: 1_000_000n,
-    riskReductionThreshold: 7816n,
+    insuranceFloor: 7816n,
     maintenanceFeePerSlot: 0n,
     maxCrankStalenessSlots: 200n,
     liquidationFeeBps: 100n,
@@ -305,8 +305,8 @@ async function executeTrades(): Promise<void> {
   const slabData = await fetchSlab(conn, slabKp.publicKey);
   const traderAcc = parseAccount(slabData, traderIndex);
   const lpAcc = parseAccount(slabData, lpIndex);
-  console.log(`Trader position: ${traderAcc?.positionSize}`);
-  console.log(`LP position: ${lpAcc?.positionSize} (counterparty)`);
+  console.log(`Trader position: ${traderAcc?.positionBasisQ}`);
+  console.log(`LP position: ${lpAcc?.positionBasisQ} (counterparty)`);
 }
 
 async function runCrank(): Promise<void> {
@@ -382,9 +382,9 @@ async function forceClosePositions(): Promise<void> {
     let hasOpenPositions = false;
     for (const idx of indices) {
       const acc = parseAccount(slabData, idx);
-      if (acc && acc.positionSize !== 0n) {
+      if (acc && acc.positionBasisQ !== 0n) {
         hasOpenPositions = true;
-        console.log(`  Account ${idx} still has position: ${acc.positionSize}`);
+        console.log(`  Account ${idx} still has position: ${acc.positionBasisQ}`);
       }
     }
 
@@ -403,7 +403,7 @@ async function forceClosePositions(): Promise<void> {
   for (const idx of indices) {
     const acc = parseAccount(slabData, idx);
     if (acc) {
-      console.log(`  Account ${idx}: pos=${acc.positionSize}, capital=${Number(acc.capital)/1e9} SOL, pnl=${Number(acc.pnl)/1e9} SOL`);
+      console.log(`  Account ${idx}: pos=${acc.positionBasisQ}, capital=${Number(acc.capital)/1e9} SOL, pnl=${Number(acc.pnl)/1e9} SOL`);
     }
   }
 }
