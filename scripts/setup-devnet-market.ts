@@ -182,6 +182,9 @@ async function main() {
     invert: 1,                       // INVERTED market
     unitScale: 0,
     initialMarkPriceE6: "0",         // Not Hyperp mode, so this is ignored
+    maxMaintenanceFeePerSlot: "1000000000",  // Per-market admin limit
+    maxInsuranceFloor: "10000000000000000000", // Per-market admin limit
+    minOraclePriceCapE2bps: "0",             // No floor
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",     // 5% maintenance margin
     initialMarginBps: "1000",        // 10% initial margin
@@ -290,7 +293,20 @@ async function main() {
       { pubkey: lpPda, isSigner: false, isWritable: false },
       { pubkey: matcherCtxKp.publicKey, isSigner: false, isWritable: true },
     ],
-    data: Buffer.from([1]),  // Init instruction
+    data: (() => {
+      // Tag=2 (MATCHER_INIT_VAMM_TAG), 66-byte structured init data
+      const buf = Buffer.alloc(66);
+      buf.writeUInt8(2, 0);          // tag = 2
+      buf.writeUInt8(0, 1);          // kind = Passive
+      buf.writeUInt32LE(5, 2);       // trading_fee_bps = 5
+      buf.writeUInt32LE(50, 6);      // base_spread_bps = 50
+      buf.writeUInt32LE(100, 10);    // max_total_bps = 100
+      buf.writeUInt32LE(0, 14);      // impact_k_bps = 0
+      // liquidity_notional_e6 = 0 (u128 at offset 18)
+      // max_fill_abs = 0 (u128 at offset 34)
+      // max_inventory_abs = 0 (u128 at offset 50)
+      return buf;
+    })(),
   });
   await sendAndConfirmTransaction(connection, initMatcherTx, [payer], { commitment: "confirmed" });
   console.log("  Matcher context initialized");
