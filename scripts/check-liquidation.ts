@@ -1,21 +1,23 @@
 /**
  * Check liquidation risk for all accounts
  */
+import "dotenv/config";
 import { Connection, PublicKey } from '@solana/web3.js';
-import { fetchSlab, parseAccount, parseParams, parseUsedIndices, AccountKind } from '../src/solana/slab.js';
+import { fetchSlab, parseAccount, parseParams, parseEngine, parseUsedIndices, AccountKind } from '../src/solana/slab.js';
 import * as fs from 'fs';
 
 const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
 const SLAB = new PublicKey(marketInfo.slab);
-const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
 
 async function main() {
   const data = await fetchSlab(connection, SLAB);
   const params = parseParams(data);
+  const engine = parseEngine(data);
   const indices = parseUsedIndices(data);
 
-  // Oracle price ~$138
-  const price = 138_000_000n; // e6
+  // Use actual engine oracle price (already inverted/scaled)
+  const price = engine.lastOraclePrice > 0n ? engine.lastOraclePrice : 1n;
 
   console.log('=== Risk Parameters ===');
   console.log('Maintenance Margin:', params.maintenanceMarginBps.toString(), 'bps');

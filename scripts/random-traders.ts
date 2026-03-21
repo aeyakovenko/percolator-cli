@@ -46,8 +46,8 @@ const BPS_DENOM = 10000n;
 
 const NUM_TRADERS = 5;
 const DEPOSIT_SOL = 1_000_000_000n; // 1 SOL per trader
-const TRADE_SIZE = 10_000_000n; // 10M units per trade (small positions)
-const TRADE_INTERVAL_MS = 3_000; // 3 seconds between trades
+const TRADE_SIZE = 500_000_000_000n; // 500B q-units per trade (~5.5 SOL notional at inverted price)
+const TRADE_INTERVAL_MS = 2_000; // 2 seconds between trades
 
 // Fixed direction for each trader (assigned at startup)
 const traderDirections: Map<number, boolean> = new Map(); // true = LONG, false = SHORT
@@ -755,7 +755,7 @@ async function executeTrade(traderIdx: number, isLong: boolean, lp: LpInfo): Pro
   await sendAndConfirmTransaction(connection, tradeTx, [payer], { commitment: 'confirmed' });
 }
 
-const BANK_RUN_INTERVAL = 20; // Trigger bank run every N trades
+const BANK_RUN_INTERVAL = 5; // Trigger bank run every N trades (aggressive)
 const PNL_REALIZATION_INTERVAL = 15; // Try to realize PnL every N trades
 const REVALIDATE_INTERVAL = 10; // Revalidate trader indices every N trades
 
