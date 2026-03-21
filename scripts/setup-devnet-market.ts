@@ -302,9 +302,10 @@ async function main() {
       buf.writeUInt32LE(50, 6);      // base_spread_bps = 50
       buf.writeUInt32LE(100, 10);    // max_total_bps = 100
       buf.writeUInt32LE(0, 14);      // impact_k_bps = 0
-      // liquidity_notional_e6 = 0 (u128 at offset 18)
-      // max_fill_abs = 0 (u128 at offset 34)
-      // max_inventory_abs = 0 (u128 at offset 50)
+      // liquidity_notional_e6 = 0 (u128 at offset 18, passive allows 0)
+      // max_fill_abs = 1_000_000_000 (u128 at offset 34)
+      buf.writeBigUInt64LE(1_000_000_000n, 34);
+      // max_inventory_abs = 0 (u128 at offset 50, 0 = no limit)
       return buf;
     })(),
   });
