@@ -51,7 +51,7 @@ async function main() {
 
   // Derived engine values
   const insurance = engine.insuranceFund.balance;
-  const threshold = params.insuranceFloor;
+  const threshold = engine.insuranceFloor;
   const surplus = insurance > threshold ? insurance - threshold : 0n;
 
   // Build accounts
@@ -78,7 +78,6 @@ async function main() {
       },
       pnl: {
         realized: { raw: acc.pnl.toString(), sol: sol(acc.pnl) },
-        unrealized: { raw: unrealizedPnl.toString(), sol: sol(unrealizedPnl) },
       },
       effectiveCapital: {
         raw: (effectiveCapital).toString(),
@@ -193,7 +192,6 @@ async function main() {
       tradingFeeBps: Number(params.tradingFeeBps),
       maxAccounts: params.maxAccounts.toString(),
       newAccountFee: { raw: params.newAccountFee.toString(), sol: sol(params.newAccountFee) },
-      insuranceFloor: { raw: params.insuranceFloor.toString(), sol: sol(params.insuranceFloor) },
       maintenanceFeePerSlot: { raw: params.maintenanceFeePerSlot.toString(), sol: sol(params.maintenanceFeePerSlot) },
       maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
       liquidationFeeBps: Number(params.liquidationFeeBps),
