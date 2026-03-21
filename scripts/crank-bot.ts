@@ -20,38 +20,55 @@ const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(pr
 const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
 
 /**
- * Compute liquidation candidates: accounts below maintenance margin, sorted by shortfall.
+ * Compute effective position accounting for ADL multiplier adjustments.
  */
-function computeCandidates(data: Buffer, oraclePrice: bigint): number[] {
-  const indices = parseUsedIndices(data);
-  const params = parseParams(data);
-  const mmBps = params.maintenanceMarginBps;
+function effectivePosQ(
+  acc: ReturnType<typeof parseAccount>,
+  engine: ReturnType<typeof parseEngine>,
+): bigint {
+  const basis = acc.positionBasisQ;
+  if (basis === 0n) return 0n;
+  const isLong = basis > 0n;
+  const epochSide = isLong ? engine.adlEpochLong : engine.adlEpochShort;
+  if (acc.adlEpochSnap !== epochSide) return 0n;
+  const aBasis = acc.adlABasis;
+  if (aBasis === 0n) return 0n;
+  const aSide = isLong ? engine.adlMultLong : engine.adlMultShort;
+  return (basis * BigInt.asIntN(128, aSide)) / BigInt.asIntN(128, aBasis);
+}
 
-  const scored: { idx: number; shortfall: bigint }[] = [];
+/**
+ * Compute liquidation candidates: ALL accounts with non-zero positions,
+ * sorted by leverage (highest first). PnL is stale until crank touches
+ * accounts, so we can't filter pre-crank — submit all and let on-chain sort it.
+ */
+function computeCandidates(data: Buffer, engine: ReturnType<typeof parseEngine>): number[] {
+  const indices = parseUsedIndices(data);
+  const oraclePrice = engine.lastOraclePrice > 0n ? engine.lastOraclePrice : 1n;
+  const POS_SCALE = 1_000_000n;
+
+  const scored: { idx: number; leverage: bigint }[] = [];
   for (const idx of indices) {
     const acc = parseAccount(data, idx);
-    const posQ = acc.positionBasisQ < 0n ? -acc.positionBasisQ : acc.positionBasisQ;
-    if (posQ === 0n) continue;
+    const effPos = effectivePosQ(acc, engine);
+    const absPos = effPos < 0n ? -effPos : effPos;
+    if (absPos === 0n) continue;
 
-    const notional = (posQ * oraclePrice) / 1_000_000n;
-    const mmReq = (notional * mmBps) / 10_000n;
-    const equity = BigInt.asIntN(128, acc.capital) + acc.pnl;
+    const notional = (absPos * oraclePrice) / POS_SCALE;
+    const capital = acc.capital > 0n ? acc.capital : 1n;
+    const leverage = (notional * 10_000n) / capital;
 
-    if (equity < mmReq) {
-      scored.push({ idx, shortfall: mmReq - equity });
-    }
+    scored.push({ idx, leverage });
   }
 
-  scored.sort((a, b) => (b.shortfall > a.shortfall ? 1 : b.shortfall < a.shortfall ? -1 : 0));
+  scored.sort((a, b) => (b.leverage > a.leverage ? 1 : b.leverage < a.leverage ? -1 : 0));
   return scored.map(s => s.idx);
 }
 
 async function runCrank(): Promise<{ sig: string; candidates: number }> {
-  // Fetch slab and compute candidates off-chain
   const slabData = await fetchSlab(connection, SLAB);
   const engine = parseEngine(slabData);
-  const price = engine.lastOraclePrice > 0n ? engine.lastOraclePrice : 1n;
-  const candidates = computeCandidates(slabData, price);
+  const candidates = computeCandidates(slabData, engine);
 
   const crankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false, candidates });
   const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, SLAB, SYSVAR_CLOCK_PUBKEY, ORACLE]);
