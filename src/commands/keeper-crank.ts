@@ -25,34 +25,64 @@ import {
 const CRANK_NO_CALLER = 65535; // u16::MAX
 
 /**
- * Compute optimal liquidation candidates off-chain.
- * Returns account indices sorted by margin shortfall (most undercollateralized first).
+ * Compute effective position accounting for ADL multiplier adjustments.
+ * On-chain: effective_pos_q = basis * adl_mult_side / adl_a_basis
+ * If epoch mismatch, effective position is 0.
  */
-function computeCandidates(data: Buffer, oraclePrice: bigint): number[] {
-  const indices = parseUsedIndices(data);
-  const params = parseParams(data);
-  const mmBps = params.maintenanceMarginBps;
+function effectivePosQ(acc: ReturnType<typeof parseAccount>, engine: ReturnType<typeof parseEngine>): bigint {
+  const basis = acc.positionBasisQ;
+  if (basis === 0n) return 0n;
 
-  const scored: { idx: number; shortfall: bigint }[] = [];
+  const isLong = basis > 0n;
+  const epochSide = isLong ? engine.adlEpochLong : engine.adlEpochShort;
+  if (acc.adlEpochSnap !== epochSide) return 0n; // epoch mismatch → flat
+
+  const aBasis = acc.adlABasis;
+  if (aBasis === 0n) return 0n;
+
+  const aSide = isLong ? engine.adlMultLong : engine.adlMultShort;
+  // effective = basis * a_side / a_basis (truncated toward zero)
+  return (basis * BigInt.asIntN(128, aSide)) / BigInt.asIntN(128, aBasis);
+}
+
+/**
+ * Compute liquidation candidates off-chain.
+ *
+ * IMPORTANT: In v11.26, account PnL is only updated when the crank TOUCHES the
+ * account. Stale PnL means we can't reliably determine which accounts are underwater
+ * just from stored state. We must submit ALL accounts with non-zero effective positions
+ * as candidates so the on-chain crank touches them, updates their PnL via ADL
+ * coefficients, and then checks margin.
+ *
+ * Accounts are sorted by leverage (highest first) to prioritize the most at-risk.
+ * The engine's budget limit (LIQ_BUDGET_PER_CRANK=64) caps how many get processed.
+ */
+function computeCandidates(data: Buffer, engine: ReturnType<typeof parseEngine>): number[] {
+  const indices = parseUsedIndices(data);
+  const oraclePrice = engine.lastOraclePrice > 0n ? engine.lastOraclePrice : 1n;
+  const POS_SCALE = 1_000_000n;
+
+  const scored: { idx: number; leverage: bigint }[] = [];
   for (const idx of indices) {
     const acc = parseAccount(data, idx);
-    const posQ = acc.positionBasisQ < 0n ? -acc.positionBasisQ : acc.positionBasisQ;
-    if (posQ === 0n) continue; // Skip flat accounts
 
-    // Notional = |pos| * price / 1e6
-    const notional = (posQ * oraclePrice) / 1_000_000n;
-    // MM_req = notional * mm_bps / 10000
-    const mmReq = (notional * mmBps) / 10_000n;
-    // Equity ~= capital + pnl (simplified, ignores warmup/ADL effects)
-    const equity = BigInt.asIntN(128, acc.capital) + acc.pnl;
+    // Use effective position (ADL-adjusted)
+    const effPos = effectivePosQ(acc, engine);
+    const absPos = effPos < 0n ? -effPos : effPos;
+    if (absPos === 0n) continue;
 
-    if (equity < mmReq) {
-      scored.push({ idx, shortfall: mmReq - equity });
-    }
+    // Notional = |effective_pos| * oracle_price / POS_SCALE
+    const notional = (absPos * oraclePrice) / POS_SCALE;
+    const capital = acc.capital > 0n ? acc.capital : 1n;
+
+    // leverage = notional / capital (higher = more at risk)
+    const leverage = (notional * 10_000n) / capital;
+
+    scored.push({ idx, leverage });
   }
 
-  // Sort by shortfall descending (most undercollateralized first)
-  scored.sort((a, b) => (b.shortfall > a.shortfall ? 1 : b.shortfall < a.shortfall ? -1 : 0));
+  // Sort by leverage descending (highest leverage = most at risk first)
+  scored.sort((a, b) => (b.leverage > a.leverage ? 1 : b.leverage < a.leverage ? -1 : 0));
   return scored.map(s => s.idx);
 }
 
@@ -84,7 +114,7 @@ export function registerKeeperCrank(program: Command): void {
       // Fetch slab data and compute liquidation candidates off-chain
       const slabData = await fetchSlab(ctx.connection, slabPk);
       const engine = parseEngine(slabData);
-      const candidates = computeCandidates(slabData, engine.lastOraclePrice > 0n ? engine.lastOraclePrice : 1n);
+      const candidates = computeCandidates(slabData, engine);
 
       // Build instruction data with candidate shortlist
       const ixData = encodeKeeperCrank({
