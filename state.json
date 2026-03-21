@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-21T00:07:50.525Z",
-  "slab": "eQTGs5xAR4iqyd1m85abVTyVHfDgJ9i4uMguzdcG2aE",
+  "timestamp": "2026-03-21T04:01:46.773Z",
+  "slab": "CRvxsB9EGG7N9Ry2GUkQ3zSavXrWEHzdWUyPgc3brt1D",
   "oracle": "99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR",
   "marketConfig": {
     "invert": 1,
@@ -14,10 +14,10 @@
     "fundingMaxBpsPerSlot": 5
   },
   "oraclePrice": {
-    "rawUsd": 89.923,
-    "rawE6": "89923000",
+    "rawUsd": 90.64,
+    "rawE6": "90640000",
     "inverted": true,
-    "effectiveE6": "11120",
+    "effectiveE6": "11032",
     "note": "Inverted price for SOL/USD perp"
   },
   "riskParameters": {
@@ -39,21 +39,21 @@
     "minLiquidationAbs": "100000"
   },
   "engine": {
-    "vault": "2002000000",
-    "vaultSol": 2.002,
+    "vault": "6758088563",
+    "vaultSol": 6.758088563,
     "insuranceFund": {
-      "balance": "1001000000",
-      "balanceSol": 1.001,
-      "feeRevenue": "1000000"
+      "balance": "1007033950",
+      "balanceSol": 1.00703395,
+      "feeRevenue": "7033950"
     },
-    "currentSlot": "449897066",
+    "currentSlot": "449934532",
     "fundingRateBpsPerSlotLast": "0",
-    "lastCrankSlot": "449897056",
+    "lastCrankSlot": "449934532",
     "maxCrankStalenessSlots": "200",
     "lastSweepStartSlot": "0",
     "lastSweepCompleteSlot": "0",
     "lifetimeLiquidations": 0,
-    "numUsedAccounts": 1
+    "numUsedAccounts": 5
   },
   "funding": {
     "fundingRateBpsPerSlotLast": "0"
@@ -65,30 +65,118 @@
       "kind": "LP",
       "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
       "position": {
-        "sizeUnits": "0",
-        "direction": "FLAT",
+        "sizeUnits": "30000000",
+        "direction": "LONG",
         "adlABasis": "1000000",
-        "notionalSol": 0
+        "notionalSol": 0.00033096
       },
-      "capitalSol": 1.001,
-      "realizedPnlSol": 0,
-      "effectiveCapitalSol": 1.001,
+      "capitalSol": 1.001065685,
+      "realizedPnlSol": 0.0000089,
+      "effectiveCapitalSol": 1.001074585,
       "margin": {
-        "maintenanceRequiredSol": 0,
-        "bufferSol": 1.001,
-        "ratioPercent": 999.99
+        "maintenanceRequiredSol": 0.000016548,
+        "bufferSol": 1.001058037,
+        "ratioPercent": 302476
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 2,
+      "label": "Trader 2",
+      "kind": "USER",
+      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "position": {
+        "sizeUnits": "-30000000",
+        "direction": "SHORT",
+        "adlABasis": "1000000",
+        "notionalSol": 0.00033096
+      },
+      "capitalSol": 1.499995488,
+      "realizedPnlSol": 0,
+      "effectiveCapitalSol": 1.499995488,
+      "margin": {
+        "maintenanceRequiredSol": 0.000016548,
+        "bufferSol": 1.49997894,
+        "ratioPercent": 453225.61
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 3,
+      "label": "Trader 3",
+      "kind": "USER",
+      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "position": {
+        "sizeUnits": "-60000000",
+        "direction": "SHORT",
+        "adlABasis": "1000000",
+        "notionalSol": 0.00066192
+      },
+      "capitalSol": 0.749990187,
+      "realizedPnlSol": 0,
+      "effectiveCapitalSol": 0.749990187,
+      "margin": {
+        "maintenanceRequiredSol": 0.000033096,
+        "bufferSol": 0.749957091,
+        "ratioPercent": 113305.26
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 4,
+      "label": "Trader 4",
+      "kind": "USER",
+      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "position": {
+        "sizeUnits": "30000000",
+        "direction": "LONG",
+        "adlABasis": "1000000",
+        "notionalSol": 0.00033096
+      },
+      "capitalSol": 1.499996599,
+      "realizedPnlSol": 0,
+      "effectiveCapitalSol": 1.499996599,
+      "margin": {
+        "maintenanceRequiredSol": 0.000016548,
+        "bufferSol": 1.499980051,
+        "ratioPercent": 453225.94
+      },
+      "status": "SAFE",
+      "liquidationReason": null
+    },
+    {
+      "index": 5,
+      "label": "Trader 5",
+      "kind": "USER",
+      "owner": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+      "position": {
+        "sizeUnits": "30000000",
+        "direction": "LONG",
+        "adlABasis": "1000000",
+        "notionalSol": 0.00033096
+      },
+      "capitalSol": 0.999997784,
+      "realizedPnlSol": 0,
+      "effectiveCapitalSol": 0.999997784,
+      "margin": {
+        "maintenanceRequiredSol": 0.000016548,
+        "bufferSol": 0.999981236,
+        "ratioPercent": 302150.64
       },
       "status": "SAFE",
       "liquidationReason": null
     }
   ],
   "summary": {
-    "totalAccounts": 1,
+    "totalAccounts": 5,
     "liquidatable": 0,
     "atRisk": 0,
-    "safe": 1,
-    "totalLongNotionalSol": 0,
-    "totalShortNotionalSol": 0
+    "safe": 5,
+    "totalLongNotionalSol": 0.00099288,
+    "totalShortNotionalSol": 0.00099288
   },
   "liquidationAnalysis": {
     "description": "Accounts are liquidatable when effective capital falls below maintenance margin requirement.",
