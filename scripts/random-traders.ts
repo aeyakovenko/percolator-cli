@@ -46,7 +46,7 @@ const BPS_DENOM = 10000n;
 
 const NUM_TRADERS = 5;
 const DEPOSIT_SOL = 1_000_000_000n; // 1 SOL per trader
-const TRADE_SIZE = 500_000_000_000n; // 500B q-units per trade (~5.5 SOL notional at inverted price)
+const TRADE_SIZE = 200_000_000_000n; // 200B q-units per trade (~2.2 SOL notional at inverted price)
 const TRADE_INTERVAL_MS = 2_000; // 2 seconds between trades
 
 // Fixed direction for each trader (assigned at startup)
