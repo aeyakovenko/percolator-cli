@@ -25,6 +25,7 @@ export function registerWithdraw(program: Command): void {
     .requiredOption("--slab <pubkey>", "Slab account public key")
     .requiredOption("--user-idx <number>", "User account index")
     .requiredOption("--amount <string>", "Amount to withdraw (native units)")
+    .requiredOption("--oracle <pubkey>", "Price oracle account")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -32,6 +33,7 @@ export function registerWithdraw(program: Command): void {
 
       // Validate inputs
       const slabPk = validatePublicKey(opts.slab, "--slab");
+      const oracle = validatePublicKey(opts.oracle, "--oracle");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
       validateAmount(opts.amount, "--amount");
       const amount = opts.amount;
@@ -58,7 +60,7 @@ export function registerWithdraw(program: Command): void {
         vaultPda, // vaultPda
         WELL_KNOWN.tokenProgram, // tokenProgram
         WELL_KNOWN.clock, // clock
-        mktConfig.indexFeedId, // oracle
+        oracle, // oracle
       ]);
 
       const ix = buildIx({
