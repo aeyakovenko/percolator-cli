@@ -41,6 +41,9 @@ export function registerInitMarket(program: Command): void {
     .requiredOption("--liquidation-fee-cap <string>", "Liquidation fee cap (u128)")
     .requiredOption("--liquidation-buffer-bps <string>", "Liquidation buffer (bps)")
     .requiredOption("--min-liquidation-abs <string>", "Min liquidation absolute (u128)")
+    .requiredOption("--min-initial-deposit <string>", "Min initial deposit (u128)")
+    .requiredOption("--min-nonzero-mm-req <string>", "Min nonzero maintenance margin requirement (u128)")
+    .requiredOption("--min-nonzero-im-req <string>", "Min nonzero initial margin requirement (u128)")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -86,6 +89,9 @@ export function registerInitMarket(program: Command): void {
         liquidationFeeCap: opts.liquidationFeeCap,
         liquidationBufferBps: opts.liquidationBufferBps,
         minLiquidationAbs: opts.minLiquidationAbs,
+        minInitialDeposit: opts.minInitialDeposit,
+        minNonzeroMmReq: opts.minNonzeroMmReq,
+        minNonzeroImReq: opts.minNonzeroImReq,
       });
 
       // Build account metas (order matches ACCOUNTS_INIT_MARKET)

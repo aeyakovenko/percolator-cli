@@ -93,6 +93,7 @@ async function initUser(): Promise<number | null> {
       userAta.address,
       beforeState.config.vaultPubkey,
       TOKEN_PROGRAM_ID,
+      SYSVAR_CLOCK_PUBKEY,
     ]);
 
     const ix = buildIx({

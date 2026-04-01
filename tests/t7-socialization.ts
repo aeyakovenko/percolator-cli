@@ -53,7 +53,6 @@ async function runT7Tests(): Promise<void> {
     const snapshot = await harness.snapshot(ctx);
 
     console.log(`    Insurance fund balance: ${snapshot.engine.insuranceFund.balance}`);
-    console.log(`    Insurance fund fee revenue: ${snapshot.engine.insuranceFund.feeRevenue}`);
     console.log(`    Total accounts: ${snapshot.engine.numUsedAccounts}`);
 
     // Sum all capital from accounts

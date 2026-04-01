@@ -98,7 +98,7 @@ async function initUser(): Promise<number> {
   const ata = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, payer.publicKey);
   const data = encodeInitUser({ feePayment: "2000000" });
   const keys = buildAccountMetas(ACCOUNTS_INIT_USER, [
-    payer.publicKey, SLAB, ata.address, VAULT, TOKEN_PROGRAM_ID,
+    payer.publicKey, SLAB, ata.address, VAULT, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
   ]);
   const tx = new Transaction();
   tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));

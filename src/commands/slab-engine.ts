@@ -26,7 +26,6 @@ export function registerSlabEngine(program: Command): void {
               vault: engine.vault.toString(),
               insuranceFund: {
                 balance: engine.insuranceFund.balance.toString(),
-                feeRevenue: engine.insuranceFund.feeRevenue.toString(),
               },
               currentSlot: engine.currentSlot.toString(),
               fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
@@ -64,7 +63,6 @@ export function registerSlabEngine(program: Command): void {
         console.log("--- Vault & Insurance ---");
         console.log(`Vault Balance:           ${engine.vault}`);
         console.log(`Insurance Balance:       ${engine.insuranceFund.balance}`);
-        console.log(`Insurance Fee Revenue:   ${engine.insuranceFund.feeRevenue}`);
         console.log(`Insurance Floor:         ${engine.insuranceFloor}`);
         console.log("");
         console.log("--- Funding ---");

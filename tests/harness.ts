@@ -61,7 +61,7 @@ import {
   buildAccountMetas,
   WELL_KNOWN,
 } from "../src/abi/accounts.js";
-import { deriveLpPda } from "../src/solana/pda.js";
+import { deriveLpPda, deriveVaultAuthority } from "../src/solana/pda.js";
 import { buildIx, simulateOrSend, TxResult } from "../src/runtime/tx.js";
 import {
   parseHeader,
@@ -437,6 +437,10 @@ export class TestHarness {
       confFilterBps: 200,        // 2%
       invert,                    // Oracle inversion (0=no, 1=yes)
       unitScale,                 // Lamports per unit (0=no scaling)
+      initialMarkPriceE6: "0",   // Not Hyperp mode
+      maxMaintenanceFeePerSlot: "1000000000",      // Per-market admin limit
+      maxInsuranceFloor: "10000000000000000",   // Per-market admin limit (MAX_VAULT_TVL)
+      minOraclePriceCapE2bps: "0",                 // No floor
       warmupPeriodSlots: "10",
       maintenanceMarginBps: "500",   // 5%
       initialMarginBps: "1000",      // 10%
@@ -450,6 +454,9 @@ export class TestHarness {
       liquidationFeeCap: "1000000000", // 1000 USDC
       liquidationBufferBps: "50",    // 0.5%
       minLiquidationAbs: "100000",   // 0.1 USDC
+      minInitialDeposit: "1000000",  // 1 USDC
+      minNonzeroMmReq: "100000",    // 0.1 USDC
+      minNonzeroImReq: "200000",    // 0.2 USDC
     });
 
     const initMarketKeys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
@@ -505,15 +512,15 @@ export class TestHarness {
 
   /**
    * Calculate required slab size for given max accounts.
-   * The program expects a fixed slab size of SLAB_LEN = 1156656 bytes
+   * The program expects a fixed slab size of SLAB_LEN = 1156736 bytes
    * for MAX_ACCOUNTS=4096. The slab size must exactly match the program's expected size.
    *
-   * SLAB_SIZE = ENGINE_OFF(440) + ENGINE_ACCOUNTS_OFF(9136) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
+   * SLAB_SIZE = ENGINE_OFF(520) + ENGINE_ACCOUNTS_OFF(9336) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
    * Updated for new engine layout.
    */
   private calculateSlabSize(_maxAccounts: number): number {
     // Fixed SLAB_LEN expected by the program
-    return 1156656;
+    return 1156736;
   }
 
   // ==========================================================================
@@ -604,6 +611,7 @@ export class TestHarness {
       user.ata,
       ctx.vault,
       WELL_KNOWN.tokenProgram,
+      WELL_KNOWN.clock,
     ]);
 
     const ix = buildIx({ programId: PROGRAM_ID, keys, data: ixData });
@@ -660,6 +668,7 @@ export class TestHarness {
       lp.ata,
       ctx.vault,
       WELL_KNOWN.tokenProgram,
+      WELL_KNOWN.clock,
     ]);
 
     const ix = buildIx({ programId: PROGRAM_ID, keys, data: ixData });
@@ -749,6 +758,7 @@ export class TestHarness {
       lp.ata,
       ctx.vault,
       WELL_KNOWN.tokenProgram,
+      WELL_KNOWN.clock,
     ]);
 
     const ix = buildIx({ programId: PROGRAM_ID, keys, data: ixData });
@@ -857,6 +867,7 @@ export class TestHarness {
       user.ata,
       ctx.vault,
       WELL_KNOWN.tokenProgram,
+      WELL_KNOWN.clock,
     ]);
 
     const ix = buildIx({ programId: PROGRAM_ID, keys, data: ixData });
@@ -1142,6 +1153,7 @@ export class TestHarness {
       payerAta,
       ctx.vault,
       WELL_KNOWN.tokenProgram,
+      WELL_KNOWN.clock,
     ]);
 
     const ix = buildIx({ programId: PROGRAM_ID, keys, data: ixData });
@@ -1319,10 +1331,21 @@ export class TestHarness {
         }
 
         // Use CloseSlab instruction to close program-owned account
+        const slabConfig = parseConfig(Buffer.from(info.data));
+        const [vaultAuth] = deriveVaultAuthority(PROGRAM_ID, slab.publicKey);
+        const destAta = await getAssociatedTokenAddress(
+          slabConfig.collateralMint,
+          this.payer.publicKey,
+        );
+
         const ixData = encodeCloseSlab();
         const keys = buildAccountMetas(ACCOUNTS_CLOSE_SLAB, [
-          this.payer.publicKey, // admin (receives lamports)
-          slab.publicKey,       // slab
+          this.payer.publicKey,    // dest (signer, writable)
+          slab.publicKey,          // slab (writable)
+          slabConfig.vaultPubkey,  // vault (writable)
+          vaultAuth,               // vaultAuth
+          destAta,                 // destAta (writable)
+          WELL_KNOWN.tokenProgram, // tokenProgram
         ]);
 
         const ix = buildIx({ programId: PROGRAM_ID, keys, data: ixData });

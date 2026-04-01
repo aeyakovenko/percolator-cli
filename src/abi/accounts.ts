@@ -37,7 +37,7 @@ export const ACCOUNTS_INIT_MARKET: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * InitUser: 5 accounts (clock/oracle removed in commit 410f947)
+ * InitUser: 6 accounts
  */
 export const ACCOUNTS_INIT_USER: readonly AccountSpec[] = [
   { name: "user", signer: true, writable: false },
@@ -45,10 +45,11 @@ export const ACCOUNTS_INIT_USER: readonly AccountSpec[] = [
   { name: "userAta", signer: false, writable: true },
   { name: "vault", signer: false, writable: true },
   { name: "tokenProgram", signer: false, writable: false },
+  { name: "clock", signer: false, writable: false },
 ] as const;
 
 /**
- * InitLP: 5 accounts (clock/oracle removed in commit 410f947)
+ * InitLP: 6 accounts
  */
 export const ACCOUNTS_INIT_LP: readonly AccountSpec[] = [
   { name: "user", signer: true, writable: false },
@@ -56,6 +57,7 @@ export const ACCOUNTS_INIT_LP: readonly AccountSpec[] = [
   { name: "userAta", signer: false, writable: true },
   { name: "vault", signer: false, writable: true },
   { name: "tokenProgram", signer: false, writable: false },
+  { name: "clock", signer: false, writable: false },
 ] as const;
 
 /**
@@ -131,7 +133,7 @@ export const ACCOUNTS_CLOSE_ACCOUNT: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * TopUpInsurance: 5 accounts
+ * TopUpInsurance: 6 accounts
  */
 export const ACCOUNTS_TOPUP_INSURANCE: readonly AccountSpec[] = [
   { name: "user", signer: true, writable: false },
@@ -139,6 +141,7 @@ export const ACCOUNTS_TOPUP_INSURANCE: readonly AccountSpec[] = [
   { name: "userAta", signer: false, writable: true },
   { name: "vault", signer: false, writable: true },
   { name: "tokenProgram", signer: false, writable: false },
+  { name: "clock", signer: false, writable: false },
 ] as const;
 
 /**
@@ -172,19 +175,24 @@ export const ACCOUNTS_UPDATE_ADMIN: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * CloseSlab: 2 accounts
+ * CloseSlab: 6 accounts
  */
 export const ACCOUNTS_CLOSE_SLAB: readonly AccountSpec[] = [
-  { name: "admin", signer: true, writable: true },
+  { name: "dest", signer: true, writable: true },
   { name: "slab", signer: false, writable: true },
+  { name: "vault", signer: false, writable: true },
+  { name: "vaultAuth", signer: false, writable: false },
+  { name: "destAta", signer: false, writable: true },
+  { name: "tokenProgram", signer: false, writable: false },
 ] as const;
 
 /**
- * UpdateConfig: 2 accounts
+ * UpdateConfig: 3 accounts
  */
 export const ACCOUNTS_UPDATE_CONFIG: readonly AccountSpec[] = [
   { name: "admin", signer: true, writable: false },
   { name: "slab", signer: false, writable: true },
+  { name: "clock", signer: false, writable: false },
 ] as const;
 
 /**
@@ -205,6 +213,16 @@ export const ACCOUNTS_SET_ORACLE_AUTHORITY: readonly AccountSpec[] = [
 ] as const;
 
 /**
+ * SetOraclePriceCap: 3 accounts
+ * Set circuit-breaker cap for oracle price changes (admin only)
+ */
+export const ACCOUNTS_SET_ORACLE_PRICE_CAP: readonly AccountSpec[] = [
+  { name: "admin", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+  { name: "clock", signer: false, writable: false },
+] as const;
+
+/**
  * PushOraclePrice: 2 accounts
  * Push oracle price (oracle authority only)
  */
@@ -214,12 +232,14 @@ export const ACCOUNTS_PUSH_ORACLE_PRICE: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * ResolveMarket: 2 accounts
+ * ResolveMarket: 4 accounts
  * Resolves a binary/premarket (admin only)
  */
 export const ACCOUNTS_RESOLVE_MARKET: readonly AccountSpec[] = [
   { name: "admin", signer: true, writable: false },
   { name: "slab", signer: false, writable: true },
+  { name: "clock", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
 ] as const;
 
 /**
@@ -274,11 +294,10 @@ export const ACCOUNTS_WITHDRAW_INSURANCE_LIMITED: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * QueryLpFees: 2 accounts
+ * QueryLpFees: 1 account
  * Query cumulative fees earned by an LP position (read-only)
  */
 export const ACCOUNTS_QUERY_LP_FEES: readonly AccountSpec[] = [
-  { name: "caller", signer: false, writable: false },
   { name: "slab", signer: false, writable: false },
 ] as const;
 

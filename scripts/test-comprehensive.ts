@@ -119,7 +119,7 @@ async function pushPrice(priceE6: bigint) {
 async function initUser(): Promise<number | null> {
   const before = new Set(parseUsedIndices((await getState()).data));
   const userAta = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, payer.publicKey);
-  const keys = buildAccountMetas(ACCOUNTS_INIT_USER, [payer.publicKey, SLAB, userAta.address, VAULT, TOKEN_PROGRAM_ID]);
+  const keys = buildAccountMetas(ACCOUNTS_INIT_USER, [payer.publicKey, SLAB, userAta.address, VAULT, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]);
   const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeInitUser({ feePayment: "1000000" }) });
   const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 }), ix);
   await sendAndConfirmTransaction(conn, tx, [payer], { commitment: "confirmed" });
@@ -192,7 +192,7 @@ async function topUpInsurance(amount: bigint) {
   );
   await sendAndConfirmTransaction(conn, wrapTx, [payer], { commitment: "confirmed" });
   const keys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [
-    payer.publicKey, SLAB, userAta.address, VAULT, TOKEN_PROGRAM_ID,
+    payer.publicKey, SLAB, userAta.address, VAULT, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
   ]);
   const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeTopUpInsurance({ amount: amount.toString() }) });
   const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 }), ix);
@@ -659,8 +659,7 @@ async function testInsuranceFund(basePrice: bigint): Promise<TestResult> {
 
   let state = await getState();
   const insBefore = state.engine.insuranceFund.balance;
-  const insRevBefore = state.engine.insuranceFund.feeRevenue;
-  console.log(`  Insurance before: balance=${fmt(insBefore)}, fee_revenue=${fmt(insRevBefore)}`);
+  console.log(`  Insurance before: balance=${fmt(insBefore)}`);
 
   const idx = await initUser();
   if (idx === null) return { name: "Insurance Fund", pass: false, details: "Init failed" };
@@ -676,16 +675,14 @@ async function testInsuranceFund(basePrice: bigint): Promise<TestResult> {
 
   state = await getState(); check(state, "8-after-trades");
   const insAfter = state.engine.insuranceFund.balance;
-  const insRevAfter = state.engine.insuranceFund.feeRevenue;
   const growth = insAfter - insBefore;
-  const revGrowth = insRevAfter - insRevBefore;
-  console.log(`  Insurance after: balance=${fmt(insAfter)} (+${fmt(growth)}), fee_revenue=${fmt(insRevAfter)} (+${fmt(revGrowth)})`);
+  console.log(`  Insurance after: balance=${fmt(insAfter)} (+${fmt(growth)})`);
 
   // Cleanup
   await cleanup(idx, 0n);
 
   if (growth <= 0n) return { name: "Insurance Fund", pass: false, details: `Insurance did not grow after 6 trades! growth=${growth}` };
-  return { name: "Insurance Fund", pass: true, details: `6 trades generated ${fmt(growth)} insurance, revenue +${fmt(revGrowth)}` };
+  return { name: "Insurance Fund", pass: true, details: `6 trades generated ${fmt(growth)} insurance` };
 }
 
 // ---------------------------------------------------------------------------

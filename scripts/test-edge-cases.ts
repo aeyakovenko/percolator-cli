@@ -119,7 +119,7 @@ async function pushPrice(priceE6: bigint) {
 async function initUser(): Promise<number | null> {
   const before = new Set(parseUsedIndices((await getState()).data));
   const userAta = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, payer.publicKey);
-  const keys = buildAccountMetas(ACCOUNTS_INIT_USER, [payer.publicKey, SLAB, userAta.address, VAULT, TOKEN_PROGRAM_ID]);
+  const keys = buildAccountMetas(ACCOUNTS_INIT_USER, [payer.publicKey, SLAB, userAta.address, VAULT, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]);
   const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeInitUser({ feePayment: "1000000" }) });
   const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 }), ix);
   await sendAndConfirmTransaction(conn, tx, [payer], { commitment: "confirmed" });
@@ -192,7 +192,7 @@ async function topUpInsurance(amount: bigint) {
   );
   await sendAndConfirmTransaction(conn, wrapTx, [payer], { commitment: "confirmed" });
   const keys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [
-    payer.publicKey, SLAB, userAta.address, VAULT, TOKEN_PROGRAM_ID,
+    payer.publicKey, SLAB, userAta.address, VAULT, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY,
   ]);
   const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeTopUpInsurance({ amount: amount.toString() }) });
   const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 }), ix);

@@ -79,7 +79,7 @@ async function main() {
 
   console.log("\n3. Initializing LP...");
   const initLpData = encodeInitLP({ matcherProgram: MATCHER_PROGRAM_ID, matcherContext: matcherCtxKp.publicKey, feePayment: "2000000" });
-  const initLpKeys = buildAccountMetas(ACCOUNTS_INIT_LP, [payer.publicKey, SLAB, adminAta.address, VAULT, TOKEN_PROGRAM_ID]);
+  const initLpKeys = buildAccountMetas(ACCOUNTS_INIT_LP, [payer.publicKey, SLAB, adminAta.address, VAULT, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]);
   const initLpTx = new Transaction();
   initLpTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
   initLpTx.add(buildIx({ programId: PROGRAM_ID, keys: initLpKeys, data: initLpData }));
@@ -101,7 +101,7 @@ async function main() {
   console.log("\n5. Topping up insurance with 0.5 SOL...");
   const insAmount = 500_000_000n;
   const topupData = encodeTopUpInsurance({ amount: insAmount.toString() });
-  const topupKeys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [payer.publicKey, SLAB, adminAta.address, VAULT, TOKEN_PROGRAM_ID]);
+  const topupKeys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [payer.publicKey, SLAB, adminAta.address, VAULT, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]);
   const topupTx = new Transaction();
   topupTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
   topupTx.add(buildIx({ programId: PROGRAM_ID, keys: topupKeys, data: topupData }));

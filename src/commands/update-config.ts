@@ -6,6 +6,7 @@ import { encodeUpdateConfig } from "../abi/instructions.js";
 import {
   ACCOUNTS_UPDATE_CONFIG,
   buildAccountMetas,
+  WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
@@ -76,6 +77,7 @@ export function registerUpdateConfig(program: Command): void {
       const keys = buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [
         ctx.payer.publicKey, // admin
         slabPk, // slab
+        WELL_KNOWN.clock, // clock
       ]);
 
       const ix = buildIx({

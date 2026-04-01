@@ -145,6 +145,10 @@ async function main() {
     confFilterBps: 500,        // 5% (Chainlink doesn't have conf, but this is ignored)
     invert: 0,
     unitScale: 0,
+    initialMarkPriceE6: "0",
+    maxMaintenanceFeePerSlot: "1000000000",
+    maxInsuranceFloor: "10000000000000000",
+    minOraclePriceCapE2bps: "0",
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",     // 5%
     initialMarginBps: "1000",        // 10%
@@ -158,6 +162,9 @@ async function main() {
     liquidationFeeCap: "1000000000", // 1000 USDC
     liquidationBufferBps: "50",      // 0.5%
     minLiquidationAbs: "100000",     // 0.1 USDC
+    minInitialDeposit: "1000000",
+    minNonzeroMmReq: "100000",
+    minNonzeroImReq: "200000",
   });
 
   // InitMarket accounts (9 total) - feed_id is in instruction data, not as account
@@ -251,6 +258,7 @@ async function main() {
     userAta.address,
     vaultAccount.address,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const initUserTx = new Transaction();

@@ -38,13 +38,14 @@ export function registerTopupInsurance(program: Command): void {
       // Build instruction data
       const ixData = encodeTopUpInsurance({ amount: opts.amount });
 
-      // Build account metas (order matches ACCOUNTS_TOPUP_INSURANCE)
+      // Build account metas (order matches ACCOUNTS_TOPUP_INSURANCE: 6 accounts)
       const keys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [
         ctx.payer.publicKey, // user
         slabPk, // slab
         userAta, // userAta
         mktConfig.vaultPubkey, // vault
         WELL_KNOWN.tokenProgram, // tokenProgram
+        WELL_KNOWN.clock, // clock
       ]);
 
       const ix = buildIx({
