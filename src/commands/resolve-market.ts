@@ -3,7 +3,7 @@ import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
 import { encodeResolveMarket } from "../abi/instructions.js";
-import { ACCOUNTS_RESOLVE_MARKET, buildAccountMetas } from "../abi/accounts.js";
+import { ACCOUNTS_RESOLVE_MARKET, buildAccountMetas, WELL_KNOWN } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
 
@@ -12,17 +12,21 @@ export function registerResolveMarket(program: Command): void {
     .command("resolve-market")
     .description("Resolve binary market (admin only, requires oracle price to be set)")
     .requiredOption("--slab <pubkey>", "Slab account public key")
+    .requiredOption("--oracle <pubkey>", "Price oracle account")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
+      const oraclePk = validatePublicKey(opts.oracle, "--oracle");
 
       const ixData = encodeResolveMarket();
       const keys = buildAccountMetas(ACCOUNTS_RESOLVE_MARKET, [
-        ctx.payer.publicKey,
-        slabPk,
+        ctx.payer.publicKey, // admin (signer)
+        slabPk, // slab (writable)
+        WELL_KNOWN.clock, // clock
+        oraclePk, // oracle
       ]);
 
       const ix = buildIx({

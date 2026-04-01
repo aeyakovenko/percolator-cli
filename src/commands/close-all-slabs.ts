@@ -3,10 +3,14 @@ import { PublicKey, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
+import { parseConfig } from "../solana/slab.js";
+import { getAta } from "../solana/ata.js";
+import { deriveVaultAuthority } from "../solana/pda.js";
 import { encodeCloseSlab } from "../abi/instructions.js";
 import {
   ACCOUNTS_CLOSE_SLAB,
   buildAccountMetas,
+  WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx } from "../runtime/tx.js";
 
@@ -82,10 +86,18 @@ export function registerCloseAllSlabs(program: Command): void {
 
       for (const { pubkey, account } of toClose) {
         try {
+          const mktConfig = parseConfig(account.data);
+          const [vaultAuth] = deriveVaultAuthority(ctx.programId, pubkey);
+          const destAta = await getAta(ctx.payer.publicKey, mktConfig.collateralMint);
+
           const ixData = encodeCloseSlab();
           const keys = buildAccountMetas(ACCOUNTS_CLOSE_SLAB, [
-            ctx.payer.publicKey,
-            pubkey,
+            ctx.payer.publicKey, // dest (signer, writable)
+            pubkey, // slab (writable)
+            mktConfig.vaultPubkey, // vault (writable)
+            vaultAuth, // vaultAuth
+            destAta, // destAta (writable)
+            WELL_KNOWN.tokenProgram, // tokenProgram
           ]);
 
           const ix = buildIx({

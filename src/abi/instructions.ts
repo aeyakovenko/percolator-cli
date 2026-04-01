@@ -77,6 +77,9 @@ export interface InitMarketArgs {
   liquidationFeeCap: bigint | string;
   liquidationBufferBps: bigint | string;
   minLiquidationAbs: bigint | string;
+  minInitialDeposit: bigint | string;
+  minNonzeroMmReq: bigint | string;
+  minNonzeroImReq: bigint | string;
 }
 
 /**
@@ -121,6 +124,9 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encU128(args.liquidationFeeCap),
     encU64(args.liquidationBufferBps),
     encU128(args.minLiquidationAbs),
+    encU128(args.minInitialDeposit),
+    encU128(args.minNonzeroMmReq),
+    encU128(args.minNonzeroImReq),
   ]);
 }
 
@@ -188,18 +194,23 @@ export function encodeWithdrawCollateral(args: WithdrawCollateralArgs): Buffer {
 /**
  * KeeperCrank instruction data (4+ bytes)
  * Two-phase crank: candidates computed off-chain, passed as u16 array.
+ * format_version 0: legacy (bare u16 indices, all FullClose)
+ * format_version 1: extended (u16 idx + u8 policy_tag per candidate)
  */
 export interface KeeperCrankArgs {
   callerIdx: number;
-  allowPanic: boolean;
-  candidates?: number[];  // Off-chain computed account indices
+  allowPanic?: boolean;  // Deprecated alias for format_version=0. Use candidates array.
+  candidates?: number[];  // Off-chain computed account indices (format_version=0, FullClose)
 }
 
 export function encodeKeeperCrank(args: KeeperCrankArgs): Buffer {
+  // format_version is always 0 (legacy bare u16 indices).
+  // The old "allowPanic" field was a misnomer — it maps to format_version.
+  // format_version=1 (extended) is not supported by this encoder.
   const parts: Buffer[] = [
     encU8(IX_TAG.KeeperCrank),
     encU16(args.callerIdx),
-    encU8(args.allowPanic ? 1 : 0),
+    encU8(0), // format_version=0 (legacy)
   ];
   if (args.candidates) {
     for (const idx of args.candidates) {

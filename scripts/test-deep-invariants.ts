@@ -93,13 +93,14 @@ async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: n
       admin: payer.publicKey, collateralMint: NATIVE_MINT,
       indexFeedId: "0".repeat(64), maxStalenessSecs: "3600", confFilterBps: 500,
       invert: 0, unitScale: 0, initialMarkPriceE6: initialPrice,
-      maxMaintenanceFeePerSlot: "1000000000", maxInsuranceFloor: "10000000000000000000",
+      maxMaintenanceFeePerSlot: "1000000000", maxInsuranceFloor: "10000000000000000",
       minOraclePriceCapE2bps: "0",
       warmupPeriodSlots: "1", maintenanceMarginBps: "500", initialMarginBps: "1000",
       tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "1000000",
       insuranceFloor: "0", maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "100000",
+      minInitialDeposit: "1000000", minNonzeroMmReq: "100000", minNonzeroImReq: "200000",
     }),
   }));
   await send(t2, [payer]);
@@ -165,7 +166,7 @@ async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: n
     { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
   ], data: mBuf });
   t6.add(buildIx({ programId: PROGRAM_ID,
-    keys: buildAccountMetas(ACCOUNTS_INIT_LP, [payer.publicKey, slab.publicKey, ata.address, vault, TOKEN_PROGRAM_ID]),
+    keys: buildAccountMetas(ACCOUNTS_INIT_LP, [payer.publicKey, slab.publicKey, ata.address, vault, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]),
     data: encodeInitLP({ matcherProgram: MATCHER_PROGRAM_ID, matcherContext: matcherCtx.publicKey, feePayment: "2000000" }),
   }));
   await send(t6, [payer, matcherCtx]);
@@ -183,7 +184,7 @@ async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: n
   if (insuranceSOL > 0) {
     const t8 = new Transaction();
     t8.add(buildIx({ programId: PROGRAM_ID,
-      keys: buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [payer.publicKey, slab.publicKey, ata.address, vault, TOKEN_PROGRAM_ID]),
+      keys: buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [payer.publicKey, slab.publicKey, ata.address, vault, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]),
       data: encodeTopUpInsurance({ amount: (insuranceSOL * 1e9).toString() }),
     }));
     await send(t8, [payer]);
@@ -196,7 +197,7 @@ async function createUser(slabPk: PublicKey, vault: PublicKey, ata: PublicKey, d
   const t1 = new Transaction();
   t1.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
   t1.add(buildIx({ programId: PROGRAM_ID,
-    keys: buildAccountMetas(ACCOUNTS_INIT_USER, [payer.publicKey, slabPk, ata, vault, TOKEN_PROGRAM_ID]),
+    keys: buildAccountMetas(ACCOUNTS_INIT_USER, [payer.publicKey, slabPk, ata, vault, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]),
     data: encodeInitUser({ feePayment: "1000000" }),
   }));
   await send(t1, [payer]);

@@ -3,10 +3,13 @@
  * Usage: SOLANA_RPC_URL=... npx tsx scripts/close-slabs.ts <slab1> [slab2] ...
  */
 import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction, ComputeBudgetProgram } from "@solana/web3.js";
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as fs from "fs";
 import { encodeCloseSlab } from "../src/abi/instructions.js";
 import { ACCOUNTS_CLOSE_SLAB, buildAccountMetas } from "../src/abi/accounts.js";
 import { buildIx } from "../src/runtime/tx.js";
+import { parseConfig } from "../src/solana/slab.js";
+import { deriveVaultAuthority } from "../src/solana/pda.js";
 
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
@@ -22,8 +25,19 @@ async function closeSlab(slabPubkey: PublicKey) {
   }
   console.log(`  ${slabPubkey.toBase58()}: ${info.lamports / 1e9} SOL, owner=${info.owner.toBase58()}`);
 
+  const mktConfig = parseConfig(Buffer.from(info.data));
+  const [vaultAuth] = deriveVaultAuthority(PROGRAM_ID, slabPubkey);
+  const destAta = await getAssociatedTokenAddress(mktConfig.collateralMint, payer.publicKey);
+
   const data = encodeCloseSlab();
-  const keys = buildAccountMetas(ACCOUNTS_CLOSE_SLAB, [payer.publicKey, slabPubkey]);
+  const keys = buildAccountMetas(ACCOUNTS_CLOSE_SLAB, [
+    payer.publicKey,           // dest (signer, writable)
+    slabPubkey,                // slab (writable)
+    mktConfig.vaultPubkey,     // vault (writable)
+    vaultAuth,                 // vaultAuth
+    destAta,                   // destAta (writable)
+    TOKEN_PROGRAM_ID,          // tokenProgram
+  ]);
   const tx = new Transaction();
   tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }));
   tx.add(buildIx({ programId: PROGRAM_ID, keys, data }));

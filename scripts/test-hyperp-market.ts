@@ -141,7 +141,7 @@ async function main() {
     unitScale: 0,
     initialMarkPriceE6: INITIAL_MARK_PRICE.toString(), // Required for Hyperp
     maxMaintenanceFeePerSlot: "1000000000",  // Per-market admin limit
-    maxInsuranceFloor: "10000000000000000000", // Per-market admin limit
+    maxInsuranceFloor: "10000000000000000", // Per-market admin limit (MAX_VAULT_TVL)
     minOraclePriceCapE2bps: "0",             // No floor
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",
@@ -156,6 +156,9 @@ async function main() {
     liquidationFeeCap: "1000000000",
     liquidationBufferBps: "50",
     minLiquidationAbs: "100000",
+    minInitialDeposit: "1000000",
+    minNonzeroMmReq: "100000",
+    minNonzeroImReq: "200000",
   });
 
   const initMarketKeys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
@@ -202,7 +205,7 @@ async function main() {
 
   // Top up insurance
   const insData = encodeTopUpInsurance({ amount: Math.floor(0.05 * LAMPORTS_PER_SOL).toString() });
-  const insKeys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [payer.publicKey, slab.publicKey, adminAta.address, vault, TOKEN_PROGRAM_ID]);
+  const insKeys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [payer.publicKey, slab.publicKey, adminAta.address, vault, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]);
   const insTx = new Transaction();
   insTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
   insTx.add(buildIx({ programId: PROGRAM_ID, keys: insKeys, data: insData }));
@@ -229,7 +232,7 @@ async function main() {
     matcherContext: matcherCtx.publicKey,
     feePayment: "1000000",
   });
-  const initLpKeys = buildAccountMetas(ACCOUNTS_INIT_LP, [payer.publicKey, slab.publicKey, adminAta.address, vault, TOKEN_PROGRAM_ID]);
+  const initLpKeys = buildAccountMetas(ACCOUNTS_INIT_LP, [payer.publicKey, slab.publicKey, adminAta.address, vault, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]);
   const initLpTx = new Transaction();
   initLpTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
   initLpTx.add(buildIx({ programId: PROGRAM_ID, keys: initLpKeys, data: initLpData }));
@@ -316,7 +319,7 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
   // Create user
   const userBefore = new Set(parseUsedIndices(data));
   const initUserData = encodeInitUser({ feePayment: "1000000" });
-  const initUserKeys = buildAccountMetas(ACCOUNTS_INIT_USER, [payer.publicKey, slab, adminAta.address, vault, TOKEN_PROGRAM_ID]);
+  const initUserKeys = buildAccountMetas(ACCOUNTS_INIT_USER, [payer.publicKey, slab, adminAta.address, vault, TOKEN_PROGRAM_ID, SYSVAR_CLOCK_PUBKEY]);
   const initUserTx = new Transaction();
   initUserTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
   initUserTx.add(buildIx({ programId: PROGRAM_ID, keys: initUserKeys, data: initUserData }));
@@ -448,6 +451,8 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
   const resolveKeys = buildAccountMetas(ACCOUNTS_RESOLVE_MARKET, [
     payer.publicKey,
     slab,
+    SYSVAR_CLOCK_PUBKEY,
+    payer.publicKey, // oracle (unused for Hyperp mode)
   ]);
   const resolveTx = new Transaction();
   resolveTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
@@ -575,6 +580,10 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
     const closeSlabKeys = buildAccountMetas(ACCOUNTS_CLOSE_SLAB, [
       payer.publicKey,
       slab,
+      vault,
+      vaultPda,
+      adminAta.address,
+      TOKEN_PROGRAM_ID,
     ]);
     const closeSlabTx = new Transaction();
     closeSlabTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));

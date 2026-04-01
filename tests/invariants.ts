@@ -217,7 +217,6 @@ export class InvariantChecker {
     // backed by the vault but not reflected in capital. After two-pass settlement
     // (settle_loss_only before settle_warmup_to_capital), the haircut is 1:1 so
     // no value is destroyed — it just hasn't converted yet due to warmup timing.
-    // feeRevenue is a cumulative counter, not additive vault funds.
     const totalInSlab = totalUserCapital + engine.insuranceFund.balance + engine.pnlPosTot;
 
     // Get actual vault balance

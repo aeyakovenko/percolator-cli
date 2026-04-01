@@ -172,7 +172,6 @@ async function main() {
       insuranceFund: {
         balance: engine.insuranceFund.balance.toString(),
         balanceSol: Number(engine.insuranceFund.balance) / 1e9,
-        feeRevenue: engine.insuranceFund.feeRevenue.toString(),
       },
       currentSlot: engine.currentSlot.toString(),
       fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),

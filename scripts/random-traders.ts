@@ -381,6 +381,7 @@ async function initTraders(): Promise<void> {
       userAta.address,
       VAULT,
       TOKEN_PROGRAM_ID,
+      SYSVAR_CLOCK_PUBKEY,
     ]);
 
     const initTx = new Transaction();

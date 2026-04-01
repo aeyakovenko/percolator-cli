@@ -183,7 +183,7 @@ async function main() {
     unitScale: 0,
     initialMarkPriceE6: "0",         // Not Hyperp mode, so this is ignored
     maxMaintenanceFeePerSlot: "1000000000",  // Per-market admin limit
-    maxInsuranceFloor: "10000000000000000000", // Per-market admin limit
+    maxInsuranceFloor: "10000000000000000", // Per-market admin limit (MAX_VAULT_TVL)
     minOraclePriceCapE2bps: "0",             // No floor
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",     // 5% maintenance margin
@@ -198,6 +198,9 @@ async function main() {
     liquidationFeeCap: "1000000000", // 1000 token cap
     liquidationBufferBps: "50",      // 0.5% buffer
     minLiquidationAbs: "100000",     // 0.1 token minimum
+    minInitialDeposit: "1000000",   // 1 token minimum initial deposit
+    minNonzeroMmReq: "100000",     // 0.1 token min MM requirement
+    minNonzeroImReq: "200000",     // 0.2 token min IM requirement
   });
 
   const initMarketKeys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
@@ -324,6 +327,7 @@ async function main() {
     adminAta.address,
     vault,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const initLpTx = new Transaction();
@@ -359,6 +363,7 @@ async function main() {
     adminAta.address,
     vault,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const topupTx = new Transaction();

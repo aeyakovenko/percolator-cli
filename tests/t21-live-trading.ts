@@ -229,6 +229,10 @@ async function setupMarket(
     confFilterBps: 500,
     invert: inverted ? 1 : 0,  // Key difference: 1 for inverted
     unitScale: 0,
+    initialMarkPriceE6: "0",
+    maxMaintenanceFeePerSlot: "1000000000",
+    maxInsuranceFloor: "10000000000000000",
+    minOraclePriceCapE2bps: "0",
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",
@@ -242,6 +246,9 @@ async function setupMarket(
     liquidationFeeCap: "1000000000",
     liquidationBufferBps: "50",
     minLiquidationAbs: "100000",
+    minInitialDeposit: "1000000",
+    minNonzeroMmReq: "100000",
+    minNonzeroImReq: "200000",
   });
 
   const initMarketKeys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
@@ -320,6 +327,7 @@ async function initUser(
     participant.ata,
     market.vault,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const tx = new Transaction();
@@ -384,6 +392,7 @@ async function initLpWithMatcher(
     participant.ata,
     market.vault,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const tx = new Transaction();
@@ -435,6 +444,7 @@ async function topUpInsurance(
     participant.ata,
     market.vault,
     TOKEN_PROGRAM_ID,
+    SYSVAR_CLOCK_PUBKEY,
   ]);
 
   const tx = new Transaction();

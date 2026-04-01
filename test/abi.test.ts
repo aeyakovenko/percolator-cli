@@ -209,16 +209,15 @@ console.log("\nTesting instruction encoders...\n");
 }
 
 // Test KeeperCrank encoding (4 bytes: tag + u16 + u8)
-// Note: fundingRate is now computed on-chain, no longer passed in instruction
+// format_version is always 0 (legacy bare u16 indices)
 {
   const data = encodeKeeperCrank({
     callerIdx: 1,
-    allowPanic: true,
   });
   assert(data.length === 4, "KeeperCrank length");
   assert(data[0] === IX_TAG.KeeperCrank, "KeeperCrank tag byte");
   assertBuf(data.subarray(1, 3), [1, 0], "KeeperCrank callerIdx");
-  assert(data[3] === 1, "KeeperCrank allowPanic");
+  assert(data[3] === 0, "KeeperCrank format_version=0");
   console.log("✓ encodeKeeperCrank");
 }
 
@@ -355,8 +354,11 @@ console.log("\nTesting instruction encoders...\n");
     liquidationFeeCap: "10000000",
     liquidationBufferBps: "50",
     minLiquidationAbs: "1000000",
+    minInitialDeposit: "1000000",
+    minNonzeroMmReq: "100000",
+    minNonzeroImReq: "200000",
   });
-  assert(data.length === 304, `InitMarket length: expected 304, got ${data.length}`);
+  assert(data.length === 352, `InitMarket length: expected 352, got ${data.length}`);
   assert(data[0] === IX_TAG.InitMarket, "InitMarket tag byte");
   console.log("✓ encodeInitMarket");
 }

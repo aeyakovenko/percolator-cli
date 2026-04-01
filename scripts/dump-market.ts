@@ -205,7 +205,6 @@ async function main() {
       vault: { raw: engine.vault.toString(), sol: sol(engine.vault) },
       insuranceFund: {
         balance: { raw: insurance.toString(), sol: sol(insurance) },
-        feeRevenue: { raw: engine.insuranceFund.feeRevenue.toString(), sol: sol(engine.insuranceFund.feeRevenue) },
         threshold: { raw: threshold.toString(), sol: sol(threshold) },
         surplus: { raw: surplus.toString(), sol: sol(surplus) },
       },

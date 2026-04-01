@@ -13,8 +13,13 @@ const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
 //               oracle_authority(32) + authority_price_e6(8) + authority_timestamp(8) +
 //               oracle_price_cap_e2bps(8) + last_effective_price_e6(8) +
 //               max_maintenance_fee_per_slot(16) + max_insurance_floor(16) +
-//               min_oracle_price_cap_e2bps(8) + _limits_reserved(8)
-const CONFIG_LEN = 368;
+//               min_oracle_price_cap_e2bps(8) +
+//               insurance_withdraw_max_bps(2) + _iw_padding(6) +
+//               insurance_withdraw_cooldown_slots(8) + _iw_padding2(8) +
+//               max_insurance_floor_change_per_day(16) +
+//               resolution_slot(8) + last_hyperp_index_slot(8) +
+//               last_mark_push_slot(16) + last_insurance_withdraw_slot(8) + _liw_padding(8)
+const CONFIG_LEN = 448;
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 // Flag bits in header._padding[0] at offset 13
@@ -74,6 +79,14 @@ export interface MarketConfig {
   maxMaintenanceFeePerSlot: bigint;
   maxInsuranceFloor: bigint;
   minOraclePriceCapE2bps: bigint;
+  // Insurance withdrawal limits
+  insuranceWithdrawMaxBps: number;
+  insuranceWithdrawCooldownSlots: bigint;
+  maxInsuranceFloorChangePerDay: bigint;
+  resolutionSlot: bigint;
+  lastHyperpIndexSlot: bigint;
+  lastMarkPushSlot: bigint;
+  lastInsuranceWithdrawSlot: bigint;
 }
 
 /**
@@ -228,7 +241,35 @@ export function parseConfig(data: Buffer): MarketConfig {
   off += 16;
 
   const minOraclePriceCapE2bps = data.readBigUInt64LE(off);
-  // off += 8; // _limits_reserved follows but we don't parse it
+  off += 8;
+
+  // Insurance withdrawal limits (replaces old _limits_reserved)
+  const insuranceWithdrawMaxBps = data.readUInt16LE(off);
+  off += 2;
+
+  // _iw_padding (6 bytes)
+  off += 6;
+
+  const insuranceWithdrawCooldownSlots = data.readBigUInt64LE(off);
+  off += 8;
+
+  // _iw_padding2 (8 bytes)
+  off += 8;
+
+  const maxInsuranceFloorChangePerDay = readU128LE(data, off);
+  off += 16;
+
+  const resolutionSlot = data.readBigUInt64LE(off);
+  off += 8;
+
+  const lastHyperpIndexSlot = data.readBigUInt64LE(off);
+  off += 8;
+
+  const lastMarkPushSlot = readU128LE(data, off);
+  off += 16;
+
+  const lastInsuranceWithdrawSlot = data.readBigUInt64LE(off);
+  // off += 8; // _liw_padding follows but we don't parse it
 
   return {
     collateralMint,
@@ -260,6 +301,13 @@ export function parseConfig(data: Buffer): MarketConfig {
     maxMaintenanceFeePerSlot,
     maxInsuranceFloor,
     minOraclePriceCapE2bps,
+    insuranceWithdrawMaxBps,
+    insuranceWithdrawCooldownSlots,
+    maxInsuranceFloorChangePerDay,
+    resolutionSlot,
+    lastHyperpIndexSlot,
+    lastMarkPushSlot,
+    lastInsuranceWithdrawSlot,
   };
 }
 
@@ -284,7 +332,7 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 }
 
 // =============================================================================
-// RiskParams Layout (176 bytes, repr(C) with 8-byte alignment on SBF)
+// RiskParams Layout (192 bytes, repr(C) with 8-byte alignment on SBF)
 // Note: SBF target uses 8-byte alignment for u128, not 16-byte
 //
 // Fields:
@@ -303,7 +351,8 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 //   min_initial_deposit: U128        @ 128  (16 bytes)
 //   min_nonzero_mm_req: u128         @ 144  (16 bytes)
 //   min_nonzero_im_req: u128         @ 160  (16 bytes)
-// Total: 176 bytes
+//   insurance_floor: U128            @ 176  (16 bytes)
+// Total: 192 bytes
 // =============================================================================
 const PARAMS_WARMUP_PERIOD_OFF = 0;             // u64
 const PARAMS_MAINTENANCE_MARGIN_OFF = 8;        // u64
@@ -320,7 +369,8 @@ const PARAMS_MIN_LIQUIDATION_OFF = 112;         // U128 (16 bytes)
 const PARAMS_MIN_INITIAL_DEPOSIT_OFF = 128;     // U128 (16 bytes)
 const PARAMS_MIN_NONZERO_MM_REQ_OFF = 144;      // u128 (16 bytes)
 const PARAMS_MIN_NONZERO_IM_REQ_OFF = 160;      // u128 (16 bytes)
-const PARAMS_SIZE = 176;
+const PARAMS_INSURANCE_FLOOR_OFF = 176;         // U128 (16 bytes)
+const PARAMS_SIZE = 192;
 
 // =============================================================================
 // Account Layout (280 bytes, repr(C), SBF 8-byte alignment)
@@ -370,12 +420,12 @@ const BITMAP_WORDS = 64;
 // =============================================================================
 // RiskEngine Layout (repr(C), SBF 8-byte alignment for u128/i128)
 //
-// ENGINE_OFF = align_up(HEADER_LEN + CONFIG_LEN, 8) = align_up(72 + 368, 8) = 440
+// ENGINE_OFF = align_up(HEADER_LEN + CONFIG_LEN, 8) = align_up(72 + 448, 8) = 520
 //
 // Fields:
 //   vault: U128                          @     0  (16 bytes)
-//   insurance_fund: { U128, U128 }       @    16  (32 bytes)
-//   params: RiskParams                   @    48  (176 bytes)
+//   insurance_fund: { U128 }              @    16  (16 bytes)
+//   params: RiskParams                   @    32  (192 bytes)
 //   current_slot: u64                    @   224  (8 bytes)
 //   funding_rate_bps_per_slot_last: i64  @   232  (8 bytes)
 //   last_crank_slot: u64                 @   240  (8 bytes)
@@ -426,13 +476,13 @@ const BITMAP_WORDS = 64;
 //   accounts: [Account; 4096]            @  9336  (4096 * 280 = 1146880 bytes)
 //
 // Total engine size: 9336 + 1146880 = 1156216
-// SLAB_LEN = ENGINE_OFF + engine_size = 440 + 1156216 = 1156656
+// SLAB_LEN = ENGINE_OFF + engine_size = 520 + 1156216 = 1156736
 // =============================================================================
-const ENGINE_OFF = 440;
+const ENGINE_OFF = 520;
 
 const ENGINE_VAULT_OFF = 0;                          // U128 (16 bytes)
-const ENGINE_INSURANCE_OFF = 16;                     // InsuranceFund { U128, U128 } (32 bytes)
-const ENGINE_PARAMS_OFF = 48;                        // RiskParams (176 bytes)
+const ENGINE_INSURANCE_OFF = 16;                     // InsuranceFund { U128 } (16 bytes)
+const ENGINE_PARAMS_OFF = 32;                        // RiskParams (192 bytes)
 const ENGINE_CURRENT_SLOT_OFF = 224;                 // u64
 const ENGINE_FUNDING_RATE_BPS_OFF = 232;             // i64
 const ENGINE_LAST_CRANK_SLOT_OFF = 240;              // u64
@@ -489,7 +539,6 @@ const ENGINE_ACCOUNTS_OFF = 9336;                    // accounts: [Account; 4096
 
 export interface InsuranceFund {
   balance: bigint;
-  feeRevenue: bigint;
 }
 
 export interface RiskParams {
@@ -508,6 +557,7 @@ export interface RiskParams {
   minInitialDeposit: bigint;
   minNonzeroMmReq: bigint;
   minNonzeroImReq: bigint;
+  insuranceFloor: bigint;
 }
 
 export enum SideMode {
@@ -638,6 +688,7 @@ export function parseParams(data: Buffer): RiskParams {
     minInitialDeposit: readU128LE(data, base + PARAMS_MIN_INITIAL_DEPOSIT_OFF),
     minNonzeroMmReq: readU128LE(data, base + PARAMS_MIN_NONZERO_MM_REQ_OFF),
     minNonzeroImReq: readU128LE(data, base + PARAMS_MIN_NONZERO_IM_REQ_OFF),
+    insuranceFloor: readU128LE(data, base + PARAMS_INSURANCE_FLOOR_OFF),
   };
 }
 
@@ -654,7 +705,6 @@ export function parseEngine(data: Buffer): EngineState {
     vault: readU128LE(data, base + ENGINE_VAULT_OFF),
     insuranceFund: {
       balance: readU128LE(data, base + ENGINE_INSURANCE_OFF),
-      feeRevenue: readU128LE(data, base + ENGINE_INSURANCE_OFF + 16),
     },
     currentSlot: data.readBigUInt64LE(base + ENGINE_CURRENT_SLOT_OFF),
     fundingRateBpsPerSlotLast: data.readBigInt64LE(base + ENGINE_FUNDING_RATE_BPS_OFF),
