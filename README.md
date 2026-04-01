@@ -44,138 +44,34 @@ Or use command-line flags:
 - `--json` - Output in JSON format
 - `--simulate` - Simulate transaction without sending
 
-## Devnet Test Market
-
-A live inverted SOL/USD market is available on devnet for testing. This market uses Chainlink's live SOL/USD oracle and has a funded LP with a 50bps passive matcher.
-
-### Market Details
+## Devnet
 
 ```
 Program:        2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp (percolator-prog)
 Matcher:        4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy (percolator-match)
-Slab:           CRvxsB9EGG7N9Ry2GUkQ3zSavXrWEHzdWUyPgc3brt1D
-Mint:           So11111111111111111111111111111111111111112 (Wrapped SOL)
-Vault:          3NR6Qh1DApeLbsg3bpqcR6bS53tjGHovChTcpYLzkNKA
-Vault PDA:      2aQxbALvcvPwSStZkB1Bd5g8TsKiC8tUvB6ANX9Nk3gE
-Oracle:         99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (Chainlink SOL/USD)
-Type:           INVERTED (price = 1/SOL in USD terms)
-
-LP 0 (Passive Matcher - 50bps spread):
-  Index:        0
-  PDA:          CppF7KGJf757QHM6fnMwgCVP1JJ4jZBvXmn75gbuFvWa
-  Matcher Ctx:  EZMQHpKnNFs5tpnfDUxt8ib9eW1W9gcWkBN5Hmoemivw
-  Collateral:   1 SOL
-
-Insurance Fund: 1 SOL
-
-Risk Parameters:
-  Maintenance Margin: 5%
-  Initial Margin:     10%
-  Trading Fee:        10 bps (0.1%)
+Chainlink:      99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (SOL/USD)
 ```
 
-### Working Features
-
-All operations work on the test market:
-
-1. **Initialize user account**: Create a new trading account
-2. **Deposit collateral**: Add tokens to your account
-3. **Withdraw collateral**: Remove tokens (if no open positions)
-4. **Keeper crank**: Update funding and mark prices
-5. **Trading**: Execute trades via `trade-nocpi` or `trade-cpi`
-
-### Important: Keeper Crank Requirement
-
-Risk-increasing trades require a **recent keeper crank**. The crank must have run within the last 200 slots (~80 seconds) for both:
-- Fresh crank check: `last_crank_slot` must be recent
-- Recent sweep check: `last_full_sweep_start_slot` must be recent
-
-The sweep starts at crank step 0 of a 16-step cycle. To ensure trades work, run the keeper crank immediately before trading, or run a keeper bot that cranks frequently.
+### Create a Test Market
 
 ```bash
-# Run keeper crank before trading
-percolator-cli keeper-crank \
-  --slab <slab-pubkey> \
-  --oracle <oracle-pubkey>
+npx tsx scripts/setup-devnet-market.ts
 ```
 
-### Testing User Operations
-
-#### Step 1: Get devnet SOL
+### Preflight Test (84 checks)
 
 ```bash
-solana airdrop 2 --url devnet
+SOLANA_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_KEY npx tsx tests/preflight.ts
 ```
 
-#### Step 2: Wrap SOL for collateral
+See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details.
 
-The market uses wrapped SOL as collateral. Wrap your devnet SOL:
+### Keeper Crank
 
-```bash
-# Create wrapped SOL account and wrap 1 SOL
-spl-token wrap 1 --url devnet
-```
-
-#### Step 3: Initialize your user account
+Risk-increasing trades require a recent keeper crank (within 200 slots).
 
 ```bash
-# Initialize user account (costs 0.001 SOL fee)
-percolator-cli init-user --slab CRvxsB9EGG7N9Ry2GUkQ3zSavXrWEHzdWUyPgc3brt1D
-```
-
-#### Step 4: Deposit collateral
-
-```bash
-# Deposit 0.05 SOL (50000000 lamports in 9 decimal format)
-percolator-cli deposit \
-  --slab CRvxsB9EGG7N9Ry2GUkQ3zSavXrWEHzdWUyPgc3brt1D \
-  --user-idx <your-idx> \
-  --amount 50000000
-```
-
-### Check Best Prices
-
-Before trading, you can scan available LPs to find the best prices:
-
-```bash
-percolator-cli best-price \
-  --slab CRvxsB9EGG7N9Ry2GUkQ3zSavXrWEHzdWUyPgc3brt1D \
-  --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
-```
-
-This shows:
-- All LPs with their bid/ask quotes
-- Best buy price (lowest ask)
-- Best sell price (highest bid)
-- Effective spread
-
-### Trading
-
-After depositing collateral, you can trade against the LP. Run a keeper crank first to ensure the sweep is fresh:
-
-```bash
-# Step 1: Run keeper crank (ensures sweep is fresh)
-percolator-cli keeper-crank \
-  --slab CRvxsB9EGG7N9Ry2GUkQ3zSavXrWEHzdWUyPgc3brt1D \
-  --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
-
-# Step 2: Trade via the 50bps matcher (long 1000 units)
-percolator-cli trade-cpi \
-  --slab CRvxsB9EGG7N9Ry2GUkQ3zSavXrWEHzdWUyPgc3brt1D \
-  --user-idx <your-idx> \
-  --lp-idx 0 \
-  --size 1000 \
-  --matcher-program 4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy \
-  --matcher-ctx EZMQHpKnNFs5tpnfDUxt8ib9eW1W9gcWkBN5Hmoemivw \
-  --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
-
-# Or use trade-nocpi for direct trading without matcher
-percolator-cli trade-nocpi \
-  --slab CRvxsB9EGG7N9Ry2GUkQ3zSavXrWEHzdWUyPgc3brt1D \
-  --user-idx <your-idx> \
-  --lp-idx 0 \
-  --size 1000 \
-  --oracle 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
+percolator-cli keeper-crank --slab <slab-pubkey> --oracle <oracle-pubkey>
 ```
 
 ## Adding Your Own Matcher
@@ -325,9 +221,9 @@ The context data starts at offset 64 in the 320-byte account (first 64 bytes res
 ### Market Operations
 
 ```bash
-# Initialize a new market
+# Initialize a new market (see init-market --help for all params)
 percolator-cli init-market --slab <pubkey> --mint <pubkey> --vault <pubkey> \
-  --pyth-index <pubkey> --pyth-collateral <pubkey> ...
+  --index-feed-id <hex> --max-staleness-secs <n> --conf-filter-bps <n> ...
 
 # View slab state
 percolator-cli slab:get --slab <pubkey>
@@ -380,9 +276,6 @@ percolator-cli keeper-crank --slab <pubkey> --nonce <n> --oracle <pubkey>
 # Update admin
 percolator-cli update-admin --slab <pubkey> --new-admin <pubkey>
 
-# Set risk threshold
-percolator-cli set-risk-threshold --slab <pubkey> --threshold-bps <n>
-
 # Top up insurance fund
 percolator-cli topup-insurance --slab <pubkey> --amount <lamports>
 
@@ -428,15 +321,14 @@ percolator-cli set-oracle-authority --slab <pubkey> --authority 1111111111111111
 ## Testing
 
 ```bash
-# Run unit tests
+# Unit tests
 pnpm test
 
-# Run devnet integration tests
-./test-vectors.sh
+# Preflight (84 checks, needs SOLANA_RPC_URL)
+npx tsx tests/preflight.ts
 
-# Run live trading test (with PnL validation)
-npx tsx tests/t21-live-trading.ts 3           # 3 minutes, normal market
-npx tsx tests/t21-live-trading.ts 3 --inverted # 3 minutes, inverted market
+# Integration tests (T1-T11, needs SOLANA_RPC_URL)
+npx tsx tests/runner.ts
 ```
 
 ## Scripts
