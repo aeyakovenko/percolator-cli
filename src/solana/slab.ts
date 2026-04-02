@@ -18,12 +18,15 @@ const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
 //               insurance_withdraw_cooldown_slots(8) + _iw_padding2(8) +
 //               max_insurance_floor_change_per_day(16) +
 //               resolution_slot(8) + last_hyperp_index_slot(8) +
-//               last_mark_push_slot(16) + last_insurance_withdraw_slot(8) + _liw_padding(8)
-const CONFIG_LEN = 448;
+//               last_mark_push_slot(16) + last_insurance_withdraw_slot(8) + _liw_padding(8) +
+//               mark_ewma_e6(8) + mark_ewma_last_slot(8) + mark_ewma_halflife_slots(8) + _ewma_padding(8) +
+//               permissionless_resolve_stale_slots(8) + _perm_resolve_padding(8)
+const CONFIG_LEN = 496;
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 // Flag bits in header._padding[0] at offset 13
 const FLAG_RESOLVED = 1 << 0;
+const FLAG_POLICY_CONFIGURED = 1 << 1;
 
 /**
  * Slab header (72 bytes)
@@ -34,6 +37,7 @@ export interface SlabHeader {
   bump: number;
   flags: number;
   resolved: boolean;
+  policyConfigured: boolean;
   admin: PublicKey;
   nonce: bigint;
   lastThrUpdateSlot: bigint;
@@ -87,6 +91,10 @@ export interface MarketConfig {
   lastHyperpIndexSlot: bigint;
   lastMarkPushSlot: bigint;
   lastInsuranceWithdrawSlot: bigint;
+  markEwmaE6: bigint;
+  markEwmaLastSlot: bigint;
+  markEwmaHalflifeSlots: bigint;
+  permissionlessResolveStaleslots: bigint;
 }
 
 /**
@@ -131,6 +139,7 @@ export function parseHeader(data: Buffer): SlabHeader {
     bump,
     flags,
     resolved: (flags & FLAG_RESOLVED) !== 0,
+    policyConfigured: (flags & FLAG_POLICY_CONFIGURED) !== 0,
     admin,
     nonce,
     lastThrUpdateSlot,
@@ -269,7 +278,19 @@ export function parseConfig(data: Buffer): MarketConfig {
   off += 16;
 
   const lastInsuranceWithdrawSlot = data.readBigUInt64LE(off);
-  // off += 8; // _liw_padding follows but we don't parse it
+  off += 8;
+  off += 8; // _liw_padding
+
+  const markEwmaE6 = data.readBigUInt64LE(off);
+  off += 8;
+  const markEwmaLastSlot = data.readBigUInt64LE(off);
+  off += 8;
+  const markEwmaHalflifeSlots = data.readBigUInt64LE(off);
+  off += 8;
+  off += 8; // _ewma_padding
+
+  const permissionlessResolveStaleslots = data.readBigUInt64LE(off);
+  // off += 8; // _perm_resolve_padding follows
 
   return {
     collateralMint,
@@ -308,6 +329,10 @@ export function parseConfig(data: Buffer): MarketConfig {
     lastHyperpIndexSlot,
     lastMarkPushSlot,
     lastInsuranceWithdrawSlot,
+    markEwmaE6,
+    markEwmaLastSlot,
+    markEwmaHalflifeSlots,
+    permissionlessResolveStaleslots,
   };
 }
 
@@ -420,7 +445,7 @@ const BITMAP_WORDS = 64;
 // =============================================================================
 // RiskEngine Layout (repr(C), SBF 8-byte alignment for u128/i128)
 //
-// ENGINE_OFF = align_up(HEADER_LEN + CONFIG_LEN, 8) = align_up(72 + 448, 8) = 520
+// ENGINE_OFF = align_up(HEADER_LEN + CONFIG_LEN, 8) = align_up(72 + 496, 8) = 568
 //
 // Fields:
 //   vault: U128                          @     0  (16 bytes)
@@ -476,9 +501,9 @@ const BITMAP_WORDS = 64;
 //   accounts: [Account; 4096]            @  9336  (4096 * 280 = 1146880 bytes)
 //
 // Total engine size: 9336 + 1146880 = 1156216
-// SLAB_LEN = ENGINE_OFF + engine_size = 520 + 1156216 = 1156736
+// SLAB_LEN = ENGINE_OFF + engine_size = 568 + 1156216 = 1156784
 // =============================================================================
-const ENGINE_OFF = 520;
+const ENGINE_OFF = 568;
 
 const ENGINE_VAULT_OFF = 0;                          // U128 (16 bytes)
 const ENGINE_INSURANCE_OFF = 16;                     // InsuranceFund { U128 } (16 bytes)
