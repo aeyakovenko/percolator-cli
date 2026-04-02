@@ -39,6 +39,11 @@ export const IX_TAG = {
   SetInsuranceWithdrawPolicy: 22,
   WithdrawInsuranceLimited: 23,
   QueryLpFees: 24,
+  ReclaimEmptyAccount: 25,
+  SettleAccount: 26,
+  DepositFeeCredits: 27,
+  ConvertReleasedPnl: 28,
+  ResolvePermissionless: 29,
 } as const;
 
 /**
@@ -513,4 +518,44 @@ export function encodeQueryLpFees(args: QueryLpFeesArgs): Buffer {
     encU8(IX_TAG.QueryLpFees),
     encU16(args.lpIdx),
   ]);
+}
+
+/**
+ * ReclaimEmptyAccount instruction data (3 bytes)
+ * Layout: tag(1) + user_idx(2)
+ */
+export function encodeReclaimEmptyAccount(args: { userIdx: number }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.ReclaimEmptyAccount), encU16(args.userIdx)]);
+}
+
+/**
+ * SettleAccount instruction data (3 bytes)
+ * Layout: tag(1) + user_idx(2)
+ */
+export function encodeSettleAccount(args: { userIdx: number }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.SettleAccount), encU16(args.userIdx)]);
+}
+
+/**
+ * DepositFeeCredits instruction data (11 bytes)
+ * Layout: tag(1) + user_idx(2) + amount(8)
+ */
+export function encodeDepositFeeCredits(args: { userIdx: number; amount: bigint | string }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.DepositFeeCredits), encU16(args.userIdx), encU64(args.amount)]);
+}
+
+/**
+ * ConvertReleasedPnl instruction data (11 bytes)
+ * Layout: tag(1) + user_idx(2) + amount(8)
+ */
+export function encodeConvertReleasedPnl(args: { userIdx: number; amount: bigint | string }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.ConvertReleasedPnl), encU16(args.userIdx), encU64(args.amount)]);
+}
+
+/**
+ * ResolvePermissionless instruction data (1 byte)
+ * Layout: tag(1)
+ */
+export function encodeResolvePermissionless(): Buffer {
+  return encU8(IX_TAG.ResolvePermissionless);
 }

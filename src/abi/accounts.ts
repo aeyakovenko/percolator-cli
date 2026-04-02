@@ -301,6 +301,54 @@ export const ACCOUNTS_QUERY_LP_FEES: readonly AccountSpec[] = [
   { name: "slab", signer: false, writable: false },
 ] as const;
 
+/**
+ * ReclaimEmptyAccount: 2 accounts
+ */
+export const ACCOUNTS_RECLAIM_EMPTY_ACCOUNT: readonly AccountSpec[] = [
+  { name: "slab", signer: false, writable: true },
+  { name: "clock", signer: false, writable: false },
+] as const;
+
+/**
+ * SettleAccount: 3 accounts
+ */
+export const ACCOUNTS_SETTLE_ACCOUNT: readonly AccountSpec[] = [
+  { name: "slab", signer: false, writable: true },
+  { name: "clock", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
+] as const;
+
+/**
+ * DepositFeeCredits: 6 accounts
+ */
+export const ACCOUNTS_DEPOSIT_FEE_CREDITS: readonly AccountSpec[] = [
+  { name: "user", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+  { name: "userAta", signer: false, writable: true },
+  { name: "vault", signer: false, writable: true },
+  { name: "tokenProgram", signer: false, writable: false },
+  { name: "clock", signer: false, writable: false },
+] as const;
+
+/**
+ * ConvertReleasedPnl: 4 accounts
+ */
+export const ACCOUNTS_CONVERT_RELEASED_PNL: readonly AccountSpec[] = [
+  { name: "user", signer: true, writable: false },
+  { name: "slab", signer: false, writable: true },
+  { name: "clock", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
+] as const;
+
+/**
+ * ResolvePermissionless: 3 accounts
+ */
+export const ACCOUNTS_RESOLVE_PERMISSIONLESS: readonly AccountSpec[] = [
+  { name: "slab", signer: false, writable: true },
+  { name: "clock", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
+] as const;
+
 // ============================================================================
 // ACCOUNT META BUILDERS
 // ============================================================================
