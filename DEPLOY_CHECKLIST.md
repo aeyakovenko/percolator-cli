@@ -7,7 +7,7 @@ Requires `SOLANA_RPC_URL` in `.env` and ~50 SOL for multi-slab rent.
 - [x] Program accessible and executable on cluster
 
 ## 2. Market Lifecycle (6)
-- [x] InitMarket: slab=1156784 bytes, instruction data=352 bytes
+- [x] InitMarket: slab=1156800 bytes, instruction data=352 bytes
 - [x] Header: magic=PERCOLAT, admin=signer
 - [x] Config: all fields including 7 insurance/resolution fields
 - [x] Params: all 16 risk params exact match

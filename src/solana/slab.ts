@@ -20,8 +20,9 @@ const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
 //               resolution_slot(8) + last_hyperp_index_slot(8) +
 //               last_mark_push_slot(16) + last_insurance_withdraw_slot(8) + _liw_padding(8) +
 //               mark_ewma_e6(8) + mark_ewma_last_slot(8) + mark_ewma_halflife_slots(8) + _ewma_padding(8) +
-//               permissionless_resolve_stale_slots(8) + _perm_resolve_padding(8)
-const CONFIG_LEN = 496;
+//               permissionless_resolve_stale_slots(8) + _perm_resolve_padding(8) +
+//               mark_min_fee(8) + force_close_delay_slots(8)
+const CONFIG_LEN = 512;
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 // Flag bits in header._padding[0] at offset 13
@@ -95,6 +96,8 @@ export interface MarketConfig {
   markEwmaLastSlot: bigint;
   markEwmaHalflifeSlots: bigint;
   permissionlessResolveStaleslots: bigint;
+  markMinFee: bigint;
+  forceCloseDelaySlots: bigint;
 }
 
 /**
@@ -290,7 +293,12 @@ export function parseConfig(data: Buffer): MarketConfig {
   off += 8; // _ewma_padding
 
   const permissionlessResolveStaleslots = data.readBigUInt64LE(off);
-  // off += 8; // _perm_resolve_padding follows
+  off += 8;
+  off += 8; // _perm_resolve_padding
+
+  const markMinFee = data.readBigUInt64LE(off);
+  off += 8;
+  const forceCloseDelaySlots = data.readBigUInt64LE(off); // off += 8;
 
   return {
     collateralMint,
@@ -333,6 +341,8 @@ export function parseConfig(data: Buffer): MarketConfig {
     markEwmaLastSlot,
     markEwmaHalflifeSlots,
     permissionlessResolveStaleslots,
+    markMinFee,
+    forceCloseDelaySlots,
   };
 }
 
@@ -445,7 +455,7 @@ const BITMAP_WORDS = 64;
 // =============================================================================
 // RiskEngine Layout (repr(C), SBF 8-byte alignment for u128/i128)
 //
-// ENGINE_OFF = align_up(HEADER_LEN + CONFIG_LEN, 8) = align_up(72 + 496, 8) = 568
+// ENGINE_OFF = align_up(HEADER_LEN + CONFIG_LEN, 8) = align_up(72 + 512, 8) = 584
 //
 // Fields:
 //   vault: U128                          @     0  (16 bytes)
@@ -501,9 +511,9 @@ const BITMAP_WORDS = 64;
 //   accounts: [Account; 4096]            @  9336  (4096 * 280 = 1146880 bytes)
 //
 // Total engine size: 9336 + 1146880 = 1156216
-// SLAB_LEN = ENGINE_OFF + engine_size = 568 + 1156216 = 1156784
+// SLAB_LEN = ENGINE_OFF + engine_size = 584 + 1156216 = 1156800
 // =============================================================================
-const ENGINE_OFF = 568;
+const ENGINE_OFF = 584;
 
 const ENGINE_VAULT_OFF = 0;                          // U128 (16 bytes)
 const ENGINE_INSURANCE_OFF = 16;                     // InsuranceFund { U128 } (16 bytes)
