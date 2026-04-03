@@ -341,6 +341,19 @@ export const ACCOUNTS_CONVERT_RELEASED_PNL: readonly AccountSpec[] = [
 ] as const;
 
 /**
+ * ForceCloseResolved: 7 accounts
+ */
+export const ACCOUNTS_FORCE_CLOSE_RESOLVED: readonly AccountSpec[] = [
+  { name: "slab", signer: false, writable: true },
+  { name: "vault", signer: false, writable: true },
+  { name: "ownerAta", signer: false, writable: true },
+  { name: "vaultPda", signer: false, writable: false },
+  { name: "tokenProgram", signer: false, writable: false },
+  { name: "clock", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
+] as const;
+
+/**
  * ResolvePermissionless: 3 accounts
  */
 export const ACCOUNTS_RESOLVE_PERMISSIONLESS: readonly AccountSpec[] = [

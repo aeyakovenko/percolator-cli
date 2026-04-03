@@ -44,6 +44,7 @@ export const IX_TAG = {
   DepositFeeCredits: 27,
   ConvertReleasedPnl: 28,
   ResolvePermissionless: 29,
+  ForceCloseResolved: 30,
 } as const;
 
 /**
@@ -558,4 +559,12 @@ export function encodeConvertReleasedPnl(args: { userIdx: number; amount: bigint
  */
 export function encodeResolvePermissionless(): Buffer {
   return encU8(IX_TAG.ResolvePermissionless);
+}
+
+/**
+ * ForceCloseResolved instruction data (3 bytes)
+ * Layout: tag(1) + user_idx(2)
+ */
+export function encodeForceCloseResolved(args: { userIdx: number }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.ForceCloseResolved), encU16(args.userIdx)]);
 }
