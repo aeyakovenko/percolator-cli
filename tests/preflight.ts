@@ -298,11 +298,17 @@ async function main() {
   });
 
   await check("SetOraclePriceCap succeeds, config reflects cap", async () => {
+    // Set cap, verify, then disable. Non-zero cap requires a fresh external oracle for
+    // the circuit breaker baseline, which may not be available on devnet (stale Pyth).
     const data = encodeSetOraclePriceCap({ maxChangeE2bps: "500000" }); // 50%
     await tx([buildIx({ programId: PROG,
       keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_PRICE_CAP, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock]),
       data })], [payer]);
     assert(parseConfig(await fetchSlab(conn, slab.publicKey)).oraclePriceCapE2bps === 500000n, "cap");
+    // Disable cap so cranks work with authority-only pricing (no stale Pyth dependency)
+    await tx([buildIx({ programId: PROG,
+      keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_PRICE_CAP, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock]),
+      data: encodeSetOraclePriceCap({ maxChangeE2bps: "0" }) })], [payer]);
   });
 
   // ═══════════════════════════════════════════════════
