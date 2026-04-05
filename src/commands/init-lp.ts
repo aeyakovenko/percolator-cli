@@ -33,7 +33,7 @@ export function registerInitLp(program: Command): void {
       validateU128(opts.fee, "--fee");
 
       // Fetch slab config for mint, vault, oracle
-      const data = await fetchSlab(ctx.connection, slabPk);
+      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const mktConfig = parseConfig(data);
 
       // Get user's ATA for the collateral mint

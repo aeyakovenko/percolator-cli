@@ -102,14 +102,23 @@ export interface MarketConfig {
 
 /**
  * Fetch raw slab account data.
+ * When expectedOwner is provided, verifies the account is owned by the expected program
+ * to prevent spoofed slab accounts from redirecting funds.
  */
 export async function fetchSlab(
   connection: Connection,
-  slabPubkey: PublicKey
+  slabPubkey: PublicKey,
+  expectedOwner?: PublicKey
 ): Promise<Buffer> {
   const info = await connection.getAccountInfo(slabPubkey);
   if (!info) {
     throw new Error(`Slab account not found: ${slabPubkey.toBase58()}`);
+  }
+  if (expectedOwner && !info.owner.equals(expectedOwner)) {
+    throw new Error(
+      `Slab account ${slabPubkey.toBase58()} is owned by ${info.owner.toBase58()}, ` +
+      `expected ${expectedOwner.toBase58()}. This may indicate a spoofed account.`
+    );
   }
   return Buffer.from(info.data);
 }
