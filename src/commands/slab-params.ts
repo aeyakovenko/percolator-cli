@@ -33,7 +33,6 @@ export function registerSlabParams(program: Command): void {
               maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
               liquidationFeeBps: params.liquidationFeeBps.toString(),
               liquidationFeeCap: params.liquidationFeeCap.toString(),
-              liquidationBufferBps: params.liquidationBufferBps.toString(),
               minLiquidationAbs: params.minLiquidationAbs.toString(),
               minInitialDeposit: params.minInitialDeposit.toString(),
               minNonzeroMmReq: params.minNonzeroMmReq.toString(),
@@ -58,7 +57,6 @@ export function registerSlabParams(program: Command): void {
         console.log("--- Liquidation ---");
         console.log(`Liquidation Fee:         ${params.liquidationFeeBps} bps`);
         console.log(`Liquidation Fee Cap:     ${params.liquidationFeeCap}`);
-        console.log(`Liquidation Buffer:      ${params.liquidationBufferBps} bps`);
         console.log(`Min Liquidation Abs:     ${params.minLiquidationAbs}`);
         console.log("");
         console.log("--- Deposits ---");

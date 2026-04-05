@@ -41,7 +41,6 @@ async function main() {
   console.log(`  Sum PnL:         ${Number(sumPnl)/1e9} SOL`);
   console.log(`  Sum |PnL|:       ${Number(sumAbsPnl)/1e9} SOL`);
   console.log(`  Insurance:       ${Number(engine.insuranceFund.balance)/1e9} SOL`);
-  console.log(`  Insurance floor: ${Number(engine.insuranceFloor)/1e9} SOL`);
   console.log(`  Claims:          ${Number(sumCapital + engine.insuranceFund.balance)/1e9} SOL`);
   console.log(`  Open positions:  ${posCount}`);
   console.log(`  Long basis sum:  ${longPos}`);

@@ -51,7 +51,6 @@ async function main() {
 
   // Derived engine values
   const insurance = engine.insuranceFund.balance;
-  const threshold = engine.insuranceFloor;
   const surplus = insurance > threshold ? insurance - threshold : 0n;
 
   // Build accounts
@@ -197,7 +196,6 @@ async function main() {
       liquidationFeeBps: Number(params.liquidationFeeBps),
       liquidationFeePercent: pct(params.liquidationFeeBps),
       liquidationFeeCap: { raw: params.liquidationFeeCap.toString(), sol: sol(params.liquidationFeeCap) },
-      liquidationBufferBps: Number(params.liquidationBufferBps),
       minLiquidationAbs: { raw: params.minLiquidationAbs.toString(), sol: sol(params.minLiquidationAbs) },
     },
 

@@ -12,7 +12,6 @@ async function main() {
   console.log('Liquidation Parameters:');
   console.log('  Fee (bps):', params.liquidationFeeBps.toString());
   console.log('  Fee Cap:', params.liquidationFeeCap.toString());
-  console.log('  Buffer (bps):', params.liquidationBufferBps.toString());
   console.log('  Min Liquidation Abs:', params.minLiquidationAbs.toString());
   console.log('');
   console.log('Other Params:');

@@ -51,7 +51,6 @@ export function registerSlabEngine(program: Command): void {
               lastOraclePrice: engine.lastOraclePrice.toString(),
               lastMarketSlot: engine.lastMarketSlot.toString(),
               fundingPriceSampleLast: engine.fundingPriceSampleLast.toString(),
-              insuranceFloor: engine.insuranceFloor.toString(),
               numUsedAccounts: engine.numUsedAccounts,
               nextAccountId: engine.nextAccountId.toString(),
             },
@@ -63,7 +62,6 @@ export function registerSlabEngine(program: Command): void {
         console.log("--- Vault & Insurance ---");
         console.log(`Vault Balance:           ${engine.vault}`);
         console.log(`Insurance Balance:       ${engine.insuranceFund.balance}`);
-        console.log(`Insurance Floor:         ${engine.insuranceFloor}`);
         console.log("");
         console.log("--- Funding ---");
         console.log(`Funding Rate (bps/slot): ${engine.fundingRateBpsPerSlotLast}`);

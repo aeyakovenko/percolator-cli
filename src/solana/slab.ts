@@ -367,7 +367,7 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 }
 
 // =============================================================================
-// RiskParams Layout (192 bytes, repr(C) with 8-byte alignment on SBF)
+// RiskParams Layout (184 bytes, repr(C) with 8-byte alignment on SBF)
 // Note: SBF target uses 8-byte alignment for u128, not 16-byte
 //
 // Fields:
@@ -381,13 +381,12 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 //   max_crank_staleness_slots: u64   @  72  (8 bytes)
 //   liquidation_fee_bps: u64         @  80  (8 bytes)
 //   liquidation_fee_cap: U128        @  88  (16 bytes)
-//   liquidation_buffer_bps: u64      @ 104  (8 bytes)
-//   min_liquidation_abs: U128        @ 112  (16 bytes)
-//   min_initial_deposit: U128        @ 128  (16 bytes)
-//   min_nonzero_mm_req: u128         @ 144  (16 bytes)
-//   min_nonzero_im_req: u128         @ 160  (16 bytes)
-//   insurance_floor: U128            @ 176  (16 bytes)
-// Total: 192 bytes
+//   min_liquidation_abs: U128        @ 104  (16 bytes)
+//   min_initial_deposit: U128        @ 120  (16 bytes)
+//   min_nonzero_mm_req: u128         @ 136  (16 bytes)
+//   min_nonzero_im_req: u128         @ 152  (16 bytes)
+//   insurance_floor: U128            @ 168  (16 bytes)
+// Total: 184 bytes
 // =============================================================================
 const PARAMS_WARMUP_PERIOD_OFF = 0;             // u64
 const PARAMS_MAINTENANCE_MARGIN_OFF = 8;        // u64
@@ -399,13 +398,12 @@ const PARAMS_MAINTENANCE_FEE_OFF = 56;          // U128 (16 bytes)
 const PARAMS_MAX_CRANK_STALENESS_OFF = 72;      // u64
 const PARAMS_LIQUIDATION_FEE_BPS_OFF = 80;      // u64
 const PARAMS_LIQUIDATION_FEE_CAP_OFF = 88;      // U128 (16 bytes)
-const PARAMS_LIQUIDATION_BUFFER_OFF = 104;      // u64
-const PARAMS_MIN_LIQUIDATION_OFF = 112;         // U128 (16 bytes)
-const PARAMS_MIN_INITIAL_DEPOSIT_OFF = 128;     // U128 (16 bytes)
-const PARAMS_MIN_NONZERO_MM_REQ_OFF = 144;      // u128 (16 bytes)
-const PARAMS_MIN_NONZERO_IM_REQ_OFF = 160;      // u128 (16 bytes)
-const PARAMS_INSURANCE_FLOOR_OFF = 176;         // U128 (16 bytes)
-const PARAMS_SIZE = 192;
+const PARAMS_MIN_LIQUIDATION_OFF = 104;         // U128 (16 bytes)
+const PARAMS_MIN_INITIAL_DEPOSIT_OFF = 120;     // U128 (16 bytes)
+const PARAMS_MIN_NONZERO_MM_REQ_OFF = 136;      // u128 (16 bytes)
+const PARAMS_MIN_NONZERO_IM_REQ_OFF = 152;      // u128 (16 bytes)
+const PARAMS_INSURANCE_FLOOR_OFF = 168;         // U128 (16 bytes)
+const PARAMS_SIZE = 184;
 
 // =============================================================================
 // Account Layout (280 bytes, repr(C), SBF 8-byte alignment)
@@ -460,113 +458,111 @@ const BITMAP_WORDS = 64;
 // Fields:
 //   vault: U128                          @     0  (16 bytes)
 //   insurance_fund: { U128 }              @    16  (16 bytes)
-//   params: RiskParams                   @    32  (192 bytes)
-//   current_slot: u64                    @   224  (8 bytes)
-//   funding_rate_bps_per_slot_last: i64  @   232  (8 bytes)
-//   last_crank_slot: u64                 @   240  (8 bytes)
-//   max_crank_staleness_slots: u64       @   248  (8 bytes)
-//   c_tot: U128                          @   256  (16 bytes)
-//   pnl_pos_tot: u128                    @   272  (16 bytes)
-//   pnl_matured_pos_tot: u128            @   288  (16 bytes)
-//   liq_cursor: u16                      @   304  (2 bytes)
-//   gc_cursor: u16                       @   306  (2 bytes)
+//   params: RiskParams                   @    32  (184 bytes)
+//   current_slot: u64                    @   216  (8 bytes)
+//   funding_rate_bps_per_slot_last: i64  @   224  (8 bytes)
+//   last_crank_slot: u64                 @   232  (8 bytes)
+//   max_crank_staleness_slots: u64       @   240  (8 bytes)
+//   c_tot: U128                          @   248  (16 bytes)
+//   pnl_pos_tot: u128                    @   264  (16 bytes)
+//   pnl_matured_pos_tot: u128            @   280  (16 bytes)
+//   liq_cursor: u16                      @   296  (2 bytes)
+//   gc_cursor: u16                       @   298  (2 bytes)
 //   [4 bytes padding]
-//   last_full_sweep_start_slot: u64      @   312  (8 bytes)
-//   last_full_sweep_completed_slot: u64  @   320  (8 bytes)
-//   crank_cursor: u16                    @   328  (2 bytes)
-//   sweep_start_idx: u16                 @   330  (2 bytes)
+//   last_full_sweep_start_slot: u64      @   304  (8 bytes)
+//   last_full_sweep_completed_slot: u64  @   312  (8 bytes)
+//   crank_cursor: u16                    @   320  (2 bytes)
+//   sweep_start_idx: u16                 @   322  (2 bytes)
 //   [4 bytes padding]
-//   lifetime_liquidations: u64           @   336  (8 bytes)
-//   adl_mult_long: u128                  @   344  (16 bytes)
-//   adl_mult_short: u128                 @   360  (16 bytes)
-//   adl_coeff_long: i128                 @   376  (16 bytes)
-//   adl_coeff_short: i128                @   392  (16 bytes)
-//   adl_epoch_long: u64                  @   408  (8 bytes)
-//   adl_epoch_short: u64                 @   416  (8 bytes)
-//   adl_epoch_start_k_long: i128         @   424  (16 bytes)
-//   adl_epoch_start_k_short: i128        @   440  (16 bytes)
-//   oi_eff_long_q: u128                  @   456  (16 bytes)
-//   oi_eff_short_q: u128                 @   472  (16 bytes)
-//   side_mode_long: u8                   @   488  (1 byte)
-//   side_mode_short: u8                  @   489  (1 byte)
+//   lifetime_liquidations: u64           @   328  (8 bytes)
+//   adl_mult_long: u128                  @   336  (16 bytes)
+//   adl_mult_short: u128                 @   352  (16 bytes)
+//   adl_coeff_long: i128                 @   368  (16 bytes)
+//   adl_coeff_short: i128                @   384  (16 bytes)
+//   adl_epoch_long: u64                  @   400  (8 bytes)
+//   adl_epoch_short: u64                 @   408  (8 bytes)
+//   adl_epoch_start_k_long: i128         @   416  (16 bytes)
+//   adl_epoch_start_k_short: i128        @   432  (16 bytes)
+//   oi_eff_long_q: u128                  @   448  (16 bytes)
+//   oi_eff_short_q: u128                 @   464  (16 bytes)
+//   side_mode_long: u8                   @   480  (1 byte)
+//   side_mode_short: u8                  @   481  (1 byte)
 //   [6 bytes padding]
-//   stored_pos_count_long: u64           @   496  (8 bytes)
-//   stored_pos_count_short: u64          @   504  (8 bytes)
-//   stale_account_count_long: u64        @   512  (8 bytes)
-//   stale_account_count_short: u64       @   520  (8 bytes)
-//   phantom_dust_bound_long_q: u128      @   528  (16 bytes)
-//   phantom_dust_bound_short_q: u128     @   544  (16 bytes)
-//   materialized_account_count: u64      @   560  (8 bytes)
-//   last_oracle_price: u64               @   568  (8 bytes)
-//   last_market_slot: u64                @   576  (8 bytes)
-//   funding_price_sample_last: u64       @   584  (8 bytes)
-//   insurance_floor: u128                @   592  (16 bytes)
-//   used: [u64; 64]                      @   608  (512 bytes)
-//   num_used_accounts: u16               @  1120  (2 bytes)
+//   stored_pos_count_long: u64           @   488  (8 bytes)
+//   stored_pos_count_short: u64          @   496  (8 bytes)
+//   stale_account_count_long: u64        @   504  (8 bytes)
+//   stale_account_count_short: u64       @   512  (8 bytes)
+//   phantom_dust_bound_long_q: u128      @   520  (16 bytes)
+//   phantom_dust_bound_short_q: u128     @   536  (16 bytes)
+//   materialized_account_count: u64      @   552  (8 bytes)
+//   last_oracle_price: u64               @   560  (8 bytes)
+//   last_market_slot: u64                @   568  (8 bytes)
+//   funding_price_sample_last: u64       @   576  (8 bytes)
+//   used: [u64; 64]                      @   584  (512 bytes)
+//   num_used_accounts: u16               @  1096  (2 bytes)
 //   [6 bytes padding]
-//   next_account_id: u64                 @  1128  (8 bytes)
-//   free_head: u16                       @  1136  (2 bytes)
-//   next_free: [u16; 4096]               @  1138  (8192 bytes)
+//   next_account_id: u64                 @  1104  (8 bytes)
+//   free_head: u16                       @  1112  (2 bytes)
+//   next_free: [u16; 4096]               @  1114  (8192 bytes)
 //   [6 bytes padding for account alignment]
-//   accounts: [Account; 4096]            @  9336  (4096 * 280 = 1146880 bytes)
+//   accounts: [Account; 4096]            @  9312  (4096 * 280 = 1146880 bytes)
 //
-// Total engine size: 9336 + 1146880 = 1156216
-// SLAB_LEN = ENGINE_OFF + engine_size = 584 + 1156216 = 1156800
+// Total engine size: 9312 + 1146880 = 1156192
+// SLAB_LEN = ENGINE_OFF + engine_size = 584 + 1156192 = 1156776
 // =============================================================================
 const ENGINE_OFF = 584;
 
 const ENGINE_VAULT_OFF = 0;                          // U128 (16 bytes)
 const ENGINE_INSURANCE_OFF = 16;                     // InsuranceFund { U128 } (16 bytes)
-const ENGINE_PARAMS_OFF = 32;                        // RiskParams (192 bytes)
-const ENGINE_CURRENT_SLOT_OFF = 224;                 // u64
-const ENGINE_FUNDING_RATE_BPS_OFF = 232;             // i64
-const ENGINE_LAST_CRANK_SLOT_OFF = 240;              // u64
-const ENGINE_MAX_CRANK_STALENESS_OFF = 248;          // u64
-const ENGINE_C_TOT_OFF = 256;                        // U128
-const ENGINE_PNL_POS_TOT_OFF = 272;                  // u128
-const ENGINE_PNL_MATURED_POS_TOT_OFF = 288;          // u128
-const ENGINE_LIQ_CURSOR_OFF = 304;                   // u16
-const ENGINE_GC_CURSOR_OFF = 306;                    // u16
+const ENGINE_PARAMS_OFF = 32;                        // RiskParams (184 bytes)
+const ENGINE_CURRENT_SLOT_OFF = 216;                 // u64
+const ENGINE_FUNDING_RATE_BPS_OFF = 224;             // i64
+const ENGINE_LAST_CRANK_SLOT_OFF = 232;              // u64
+const ENGINE_MAX_CRANK_STALENESS_OFF = 240;          // u64
+const ENGINE_C_TOT_OFF = 248;                        // U128
+const ENGINE_PNL_POS_TOT_OFF = 264;                  // u128
+const ENGINE_PNL_MATURED_POS_TOT_OFF = 280;          // u128
+const ENGINE_LIQ_CURSOR_OFF = 296;                   // u16
+const ENGINE_GC_CURSOR_OFF = 298;                    // u16
 // 4 bytes padding
-const ENGINE_LAST_SWEEP_START_OFF = 312;             // u64
-const ENGINE_LAST_SWEEP_COMPLETE_OFF = 320;          // u64
-const ENGINE_CRANK_CURSOR_OFF = 328;                 // u16
-const ENGINE_SWEEP_START_IDX_OFF = 330;              // u16
+const ENGINE_LAST_SWEEP_START_OFF = 304;             // u64
+const ENGINE_LAST_SWEEP_COMPLETE_OFF = 312;          // u64
+const ENGINE_CRANK_CURSOR_OFF = 320;                 // u16
+const ENGINE_SWEEP_START_IDX_OFF = 322;              // u16
 // 4 bytes padding
-const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 336;        // u64
-// ADL state (already 8-byte aligned at 344)
-const ENGINE_ADL_MULT_LONG_OFF = 344;                // u128
-const ENGINE_ADL_MULT_SHORT_OFF = 360;               // u128
-const ENGINE_ADL_COEFF_LONG_OFF = 376;               // i128
-const ENGINE_ADL_COEFF_SHORT_OFF = 392;              // i128
-const ENGINE_ADL_EPOCH_LONG_OFF = 408;               // u64
-const ENGINE_ADL_EPOCH_SHORT_OFF = 416;              // u64
-const ENGINE_ADL_EPOCH_START_K_LONG_OFF = 424;       // i128
-const ENGINE_ADL_EPOCH_START_K_SHORT_OFF = 440;      // i128
-const ENGINE_OI_EFF_LONG_Q_OFF = 456;                // u128
-const ENGINE_OI_EFF_SHORT_Q_OFF = 472;               // u128
-const ENGINE_SIDE_MODE_LONG_OFF = 488;               // u8
-const ENGINE_SIDE_MODE_SHORT_OFF = 489;              // u8
+const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 328;        // u64
+// ADL state (already 8-byte aligned at 336)
+const ENGINE_ADL_MULT_LONG_OFF = 336;                // u128
+const ENGINE_ADL_MULT_SHORT_OFF = 352;               // u128
+const ENGINE_ADL_COEFF_LONG_OFF = 368;               // i128
+const ENGINE_ADL_COEFF_SHORT_OFF = 384;              // i128
+const ENGINE_ADL_EPOCH_LONG_OFF = 400;               // u64
+const ENGINE_ADL_EPOCH_SHORT_OFF = 408;              // u64
+const ENGINE_ADL_EPOCH_START_K_LONG_OFF = 416;       // i128
+const ENGINE_ADL_EPOCH_START_K_SHORT_OFF = 432;      // i128
+const ENGINE_OI_EFF_LONG_Q_OFF = 448;                // u128
+const ENGINE_OI_EFF_SHORT_Q_OFF = 464;               // u128
+const ENGINE_SIDE_MODE_LONG_OFF = 480;               // u8
+const ENGINE_SIDE_MODE_SHORT_OFF = 481;              // u8
 // 6 bytes padding
-const ENGINE_STORED_POS_COUNT_LONG_OFF = 496;        // u64
-const ENGINE_STORED_POS_COUNT_SHORT_OFF = 504;       // u64
-const ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF = 512;     // u64
-const ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF = 520;    // u64
-const ENGINE_PHANTOM_DUST_LONG_OFF = 528;            // u128
-const ENGINE_PHANTOM_DUST_SHORT_OFF = 544;           // u128
-const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 560;   // u64
-const ENGINE_LAST_ORACLE_PRICE_OFF = 568;            // u64
-const ENGINE_LAST_MARKET_SLOT_OFF = 576;             // u64
-const ENGINE_FUNDING_PRICE_SAMPLE_OFF = 584;         // u64
-const ENGINE_INSURANCE_FLOOR_OFF = 592;              // u128
-const ENGINE_BITMAP_OFF = 608;                       // [u64; 64] = 512 bytes
-const ENGINE_NUM_USED_OFF = 1120;                    // u16
+const ENGINE_STORED_POS_COUNT_LONG_OFF = 488;        // u64
+const ENGINE_STORED_POS_COUNT_SHORT_OFF = 496;       // u64
+const ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF = 504;     // u64
+const ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF = 512;    // u64
+const ENGINE_PHANTOM_DUST_LONG_OFF = 520;            // u128
+const ENGINE_PHANTOM_DUST_SHORT_OFF = 536;           // u128
+const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 552;   // u64
+const ENGINE_LAST_ORACLE_PRICE_OFF = 560;            // u64
+const ENGINE_LAST_MARKET_SLOT_OFF = 568;             // u64
+const ENGINE_FUNDING_PRICE_SAMPLE_OFF = 576;         // u64
+const ENGINE_BITMAP_OFF = 584;                       // [u64; 64] = 512 bytes
+const ENGINE_NUM_USED_OFF = 1096;                    // u16
 // 6 bytes padding
-const ENGINE_NEXT_ACCOUNT_ID_OFF = 1128;             // u64
-const ENGINE_FREE_HEAD_OFF = 1136;                   // u16
-// next_free: [u16; 4096] at 1138 (8192 bytes), ends at 9330
+const ENGINE_NEXT_ACCOUNT_ID_OFF = 1104;             // u64
+const ENGINE_FREE_HEAD_OFF = 1112;                   // u16
+// next_free: [u16; 4096] at 1114 (8192 bytes), ends at 9306
 // 6 bytes padding for Account alignment (8-byte)
-const ENGINE_ACCOUNTS_OFF = 9336;                    // accounts: [Account; 4096]
+const ENGINE_ACCOUNTS_OFF = 9312;                    // accounts: [Account; 4096]
 
 // =============================================================================
 // Interfaces
@@ -587,7 +583,6 @@ export interface RiskParams {
   maxCrankStalenessSlots: bigint;
   liquidationFeeBps: bigint;
   liquidationFeeCap: bigint;
-  liquidationBufferBps: bigint;
   minLiquidationAbs: bigint;
   minInitialDeposit: bigint;
   minNonzeroMmReq: bigint;
@@ -641,7 +636,6 @@ export interface EngineState {
   lastOraclePrice: bigint;
   lastMarketSlot: bigint;
   fundingPriceSampleLast: bigint;
-  insuranceFloor: bigint;
   numUsedAccounts: number;
   nextAccountId: bigint;
 }
@@ -718,7 +712,6 @@ export function parseParams(data: Buffer): RiskParams {
     maxCrankStalenessSlots: data.readBigUInt64LE(base + PARAMS_MAX_CRANK_STALENESS_OFF),
     liquidationFeeBps: data.readBigUInt64LE(base + PARAMS_LIQUIDATION_FEE_BPS_OFF),
     liquidationFeeCap: readU128LE(data, base + PARAMS_LIQUIDATION_FEE_CAP_OFF),
-    liquidationBufferBps: data.readBigUInt64LE(base + PARAMS_LIQUIDATION_BUFFER_OFF),
     minLiquidationAbs: readU128LE(data, base + PARAMS_MIN_LIQUIDATION_OFF),
     minInitialDeposit: readU128LE(data, base + PARAMS_MIN_INITIAL_DEPOSIT_OFF),
     minNonzeroMmReq: readU128LE(data, base + PARAMS_MIN_NONZERO_MM_REQ_OFF),
@@ -778,7 +771,6 @@ export function parseEngine(data: Buffer): EngineState {
     lastOraclePrice: data.readBigUInt64LE(base + ENGINE_LAST_ORACLE_PRICE_OFF),
     lastMarketSlot: data.readBigUInt64LE(base + ENGINE_LAST_MARKET_SLOT_OFF),
     fundingPriceSampleLast: data.readBigUInt64LE(base + ENGINE_FUNDING_PRICE_SAMPLE_OFF),
-    insuranceFloor: readU128LE(data, base + ENGINE_INSURANCE_FLOOR_OFF),
     numUsedAccounts: data.readUInt16LE(base + ENGINE_NUM_USED_OFF),
     nextAccountId: data.readBigUInt64LE(base + ENGINE_NEXT_ACCOUNT_ID_OFF),
   };
