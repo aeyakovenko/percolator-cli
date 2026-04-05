@@ -159,9 +159,9 @@ console.log("\nTesting account parsing...\n");
 
 // Constants from slab.ts for testing (keep in sync with slab.ts)
 const ENGINE_OFF = 584;
-const ENGINE_ACCOUNTS_OFF = 9336;
+const ENGINE_ACCOUNTS_OFF = 9312;
 const ACCOUNT_SIZE = 280;
-const ENGINE_BITMAP_OFF = 608;
+const ENGINE_BITMAP_OFF = 584;
 
 // Account field offsets (SBF layout, 8-byte alignment for u128/i128)
 const ACCT_ACCOUNT_ID_OFF = 0;

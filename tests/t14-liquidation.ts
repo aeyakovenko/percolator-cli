@@ -271,7 +271,6 @@ async function runT14Tests(): Promise<void> {
     console.log(`    Maintenance margin: ${params.maintenanceMarginBps} bps (${Number(params.maintenanceMarginBps) / 100}%)`);
     console.log(`    Initial margin: ${params.initialMarginBps} bps (${Number(params.initialMarginBps) / 100}%)`);
     console.log(`    Liquidation fee: ${params.liquidationFeeBps} bps (${Number(params.liquidationFeeBps) / 100}%)`);
-    console.log(`    Liquidation buffer: ${params.liquidationBufferBps} bps`);
     console.log(`    Liquidation fee cap: ${params.liquidationFeeCap}`);
     console.log(`    Min liquidation: ${params.minLiquidationAbs}`);
 

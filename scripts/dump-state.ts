@@ -156,13 +156,11 @@ async function main() {
       tradingFeeBps: Number(params.tradingFeeBps),
       maxAccounts: params.maxAccounts.toString(),
       newAccountFee: params.newAccountFee.toString(),
-      insuranceFloor: engine.insuranceFloor.toString(),
       maintenanceFeePerSlot: params.maintenanceFeePerSlot.toString(),
       maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
       liquidationFeeBps: Number(params.liquidationFeeBps),
       liquidationFeePercent: Number(params.liquidationFeeBps) / 100,
       liquidationFeeCap: params.liquidationFeeCap.toString(),
-      liquidationBufferBps: Number(params.liquidationBufferBps),
       minLiquidationAbs: params.minLiquidationAbs.toString(),
     },
 

@@ -321,15 +321,22 @@ percolator-cli set-oracle-authority --slab <pubkey> --authority 1111111111111111
 ## Testing
 
 ```bash
-# Unit tests
+# Unit tests (offline)
 pnpm test
 
-# Preflight (84 checks, needs SOLANA_RPC_URL)
-npx tsx tests/preflight.ts
+# Preflight — 82 checks across 22 sections, 3 market types
+# Behavioral correctness + conservation invariants
+SOLANA_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_KEY npx tsx tests/preflight.ts
 
-# Integration tests (T1-T11, needs SOLANA_RPC_URL)
+# Live state verification — 100 checks, exhaustive before/after state diffs
+# Verifies exact field deltas on every instruction (deposit, trade, crank, etc.)
+npx tsx scripts/live-verify.ts
+
+# Integration tests (T1-T22, needs SOLANA_RPC_URL)
 npx tsx tests/runner.ts
 ```
+
+See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (182+ automated checks).
 
 ## Scripts
 
