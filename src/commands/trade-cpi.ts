@@ -16,6 +16,7 @@ import {
   validatePublicKey,
   validateIndex,
   validateI128,
+  validateAmount,
 } from "../validation.js";
 
 export function registerTradeCpi(program: Command): void {
@@ -28,6 +29,8 @@ export function registerTradeCpi(program: Command): void {
     .requiredOption("--size <string>", "Trade size (i128, positive=long, negative=short)")
     .requiredOption("--matcher-program <pubkey>", "Matcher program ID")
     .requiredOption("--matcher-context <pubkey>", "Matcher context account")
+    .option("--max-price <string>", "Max acceptable price (e6 units, client-side slippage guard)")
+    .option("--min-price <string>", "Min acceptable price (e6 units, client-side slippage guard)")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -44,6 +47,30 @@ export function registerTradeCpi(program: Command): void {
       // Fetch slab config for oracle
       const data = await fetchSlab(ctx.connection, slabPk);
       const mktConfig = parseConfig(data);
+
+      // Client-side slippage protection: check last effective price against user bounds
+      if (opts.maxPrice || opts.minPrice) {
+        const currentPrice = mktConfig.lastEffectivePriceE6;
+
+        if (opts.maxPrice) {
+          const maxPrice = validateAmount(opts.maxPrice, "--max-price");
+          if (currentPrice > maxPrice) {
+            throw new Error(
+              `Current price ${currentPrice} exceeds --max-price ${maxPrice}. ` +
+              `Trade aborted (client-side slippage guard).`
+            );
+          }
+        }
+        if (opts.minPrice) {
+          const minPrice = validateAmount(opts.minPrice, "--min-price");
+          if (currentPrice < minPrice) {
+            throw new Error(
+              `Current price ${currentPrice} is below --min-price ${minPrice}. ` +
+              `Trade aborted (client-side slippage guard).`
+            );
+          }
+        }
+      }
 
       // Derive LP PDA
       const [lpPda] = deriveLpPda(ctx.programId, slabPk, lpIdx);
