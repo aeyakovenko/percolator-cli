@@ -58,13 +58,13 @@ Chainlink:      99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (SOL/USD)
 npx tsx scripts/setup-devnet-market.ts
 ```
 
-### Preflight Test (84 checks)
+### Preflight Test (82 checks)
 
 ```bash
 SOLANA_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_KEY npx tsx tests/preflight.ts
 ```
 
-See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details.
+See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (182+ automated checks).
 
 ### Keeper Crank
 
