@@ -61,7 +61,7 @@ const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
 const FEED_ID = "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43";
-const SLAB_SIZE = 1156776;
+const SLAB_SIZE = 1156936;
 const MATCHER_CTX_SIZE = 320;
 
 const conn = new Connection(RPC, "confirmed");
@@ -205,7 +205,7 @@ async function main() {
   // ═══════════════════════════════════════════════════
   section("2. Market Lifecycle");
 
-  await check("InitMarket succeeds (slab=1156776 bytes)", async () => {
+  await check("InitMarket succeeds (slab=1156936 bytes)", async () => {
     const data = encodeInitMarket({
       admin: payer.publicKey, collateralMint: mint, indexFeedId: FEED_ID,
       maxStalenessSecs: "100000000", confFilterBps: 200, invert: 0, unitScale: 0,
@@ -703,6 +703,12 @@ async function main() {
   });
 
   await check("CloseAccount user 0", async () => {
+    // Crank to mature PnL after position close
+    await sleep(3000);
+    for (let i = 0; i < 3; i++) {
+      await doCrank(slab.publicKey);
+      await sleep(500);
+    }
     await tx([buildIx({ programId: PROG,
       keys: buildAccountMetas(ACCOUNTS_CLOSE_ACCOUNT, [
         payer.publicKey, slab.publicKey, vault, payerAta.address,

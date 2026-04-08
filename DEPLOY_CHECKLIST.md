@@ -25,7 +25,7 @@ Exercises every major feature across 3 market configurations. Focuses on behavio
 - [x] Program accessible and executable on cluster
 
 ### 2. Market Lifecycle (6)
-- [x] InitMarket: slab=1156776 bytes, instruction data=352 bytes
+- [x] InitMarket: slab=1156936 bytes, instruction data=352 bytes
 - [x] Header: magic=PERCOLAT, admin=signer
 - [x] Config: all fields including insurance/resolution fields
 - [x] Params: all 15 risk params exact match
