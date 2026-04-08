@@ -508,7 +508,9 @@ const BITMAP_WORDS = 64;
 //   accounts: [Account; 4096]            @  9312  (4096 * 280 = 1146880 bytes)
 //
 // Total engine size: 9312 + 1146880 = 1156192
-// SLAB_LEN = ENGINE_OFF + engine_size = 584 + 1156192 = 1156776
+// RISK_BUF_OFF = ENGINE_OFF + ENGINE_LEN = 584 + 1156192 = 1156776
+// RISK_BUF_LEN = 160 (RiskBuffer: scan_cursor(2) + count(1) + _pad(13) + min_notional(16) + 4*RiskEntry(32))
+// SLAB_LEN = RISK_BUF_OFF + RISK_BUF_LEN = 1156776 + 160 = 1156936
 // =============================================================================
 const ENGINE_OFF = 584;
 
