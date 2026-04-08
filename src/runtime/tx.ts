@@ -156,8 +156,14 @@ export async function simulateOrSend(
 
 /**
  * Format transaction result for output.
+ * Sets process.exitCode = 1 when the transaction failed so scripts/bots
+ * can reliably detect failures via exit code.
  */
 export function formatResult(result: TxResult, jsonMode: boolean): string {
+  if (result.err) {
+    process.exitCode = 1;
+  }
+
   if (jsonMode) {
     return JSON.stringify(result, null, 2);
   }
