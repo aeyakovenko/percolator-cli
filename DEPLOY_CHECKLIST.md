@@ -7,7 +7,7 @@ Two test suites verify the protocol on-chain. Both require `SOLANA_RPC_URL` in `
 #    ~24 SOL for multi-slab rent (reclaimed at end)
 npx tsx tests/preflight.ts
 
-# 2. Live state verification — 100 checks, 9 sections, exhaustive before/after diffs
+# 2. Live state verification — 105 checks, 9 sections, exhaustive before/after diffs
 #    ~8 SOL for single slab (reclaimed at end)
 npx tsx scripts/live-verify.ts
 
@@ -255,4 +255,4 @@ Every field in header, config, params, and engine verified at exact expected val
 | Insurance | Balance > 0 | **Exact delta on topup** |
 | Conservation | 15 checkpoints | **After every mutation** |
 
-**Totals: 93 preflight + 100 live-verify + 5 unit test suites = 193+ automated checks**
+**Totals: 93 preflight + 105 live-verify + 5 unit test suites = 198+ automated checks**
