@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
+import { fetchSlab, parseConfig } from "../solana/slab.js";
 import { encodeUpdateConfig } from "../abi/instructions.js";
 import {
   ACCOUNTS_UPDATE_CONFIG,
@@ -11,43 +12,26 @@ import {
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
 
-// Default values (from percolator-prog constants)
-const DEFAULTS = {
-  fundingHorizonSlots: 500n,
-  fundingKBps: 100n,
-  fundingInvScaleNotionalE6: 1_000_000_000_000n, // $1M in e6
-  fundingMaxPremiumBps: 500n,
-  fundingMaxBpsPerSlot: 5n,
-  threshFloor: 0n,
-  threshRiskBps: 50n,
-  threshUpdateIntervalSlots: 10n,
-  threshStepBps: 500n,
-  threshAlphaBps: 1000n,
-  threshMin: 0n,
-  threshMax: 10_000_000_000_000_000_000n,
-  threshMinStep: 1n,
-};
-
 export function registerUpdateConfig(program: Command): void {
   program
     .command("update-config")
     .description("Update funding and threshold parameters (admin only)")
     .requiredOption("--slab <pubkey>", "Slab account public key")
     // Funding parameters
-    .option("--funding-horizon-slots <n>", "Funding horizon in slots (default: 500)")
-    .option("--funding-k-bps <n>", "Funding multiplier in bps (default: 100 = 1.00x)")
-    .option("--funding-scale <n>", "Funding inventory scale notional e6 (default: 1000000000000 = $1M)")
-    .option("--funding-max-premium-bps <n>", "Max funding premium in bps (default: 500)")
-    .option("--funding-max-bps-per-slot <n>", "Max funding rate per slot in bps (default: 5)")
+    .option("--funding-horizon-slots <n>", "Funding horizon in slots (unchanged if omitted)")
+    .option("--funding-k-bps <n>", "Funding multiplier in bps (unchanged if omitted)")
+    .option("--funding-scale <n>", "Funding inventory scale notional e6 (unchanged if omitted)")
+    .option("--funding-max-premium-bps <n>", "Max funding premium in bps (unchanged if omitted)")
+    .option("--funding-max-bps-per-slot <n>", "Max funding rate per slot in bps (unchanged if omitted)")
     // Threshold parameters
-    .option("--thresh-floor <n>", "Threshold floor (default: 0)")
-    .option("--thresh-risk-bps <n>", "Threshold risk coefficient in bps (default: 50)")
-    .option("--thresh-update-interval <n>", "Threshold update interval in slots (default: 10)")
-    .option("--thresh-step-bps <n>", "Max threshold step in bps (default: 500)")
-    .option("--thresh-alpha-bps <n>", "Threshold EWMA alpha in bps (default: 1000)")
-    .option("--thresh-min <n>", "Minimum threshold (default: 0)")
-    .option("--thresh-max <n>", "Maximum threshold (default: 10000000000000000000)")
-    .option("--thresh-min-step <n>", "Minimum threshold step (default: 1)")
+    .option("--thresh-floor <n>", "Threshold floor (unchanged if omitted)")
+    .option("--thresh-risk-bps <n>", "Threshold risk coefficient in bps (unchanged if omitted)")
+    .option("--thresh-update-interval <n>", "Threshold update interval in slots (unchanged if omitted)")
+    .option("--thresh-step-bps <n>", "Max threshold step in bps (unchanged if omitted)")
+    .option("--thresh-alpha-bps <n>", "Threshold EWMA alpha in bps (unchanged if omitted)")
+    .option("--thresh-min <n>", "Minimum threshold (unchanged if omitted)")
+    .option("--thresh-max <n>", "Maximum threshold (unchanged if omitted)")
+    .option("--thresh-min-step <n>", "Minimum threshold step (unchanged if omitted)")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -55,21 +39,25 @@ export function registerUpdateConfig(program: Command): void {
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
 
-      // Build config with defaults, overridden by provided options
+      // Fetch current on-chain config so unspecified params keep their current values
+      const slabData = await fetchSlab(ctx.connection, slabPk);
+      const current = parseConfig(slabData);
+
+      // Build config: use current on-chain values as base, override only what the user provides
       const configArgs = {
-        fundingHorizonSlots: opts.fundingHorizonSlots ? BigInt(opts.fundingHorizonSlots) : DEFAULTS.fundingHorizonSlots,
-        fundingKBps: opts.fundingKBps ? BigInt(opts.fundingKBps) : DEFAULTS.fundingKBps,
-        fundingInvScaleNotionalE6: opts.fundingScale ? BigInt(opts.fundingScale) : DEFAULTS.fundingInvScaleNotionalE6,
-        fundingMaxPremiumBps: opts.fundingMaxPremiumBps ? BigInt(opts.fundingMaxPremiumBps) : DEFAULTS.fundingMaxPremiumBps,
-        fundingMaxBpsPerSlot: opts.fundingMaxBpsPerSlot ? BigInt(opts.fundingMaxBpsPerSlot) : DEFAULTS.fundingMaxBpsPerSlot,
-        threshFloor: opts.threshFloor ? BigInt(opts.threshFloor) : DEFAULTS.threshFloor,
-        threshRiskBps: opts.threshRiskBps ? BigInt(opts.threshRiskBps) : DEFAULTS.threshRiskBps,
-        threshUpdateIntervalSlots: opts.threshUpdateInterval ? BigInt(opts.threshUpdateInterval) : DEFAULTS.threshUpdateIntervalSlots,
-        threshStepBps: opts.threshStepBps ? BigInt(opts.threshStepBps) : DEFAULTS.threshStepBps,
-        threshAlphaBps: opts.threshAlphaBps ? BigInt(opts.threshAlphaBps) : DEFAULTS.threshAlphaBps,
-        threshMin: opts.threshMin ? BigInt(opts.threshMin) : DEFAULTS.threshMin,
-        threshMax: opts.threshMax ? BigInt(opts.threshMax) : DEFAULTS.threshMax,
-        threshMinStep: opts.threshMinStep ? BigInt(opts.threshMinStep) : DEFAULTS.threshMinStep,
+        fundingHorizonSlots: opts.fundingHorizonSlots !== undefined ? BigInt(opts.fundingHorizonSlots) : current.fundingHorizonSlots,
+        fundingKBps: opts.fundingKBps !== undefined ? BigInt(opts.fundingKBps) : current.fundingKBps,
+        fundingInvScaleNotionalE6: opts.fundingScale !== undefined ? BigInt(opts.fundingScale) : current.fundingInvScaleNotionalE6,
+        fundingMaxPremiumBps: opts.fundingMaxPremiumBps !== undefined ? BigInt(opts.fundingMaxPremiumBps) : current.fundingMaxPremiumBps,
+        fundingMaxBpsPerSlot: opts.fundingMaxBpsPerSlot !== undefined ? BigInt(opts.fundingMaxBpsPerSlot) : current.fundingMaxBpsPerSlot,
+        threshFloor: opts.threshFloor !== undefined ? BigInt(opts.threshFloor) : current.threshFloor,
+        threshRiskBps: opts.threshRiskBps !== undefined ? BigInt(opts.threshRiskBps) : current.threshRiskBps,
+        threshUpdateIntervalSlots: opts.threshUpdateInterval !== undefined ? BigInt(opts.threshUpdateInterval) : current.threshUpdateIntervalSlots,
+        threshStepBps: opts.threshStepBps !== undefined ? BigInt(opts.threshStepBps) : current.threshStepBps,
+        threshAlphaBps: opts.threshAlphaBps !== undefined ? BigInt(opts.threshAlphaBps) : current.threshAlphaBps,
+        threshMin: opts.threshMin !== undefined ? BigInt(opts.threshMin) : current.threshMin,
+        threshMax: opts.threshMax !== undefined ? BigInt(opts.threshMax) : current.threshMax,
+        threshMinStep: opts.threshMinStep !== undefined ? BigInt(opts.threshMinStep) : current.threshMinStep,
       };
 
       const ixData = encodeUpdateConfig(configArgs);
