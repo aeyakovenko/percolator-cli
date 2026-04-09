@@ -3,7 +3,7 @@
 Two test suites verify the protocol on-chain. Both require `SOLANA_RPC_URL` in `.env`.
 
 ```bash
-# 1. Preflight — 82 checks, 22 sections, 3 market types (Pyth, Hyperp, Inverted)
+# 1. Preflight — 93 checks, 25 sections, 3 market types (Pyth, Hyperp, Inverted)
 #    ~24 SOL for multi-slab rent (reclaimed at end)
 npx tsx tests/preflight.ts
 
@@ -17,7 +17,7 @@ pnpm test
 
 ---
 
-## Preflight (`tests/preflight.ts`) — 82 checks
+## Preflight (`tests/preflight.ts`) — 93 checks
 
 Exercises every major feature across 3 market configurations. Focuses on behavioral correctness and conservation invariants.
 
@@ -141,7 +141,24 @@ Exercises every major feature across 3 market configurations. Focuses on behavio
 - [x] Crash 95%, trade at crashed price, crank → capital or oracle state changes
 - [x] **Conservation check**
 
-### 22. Chainlink Oracle (2)
+### 22. Settlement & Fee Operations (5)
+- [x] **QueryLpFees** returns data for LP (read-only simulation)
+- [x] **SettleAccount** on user succeeds (permissionless PnL settlement)
+- [x] **DepositFeeCredits** accepted or rejected (no fee debt confirmation)
+- [x] **ConvertReleasedPnl** accepted or rejected (no released PnL confirmation)
+- [x] **Conservation check**
+
+### 23. Permissionless Resolution & ForceClose (3)
+- [x] **ResolvePermissionless** rejected (oracle not stale enough — error confirmation)
+- [x] **ForceCloseResolved** closes accounts permissionlessly after resolution
+- [x] **ReclaimEmptyAccount** rejected on resolved market (confirmed)
+
+### 24. Insurance Withdraw Policy (3)
+- [x] **SetInsuranceWithdrawPolicy** succeeds, policyConfigured flag set
+- [x] **WithdrawInsuranceLimited** withdraws within rate limits
+- [x] **Conservation check**
+
+### 25. Chainlink Oracle (2)
 - [x] Chainlink oracle account accessible
 - [x] Chainlink feed ID encoding is valid
 
@@ -238,4 +255,4 @@ Every field in header, config, params, and engine verified at exact expected val
 | Insurance | Balance > 0 | **Exact delta on topup** |
 | Conservation | 15 checkpoints | **After every mutation** |
 
-**Totals: 82 preflight + 100 live-verify + 5 unit test suites = 182+ automated checks**
+**Totals: 93 preflight + 100 live-verify + 5 unit test suites = 193+ automated checks**

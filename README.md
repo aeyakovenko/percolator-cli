@@ -58,13 +58,13 @@ Chainlink:      99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (SOL/USD)
 npx tsx scripts/setup-devnet-market.ts
 ```
 
-### Preflight Test (82 checks)
+### Preflight Test (93 checks)
 
 ```bash
 SOLANA_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_KEY npx tsx tests/preflight.ts
 ```
 
-See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (182+ automated checks).
+See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (193+ automated checks).
 
 ### Keeper Crank
 
@@ -324,7 +324,7 @@ percolator-cli set-oracle-authority --slab <pubkey> --authority 1111111111111111
 # Unit tests (offline)
 pnpm test
 
-# Preflight — 82 checks across 22 sections, 3 market types
+# Preflight — 93 checks across 25 sections, 3 market types
 # Behavioral correctness + conservation invariants
 SOLANA_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_KEY npx tsx tests/preflight.ts
 
@@ -336,7 +336,7 @@ npx tsx scripts/live-verify.ts
 npx tsx tests/runner.ts
 ```
 
-See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (182+ automated checks).
+See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (193+ automated checks).
 
 ## Scripts
 
