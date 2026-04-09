@@ -357,6 +357,8 @@ async function main() {
     check("deposit: cTot increases", postE.cTot > preE.cTot);
     check("deposit: SPL delta matches", postSpl - preSpl === 2n * DEPOSIT);
     check("conservation: engine.vault = SPL", postE.vault === postSpl);
+    check("accounting: vault >= cTot + insurance", postE.vault >= postE.cTot + postE.insuranceFund.balance,
+      `vault(${postE.vault}) < cTot(${postE.cTot}) + ins(${postE.insuranceFund.balance})`);
   }
 
   // ════════════════════════════════════════
@@ -381,6 +383,8 @@ async function main() {
     check("topup: vault delta exact", postE.vault - preE.vault === INS_AMOUNT);
     check("topup: SPL delta matches", postSpl - preSpl === INS_AMOUNT);
     check("conservation: engine.vault = SPL", postE.vault === postSpl);
+    check("accounting: vault >= cTot + insurance", postE.vault >= postE.cTot + postE.insuranceFund.balance,
+      `vault(${postE.vault}) < cTot(${postE.cTot}) + ins(${postE.insuranceFund.balance})`);
   }
 
   // ════════════════════════════════════════
@@ -436,6 +440,8 @@ async function main() {
     // Conservation
     const postSpl = await getVaultSpl(vault);
     check("conservation: engine.vault = SPL", postE.vault === postSpl);
+    check("accounting: vault >= cTot + insurance", postE.vault >= postE.cTot + postE.insuranceFund.balance,
+      `vault(${postE.vault}) < cTot(${postE.cTot}) + ins(${postE.insuranceFund.balance})`);
   }
 
   // ════════════════════════════════════════
@@ -468,6 +474,8 @@ async function main() {
     check("withdraw: SPL delta matches", preSpl - postSpl === WITHDRAW);
     check("withdraw: cTot decreases", postE.cTot < preE.cTot);
     check("conservation: engine.vault = SPL", postE.vault === postSpl);
+    check("accounting: vault >= cTot + insurance", postE.vault >= postE.cTot + postE.insuranceFund.balance,
+      `vault(${postE.vault}) < cTot(${postE.cTot}) + ins(${postE.insuranceFund.balance})`);
   }
 
   // ════════════════════════════════════════
@@ -528,6 +536,8 @@ async function main() {
 
     const postSpl = await getVaultSpl(vault);
     check("conservation: engine.vault = SPL", postE.vault === postSpl);
+    check("accounting: vault >= cTot + insurance", postE.vault >= postE.cTot + postE.insuranceFund.balance,
+      `vault(${postE.vault}) < cTot(${postE.cTot}) + ins(${postE.insuranceFund.balance})`);
   }
 
   // ════════════════════════════════════════

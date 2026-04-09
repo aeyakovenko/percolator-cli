@@ -156,11 +156,15 @@ function doCrank(slabPk: PublicKey) {
 
 async function checkConservation(slabPk: PublicKey, vaultPk: PublicKey) {
   const buf = await fetchSlab(conn, slabPk);
-  const engineVault = parseEngine(buf).vault;
+  const e = parseEngine(buf);
   const tokenAcc = await getAccount(conn, vaultPk);
   const splBalance = BigInt(tokenAcc.amount);
-  assert(splBalance === engineVault,
-    `Conservation violated: SPL vault=${splBalance}, engine.vault=${engineVault}`);
+  assert(splBalance === e.vault,
+    `Conservation violated: SPL vault=${splBalance}, engine.vault=${e.vault}`);
+  // Accounting invariant: vault >= cTot + insurance (spec §2.2)
+  const senior = e.cTot + e.insuranceFund.balance;
+  assert(e.vault >= senior,
+    `Accounting invariant violated: vault(${e.vault}) < cTot(${e.cTot}) + insurance(${e.insuranceFund.balance})`);
 }
 
 // ═══════════════════════════════════════════════════
@@ -815,6 +819,28 @@ async function main() {
       data: encodeResolveMarket() })], [payer]);
     const h = parseHeader(await fetchSlab(conn, slab.publicKey));
     assert(h.resolved, "should be resolved");
+    const c = parseConfig(await fetchSlab(conn, slab.publicKey));
+    assert(c.resolutionSlot > 0n, `resolutionSlot should be set: ${c.resolutionSlot}`);
+
+    // Verify trading rejected on resolved market
+    try {
+      await tx([buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_TRADE_NOCPI, [
+          payer.publicKey, payer.publicKey, slab.publicKey, WELL_KNOWN.clock, PYTH_ORACLE,
+        ]),
+        data: encodeTradeNoCpi({ lpIdx: 1, userIdx: 0, size: "1" }) })], [payer]);
+      assert(false, "trade should be rejected on resolved market");
+    } catch { /* expected rejection */ }
+
+    // Verify deposit rejected on resolved market
+    try {
+      await tx([buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_DEPOSIT_COLLATERAL, [
+          payer.publicKey, slab.publicKey, payerAta.address, vault, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock,
+        ]),
+        data: encodeDepositCollateral({ userIdx: 0, amount: "1000" }) })], [payer]);
+      assert(false, "deposit should be rejected on resolved market");
+    } catch { /* expected rejection */ }
   });
 
   await check("Crank force-closes LP at settlement", async () => {
@@ -1168,6 +1194,7 @@ async function main() {
     assert(acc.capital < 8818800n, `capital should have decreased from price drop: ${acc.capital}`);
 
     // Test LiquidateAtOracle instruction works (correct encoding + accounts)
+    const preLiqs = e.lifetimeLiquidations;
     if (acc.positionBasisQ !== 0n) {
       try {
         await tx([buildIx({ programId: PROG,
@@ -1175,7 +1202,13 @@ async function main() {
             payer.publicKey, hSlab.publicKey, WELL_KNOWN.clock, payer.publicKey,
           ]),
           data: encodeLiquidateAtOracle({ targetIdx: 1 }) })], [payer]);
-        console.log("    LiquidateAtOracle succeeded (user was underwater)");
+        // Liquidation succeeded — verify position closed and counter incremented
+        const postBuf = await fetchSlab(conn, hSlab.publicKey);
+        const postAcc = parseAccount(postBuf, 1);
+        const postE = parseEngine(postBuf);
+        console.log(`    LiquidateAtOracle succeeded: pos ${acc.positionBasisQ} -> ${postAcc.positionBasisQ}, liqs ${preLiqs} -> ${postE.lifetimeLiquidations}`);
+        assert(postAcc.positionBasisQ === 0n, `position should be closed after liquidation: ${postAcc.positionBasisQ}`);
+        assert(postE.lifetimeLiquidations > preLiqs, `lifetimeLiquidations should increment: ${preLiqs} -> ${postE.lifetimeLiquidations}`);
       } catch (e: any) {
         // Expected: user may not be underwater yet due to EWMA gradual price movement
         console.log(`    LiquidateAtOracle rejected (user still solvent at EWMA price) - instruction encoding verified`);

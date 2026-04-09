@@ -64,7 +64,7 @@ npx tsx scripts/setup-devnet-market.ts
 SOLANA_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_KEY npx tsx tests/preflight.ts
 ```
 
-See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (193+ automated checks).
+See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (198+ automated checks).
 
 ### Keeper Crank
 
@@ -336,7 +336,7 @@ npx tsx scripts/live-verify.ts
 npx tsx tests/runner.ts
 ```
 
-See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (193+ automated checks).
+See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (198+ automated checks).
 
 ## Scripts
 
