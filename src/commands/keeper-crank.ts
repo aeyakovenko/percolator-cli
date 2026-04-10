@@ -112,7 +112,7 @@ export function registerKeeperCrank(program: Command): void {
       const allowPanic = opts.allowPanic === true;
 
       // Fetch slab data and compute liquidation candidates off-chain
-      const slabData = await fetchSlab(ctx.connection, slabPk);
+      const slabData = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const engine = parseEngine(slabData);
       const candidates = computeCandidates(slabData, engine);
 

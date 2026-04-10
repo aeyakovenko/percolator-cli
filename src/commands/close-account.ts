@@ -30,7 +30,7 @@ export function registerCloseAccount(program: Command): void {
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
 
       // Fetch slab config for vault and oracle
-      const data = await fetchSlab(ctx.connection, slabPk);
+      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const mktConfig = parseConfig(data);
 
       // Get user's ATA for the collateral mint

@@ -18,7 +18,7 @@ export function registerSlabAccount(program: Command): void {
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const idx = validateIndex(opts.idx, "--idx");
-      const data = await fetchSlab(ctx.connection, slabPk);
+      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
 
       if (!isAccountUsed(data, idx)) {
         if (flags.json) {

@@ -24,7 +24,7 @@ export function registerWithdrawInsurance(program: Command): void {
       const slabPk = validatePublicKey(opts.slab, "--slab");
 
       // Fetch slab config to get vault and mint
-      const slabData = await fetchSlab(ctx.connection, slabPk);
+      const slabData = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const slabConfig = parseConfig(slabData);
 
       const [vaultPda] = deriveVaultAuthority(ctx.programId, slabPk);

@@ -37,7 +37,7 @@ export function registerWithdraw(program: Command): void {
       const amount = opts.amount;
 
       // Fetch slab config for vault and oracles
-      const data = await fetchSlab(ctx.connection, slabPk);
+      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const mktConfig = parseConfig(data);
 
       // Get user's ATA for the collateral mint

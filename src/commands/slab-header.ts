@@ -16,7 +16,7 @@ export function registerSlabHeader(program: Command): void {
       const ctx = createContext(config);
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
-      const data = await fetchSlab(ctx.connection, slabPk);
+      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const header = parseHeader(data);
 
       if (flags.json) {

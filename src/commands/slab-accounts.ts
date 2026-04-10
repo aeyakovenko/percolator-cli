@@ -16,7 +16,7 @@ export function registerSlabAccounts(program: Command): void {
       const ctx = createContext(config);
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
-      const data = await fetchSlab(ctx.connection, slabPk);
+      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const accounts = parseAllAccounts(data);
 
       if (flags.json) {
