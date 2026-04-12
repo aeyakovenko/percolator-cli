@@ -22,7 +22,7 @@ const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
 //               mark_ewma_e6(8) + mark_ewma_last_slot(8) + mark_ewma_halflife_slots(8) + _ewma_padding(8) +
 //               permissionless_resolve_stale_slots(8) + _perm_resolve_padding(8) +
 //               mark_min_fee(8) + force_close_delay_slots(8)
-const CONFIG_LEN = 512;
+const CONFIG_LEN = 368;
 const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
 
 // Flag bits in header._padding[0] at offset 13
@@ -52,42 +52,25 @@ export interface SlabHeader {
 export interface MarketConfig {
   collateralMint: PublicKey;
   vaultPubkey: PublicKey;
-  indexFeedId: PublicKey;       // index_feed_id (Pyth feed ID stored as 32 bytes)
-  maxStalenessSlots: bigint;    // max_staleness_secs
+  indexFeedId: PublicKey;
+  maxStalenessSlots: bigint;
   confFilterBps: number;
   vaultAuthorityBump: number;
-  invert: number;               // 0 = no inversion, 1 = invert oracle price
-  unitScale: number;            // Lamports per unit (0 = no scaling)
-  // Funding rate parameters
+  invert: number;
+  unitScale: number;
   fundingHorizonSlots: bigint;
   fundingKBps: bigint;
-  fundingInvScaleNotionalE6: bigint;
   fundingMaxPremiumBps: bigint;
   fundingMaxBpsPerSlot: bigint;
-  // Threshold parameters
-  threshFloor: bigint;
-  threshRiskBps: bigint;
-  threshUpdateIntervalSlots: bigint;
-  threshStepBps: bigint;
-  threshAlphaBps: bigint;
-  threshMin: bigint;
-  threshMax: bigint;
-  threshMinStep: bigint;
-  // Oracle authority
   oracleAuthority: PublicKey;
   authorityPriceE6: bigint;
   authorityTimestamp: bigint;
-  // Oracle price circuit breaker
   oraclePriceCapE2bps: bigint;
   lastEffectivePriceE6: bigint;
-  // Per-market admin limits (immutable after init)
-  maxMaintenanceFeePerSlot: bigint;
   maxInsuranceFloor: bigint;
   minOraclePriceCapE2bps: bigint;
-  // Insurance withdrawal limits
   insuranceWithdrawMaxBps: number;
   insuranceWithdrawCooldownSlots: bigint;
-  maxInsuranceFloorChangePerDay: bigint;
   resolutionSlot: bigint;
   lastHyperpIndexSlot: bigint;
   lastMarkPushSlot: bigint;
@@ -194,41 +177,14 @@ export function parseConfig(data: Buffer): MarketConfig {
   const fundingKBps = data.readBigUInt64LE(off);
   off += 8;
 
-  const fundingInvScaleNotionalE6 = readI128LE(data, off);
-  off += 16;
-
-  const fundingMaxPremiumBps = data.readBigUInt64LE(off);
+  // funding_inv_scale_notional_e6 removed; funding_max_premium_bps is now i64
+  const fundingMaxPremiumBps = data.readBigInt64LE(off);
   off += 8;
 
-  const fundingMaxBpsPerSlot = data.readBigUInt64LE(off);
+  const fundingMaxBpsPerSlot = data.readBigInt64LE(off);
   off += 8;
 
-  // Threshold parameters
-  const threshFloor = readU128LE(data, off);
-  off += 16;
-
-  const threshRiskBps = data.readBigUInt64LE(off);
-  off += 8;
-
-  const threshUpdateIntervalSlots = data.readBigUInt64LE(off);
-  off += 8;
-
-  const threshStepBps = data.readBigUInt64LE(off);
-  off += 8;
-
-  const threshAlphaBps = data.readBigUInt64LE(off);
-  off += 8;
-
-  const threshMin = readU128LE(data, off);
-  off += 16;
-
-  const threshMax = readU128LE(data, off);
-  off += 16;
-
-  const threshMinStep = readU128LE(data, off);
-  off += 16;
-
-  // Oracle authority fields
+  // Oracle authority fields (threshold params removed)
   const oracleAuthority = new PublicKey(data.subarray(off, off + 32));
   off += 32;
 
@@ -245,10 +201,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   const lastEffectivePriceE6 = data.readBigUInt64LE(off);
   off += 8;
 
-  // Per-market admin limits
-  const maxMaintenanceFeePerSlot = readU128LE(data, off);
-  off += 16;
-
+  // Per-market admin limits (maxMaintenanceFeePerSlot removed)
   const maxInsuranceFloor = readU128LE(data, off);
   off += 16;
 
@@ -268,8 +221,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   // _iw_padding2 (8 bytes)
   off += 8;
 
-  const maxInsuranceFloorChangePerDay = readU128LE(data, off);
-  off += 16;
+  // maxInsuranceFloorChangePerDay removed
 
   const resolutionSlot = data.readBigUInt64LE(off);
   off += 8;
@@ -294,7 +246,8 @@ export function parseConfig(data: Buffer): MarketConfig {
 
   const permissionlessResolveStaleslots = data.readBigUInt64LE(off);
   off += 8;
-  off += 8; // _perm_resolve_padding
+  const lastGoodOracleSlot = data.readBigUInt64LE(off);
+  off += 8;
 
   const markMinFee = data.readBigUInt64LE(off);
   off += 8;
@@ -311,28 +264,17 @@ export function parseConfig(data: Buffer): MarketConfig {
     unitScale,
     fundingHorizonSlots,
     fundingKBps,
-    fundingInvScaleNotionalE6,
     fundingMaxPremiumBps,
     fundingMaxBpsPerSlot,
-    threshFloor,
-    threshRiskBps,
-    threshUpdateIntervalSlots,
-    threshStepBps,
-    threshAlphaBps,
-    threshMin,
-    threshMax,
-    threshMinStep,
     oracleAuthority,
     authorityPriceE6,
     authorityTimestamp,
     oraclePriceCapE2bps,
     lastEffectivePriceE6,
-    maxMaintenanceFeePerSlot,
     maxInsuranceFloor,
     minOraclePriceCapE2bps,
     insuranceWithdrawMaxBps,
     insuranceWithdrawCooldownSlots,
-    maxInsuranceFloorChangePerDay,
     resolutionSlot,
     lastHyperpIndexSlot,
     lastMarkPushSlot,
@@ -368,87 +310,85 @@ export function readLastThrUpdateSlot(data: Buffer): bigint {
 
 // =============================================================================
 // RiskParams Layout (184 bytes, repr(C) with 8-byte alignment on SBF)
-// Note: SBF target uses 8-byte alignment for u128, not 16-byte
 //
 // Fields:
-//   warmup_period_slots: u64         @   0  (8 bytes)
-//   maintenance_margin_bps: u64      @   8  (8 bytes)
-//   initial_margin_bps: u64          @  16  (8 bytes)
-//   trading_fee_bps: u64             @  24  (8 bytes)
-//   max_accounts: u64                @  32  (8 bytes)
-//   new_account_fee: U128            @  40  (16 bytes)
-//   maintenance_fee_per_slot: U128   @  56  (16 bytes)
-//   max_crank_staleness_slots: u64   @  72  (8 bytes)
-//   liquidation_fee_bps: u64         @  80  (8 bytes)
-//   liquidation_fee_cap: U128        @  88  (16 bytes)
-//   min_liquidation_abs: U128        @ 104  (16 bytes)
-//   min_initial_deposit: U128        @ 120  (16 bytes)
-//   min_nonzero_mm_req: u128         @ 136  (16 bytes)
-//   min_nonzero_im_req: u128         @ 152  (16 bytes)
-//   insurance_floor: U128            @ 168  (16 bytes)
+//   maintenance_margin_bps: u64      @   0  (8 bytes)
+//   initial_margin_bps: u64          @   8  (8 bytes)
+//   trading_fee_bps: u64             @  16  (8 bytes)
+//   max_accounts: u64                @  24  (8 bytes)
+//   new_account_fee: U128            @  32  (16 bytes)
+//   max_crank_staleness_slots: u64   @  48  (8 bytes)
+//   liquidation_fee_bps: u64         @  56  (8 bytes)
+//   liquidation_fee_cap: U128        @  64  (16 bytes)
+//   min_liquidation_abs: U128        @  80  (16 bytes)
+//   min_initial_deposit: U128        @  96  (16 bytes)
+//   min_nonzero_mm_req: u128         @ 112  (16 bytes)
+//   min_nonzero_im_req: u128         @ 128  (16 bytes)
+//   insurance_floor: U128            @ 144  (16 bytes)
+//   h_min: u64                       @ 160  (8 bytes)
+//   h_max: u64                       @ 168  (8 bytes)
+//   resolve_price_deviation_bps: u64 @ 176  (8 bytes)
 // Total: 184 bytes
 // =============================================================================
-const PARAMS_WARMUP_PERIOD_OFF = 0;             // u64
-const PARAMS_MAINTENANCE_MARGIN_OFF = 8;        // u64
-const PARAMS_INITIAL_MARGIN_OFF = 16;           // u64
-const PARAMS_TRADING_FEE_OFF = 24;              // u64
-const PARAMS_MAX_ACCOUNTS_OFF = 32;             // u64
-const PARAMS_NEW_ACCOUNT_FEE_OFF = 40;          // U128 (16 bytes)
-const PARAMS_MAINTENANCE_FEE_OFF = 56;          // U128 (16 bytes)
-const PARAMS_MAX_CRANK_STALENESS_OFF = 72;      // u64
-const PARAMS_LIQUIDATION_FEE_BPS_OFF = 80;      // u64
-const PARAMS_LIQUIDATION_FEE_CAP_OFF = 88;      // U128 (16 bytes)
-const PARAMS_MIN_LIQUIDATION_OFF = 104;         // U128 (16 bytes)
-const PARAMS_MIN_INITIAL_DEPOSIT_OFF = 120;     // U128 (16 bytes)
-const PARAMS_MIN_NONZERO_MM_REQ_OFF = 136;      // u128 (16 bytes)
-const PARAMS_MIN_NONZERO_IM_REQ_OFF = 152;      // u128 (16 bytes)
-const PARAMS_INSURANCE_FLOOR_OFF = 168;         // U128 (16 bytes)
+const PARAMS_MAINTENANCE_MARGIN_OFF = 0;        // u64
+const PARAMS_INITIAL_MARGIN_OFF = 8;            // u64
+const PARAMS_TRADING_FEE_OFF = 16;              // u64
+const PARAMS_MAX_ACCOUNTS_OFF = 24;             // u64
+const PARAMS_NEW_ACCOUNT_FEE_OFF = 32;          // U128 (16 bytes)
+const PARAMS_MAX_CRANK_STALENESS_OFF = 48;      // u64
+const PARAMS_LIQUIDATION_FEE_BPS_OFF = 56;      // u64
+const PARAMS_LIQUIDATION_FEE_CAP_OFF = 64;      // U128 (16 bytes)
+const PARAMS_MIN_LIQUIDATION_OFF = 80;          // U128 (16 bytes)
+const PARAMS_MIN_INITIAL_DEPOSIT_OFF = 96;      // U128 (16 bytes)
+const PARAMS_MIN_NONZERO_MM_REQ_OFF = 112;      // u128 (16 bytes)
+const PARAMS_MIN_NONZERO_IM_REQ_OFF = 128;      // u128 (16 bytes)
+const PARAMS_INSURANCE_FLOOR_OFF = 144;         // U128 (16 bytes)
 const PARAMS_SIZE = 184;
 
 // =============================================================================
-// Account Layout (280 bytes, repr(C), SBF 8-byte alignment)
+// Account Layout (4368 bytes, repr(C), SBF 8-byte alignment)
 //
 // Fields:
 //   account_id: u64              @   0  (8 bytes)
 //   capital: U128                @   8  (16 bytes)
-//   kind: u8                     @  24  (1 byte + 7 padding to align i128@8)
+//   kind: u8                     @  24  (1 byte + 7 padding)
 //   pnl: i128                    @  32  (16 bytes)
 //   reserved_pnl: u128           @  48  (16 bytes)
-//   warmup_started_at_slot: u64  @  64  (8 bytes)
-//   warmup_slope_per_step: u128  @  72  (16 bytes)
-//   position_basis_q: i128       @  88  (16 bytes)
-//   adl_a_basis: u128            @ 104  (16 bytes)
-//   adl_k_snap: i128             @ 120  (16 bytes)
-//   adl_epoch_snap: u64          @ 136  (8 bytes)
-//   matcher_program: [u8;32]     @ 144  (32 bytes)
-//   matcher_context: [u8;32]     @ 176  (32 bytes)
-//   owner: [u8;32]               @ 208  (32 bytes)
-//   fee_credits: I128            @ 240  (16 bytes)
-//   last_fee_slot: u64           @ 256  (8 bytes)
-//   fees_earned_total: U128      @ 264  (16 bytes)
-// Total: 280 bytes
+//   position_basis_q: i128       @  64  (16 bytes)
+//   adl_a_basis: u128            @  80  (16 bytes)
+//   adl_k_snap: i128             @  96  (16 bytes)
+//   adl_epoch_snap: u64          @ 112  (8 bytes)
+//   matcher_program: [u8;32]     @ 120  (32 bytes)
+//   matcher_context: [u8;32]     @ 152  (32 bytes)
+//   owner: [u8;32]               @ 184  (32 bytes)
+//   fee_credits: I128            @ 216  (16 bytes)
+//   fees_earned_total: U128      @ 232  (16 bytes)
+//   exact_reserve_cohorts: [RC;62] @ 248 (3968 bytes)
+//   exact_cohort_count: u8       @ 4216 (1 byte + 7 padding)
+//   overflow_older: ReserveCohort @ 4224 (64 bytes)
+//   overflow_older_present: u8    @ 4288 (1 byte + 7 padding)
+//   overflow_newest: ReserveCohort @ 4296 (64 bytes)
+//   overflow_newest_present: u8   @ 4360 (1 byte + 7 padding)
+// Total: 4368 bytes
 // =============================================================================
 const ACCT_ACCOUNT_ID_OFF = 0;            // u64 (8 bytes)
 const ACCT_CAPITAL_OFF = 8;               // U128 (16 bytes)
 const ACCT_KIND_OFF = 24;                 // u8 (1 byte + 7 padding)
 const ACCT_PNL_OFF = 32;                  // i128 (16 bytes)
-const ACCT_RESERVED_PNL_OFF = 48;         // u128 (16 bytes) - was u64, now u128
-const ACCT_WARMUP_STARTED_OFF = 64;       // u64 (8 bytes)
-const ACCT_WARMUP_SLOPE_OFF = 72;         // u128 (16 bytes)
-const ACCT_POSITION_BASIS_Q_OFF = 88;     // i128 (16 bytes) - was position_size
-const ACCT_ADL_A_BASIS_OFF = 104;         // u128 (16 bytes) - replaces entry_price
-const ACCT_ADL_K_SNAP_OFF = 120;          // i128 (16 bytes) - replaces funding_index
-const ACCT_ADL_EPOCH_SNAP_OFF = 136;      // u64 (8 bytes) - NEW
-const ACCT_MATCHER_PROGRAM_OFF = 144;     // [u8;32] (32 bytes)
-const ACCT_MATCHER_CONTEXT_OFF = 176;     // [u8;32] (32 bytes)
-const ACCT_OWNER_OFF = 208;               // [u8;32] (32 bytes)
-const ACCT_FEE_CREDITS_OFF = 240;         // I128 (16 bytes)
-const ACCT_LAST_FEE_SLOT_OFF = 256;       // u64 (8 bytes)
-const ACCT_FEES_EARNED_TOTAL_OFF = 264;   // U128 (16 bytes) - NEW
+const ACCT_RESERVED_PNL_OFF = 48;         // u128 (16 bytes)
+const ACCT_POSITION_BASIS_Q_OFF = 64;     // i128 (16 bytes)
+const ACCT_ADL_A_BASIS_OFF = 80;          // u128 (16 bytes)
+const ACCT_ADL_K_SNAP_OFF = 96;           // i128 (16 bytes)
+const ACCT_ADL_EPOCH_SNAP_OFF = 112;      // u64 (8 bytes)
+const ACCT_MATCHER_PROGRAM_OFF = 120;     // [u8;32] (32 bytes)
+const ACCT_MATCHER_CONTEXT_OFF = 152;     // [u8;32] (32 bytes)
+const ACCT_OWNER_OFF = 184;               // [u8;32] (32 bytes)
+const ACCT_FEE_CREDITS_OFF = 216;         // I128 (16 bytes)
+const ACCT_FEES_EARNED_TOTAL_OFF = 232;   // U128 (16 bytes)
 
-const MAX_ACCOUNTS = 4096;
-const ACCOUNT_SIZE = 280;
-const BITMAP_WORDS = 64;
+const MAX_ACCOUNTS = 2048;
+const ACCOUNT_SIZE = 4368;
+const BITMAP_WORDS = 32;
 
 // =============================================================================
 // RiskEngine Layout (repr(C), SBF 8-byte alignment for u128/i128)
@@ -507,64 +447,70 @@ const BITMAP_WORDS = 64;
 //   [6 bytes padding for account alignment]
 //   accounts: [Account; 4096]            @  9312  (4096 * 280 = 1146880 bytes)
 //
-// Total engine size: 9312 + 1146880 = 1156192
-// RISK_BUF_OFF = ENGINE_OFF + ENGINE_LEN = 584 + 1156192 = 1156776
-// RISK_BUF_LEN = 160 (RiskBuffer: scan_cursor(2) + count(1) + _pad(13) + min_notional(16) + 4*RiskEntry(32))
-// SLAB_LEN = RISK_BUF_OFF + RISK_BUF_LEN = 1156776 + 160 = 1156936
+// ENGINE_OFF = align_up(HEADER_LEN + CONFIG_LEN, 8) = align_up(72 + 368, 8) = 440
+//
+// Total engine size = 5032 + 2048 * 4368 = 8950696
+// RISK_BUF_OFF = ENGINE_OFF + ENGINE_LEN = 440 + 8950696 = 8951136
+// RISK_BUF_LEN = 160
+// SLAB_LEN = 8951136 + 160 = 8951296
 // =============================================================================
-const ENGINE_OFF = 584;
+const ENGINE_OFF = 440;
 
 const ENGINE_VAULT_OFF = 0;                          // U128 (16 bytes)
 const ENGINE_INSURANCE_OFF = 16;                     // InsuranceFund { U128 } (16 bytes)
 const ENGINE_PARAMS_OFF = 32;                        // RiskParams (184 bytes)
 const ENGINE_CURRENT_SLOT_OFF = 216;                 // u64
-const ENGINE_FUNDING_RATE_BPS_OFF = 224;             // i64
-const ENGINE_LAST_CRANK_SLOT_OFF = 232;              // u64
-const ENGINE_MAX_CRANK_STALENESS_OFF = 240;          // u64
-const ENGINE_C_TOT_OFF = 248;                        // U128
-const ENGINE_PNL_POS_TOT_OFF = 264;                  // u128
-const ENGINE_PNL_MATURED_POS_TOT_OFF = 280;          // u128
-const ENGINE_LIQ_CURSOR_OFF = 296;                   // u16
-const ENGINE_GC_CURSOR_OFF = 298;                    // u16
-// 4 bytes padding
-const ENGINE_LAST_SWEEP_START_OFF = 304;             // u64
-const ENGINE_LAST_SWEEP_COMPLETE_OFF = 312;          // u64
-const ENGINE_CRANK_CURSOR_OFF = 320;                 // u16
-const ENGINE_SWEEP_START_IDX_OFF = 322;              // u16
-// 4 bytes padding
-const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 328;        // u64
-// ADL state (already 8-byte aligned at 336)
-const ENGINE_ADL_MULT_LONG_OFF = 336;                // u128
-const ENGINE_ADL_MULT_SHORT_OFF = 352;               // u128
-const ENGINE_ADL_COEFF_LONG_OFF = 368;               // i128
-const ENGINE_ADL_COEFF_SHORT_OFF = 384;              // i128
-const ENGINE_ADL_EPOCH_LONG_OFF = 400;               // u64
-const ENGINE_ADL_EPOCH_SHORT_OFF = 408;              // u64
-const ENGINE_ADL_EPOCH_START_K_LONG_OFF = 416;       // i128
-const ENGINE_ADL_EPOCH_START_K_SHORT_OFF = 432;      // i128
-const ENGINE_OI_EFF_LONG_Q_OFF = 448;                // u128
-const ENGINE_OI_EFF_SHORT_Q_OFF = 464;               // u128
-const ENGINE_SIDE_MODE_LONG_OFF = 480;               // u8
-const ENGINE_SIDE_MODE_SHORT_OFF = 481;              // u8
+const ENGINE_FUNDING_RATE_E9_OFF = 224;              // i128 (16 bytes)
+const ENGINE_MARKET_MODE_OFF = 240;                  // u8 (MarketMode enum)
+// 7 bytes padding
+const ENGINE_RESOLVED_PRICE_OFF = 248;               // u64
+const ENGINE_RESOLVED_SLOT_OFF = 256;                // u64
+const ENGINE_RESOLVED_PAYOUT_H_NUM_OFF = 264;        // u128
+const ENGINE_RESOLVED_PAYOUT_H_DEN_OFF = 280;        // u128
+const ENGINE_RESOLVED_PAYOUT_READY_OFF = 296;        // u8
+// 7 bytes padding
+const ENGINE_LAST_CRANK_SLOT_OFF = 304;              // u64
+const ENGINE_MAX_CRANK_STALENESS_OFF = 312;          // u64
+const ENGINE_C_TOT_OFF = 320;                        // U128
+const ENGINE_PNL_POS_TOT_OFF = 336;                  // u128
+const ENGINE_PNL_MATURED_POS_TOT_OFF = 352;          // u128
+const ENGINE_GC_CURSOR_OFF = 368;                    // u16
 // 6 bytes padding
-const ENGINE_STORED_POS_COUNT_LONG_OFF = 488;        // u64
-const ENGINE_STORED_POS_COUNT_SHORT_OFF = 496;       // u64
-const ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF = 504;     // u64
-const ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF = 512;    // u64
-const ENGINE_PHANTOM_DUST_LONG_OFF = 520;            // u128
-const ENGINE_PHANTOM_DUST_SHORT_OFF = 536;           // u128
-const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 552;   // u64
-const ENGINE_LAST_ORACLE_PRICE_OFF = 560;            // u64
-const ENGINE_LAST_MARKET_SLOT_OFF = 568;             // u64
-const ENGINE_FUNDING_PRICE_SAMPLE_OFF = 576;         // u64
-const ENGINE_BITMAP_OFF = 584;                       // [u64; 64] = 512 bytes
-const ENGINE_NUM_USED_OFF = 1096;                    // u16
+const ENGINE_LIFETIME_LIQUIDATIONS_OFF = 376;        // u64
+const ENGINE_ADL_MULT_LONG_OFF = 384;                // u128
+const ENGINE_ADL_MULT_SHORT_OFF = 400;               // u128
+const ENGINE_ADL_COEFF_LONG_OFF = 416;               // i128
+const ENGINE_ADL_COEFF_SHORT_OFF = 432;              // i128
+const ENGINE_ADL_EPOCH_LONG_OFF = 448;               // u64
+const ENGINE_ADL_EPOCH_SHORT_OFF = 456;              // u64
+const ENGINE_ADL_EPOCH_START_K_LONG_OFF = 464;       // i128
+const ENGINE_ADL_EPOCH_START_K_SHORT_OFF = 480;      // i128
+const ENGINE_OI_EFF_LONG_Q_OFF = 496;                // u128
+const ENGINE_OI_EFF_SHORT_Q_OFF = 512;               // u128
+const ENGINE_SIDE_MODE_LONG_OFF = 528;               // u8
+const ENGINE_SIDE_MODE_SHORT_OFF = 529;              // u8
 // 6 bytes padding
-const ENGINE_NEXT_ACCOUNT_ID_OFF = 1104;             // u64
-const ENGINE_FREE_HEAD_OFF = 1112;                   // u16
-// next_free: [u16; 4096] at 1114 (8192 bytes), ends at 9306
+const ENGINE_STORED_POS_COUNT_LONG_OFF = 536;        // u64
+const ENGINE_STORED_POS_COUNT_SHORT_OFF = 544;       // u64
+const ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF = 552;     // u64
+const ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF = 560;    // u64
+const ENGINE_PHANTOM_DUST_LONG_OFF = 568;            // u128
+const ENGINE_PHANTOM_DUST_SHORT_OFF = 584;           // u128
+const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 600;   // u64
+const ENGINE_LAST_ORACLE_PRICE_OFF = 608;            // u64
+const ENGINE_ORACLE_INITIALIZED_OFF = 616;           // u8
+// 7 bytes padding
+const ENGINE_LAST_MARKET_SLOT_OFF = 624;             // u64
+const ENGINE_FUNDING_PRICE_SAMPLE_OFF = 632;         // u64
+const ENGINE_FUNDING_REMAINDER_OFF = 640;            // i128
+const ENGINE_BITMAP_OFF = 656;                       // [u64; 32] = 256 bytes
+const ENGINE_NUM_USED_OFF = 912;                     // u16
+// 6 bytes padding
+const ENGINE_NEXT_ACCOUNT_ID_OFF = 920;              // u64
+const ENGINE_FREE_HEAD_OFF = 928;                    // u16
+// next_free: [u16; 2048] at 930 (4096 bytes), ends at 5026
 // 6 bytes padding for Account alignment (8-byte)
-const ENGINE_ACCOUNTS_OFF = 9312;                    // accounts: [Account; 4096]
+const ENGINE_ACCOUNTS_OFF = 5032;                    // accounts: [Account; 2048]
 
 // =============================================================================
 // Interfaces
@@ -575,13 +521,11 @@ export interface InsuranceFund {
 }
 
 export interface RiskParams {
-  warmupPeriodSlots: bigint;
   maintenanceMarginBps: bigint;
   initialMarginBps: bigint;
   tradingFeeBps: bigint;
   maxAccounts: bigint;
   newAccountFee: bigint;
-  maintenanceFeePerSlot: bigint;
   maxCrankStalenessSlots: bigint;
   liquidationFeeBps: bigint;
   liquidationFeeCap: bigint;
@@ -602,18 +546,13 @@ export interface EngineState {
   vault: bigint;
   insuranceFund: InsuranceFund;
   currentSlot: bigint;
-  fundingRateBpsPerSlotLast: bigint;
+  fundingRateE9PerSlotLast: bigint;
   lastCrankSlot: bigint;
   maxCrankStalenessSlots: bigint;
   cTot: bigint;
   pnlPosTot: bigint;
   pnlMaturedPosTot: bigint;
-  liqCursor: number;
   gcCursor: number;
-  lastSweepStartSlot: bigint;
-  lastSweepCompleteSlot: bigint;
-  crankCursor: number;
-  sweepStartIdx: number;
   lifetimeLiquidations: bigint;
   // ADL state
   adlMultLong: bigint;
@@ -653,8 +592,6 @@ export interface Account {
   capital: bigint;
   pnl: bigint;
   reservedPnl: bigint;
-  warmupStartedAtSlot: bigint;
-  warmupSlopePerStep: bigint;
   positionBasisQ: bigint;
   adlABasis: bigint;
   adlKSnap: bigint;
@@ -663,7 +600,6 @@ export interface Account {
   matcherContext: PublicKey;
   owner: PublicKey;
   feeCredits: bigint;
-  lastFeeSlot: bigint;
   feesEarnedTotal: bigint;
 }
 
@@ -704,13 +640,11 @@ export function parseParams(data: Buffer): RiskParams {
   }
 
   return {
-    warmupPeriodSlots: data.readBigUInt64LE(base + PARAMS_WARMUP_PERIOD_OFF),
     maintenanceMarginBps: data.readBigUInt64LE(base + PARAMS_MAINTENANCE_MARGIN_OFF),
     initialMarginBps: data.readBigUInt64LE(base + PARAMS_INITIAL_MARGIN_OFF),
     tradingFeeBps: data.readBigUInt64LE(base + PARAMS_TRADING_FEE_OFF),
     maxAccounts: data.readBigUInt64LE(base + PARAMS_MAX_ACCOUNTS_OFF),
     newAccountFee: readU128LE(data, base + PARAMS_NEW_ACCOUNT_FEE_OFF),
-    maintenanceFeePerSlot: readU128LE(data, base + PARAMS_MAINTENANCE_FEE_OFF),
     maxCrankStalenessSlots: data.readBigUInt64LE(base + PARAMS_MAX_CRANK_STALENESS_OFF),
     liquidationFeeBps: data.readBigUInt64LE(base + PARAMS_LIQUIDATION_FEE_BPS_OFF),
     liquidationFeeCap: readU128LE(data, base + PARAMS_LIQUIDATION_FEE_CAP_OFF),
@@ -737,18 +671,13 @@ export function parseEngine(data: Buffer): EngineState {
       balance: readU128LE(data, base + ENGINE_INSURANCE_OFF),
     },
     currentSlot: data.readBigUInt64LE(base + ENGINE_CURRENT_SLOT_OFF),
-    fundingRateBpsPerSlotLast: data.readBigInt64LE(base + ENGINE_FUNDING_RATE_BPS_OFF),
+    fundingRateE9PerSlotLast: readI128LE(data, base + ENGINE_FUNDING_RATE_E9_OFF),
     lastCrankSlot: data.readBigUInt64LE(base + ENGINE_LAST_CRANK_SLOT_OFF),
     maxCrankStalenessSlots: data.readBigUInt64LE(base + ENGINE_MAX_CRANK_STALENESS_OFF),
     cTot: readU128LE(data, base + ENGINE_C_TOT_OFF),
     pnlPosTot: readU128LE(data, base + ENGINE_PNL_POS_TOT_OFF),
     pnlMaturedPosTot: readU128LE(data, base + ENGINE_PNL_MATURED_POS_TOT_OFF),
-    liqCursor: data.readUInt16LE(base + ENGINE_LIQ_CURSOR_OFF),
     gcCursor: data.readUInt16LE(base + ENGINE_GC_CURSOR_OFF),
-    lastSweepStartSlot: data.readBigUInt64LE(base + ENGINE_LAST_SWEEP_START_OFF),
-    lastSweepCompleteSlot: data.readBigUInt64LE(base + ENGINE_LAST_SWEEP_COMPLETE_OFF),
-    crankCursor: data.readUInt16LE(base + ENGINE_CRANK_CURSOR_OFF),
-    sweepStartIdx: data.readUInt16LE(base + ENGINE_SWEEP_START_IDX_OFF),
     lifetimeLiquidations: data.readBigUInt64LE(base + ENGINE_LIFETIME_LIQUIDATIONS_OFF),
     // ADL state
     adlMultLong: readU128LE(data, base + ENGINE_ADL_MULT_LONG_OFF),
@@ -845,8 +774,6 @@ export function parseAccount(data: Buffer, idx: number): Account {
     capital: readU128LE(data, base + ACCT_CAPITAL_OFF),
     pnl: readI128LE(data, base + ACCT_PNL_OFF),
     reservedPnl: readU128LE(data, base + ACCT_RESERVED_PNL_OFF),
-    warmupStartedAtSlot: data.readBigUInt64LE(base + ACCT_WARMUP_STARTED_OFF),
-    warmupSlopePerStep: readU128LE(data, base + ACCT_WARMUP_SLOPE_OFF),
     positionBasisQ: readI128LE(data, base + ACCT_POSITION_BASIS_Q_OFF),
     adlABasis: readU128LE(data, base + ACCT_ADL_A_BASIS_OFF),
     adlKSnap: readI128LE(data, base + ACCT_ADL_K_SNAP_OFF),
@@ -855,7 +782,6 @@ export function parseAccount(data: Buffer, idx: number): Account {
     matcherContext: new PublicKey(data.subarray(base + ACCT_MATCHER_CONTEXT_OFF, base + ACCT_MATCHER_CONTEXT_OFF + 32)),
     owner: new PublicKey(data.subarray(base + ACCT_OWNER_OFF, base + ACCT_OWNER_OFF + 32)),
     feeCredits: readI128LE(data, base + ACCT_FEE_CREDITS_OFF),
-    lastFeeSlot: data.readBigUInt64LE(base + ACCT_LAST_FEE_SLOT_OFF),
     feesEarnedTotal: readU128LE(data, base + ACCT_FEES_EARNED_TOTAL_OFF),
   };
 }

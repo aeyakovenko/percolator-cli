@@ -338,18 +338,8 @@ export interface UpdateConfigArgs {
   // Funding parameters
   fundingHorizonSlots: bigint | string;
   fundingKBps: bigint | string;
-  fundingInvScaleNotionalE6: bigint | string;
   fundingMaxPremiumBps: bigint | string;
   fundingMaxBpsPerSlot: bigint | string;
-  // Threshold parameters
-  threshFloor: bigint | string;
-  threshRiskBps: bigint | string;
-  threshUpdateIntervalSlots: bigint | string;
-  threshStepBps: bigint | string;
-  threshAlphaBps: bigint | string;
-  threshMin: bigint | string;
-  threshMax: bigint | string;
-  threshMinStep: bigint | string;
 }
 
 export function encodeUpdateConfig(args: UpdateConfigArgs): Buffer {
@@ -357,17 +347,9 @@ export function encodeUpdateConfig(args: UpdateConfigArgs): Buffer {
     encU8(IX_TAG.UpdateConfig),
     encU64(args.fundingHorizonSlots),
     encU64(args.fundingKBps),
-    encU128(args.fundingInvScaleNotionalE6),
+    encU128("0"),  // funding_inv_scale_notional_e6 (removed, placeholder)
     encI64(args.fundingMaxPremiumBps),
     encI64(args.fundingMaxBpsPerSlot),
-    encU128(args.threshFloor),
-    encU64(args.threshRiskBps),
-    encU64(args.threshUpdateIntervalSlots),
-    encU64(args.threshStepBps),
-    encU64(args.threshAlphaBps),
-    encU128(args.threshMin),
-    encU128(args.threshMax),
-    encU128(args.threshMinStep),
   ]);
 }
 

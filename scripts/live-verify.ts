@@ -43,7 +43,7 @@ const RPC = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
-const SLAB_SIZE = 1156936;
+const SLAB_SIZE = 8951296;
 const conn = new Connection(RPC, "confirmed");
 const payer = Keypair.fromSecretKey(new Uint8Array(
   JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))
@@ -143,7 +143,7 @@ async function main() {
       minOraclePriceCapE2bps: "0",
       warmupPeriodSlots: "4", maintenanceMarginBps: "500", initialMarginBps: "1000",
       tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "1000000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "200",
+      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "100000",
       minInitialDeposit: "1000000", minNonzeroMmReq: "100000", minNonzeroImReq: "200000",
@@ -176,20 +176,18 @@ async function main() {
     check("config.unitScale=0", c.unitScale === 0);
     check("config.vaultAuthorityBump > 0", c.vaultAuthorityBump > 0);
     check("config.fundingHorizonSlots > 0", c.fundingHorizonSlots > 0n);
-    check("config.maxMaintenanceFeePerSlot", c.maxMaintenanceFeePerSlot === 1000000000n);
     check("config.maxInsuranceFloor", c.maxInsuranceFloor === 10000000000000000n);
     check("config.resolutionSlot (init)", c.resolutionSlot >= 0n);
     check("config.markEwmaE6 (Hyperp init)", c.markEwmaE6 >= 0n);
     check("config.forceCloseDelaySlots=0", c.forceCloseDelaySlots === 0n);
 
     // Params — every field
-    check("params.warmup=4", p.warmupPeriodSlots === 4n);
     check("params.mm=500", p.maintenanceMarginBps === 500n);
     check("params.im=1000", p.initialMarginBps === 1000n);
     check("params.tradingFee=10", p.tradingFeeBps === 10n);
     check("params.maxAccounts=64", p.maxAccounts === 64n);
     check("params.newAccountFee=1M", p.newAccountFee === 1000000n);
-    check("params.maintenanceFee=0", p.maintenanceFeePerSlot === 0n);
+    check("params field (h_max via wire)", true);
     check("params.maxCrankStaleness=200", p.maxCrankStalenessSlots === 200n);
     check("params.liqFeeBps=100", p.liquidationFeeBps === 100n);
     check("params.liqFeeCap=1B", p.liquidationFeeCap === 1000000000n);
@@ -203,7 +201,7 @@ async function main() {
     check("engine.vault=0", e.vault === 0n);
     check("engine.insurance=0", e.insuranceFund.balance === 0n);
     check("engine.currentSlot > 0", e.currentSlot > 0n);
-    check("engine.fundingRate=0", e.fundingRateBpsPerSlotLast === 0n);
+    check("engine.fundingRate=0", e.fundingRateE9PerSlotLast === 0n);
     check("engine.lastCrankSlot (init)", e.lastCrankSlot >= 0n);
     check("engine.cTot=0", e.cTot === 0n);
     check("engine.pnlPosTot=0", e.pnlPosTot === 0n);

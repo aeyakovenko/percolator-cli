@@ -69,7 +69,7 @@ const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
 const FEED_ID = "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43";
-const SLAB_SIZE = 1156936;
+const SLAB_SIZE = 8951296;
 const MATCHER_CTX_SIZE = 320;
 
 const conn = new Connection(RPC, "confirmed");
@@ -217,7 +217,7 @@ async function main() {
   // ═══════════════════════════════════════════════════
   section("2. Market Lifecycle");
 
-  await check("InitMarket succeeds (slab=1156936 bytes)", async () => {
+  await check("InitMarket succeeds (slab=8951296 bytes)", async () => {
     const data = encodeInitMarket({
       admin: payer.publicKey, collateralMint: mint, indexFeedId: FEED_ID,
       maxStalenessSecs: "100000000", confFilterBps: 200, invert: 0, unitScale: 0,
@@ -226,7 +226,7 @@ async function main() {
       minOraclePriceCapE2bps: "0",
       warmupPeriodSlots: "4", maintenanceMarginBps: "500", initialMarginBps: "1000",
       tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "1000000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "200",
+      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "100000",
       minInitialDeposit: "1000000", minNonzeroMmReq: "100000", minNonzeroImReq: "200000",
@@ -254,7 +254,6 @@ async function main() {
     assert(c.collateralMint.equals(mint), "mint");
     assert(c.vaultPubkey.equals(vault), "vault");
     assert(c.confFilterBps === 200, `confFilter=${c.confFilterBps}`);
-    assert(c.maxMaintenanceFeePerSlot === 1000000000n, `maxMaintFee=${c.maxMaintenanceFeePerSlot}`);
     assert(c.maxInsuranceFloor === 10000000000000000n, `maxInsFloor=${c.maxInsuranceFloor}`);
     assert(c.insuranceWithdrawMaxBps === 0, `insWithdrawBps=${c.insuranceWithdrawMaxBps}`);
     assert(c.insuranceWithdrawCooldownSlots === 0n, `insWithdrawCooldown`);
@@ -263,7 +262,6 @@ async function main() {
   await check("Params: all 15 risk params match", async () => {
     const buf = await fetchSlab(conn, slab.publicKey);
     const p = parseParams(buf);
-    assert(p.warmupPeriodSlots === 4n, `warmup=${p.warmupPeriodSlots}`);
     assert(p.maintenanceMarginBps === 500n, `mm=${p.maintenanceMarginBps}`);
     assert(p.initialMarginBps === 1000n, `im=${p.initialMarginBps}`);
     assert(p.tradingFeeBps === 10n, `fee=${p.tradingFeeBps}`);
@@ -682,7 +680,6 @@ async function main() {
     const e = parseEngine(await fetchSlab(conn, slab.publicKey));
     // lifetimeLiquidations may be 0 if user wasn't actually underwater at effective price
     assert(typeof e.lifetimeLiquidations === "bigint", `type=${typeof e.lifetimeLiquidations}`);
-    assert(typeof e.liqCursor === "number", `liqCursor type`);
   });
 
   await check("Conservation: vault matches SPL balance (post-liquidation-attempt)", async () => {
@@ -789,11 +786,8 @@ async function main() {
   await check("UpdateConfig succeeds (3 accounts)", async () => {
     const data = encodeUpdateConfig({
       fundingHorizonSlots: "500", fundingKBps: "200",
-      fundingInvScaleNotionalE6: "1000000000000",
+      
       fundingMaxPremiumBps: "500", fundingMaxBpsPerSlot: "100",
-      threshFloor: "0", threshRiskBps: "0", threshUpdateIntervalSlots: "0",
-      threshStepBps: "0", threshAlphaBps: "0",
-      threshMin: "0", threshMax: "0", threshMinStep: "0",
     });
     await tx([buildIx({ programId: PROG,
       keys: buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock]),
@@ -920,7 +914,7 @@ async function main() {
       minOraclePriceCapE2bps: "0",
       warmupPeriodSlots: "4", maintenanceMarginBps: "500", initialMarginBps: "1000",
       tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "1000000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "200",
+      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "100000",
       minInitialDeposit: "1000000", minNonzeroMmReq: "100000", minNonzeroImReq: "200000",
@@ -1001,7 +995,7 @@ async function main() {
       minOraclePriceCapE2bps: "0",
       warmupPeriodSlots: "20", maintenanceMarginBps: "500", initialMarginBps: "1000",
       tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "100000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "200",
+      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "10000",
       minInitialDeposit: "100000", minNonzeroMmReq: "10000", minNonzeroImReq: "20000",
@@ -1357,7 +1351,7 @@ async function main() {
       minOraclePriceCapE2bps: "0",
       warmupPeriodSlots: "2", maintenanceMarginBps: "500", initialMarginBps: "1000",
       tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "100000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "200",
+      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "10000",
       minInitialDeposit: "100000", minNonzeroMmReq: "10000", minNonzeroImReq: "20000",
@@ -1541,7 +1535,7 @@ async function main() {
       minOraclePriceCapE2bps: "0",
       warmupPeriodSlots: "2", maintenanceMarginBps: "500", initialMarginBps: "1000",
       tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "100000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "200",
+      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "10000",
       minInitialDeposit: "100", minNonzeroMmReq: "10", minNonzeroImReq: "20",
@@ -1561,7 +1555,7 @@ async function main() {
       minOraclePriceCapE2bps: "0",
       warmupPeriodSlots: "2", maintenanceMarginBps: "500", initialMarginBps: "1000",
       tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "100000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "200",
+      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "10000",
       minInitialDeposit: "100", minNonzeroMmReq: "10", minNonzeroImReq: "20",
@@ -1594,11 +1588,8 @@ async function main() {
     keys: buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [payer.publicKey, hSlab.publicKey, WELL_KNOWN.clock]),
     data: encodeUpdateConfig({
       fundingHorizonSlots: "10", fundingKBps: "1000", // 10x multiplier
-      fundingInvScaleNotionalE6: "1000000000",
+      
       fundingMaxPremiumBps: "5000", fundingMaxBpsPerSlot: "500",
-      threshFloor: "0", threshRiskBps: "0", threshUpdateIntervalSlots: "0",
-      threshStepBps: "0", threshAlphaBps: "0",
-      threshMin: "0", threshMax: "0", threshMinStep: "0",
     }) })], [payer]);
 
   // Create new user for funding test
@@ -1630,7 +1621,7 @@ async function main() {
     const preBuf = await fetchSlab(conn, hSlab.publicKey);
     const preEngine = parseEngine(preBuf);
     const preCoeffLong = preEngine.adlCoeffLong;
-    const preFundingRate = preEngine.fundingRateBpsPerSlotLast;
+    const preFundingRate = preEngine.fundingRateE9PerSlotLast;
     console.log(`    Pre: fundingRate=${preFundingRate}, adlCoeffLong=${preCoeffLong}`);
 
     // Push mark to $150 (50% premium over $100 index)
@@ -1643,12 +1634,12 @@ async function main() {
 
     const postBuf = await fetchSlab(conn, hSlab.publicKey);
     const postEngine = parseEngine(postBuf);
-    console.log(`    Post: fundingRate=${postEngine.fundingRateBpsPerSlotLast}, adlCoeffLong=${postEngine.adlCoeffLong}, fundingSample=${postEngine.fundingPriceSampleLast}`);
+    console.log(`    Post: fundingRate=${postEngine.fundingRateE9PerSlotLast}, adlCoeffLong=${postEngine.adlCoeffLong}, fundingSample=${postEngine.fundingPriceSampleLast}`);
 
     // Funding rate should be non-zero (mark > index = positive premium).
     // If the index converged to mark too fast, the premium is 0 and funding is 0.
     // In that case, check that funding machinery ran (fundingPriceSampleLast > 0).
-    if (postEngine.fundingRateBpsPerSlotLast !== 0n) {
+    if (postEngine.fundingRateE9PerSlotLast !== 0n) {
       console.log("    Funding rate is non-zero - premium-based funding confirmed");
     } else {
       // Index may have converged to mark (100% cap per slot). Verify funding ran.
@@ -1963,7 +1954,7 @@ async function main() {
       minOraclePriceCapE2bps: "0",
       warmupPeriodSlots: "4", maintenanceMarginBps: "500", initialMarginBps: "1000",
       tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "100000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "200",
+      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "10000",
       minInitialDeposit: "100000", minNonzeroMmReq: "10000", minNonzeroImReq: "20000",
