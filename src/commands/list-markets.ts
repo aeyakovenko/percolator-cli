@@ -9,7 +9,7 @@ import { parseHeader, parseConfig, parseEngine, parseParams } from "../solana/sl
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
 // Slab size after ADL refactor
 // = ENGINE_OFF(440) + ENGINE_ACCOUNTS_OFF(9336) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
-const SLAB_SIZE = 8951296;
+const SLAB_SIZE = 8984144;
 
 export function registerListMarkets(program: Command): void {
   program
