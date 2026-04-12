@@ -159,9 +159,9 @@ console.log("\nTesting account parsing...\n");
 
 // Constants from slab.ts for testing (keep in sync with slab.ts)
 const ENGINE_OFF = 440;
-const ENGINE_ACCOUNTS_OFF = 5032;
-const ACCOUNT_SIZE = 4368;
-const ENGINE_BITMAP_OFF = 656;
+const ENGINE_ACCOUNTS_OFF = 5112;
+const ACCOUNT_SIZE = 4384;
+const ENGINE_BITMAP_OFF = 704;
 
 // Account field offsets (SBF layout, 8-byte alignment for u128/i128)
 const ACCT_ACCOUNT_ID_OFF = 0;
@@ -169,9 +169,9 @@ const ACCT_CAPITAL_OFF = 8;
 const ACCT_KIND_OFF = 24;
 const ACCT_PNL_OFF = 32;
 const ACCT_POSITION_BASIS_Q_OFF = 64;
-const ACCT_MATCHER_PROGRAM_OFF = 120;
-const ACCT_MATCHER_CONTEXT_OFF = 152;
-const ACCT_OWNER_OFF = 184;
+const ACCT_MATCHER_PROGRAM_OFF = 136;
+const ACCT_MATCHER_CONTEXT_OFF = 168;
+const ACCT_OWNER_OFF = 200;
 
 // Helper to write u128 as two u64s
 function writeU128LE(buf: Buffer, offset: number, value: bigint): void {
