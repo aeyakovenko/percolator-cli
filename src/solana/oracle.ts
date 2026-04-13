@@ -17,12 +17,17 @@ const MAX_DECIMALS = 18;
 /** Offset of decimals field in Chainlink aggregator account */
 const CHAINLINK_DECIMALS_OFFSET = 138;
 
+/** Offset of unix timestamp in Chainlink aggregator account */
+const CHAINLINK_TIMESTAMP_OFFSET = 208;
+
 /** Offset of latest answer in Chainlink aggregator account */
 const CHAINLINK_ANSWER_OFFSET = 216;
 
 export interface OraclePrice {
   price: bigint;
   decimals: number;
+  /** Unix timestamp of the last price update (0 if unavailable) */
+  timestamp: number;
 }
 
 /**
@@ -49,6 +54,8 @@ export function parseChainlinkPrice(data: Buffer): OraclePrice {
     );
   }
 
+  const timestamp = Number(data.readBigUInt64LE(CHAINLINK_TIMESTAMP_OFFSET));
+
   const price = data.readBigInt64LE(CHAINLINK_ANSWER_OFFSET);
   if (price <= 0n) {
     throw new Error(
@@ -56,5 +63,5 @@ export function parseChainlinkPrice(data: Buffer): OraclePrice {
     );
   }
 
-  return { price, decimals };
+  return { price, decimals, timestamp };
 }

@@ -29,10 +29,11 @@ function assertThrows(fn: () => void, expectedMsg: string, testName: string): vo
 console.log("Testing oracle parsing...\n");
 
 // Helper: build a valid Chainlink aggregator buffer
-// Chainlink layout: decimals at offset 138 (u8), answer at offset 216 (i64 LE)
-function buildChainlinkBuffer(decimals: number, answer: bigint, size = 256): Buffer {
+// Chainlink layout: decimals at offset 138 (u8), timestamp at offset 208 (u64 LE), answer at offset 216 (i64 LE)
+function buildChainlinkBuffer(decimals: number, answer: bigint, size = 256, timestamp = 0n): Buffer {
   const buf = Buffer.alloc(size);
   buf.writeUInt8(decimals, 138);
+  buf.writeBigUInt64LE(timestamp, 208);
   buf.writeBigInt64LE(answer, 216);
   return buf;
 }
@@ -43,8 +44,19 @@ function buildChainlinkBuffer(decimals: number, answer: bigint, size = 256): Buf
   const result = parseChainlinkPrice(buf);
   assert(result.decimals === 8, "decimals parsed correctly");
   assert(result.price === 10012345678n, "price parsed correctly");
+  assert(result.timestamp === 0, "timestamp defaults to 0 when not set");
 
   console.log("✓ parses valid oracle data");
+}
+
+// Timestamp parsing
+{
+  const ts = BigInt(Math.floor(Date.now() / 1000));
+  const buf = buildChainlinkBuffer(8, 5000000000n, 256, ts);
+  const result = parseChainlinkPrice(buf);
+  assert(result.timestamp === Number(ts), "timestamp parsed correctly");
+
+  console.log("✓ parses oracle timestamp");
 }
 
 // Different decimal values

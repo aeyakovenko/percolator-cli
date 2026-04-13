@@ -125,6 +125,9 @@ export function registerBestPrice(program: Command): void {
 
       const oraclePrice = oracleData.price;
       const oraclePriceUsd = Number(oraclePrice) / Math.pow(10, oracleData.decimals);
+      const oracleAgeSecs = oracleData.timestamp > 0
+        ? Math.floor(Date.now() / 1000) - oracleData.timestamp
+        : -1;
 
       // Find all LPs and collect matcher context addresses
       const usedIndices = parseUsedIndices(slabData);
@@ -198,6 +201,8 @@ export function registerBestPrice(program: Command): void {
             price: oraclePrice.toString(),
             priceUsd: oraclePriceUsd,
             decimals: oracleData.decimals,
+            timestamp: oracleData.timestamp,
+            ageSecs: oracleAgeSecs >= 0 ? oracleAgeSecs : null,
           },
           lps: quotes.map(q => ({
             index: q.lpIndex,
@@ -228,6 +233,14 @@ export function registerBestPrice(program: Command): void {
       } else {
         console.log("=== Best Price Scanner ===\n");
         console.log(`Oracle: $${oraclePriceUsd.toFixed(2)}`);
+        if (oracleAgeSecs >= 0) {
+          const ageStr = oracleAgeSecs < 60
+            ? `${oracleAgeSecs}s`
+            : oracleAgeSecs < 3600
+              ? `${Math.floor(oracleAgeSecs / 60)}m ${oracleAgeSecs % 60}s`
+              : `${(oracleAgeSecs / 3600).toFixed(1)}h`;
+          console.log(`Oracle age: ${ageStr}${oracleAgeSecs > 120 ? " ⚠ STALE" : ""}`);
+        }
         console.log(`LPs found: ${quotes.length}\n`);
 
         console.log("--- LP Quotes ---");
