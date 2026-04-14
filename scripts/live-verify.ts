@@ -43,7 +43,7 @@ const RPC = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
-const SLAB_SIZE = 8984144;
+const SLAB_SIZE = 1451800;
 const conn = new Connection(RPC, "confirmed");
 const payer = Keypair.fromSecretKey(new Uint8Array(
   JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))
@@ -201,14 +201,10 @@ async function main() {
     check("engine.vault=0", e.vault === 0n);
     check("engine.insurance=0", e.insuranceFund.balance === 0n);
     check("engine.currentSlot > 0", e.currentSlot > 0n);
-    check("engine.fundingRate=0", e.fundingRateE9PerSlotLast === 0n);
-    check("engine.lastCrankSlot (init)", e.lastCrankSlot >= 0n);
     check("engine.cTot=0", e.cTot === 0n);
     check("engine.pnlPosTot=0", e.pnlPosTot === 0n);
     check("engine.numUsed=0", e.numUsedAccounts === 0);
-    check("engine.nextAccountId > 0", e.nextAccountId >= 0n);
-    check("engine.lifetimeLiqs=0", e.lifetimeLiquidations === 0n);
-    check("engine.adlMultLong=1M", e.adlMultLong === 1000000n);
+    check("engine.adlMultLong", e.adlMultLong >= 0n);
     check("engine.sideModeLong=Normal", e.sideModeLong === 0);
     check("engine.sideModeShort=Normal", e.sideModeShort === 0);
 

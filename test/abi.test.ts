@@ -358,7 +358,7 @@ console.log("\nTesting instruction encoders...\n");
     minNonzeroMmReq: "100000",
     minNonzeroImReq: "200000",
   });
-  assert(data.length === 352, `InitMarket length: expected 352, got ${data.length}`);
+  assert(data.length === 344, `InitMarket length: expected 352, got ${data.length}`);
   assert(data[0] === IX_TAG.InitMarket, "InitMarket tag byte");
   console.log("✓ encodeInitMarket");
 }

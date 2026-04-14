@@ -158,20 +158,20 @@ console.log("\n✅ All basic slab tests passed!");
 console.log("\nTesting account parsing...\n");
 
 // Constants from slab.ts for testing (keep in sync with slab.ts)
-const ENGINE_OFF = 440;
-const ENGINE_ACCOUNTS_OFF = 5112;
-const ACCOUNT_SIZE = 4384;
-const ENGINE_BITMAP_OFF = 704;
+const ENGINE_OFF = 472;
+const ENGINE_ACCOUNTS_OFF = 9376;
+const ACCOUNT_SIZE = 352;
+const ENGINE_BITMAP_OFF = 664;
 
 // Account field offsets (SBF layout, 8-byte alignment for u128/i128)
-const ACCT_ACCOUNT_ID_OFF = 0;
-const ACCT_CAPITAL_OFF = 8;
-const ACCT_KIND_OFF = 24;
-const ACCT_PNL_OFF = 32;
-const ACCT_POSITION_BASIS_Q_OFF = 64;
-const ACCT_MATCHER_PROGRAM_OFF = 136;
-const ACCT_MATCHER_CONTEXT_OFF = 168;
-const ACCT_OWNER_OFF = 200;
+;
+const ACCT_CAPITAL_OFF = 0;
+const ACCT_KIND_OFF = 16;
+const ACCT_PNL_OFF = 24;
+const ACCT_POSITION_BASIS_Q_OFF = 56;
+const ACCT_MATCHER_PROGRAM_OFF = 128;
+const ACCT_MATCHER_CONTEXT_OFF = 160;
+const ACCT_OWNER_OFF = 192;
 
 // Helper to write u128 as two u64s
 function writeU128LE(buf: Buffer, offset: number, value: bigint): void {
@@ -216,7 +216,6 @@ function createFullMockSlab(): Buffer {
 
   // Create account at index 0 (LP)
   const acc0Base = ENGINE_OFF + ENGINE_ACCOUNTS_OFF + 0 * ACCOUNT_SIZE;
-  buf.writeBigUInt64LE(100n, acc0Base + ACCT_ACCOUNT_ID_OFF);  // accountId
   writeU128LE(buf, acc0Base + ACCT_CAPITAL_OFF, 1000000000n);  // capital: 1 SOL
   buf.writeUInt8(1, acc0Base + ACCT_KIND_OFF);  // kind: LP (1)
   writeI128LE(buf, acc0Base + ACCT_PNL_OFF, 0n);  // pnl: 0
@@ -232,7 +231,6 @@ function createFullMockSlab(): Buffer {
 
   // Create account at index 1 (User)
   const acc1Base = ENGINE_OFF + ENGINE_ACCOUNTS_OFF + 1 * ACCOUNT_SIZE;
-  buf.writeBigUInt64LE(101n, acc1Base + ACCT_ACCOUNT_ID_OFF);  // accountId
   writeU128LE(buf, acc1Base + ACCT_CAPITAL_OFF, 500000000n);  // capital: 0.5 SOL
   buf.writeUInt8(0, acc1Base + ACCT_KIND_OFF);  // kind: User (0)
   writeI128LE(buf, acc1Base + ACCT_PNL_OFF, -100000n);  // pnl: -0.0001 SOL
@@ -253,13 +251,11 @@ function createFullMockSlab(): Buffer {
   // Test LP account (index 0)
   const acc0 = parseAccount(slab, 0);
   assert(acc0.kind === AccountKind.LP, "account 0 should be LP");
-  assert(acc0.accountId === 100n, "account 0 accountId");
   assert(acc0.capital === 1000000000n, "account 0 capital");
 
   // Test User account (index 1)
   const acc1 = parseAccount(slab, 1);
   assert(acc1.kind === AccountKind.User, "account 1 should be User");
-  assert(acc1.accountId === 101n, "account 1 accountId");
   assert(acc1.capital === 500000000n, "account 1 capital");
 
   console.log("✓ parseAccount kind field (LP vs User)");

@@ -124,8 +124,8 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encU64(args.maxAccounts),
     encU128(args.newAccountFee),
     encU128(args.insuranceFloor),
-    encU128(args.maintenanceFeePerSlot),
-    encU64(args.maxCrankStalenessSlots),
+    encU64(args.maintenanceFeePerSlot),  // h_max (u64)
+    encU64(args.maxCrankStalenessSlots), // max_crank_staleness_slots (u64)
     encU64(args.liquidationFeeBps),
     encU128(args.liquidationFeeCap),
     encU64(args.liquidationBufferBps),
