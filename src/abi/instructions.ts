@@ -210,17 +210,17 @@ export interface KeeperCrankArgs {
 }
 
 export function encodeKeeperCrank(args: KeeperCrankArgs): Buffer {
-  // format_version is always 0 (legacy bare u16 indices).
-  // The old "allowPanic" field was a misnomer — it maps to format_version.
-  // format_version=1 (extended) is not supported by this encoder.
+  // format_version=1: u16 idx + u8 policy_tag per candidate
+  // policy tag 0 = FullClose, 0xFF = touch-only (basic crank)
   const parts: Buffer[] = [
     encU8(IX_TAG.KeeperCrank),
     encU16(args.callerIdx),
-    encU8(0), // format_version=0 (legacy)
+    encU8(1), // format_version=1 (required since v12.17)
   ];
   if (args.candidates) {
     for (const idx of args.candidates) {
       parts.push(encU16(idx));
+      parts.push(encU8(0xFF)); // touch-only (no explicit liquidation policy)
     }
   }
   return Buffer.concat(parts);
@@ -287,6 +287,7 @@ export interface TradeCpiArgs {
   lpIdx: number;
   userIdx: number;
   size: bigint | string;
+  limitPriceE6?: bigint | string;  // 0 = no limit (default)
 }
 
 export function encodeTradeCpi(args: TradeCpiArgs): Buffer {
@@ -295,6 +296,7 @@ export function encodeTradeCpi(args: TradeCpiArgs): Buffer {
     encU16(args.lpIdx),
     encU16(args.userIdx),
     encI128(args.size),
+    encU64(args.limitPriceE6 ?? "0"),  // required since v12.17
   ]);
 }
 
