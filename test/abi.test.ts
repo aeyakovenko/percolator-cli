@@ -209,7 +209,7 @@ console.log("\nTesting instruction encoders...\n");
 }
 
 // Test KeeperCrank encoding (4 bytes: tag + u16 + u8)
-// format_version is always 0 (legacy bare u16 indices)
+// format_version is 1 (v12.17+) (legacy bare u16 indices)
 {
   const data = encodeKeeperCrank({
     callerIdx: 1,
@@ -217,7 +217,7 @@ console.log("\nTesting instruction encoders...\n");
   assert(data.length === 4, "KeeperCrank length");
   assert(data[0] === IX_TAG.KeeperCrank, "KeeperCrank tag byte");
   assertBuf(data.subarray(1, 3), [1, 0], "KeeperCrank callerIdx");
-  assert(data[3] === 0, "KeeperCrank format_version=0");
+  assert(data[3] === 1, "KeeperCrank format_version=1");
   console.log("✓ encodeKeeperCrank");
 }
 
@@ -248,7 +248,7 @@ console.log("\nTesting instruction encoders...\n");
 // Test TradeCpi encoding (21 bytes: tag + u16 + u16 + i128)
 {
   const data = encodeTradeCpi({ lpIdx: 2, userIdx: 3, size: "-500" });
-  assert(data.length === 21, "TradeCpi length");
+  assert(data.length === 29, "TradeCpi length");
   assert(data[0] === IX_TAG.TradeCpi, "TradeCpi tag byte");
   assertBuf(data.subarray(1, 3), [2, 0], "TradeCpi lpIdx");
   assertBuf(data.subarray(3, 5), [3, 0], "TradeCpi userIdx");
