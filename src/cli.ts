@@ -35,6 +35,10 @@ import { registerPushOraclePrice } from "./commands/push-oracle-price.js";
 import { registerResolveMarket } from "./commands/resolve-market.js";
 import { registerWithdrawInsurance } from "./commands/withdraw-insurance.js";
 
+// ALIENTOR scanner commands (synced from ALIEN-PERC Chart page)
+import { registerTokenScan } from "./commands/token-scan.js";
+import { registerMarketPrices } from "./commands/market-prices.js";
+
 export function createCli(): Command {
   const program = new Command();
 
@@ -91,6 +95,10 @@ export function createCli(): Command {
   registerPushOraclePrice(program);
   registerResolveMarket(program);
   registerWithdrawInsurance(program);
+
+  // ALIENTOR scanner commands (synced from ALIEN-PERC Chart page)
+  registerTokenScan(program);
+  registerMarketPrices(program);
 
   return program;
 }
