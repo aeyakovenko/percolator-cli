@@ -5,23 +5,20 @@ import { Connection, PublicKey } from "@solana/web3.js";
 // Source: /home/anatoly/percolator/src/percolator.rs,
 //         /home/anatoly/percolator-prog/src/percolator.rs (state mod)
 //
-// Layout summary:
-//   SLAB_LEN      = 1_525_656
-//   HEADER_LEN    = 136          (SlabHeader)
+// Layout summary (v12.19+, MAX_ACCOUNTS=4096):
+//   SLAB_LEN      = 1_525_688
+//   HEADER_LEN    = 168          (SlabHeader: +32 for insurance_operator)
 //   CONFIG_LEN    = 400          (MarketConfig)
-//   ENGINE_OFF    = 536          = align_up(136 + 400, 8)
+//   ENGINE_OFF    = 568          = align_up(168 + 400, 8)
 //   ENGINE_LEN    = 1_492_192    (fixed 17_632 + 4096 * 360)
-//   RISK_BUF_OFF  = 2_028_728
+//   RISK_BUF_OFF  = 1_492_760
 //   RISK_BUF_LEN  = 160
-//   GEN_TABLE_OFF = 2_028_888
+//   GEN_TABLE_OFF = 1_492_920
 //   GEN_TABLE_LEN = 32_768       (MAX_ACCOUNTS * 8)
-//   Total         = 1_525_656    -- wait: engine starts at 536, engine_len=1_492_192
-//                                -- so RISK_BUF_OFF = 536 + 1_492_192 = 1_492_728
-//                                -- GEN_TABLE_OFF = 1_492_888
-//                                -- SLAB_LEN = 1_492_888 + 32_768 = 1_525_656 ✓
+//   Total         = 1_525_688    = 568 + 1_492_192 + 160 + 32_768 ✓
 // =============================================================================
 const MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
-const HEADER_LEN = 136;
+const HEADER_LEN = 168;
 const CONFIG_OFFSET = HEADER_LEN;
 const CONFIG_LEN = 400;
 const RESERVED_OFF = 48;             // nonce at [0..8], mat_counter at [8..16]
@@ -33,13 +30,14 @@ const FLAG_ORACLE_INITIALIZED = 1 << 3;
 // =============================================================================
 // Slab sizes
 // =============================================================================
-export const SLAB_LEN = 1_525_656;
+export const SLAB_LEN = 1_525_688;
 export { HEADER_LEN, CONFIG_LEN };
 
 /**
- * Slab header (136 bytes).
+ * Slab header (168 bytes, v12.19+).
  * Layout: magic(8) + version(4) + bump(1) + _padding[3] + admin(32)
  *       + _reserved[24] + insurance_authority(32) + close_authority(32)
+ *       + insurance_operator(32)
  */
 export interface SlabHeader {
   magic: bigint;
@@ -51,6 +49,7 @@ export interface SlabHeader {
   matCounter: bigint;
   insuranceAuthority: PublicKey;
   closeAuthority: PublicKey;
+  insuranceOperator: PublicKey; // v12.19+: bounded WithdrawInsuranceLimited path
 }
 
 export interface MarketConfig {
@@ -128,11 +127,12 @@ export function parseHeader(data: Buffer): SlabHeader {
   const matCounter = data.readBigUInt64LE(RESERVED_OFF + 8);
   const insuranceAuthority = new PublicKey(data.subarray(72, 104));
   const closeAuthority = new PublicKey(data.subarray(104, 136));
+  const insuranceOperator = new PublicKey(data.subarray(136, 168));
 
   return {
     magic, version, bump, flags, admin,
     nonce, matCounter,
-    insuranceAuthority, closeAuthority,
+    insuranceAuthority, closeAuthority, insuranceOperator,
   };
 }
 
@@ -302,7 +302,7 @@ function computeLayout(maxAccounts: number): SlabLayout {
   const afterPrev = prevFreeOff + maxAccounts * 2;
   const accountsOff = (afterPrev + 7) & ~7; // align to 8
   const engineLen = accountsOff + maxAccounts * ACCOUNT_SIZE;
-  const engineOff = 536;
+  const engineOff = 568;
   const riskBufLen = 160;
   const genTableLen = maxAccounts * 8;
   const slabLen = engineOff + engineLen + riskBufLen + genTableLen;
@@ -337,10 +337,10 @@ const MAX_ACCOUNTS = DEFAULT_LAYOUT.maxAccounts;
 const BITMAP_WORDS = DEFAULT_LAYOUT.bitmapWords;
 
 // =============================================================================
-// RiskEngine Layout (BPF, 8-byte u128/i128 alignment). ENGINE_OFF = 536.
+// RiskEngine Layout (BPF, 8-byte u128/i128 alignment). ENGINE_OFF = 568.
 // All offsets below are RELATIVE to ENGINE_OFF.
 // =============================================================================
-const ENGINE_OFF = 536;
+const ENGINE_OFF = 568;
 
 const ENGINE_VAULT_OFF = 0;                           // U128
 const ENGINE_INSURANCE_OFF = 16;                      // InsuranceFund { U128 }
