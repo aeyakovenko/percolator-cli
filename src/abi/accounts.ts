@@ -191,10 +191,17 @@ export const ACCOUNTS_CLOSE_SLAB: readonly AccountSpec[] = [
 /**
  * UpdateConfig: 3 accounts
  */
+/**
+ * UpdateConfig: 4 accounts — admin, slab, clock, oracle.
+ * The oracle is REQUIRED (v12.18+). Omitting it used to force accrual
+ * rate to zero, which let admin retroactively erase elapsed funding.
+ * Hyperp markets pass the slab itself as the oracle slot (engine-internal).
+ */
 export const ACCOUNTS_UPDATE_CONFIG: readonly AccountSpec[] = [
   { name: "admin", signer: true, writable: false },
   { name: "slab", signer: false, writable: true },
   { name: "clock", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
 ] as const;
 
 /**
