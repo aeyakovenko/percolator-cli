@@ -32,6 +32,7 @@ export const IX_TAG = {
   TradeCpi: 10,
   CloseSlab: 13,
   UpdateConfig: 14,
+  WithdrawInsuranceLimited: 23, // v12.19+ restored — gated on insurance_operator
   PushOraclePrice: 17,
   SetOraclePriceCap: 18,
   ResolveMarket: 19,
@@ -52,10 +53,11 @@ export const IX_TAG = {
  * Each role is independent — delegate or burn individually.
  */
 export const AUTHORITY_KIND = {
-  ADMIN: 0,
-  ORACLE: 1,
-  INSURANCE: 2,
-  CLOSE: 3,
+  ADMIN: 0,               // header.admin
+  ORACLE: 1,              // config.oracle_authority
+  INSURANCE: 2,           // header.insurance_authority — tag 20 WithdrawInsurance (unbounded)
+  CLOSE: 3,               // header.close_authority — tag 13 CloseSlab
+  INSURANCE_OPERATOR: 4,  // header.insurance_operator — tag 23 WithdrawInsuranceLimited
 } as const;
 
 /**
@@ -290,6 +292,17 @@ export function encodeTopUpInsurance(args: TopUpInsuranceArgs): Buffer {
 
 export function encodeWithdrawInsurance(): Buffer {
   return encU8(IX_TAG.WithdrawInsurance);
+}
+
+/**
+ * WithdrawInsuranceLimited (tag 23, v12.19+): bounded live-market fee
+ * extraction. Caps per-call at `config.insurance_withdraw_max_bps` of
+ * insurance; enforces `config.insurance_withdraw_cooldown_slots` between
+ * calls. Gated on `header.insurance_operator` (distinct from
+ * `insurance_authority` which owns the unbounded tag 20 path).
+ */
+export function encodeWithdrawInsuranceLimited(args: { amount: bigint | string }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.WithdrawInsuranceLimited), encU64(args.amount)]);
 }
 
 // ---------- Slab lifecycle ----------
