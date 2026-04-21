@@ -82,6 +82,7 @@ export interface MarketConfig {
   markEwmaE6: bigint;
   markEwmaLastSlot: bigint;
   markEwmaHalflifeSlots: bigint;
+  initRestartSlot: bigint; // SIMD-0047 LastRestartSlot at InitMarket (v12.19+)
   permissionlessResolveStaleSlots: bigint;
   lastGoodOracleSlot: bigint;
   maintenanceFeePerSlot: bigint;    // u128
@@ -175,7 +176,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   const markEwmaE6 = data.readBigUInt64LE(off);                               off += 8;
   const markEwmaLastSlot = data.readBigUInt64LE(off);                         off += 8;
   const markEwmaHalflifeSlots = data.readBigUInt64LE(off);                    off += 8;
-  off += 8; // _ewma_padding
+  const initRestartSlot = data.readBigUInt64LE(off);                          off += 8;
   const permissionlessResolveStaleSlots = data.readBigUInt64LE(off);          off += 8;
   const lastGoodOracleSlot = data.readBigUInt64LE(off);                       off += 8;
   const maintenanceFeePerSlot = readU128LE(data, off);                        off += 16;
@@ -193,7 +194,7 @@ export function parseConfig(data: Buffer): MarketConfig {
     maxInsuranceFloor, minOraclePriceCapE2bps,
     insuranceWithdrawMaxBps, insuranceWithdrawCooldownSlots,
     lastHyperpIndexSlot, lastMarkPushSlot, lastInsuranceWithdrawSlot, firstObservedStaleSlot,
-    markEwmaE6, markEwmaLastSlot, markEwmaHalflifeSlots,
+    markEwmaE6, markEwmaLastSlot, markEwmaHalflifeSlots, initRestartSlot,
     permissionlessResolveStaleSlots, lastGoodOracleSlot,
     maintenanceFeePerSlot, feeSweepCursorWord, feeSweepCursorBit,
     markMinFee, forceCloseDelaySlots,
