@@ -43,7 +43,7 @@ import {
 
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
-const SLAB_SIZE = 1451800;
+const SLAB_SIZE = 1525656;
 const MATCHER_CTX_SIZE = 320;
 
 const payer = Keypair.fromSecretKey(
@@ -108,7 +108,7 @@ async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: n
   // Oracle authority + price + cap
   const t3 = new Transaction();
   t3.add(buildIx({ programId: PROGRAM_ID,
-    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, slab.publicKey]),
+    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, payer.publicKey, slab.publicKey]),
     data: encodeSetOracleAuthority({ newAuthority: payer.publicKey }),
   }));
   await send(t3, [payer]);
@@ -123,7 +123,7 @@ async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: n
   // Raise price cap for testing
   const t3c = new Transaction();
   t3c.add(buildIx({ programId: PROGRAM_ID,
-    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, slab.publicKey]),
+    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, payer.publicKey, slab.publicKey]),
     data: encodeSetOraclePriceCap({ maxChangeE2bps: "500000" }),
   }));
   await send(t3c, [payer]);

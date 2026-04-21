@@ -12,6 +12,9 @@ import { createMint, getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID, mintTo
 import * as fs from "fs";
 import {
   encodeInitMarket, encodeInitUser, encodeInitLP,
+} from "../src/abi/instructions.js";
+import { defaultInitMarketArgs } from "./_default-market.js";
+import {
   encodeDepositCollateral, encodeWithdrawCollateral,
   encodeKeeperCrank, encodeTradeCpi,
   encodeCloseAccount, encodeCloseSlab, encodeTopUpInsurance,
@@ -38,7 +41,7 @@ import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
 
 const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
-const SLAB_SIZE = 1451800;
+const SLAB_SIZE = 1525656;
 const conn = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
 const payer = Keypair.fromSecretKey(new Uint8Array(
   JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))
@@ -103,25 +106,13 @@ async function main() {
       payer.publicKey, slab.publicKey, mint, vault,
       WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent, vaultPda, WELL_KNOWN.systemProgram,
     ]),
-    data: encodeInitMarket({
-      admin: payer.publicKey, collateralMint: mint,
-      indexFeedId: "0".repeat(64), maxStalenessSecs: "100000000", confFilterBps: 200,
-      invert: 0, unitScale: 0, initialMarkPriceE6: "100000000",
-      maxMaintenanceFeePerSlot: "0", maxInsuranceFloor: "10000000000000000",
-      minOraclePriceCapE2bps: "0",
-      warmupPeriodSlots: "4", maintenanceMarginBps: "500", initialMarginBps: "1000",
-      tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "1000000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
-      liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
-      liquidationBufferBps: "50", minLiquidationAbs: "100000",
-      minInitialDeposit: "1000000", minNonzeroMmReq: "100000", minNonzeroImReq: "200000",
-    }),
+    data: encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint)),
   })], [payer]);
   console.log("Market initialized: " + slab.publicKey.toBase58());
 
   // Set oracle authority + push price
   await tx([buildIx({ programId: PROG,
-    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, slab.publicKey]),
+    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, payer.publicKey, slab.publicKey]),
     data: encodeSetOracleAuthority({ newAuthority: payer.publicKey }) })], [payer]);
   await tx([buildIx({ programId: PROG,
     keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),

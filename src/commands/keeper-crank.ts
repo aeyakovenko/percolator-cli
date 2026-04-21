@@ -109,8 +109,6 @@ export function registerKeeperCrank(program: Command): void {
         ? validateIndex(opts.callerIdx, "--caller-idx")
         : CRANK_NO_CALLER;
 
-      const allowPanic = opts.allowPanic === true;
-
       // Fetch slab data and compute liquidation candidates off-chain
       const slabData = await fetchSlab(ctx.connection, slabPk);
       const engine = parseEngine(slabData);
@@ -119,7 +117,6 @@ export function registerKeeperCrank(program: Command): void {
       // Build instruction data with candidate shortlist
       const ixData = encodeKeeperCrank({
         callerIdx,
-        allowPanic,
         candidates,
       });
 

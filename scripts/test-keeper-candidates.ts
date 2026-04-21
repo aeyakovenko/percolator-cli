@@ -38,7 +38,7 @@ import {
 
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
-const SLAB_SIZE = 1451800;
+const SLAB_SIZE = 1525656;
 const MATCHER_CTX_SIZE = 320;
 
 const payer = Keypair.fromSecretKey(
@@ -145,7 +145,7 @@ async function main() {
   const authTx = new Transaction();
   authTx.add(buildIx({
     programId: PROGRAM_ID,
-    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, slab.publicKey]),
+    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, payer.publicKey, slab.publicKey]),
     data: encodeSetOracleAuthority({ newAuthority: payer.publicKey }),
   }));
   await send(authTx, [payer]);
@@ -166,7 +166,7 @@ async function main() {
   const capTx = new Transaction();
   capTx.add(buildIx({
     programId: PROGRAM_ID,
-    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, slab.publicKey]),
+    keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, payer.publicKey, slab.publicKey]),
     data: encodeSetOraclePriceCap({ maxChangeE2bps: "500000" }),
   }));
   await send(capTx, [payer]);

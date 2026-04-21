@@ -9,7 +9,7 @@ import { parseHeader, parseConfig, parseEngine, parseParams } from "../solana/sl
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
 // Slab size after ADL refactor
 // = ENGINE_OFF(440) + ENGINE_ACCOUNTS_OFF(9336) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
-const SLAB_SIZE = 1451800;
+const SLAB_SIZE = 1525656;
 
 export function registerListMarkets(program: Command): void {
   program
@@ -99,7 +99,7 @@ export function registerListMarkets(program: Command): void {
           console.log(`  Liquidation Fee: ${Number(params.liquidationFeeBps) / 100}%`);
           console.log(`  Trading Fee: ${Number(params.tradingFeeBps) / 100}%`);
           console.log(`  C_tot: ${engine.cTot}`);
-          console.log(`  Funding Rate (bps/slot): ${engine.fundingRateBpsPerSlotLast}`);
+          console.log(`  Market Mode: ${engine.marketMode === 0 ? "Live" : "Resolved"}`);
           console.log(`  Rent: ${account.lamports / 1e9} SOL`);
         }
         console.log();

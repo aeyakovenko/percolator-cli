@@ -23,13 +23,10 @@ export function registerSlabParams(program: Command): void {
         console.log(
           JSON.stringify(
             {
-              warmupPeriodSlots: params.warmupPeriodSlots.toString(),
               maintenanceMarginBps: params.maintenanceMarginBps.toString(),
               initialMarginBps: params.initialMarginBps.toString(),
               tradingFeeBps: params.tradingFeeBps.toString(),
               maxAccounts: params.maxAccounts.toString(),
-              newAccountFee: params.newAccountFee.toString(),
-              maintenanceFeePerSlot: params.maintenanceFeePerSlot.toString(),
               maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
               liquidationFeeBps: params.liquidationFeeBps.toString(),
               liquidationFeeCap: params.liquidationFeeCap.toString(),
@@ -37,6 +34,14 @@ export function registerSlabParams(program: Command): void {
               minInitialDeposit: params.minInitialDeposit.toString(),
               minNonzeroMmReq: params.minNonzeroMmReq.toString(),
               minNonzeroImReq: params.minNonzeroImReq.toString(),
+              insuranceFloor: params.insuranceFloor.toString(),
+              hMin: params.hMin.toString(),
+              hMax: params.hMax.toString(),
+              resolvePriceDeviationBps: params.resolvePriceDeviationBps.toString(),
+              maxAccrualDtSlots: params.maxAccrualDtSlots.toString(),
+              maxAbsFundingE9PerSlot: params.maxAbsFundingE9PerSlot.toString(),
+              minFundingLifetimeSlots: params.minFundingLifetimeSlots.toString(),
+              maxActivePositionsPerSide: params.maxActivePositionsPerSide.toString(),
             },
             null,
             2
@@ -51,8 +56,6 @@ export function registerSlabParams(program: Command): void {
         console.log("");
         console.log("--- Fees ---");
         console.log(`Trading Fee:             ${params.tradingFeeBps} bps`);
-        console.log(`New Account Fee:         ${params.newAccountFee}`);
-        console.log(`Maintenance Fee/Slot:    ${params.maintenanceFeePerSlot}`);
         console.log("");
         console.log("--- Liquidation ---");
         console.log(`Liquidation Fee:         ${params.liquidationFeeBps} bps`);
@@ -65,7 +68,20 @@ export function registerSlabParams(program: Command): void {
         console.log("");
         console.log("--- Capacity ---");
         console.log(`Max Accounts:            ${params.maxAccounts}`);
-        console.log(`Warmup Period:           ${params.warmupPeriodSlots} slots`);
+        console.log(`Max Active Per Side:     ${params.maxActivePositionsPerSide}`);
+        console.log("");
+        console.log("--- Insurance ---");
+        console.log(`Insurance Floor:         ${params.insuranceFloor}`);
+        console.log("");
+        console.log("--- Warmup / Resolve ---");
+        console.log(`h_min:                   ${params.hMin} slots`);
+        console.log(`h_max:                   ${params.hMax} slots`);
+        console.log(`Resolve Price Deviation: ${params.resolvePriceDeviationBps} bps`);
+        console.log("");
+        console.log("--- Funding Envelope ---");
+        console.log(`Max Accrual dt:          ${params.maxAccrualDtSlots} slots`);
+        console.log(`Max |Rate| e9/slot:      ${params.maxAbsFundingE9PerSlot}`);
+        console.log(`Min Funding Lifetime:    ${params.minFundingLifetimeSlots} slots`);
       }
     });
 }

@@ -29,7 +29,9 @@ export function registerSlabGet(program: Command): void {
           bump: header.bump,
           admin: header.admin.toBase58(),
           nonce: header.nonce.toString(),
-          lastThrUpdateSlot: header.lastThrUpdateSlot.toString(),
+          matCounter: header.matCounter.toString(),
+          insuranceAuthority: header.insuranceAuthority.toBase58(),
+          closeAuthority: header.closeAuthority.toBase58(),
         },
         config: {
           collateralMint: mktConfig.collateralMint.toBase58(),
@@ -54,7 +56,9 @@ export function registerSlabGet(program: Command): void {
         console.log(`Bump:               ${output.header.bump}`);
         console.log(`Admin:              ${output.header.admin}`);
         console.log(`Nonce:              ${output.header.nonce}`);
-        console.log(`Last Thr Update:    ${output.header.lastThrUpdateSlot}`);
+        console.log(`Mat Counter:        ${output.header.matCounter}`);
+        console.log(`Insurance Auth:     ${output.header.insuranceAuthority}`);
+        console.log(`Close Authority:    ${output.header.closeAuthority}`);
         console.log("\n--- Config ---");
         console.log(`Collateral Mint:    ${output.config.collateralMint}`);
         console.log(`Vault:              ${output.config.vault}`);

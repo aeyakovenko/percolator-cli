@@ -47,10 +47,27 @@ Or use command-line flags:
 ## Devnet
 
 ```
-Program:        2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp (percolator-prog)
+Program:        2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp (percolator-prog, v12.18+ 4-way auth)
 Matcher:        4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy (percolator-match)
 Chainlink:      99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (SOL/USD)
 ```
+
+### On-chain layout (BPF)
+
+```
+SLAB_LEN        1_525_656 bytes     (~10.6 SOL rent for MAX_ACCOUNTS=4096)
+HEADER_LEN      136                 (adds insurance_authority + close_authority to SlabHeader)
+CONFIG_LEN      400
+ENGINE_OFF      536                 = align_up(136 + 400, 8)
+ACCOUNT_SIZE    360                 (two-bucket warmup: sched + pending)
+MAX_ACCOUNTS    4096                (configurable via `small`/`medium` features)
+```
+
+The parser in `src/solana/slab.ts` derives the MAX_ACCOUNTS-dependent offsets from the slab account data length, so small (96_696), medium (382_488), and full (1_525_656) deployments parse transparently.
+
+### Instruction set (v12.18)
+
+Removed: `SetRiskThreshold`, `UpdateAdmin` (tag 12), `SetMaintenanceFee`, `SetOracleAuthority` (tag 16), `SetInsuranceWithdrawPolicy`, `WithdrawInsuranceLimited`, `QueryLpFees`. All four authority roles are now rotated via `UpdateAuthority { kind, new_pubkey }` (tag 32). Added: `CatchupAccrue` (tag 31), `UpdateAuthority` (tag 32).
 
 ### Create a Test Market
 
