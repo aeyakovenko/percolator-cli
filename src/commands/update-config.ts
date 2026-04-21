@@ -76,8 +76,9 @@ export function registerUpdateConfig(program: Command): void {
 
       const keys = buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [
         ctx.payer.publicKey, // admin
-        slabPk, // slab
-        WELL_KNOWN.clock, // clock
+        slabPk,              // slab
+        WELL_KNOWN.clock,    // clock
+        slabPk,              // oracle (Hyperp: slab itself; non-Hyperp: Pyth account)
       ]);
 
       const ix = buildIx({
