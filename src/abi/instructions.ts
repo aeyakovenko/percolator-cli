@@ -11,7 +11,12 @@ import {
 } from "./encode.js";
 
 /**
- * Instruction tags - exact match to Rust ix::Instruction::decode
+ * Instruction tags — exact match to Rust ix::Instruction::decode.
+ * Deleted: 11 SetRiskThreshold, 12 UpdateAdmin, 15 SetMaintenanceFee,
+ *          16 SetOracleAuthority, 22 SetInsuranceWithdrawPolicy,
+ *          23 WithdrawInsuranceLimited, 24 QueryLpFees.
+ * Use UpdateAuthority (tag 32) with a `kind` discriminator to change
+ * ADMIN/ORACLE/INSURANCE/CLOSE authorities.
  */
 export const IX_TAG = {
   InitMarket: 0,
@@ -25,74 +30,93 @@ export const IX_TAG = {
   CloseAccount: 8,
   TopUpInsurance: 9,
   TradeCpi: 10,
-  SetRiskThreshold: 11,
-  UpdateAdmin: 12,
   CloseSlab: 13,
   UpdateConfig: 14,
-  SetMaintenanceFee: 15,
-  SetOracleAuthority: 16,
   PushOraclePrice: 17,
   SetOraclePriceCap: 18,
   ResolveMarket: 19,
   WithdrawInsurance: 20,
   AdminForceCloseAccount: 21,
-  SetInsuranceWithdrawPolicy: 22,
-  WithdrawInsuranceLimited: 23,
-  QueryLpFees: 24,
   ReclaimEmptyAccount: 25,
   SettleAccount: 26,
   DepositFeeCredits: 27,
   ConvertReleasedPnl: 28,
   ResolvePermissionless: 29,
   ForceCloseResolved: 30,
+  CatchupAccrue: 31,
+  UpdateAuthority: 32,
 } as const;
 
 /**
- * InitMarket instruction data (256 bytes total)
- * Layout: tag(1) + admin(32) + mint(32) + indexFeedId(32) +
- *         maxStaleSecs(8) + confFilter(2) + invert(1) + unitScale(4) +
- *         RiskParams(144)
+ * Authority kinds for UpdateAuthority (tag 32).
+ * Each role is independent — delegate or burn individually.
+ */
+export const AUTHORITY_KIND = {
+  ADMIN: 0,
+  ORACLE: 1,
+  INSURANCE: 2,
+  CLOSE: 3,
+} as const;
+
+/**
+ * InitMarket wire layout (core = 352 bytes; full with extended tail = 418 bytes).
  *
- * Note: indexFeedId is the Pyth Pull feed ID (32 bytes hex), NOT an oracle pubkey.
- * The program validates PriceUpdateV2 accounts against this feed ID at runtime.
+ * Core:
+ *   tag(1) + admin(32) + mint(32) + index_feed_id(32) +
+ *   max_staleness_secs(8) + conf_filter_bps(2) + invert(1) + unit_scale(4) +
+ *   initial_mark_price_e6(8) +
+ *   maintenance_fee_per_slot(u128) + max_insurance_floor(u128) +
+ *   min_oracle_price_cap_e2bps(8) +
+ *   RiskParams wire (192 bytes, see encodeRiskParamsWire)
+ *
+ * Extended tail (66 bytes — all-or-nothing; partial tails rejected):
+ *   insurance_withdraw_max_bps(2) + insurance_withdraw_cooldown_slots(8) +
+ *   permissionless_resolve_stale_slots(8) +
+ *   funding_horizon_slots(8) + funding_k_bps(8) +
+ *   funding_max_premium_bps(i64) + funding_max_bps_per_slot(i64) +
+ *   mark_min_fee(8) + force_close_delay_slots(8)
  */
 export interface InitMarketArgs {
   admin: PublicKey | string;
   collateralMint: PublicKey | string;
-  indexFeedId: string;           // Pyth feed ID (hex string, 64 chars without 0x prefix). All zeros = Hyperp mode.
-  maxStalenessSecs: bigint | string;  // Max staleness in SECONDS (Pyth Pull uses unix timestamps)
+  indexFeedId: string;           // Pyth feed ID (64 hex chars). All zeros = Hyperp.
+  maxStalenessSecs: bigint | string;
   confFilterBps: number;
-  invert: number;              // 0 = no inversion, 1 = invert oracle price (USD/SOL -> SOL/USD)
-  unitScale: number;           // Lamports per unit (0 = no scaling, e.g. 1000 = 1 SOL = 1,000,000 units)
-  initialMarkPriceE6: bigint | string;  // Initial mark price (required non-zero for Hyperp mode)
-  // Per-market admin limits (immutable after init)
-  maxMaintenanceFeePerSlot: bigint | string;  // Max maintenance fee admin can set (u128, must be > 0)
-  maxInsuranceFloor: bigint | string;          // Max insurance floor admin can set (u128, must be > 0)
-  minOraclePriceCapE2bps: bigint | string;    // Min oracle price cap floor (u64, 0 = no floor)
-  // Risk params
-  warmupPeriodSlots: bigint | string;
+  invert: number;
+  unitScale: number;
+  initialMarkPriceE6: bigint | string;
+  maintenanceFeePerSlot: bigint | string;   // u128
+  maxInsuranceFloor: bigint | string;       // u128
+  minOraclePriceCapE2bps: bigint | string;  // u64
+  // RiskParams wire fields
+  hMin: bigint | string;
   maintenanceMarginBps: bigint | string;
   initialMarginBps: bigint | string;
   tradingFeeBps: bigint | string;
   maxAccounts: bigint | string;
-  newAccountFee: bigint | string;
-  insuranceFloor: bigint | string;
-  maintenanceFeePerSlot: bigint | string;
+  insuranceFloor: bigint | string;          // u128
+  hMax: bigint | string;
   maxCrankStalenessSlots: bigint | string;
   liquidationFeeBps: bigint | string;
-  liquidationFeeCap: bigint | string;
-  liquidationBufferBps: bigint | string;
-  minLiquidationAbs: bigint | string;
-  minInitialDeposit: bigint | string;
-  minNonzeroMmReq: bigint | string;
-  minNonzeroImReq: bigint | string;
+  liquidationFeeCap: bigint | string;       // u128
+  resolvePriceDeviationBps: bigint | string;
+  minLiquidationAbs: bigint | string;       // u128
+  minInitialDeposit: bigint | string;       // u128
+  minNonzeroMmReq: bigint | string;         // u128
+  minNonzeroImReq: bigint | string;         // u128
+  // Extended tail (required — program rejects partial tails)
+  insuranceWithdrawMaxBps: number;
+  insuranceWithdrawCooldownSlots: bigint | string;
+  permissionlessResolveStaleSlots: bigint | string;
+  fundingHorizonSlots: bigint | string;
+  fundingKBps: bigint | string;
+  fundingMaxPremiumBps: bigint | string;    // i64
+  fundingMaxBpsPerSlot: bigint | string;    // i64
+  markMinFee: bigint | string;
+  forceCloseDelaySlots: bigint | string;
 }
 
-/**
- * Encode a Pyth feed ID (hex string) to 32-byte buffer.
- */
 function encodeFeedId(feedId: string): Buffer {
-  // Remove 0x prefix if present
   const hex = feedId.startsWith("0x") ? feedId.slice(2) : feedId;
   if (hex.length !== 64) {
     throw new Error(`Invalid feed ID length: expected 64 hex chars, got ${hex.length}`);
@@ -100,35 +124,24 @@ function encodeFeedId(feedId: string): Buffer {
   return Buffer.from(hex, "hex");
 }
 
-export function encodeInitMarket(args: InitMarketArgs): Buffer {
-  // Layout: tag(1) + admin(32) + mint(32) + index_feed_id(32) + max_staleness_secs(8) +
-  //         conf_filter_bps(2) + invert(1) + unit_scale(4) + initial_mark_price_e6(8) + RiskParams(...)
-  // Note: _reserved field is only in MarketConfig on-chain, not in instruction data
+/**
+ * RiskParams wire format (192 bytes). Field order matches `read_risk_params`.
+ * Note the compat `_new_account_fee` u128 slot — still on the wire, discarded.
+ */
+function encodeRiskParamsWire(args: InitMarketArgs): Buffer {
   return Buffer.concat([
-    encU8(IX_TAG.InitMarket),
-    encPubkey(args.admin),
-    encPubkey(args.collateralMint),
-    encodeFeedId(args.indexFeedId),   // index_feed_id (32 bytes) - all zeros for Hyperp mode
-    encU64(args.maxStalenessSecs),    // max_staleness_secs (Pyth Pull uses unix timestamps)
-    encU16(args.confFilterBps),
-    encU8(args.invert),
-    encU32(args.unitScale),
-    encU64(args.initialMarkPriceE6),  // initial_mark_price_e6 (required non-zero for Hyperp)
-    encU128(args.maxMaintenanceFeePerSlot),  // per-market admin limit
-    encU128(args.maxInsuranceFloor),          // per-market admin limit
-    encU64(args.minOraclePriceCapE2bps),     // per-market admin limit
-    encU64(args.warmupPeriodSlots),
+    encU64(args.hMin),
     encU64(args.maintenanceMarginBps),
     encU64(args.initialMarginBps),
     encU64(args.tradingFeeBps),
     encU64(args.maxAccounts),
-    encU128(args.newAccountFee),
+    encU128("0"),                           // compat new_account_fee (discarded)
     encU128(args.insuranceFloor),
-    encU64(args.maintenanceFeePerSlot),  // h_max (u64)
-    encU64(args.maxCrankStalenessSlots), // max_crank_staleness_slots (u64)
+    encU64(args.hMax),
+    encU64(args.maxCrankStalenessSlots),
     encU64(args.liquidationFeeBps),
     encU128(args.liquidationFeeCap),
-    encU64(args.liquidationBufferBps),
+    encU64(args.resolvePriceDeviationBps),  // was _liquidation_buffer_bps
     encU128(args.minLiquidationAbs),
     encU128(args.minInitialDeposit),
     encU128(args.minNonzeroMmReq),
@@ -136,26 +149,45 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
   ]);
 }
 
-/**
- * InitUser instruction data (9 bytes)
- */
-export interface InitUserArgs {
-  feePayment: bigint | string;
+export function encodeInitMarket(args: InitMarketArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.InitMarket),
+    encPubkey(args.admin),
+    encPubkey(args.collateralMint),
+    encodeFeedId(args.indexFeedId),
+    encU64(args.maxStalenessSecs),
+    encU16(args.confFilterBps),
+    encU8(args.invert),
+    encU32(args.unitScale),
+    encU64(args.initialMarkPriceE6),
+    encU128(args.maintenanceFeePerSlot),
+    encU128(args.maxInsuranceFloor),
+    encU64(args.minOraclePriceCapE2bps),
+    encodeRiskParamsWire(args),
+    // Extended tail (66 bytes)
+    encU16(args.insuranceWithdrawMaxBps),
+    encU64(args.insuranceWithdrawCooldownSlots),
+    encU64(args.permissionlessResolveStaleSlots),
+    encU64(args.fundingHorizonSlots),
+    encU64(args.fundingKBps),
+    encI64(args.fundingMaxPremiumBps),
+    encI64(args.fundingMaxBpsPerSlot),
+    encU64(args.markMinFee),
+    encU64(args.forceCloseDelaySlots),
+  ]);
 }
 
+// ---------- InitUser / InitLP ----------
+export interface InitUserArgs { feePayment: bigint | string; }
 export function encodeInitUser(args: InitUserArgs): Buffer {
   return Buffer.concat([encU8(IX_TAG.InitUser), encU64(args.feePayment)]);
 }
 
-/**
- * InitLP instruction data (73 bytes)
- */
 export interface InitLPArgs {
   matcherProgram: PublicKey | string;
   matcherContext: PublicKey | string;
   feePayment: bigint | string;
 }
-
 export function encodeInitLP(args: InitLPArgs): Buffer {
   return Buffer.concat([
     encU8(IX_TAG.InitLP),
@@ -165,76 +197,55 @@ export function encodeInitLP(args: InitLPArgs): Buffer {
   ]);
 }
 
-/**
- * DepositCollateral instruction data (11 bytes)
- */
-export interface DepositCollateralArgs {
-  userIdx: number;
-  amount: bigint | string;
-}
-
+// ---------- Deposit / Withdraw ----------
+export interface DepositCollateralArgs { userIdx: number; amount: bigint | string; }
 export function encodeDepositCollateral(args: DepositCollateralArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.DepositCollateral),
-    encU16(args.userIdx),
-    encU64(args.amount),
-  ]);
+  return Buffer.concat([encU8(IX_TAG.DepositCollateral), encU16(args.userIdx), encU64(args.amount)]);
 }
 
-/**
- * WithdrawCollateral instruction data (11 bytes)
- */
-export interface WithdrawCollateralArgs {
-  userIdx: number;
-  amount: bigint | string;
-}
-
+export interface WithdrawCollateralArgs { userIdx: number; amount: bigint | string; }
 export function encodeWithdrawCollateral(args: WithdrawCollateralArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.WithdrawCollateral),
-    encU16(args.userIdx),
-    encU64(args.amount),
-  ]);
+  return Buffer.concat([encU8(IX_TAG.WithdrawCollateral), encU16(args.userIdx), encU64(args.amount)]);
 }
 
-/**
- * KeeperCrank instruction data (4+ bytes)
- * Two-phase crank: candidates computed off-chain, passed as u16 array.
- * format_version 0: legacy (bare u16 indices, all FullClose)
- * format_version 1: extended (u16 idx + u8 policy_tag per candidate)
- */
+// ---------- KeeperCrank (format_version=1) ----------
+export interface KeeperCrankCandidate {
+  idx: number;
+  /** 0 = FullClose, 1 = ExactPartial (requires qCloseQ), 0xFF = touch-only */
+  policyTag?: number;
+  qCloseQ?: bigint | string;
+}
+
 export interface KeeperCrankArgs {
   callerIdx: number;
-  allowPanic?: boolean;  // Deprecated alias for format_version=0. Use candidates array.
-  candidates?: number[];  // Off-chain computed account indices (format_version=0, FullClose)
+  candidates?: (number | KeeperCrankCandidate)[];
 }
 
 export function encodeKeeperCrank(args: KeeperCrankArgs): Buffer {
-  // format_version=1: u16 idx + u8 policy_tag per candidate
-  // policy tag 0 = FullClose, 0xFF = touch-only (basic crank)
   const parts: Buffer[] = [
     encU8(IX_TAG.KeeperCrank),
     encU16(args.callerIdx),
-    encU8(1), // format_version=1 (required since v12.17)
+    encU8(1), // format_version=1
   ];
-  if (args.candidates) {
-    for (const idx of args.candidates) {
-      parts.push(encU16(idx));
-      parts.push(encU8(0xFF)); // touch-only (no explicit liquidation policy)
+  for (const c of args.candidates ?? []) {
+    if (typeof c === "number") {
+      parts.push(encU16(c));
+      parts.push(encU8(0xFF));
+      continue;
+    }
+    parts.push(encU16(c.idx));
+    const tag = c.policyTag ?? 0xFF;
+    parts.push(encU8(tag));
+    if (tag === 1) {
+      if (c.qCloseQ === undefined) throw new Error("qCloseQ required for ExactPartial");
+      parts.push(encU128(c.qCloseQ));
     }
   }
   return Buffer.concat(parts);
 }
 
-/**
- * TradeNoCpi instruction data (21 bytes)
- */
-export interface TradeNoCpiArgs {
-  lpIdx: number;
-  userIdx: number;
-  size: bigint | string;
-}
-
+// ---------- Trade ----------
+export interface TradeNoCpiArgs { lpIdx: number; userIdx: number; size: bigint | string; }
 export function encodeTradeNoCpi(args: TradeNoCpiArgs): Buffer {
   return Buffer.concat([
     encU8(IX_TAG.TradeNoCpi),
@@ -244,156 +255,67 @@ export function encodeTradeNoCpi(args: TradeNoCpiArgs): Buffer {
   ]);
 }
 
-/**
- * LiquidateAtOracle instruction data (3 bytes)
- */
-export interface LiquidateAtOracleArgs {
-  targetIdx: number;
-}
-
-export function encodeLiquidateAtOracle(args: LiquidateAtOracleArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.LiquidateAtOracle),
-    encU16(args.targetIdx),
-  ]);
-}
-
-/**
- * CloseAccount instruction data (3 bytes)
- */
-export interface CloseAccountArgs {
-  userIdx: number;
-}
-
-export function encodeCloseAccount(args: CloseAccountArgs): Buffer {
-  return Buffer.concat([encU8(IX_TAG.CloseAccount), encU16(args.userIdx)]);
-}
-
-/**
- * TopUpInsurance instruction data (9 bytes)
- */
-export interface TopUpInsuranceArgs {
-  amount: bigint | string;
-}
-
-export function encodeTopUpInsurance(args: TopUpInsuranceArgs): Buffer {
-  return Buffer.concat([encU8(IX_TAG.TopUpInsurance), encU64(args.amount)]);
-}
-
-/**
- * TradeCpi instruction data (21 bytes)
- */
 export interface TradeCpiArgs {
   lpIdx: number;
   userIdx: number;
   size: bigint | string;
-  limitPriceE6?: bigint | string;  // 0 = no limit (default)
+  limitPriceE6?: bigint | string;
 }
-
 export function encodeTradeCpi(args: TradeCpiArgs): Buffer {
   return Buffer.concat([
     encU8(IX_TAG.TradeCpi),
     encU16(args.lpIdx),
     encU16(args.userIdx),
     encI128(args.size),
-    encU64(args.limitPriceE6 ?? "0"),  // required since v12.17
+    encU64(args.limitPriceE6 ?? "0"),
   ]);
 }
 
-/**
- * SetRiskThreshold instruction data (17 bytes)
- */
-export interface SetRiskThresholdArgs {
-  newThreshold: bigint | string;
+// ---------- Liquidation / Close ----------
+export interface LiquidateAtOracleArgs { targetIdx: number; }
+export function encodeLiquidateAtOracle(args: LiquidateAtOracleArgs): Buffer {
+  return Buffer.concat([encU8(IX_TAG.LiquidateAtOracle), encU16(args.targetIdx)]);
 }
 
-export function encodeSetRiskThreshold(args: SetRiskThresholdArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.SetRiskThreshold),
-    encU128(args.newThreshold),
-  ]);
+export interface CloseAccountArgs { userIdx: number; }
+export function encodeCloseAccount(args: CloseAccountArgs): Buffer {
+  return Buffer.concat([encU8(IX_TAG.CloseAccount), encU16(args.userIdx)]);
 }
 
-/**
- * UpdateAdmin instruction data (33 bytes)
- */
-export interface UpdateAdminArgs {
-  newAdmin: PublicKey | string;
+// ---------- Insurance ----------
+export interface TopUpInsuranceArgs { amount: bigint | string; }
+export function encodeTopUpInsurance(args: TopUpInsuranceArgs): Buffer {
+  return Buffer.concat([encU8(IX_TAG.TopUpInsurance), encU64(args.amount)]);
 }
 
-export function encodeUpdateAdmin(args: UpdateAdminArgs): Buffer {
-  return Buffer.concat([encU8(IX_TAG.UpdateAdmin), encPubkey(args.newAdmin)]);
+export function encodeWithdrawInsurance(): Buffer {
+  return encU8(IX_TAG.WithdrawInsurance);
 }
 
-/**
- * CloseSlab instruction data (1 byte)
- */
+// ---------- Slab lifecycle ----------
 export function encodeCloseSlab(): Buffer {
   return encU8(IX_TAG.CloseSlab);
 }
 
-/**
- * UpdateConfig instruction data
- * Updates funding and threshold parameters at runtime (admin only)
- */
+// ---------- UpdateConfig (funding-only, 4 fields) ----------
 export interface UpdateConfigArgs {
-  // Funding parameters
   fundingHorizonSlots: bigint | string;
   fundingKBps: bigint | string;
-  fundingMaxPremiumBps: bigint | string;
-  fundingMaxBpsPerSlot: bigint | string;
+  fundingMaxPremiumBps: bigint | string;   // i64
+  fundingMaxBpsPerSlot: bigint | string;   // i64
 }
-
 export function encodeUpdateConfig(args: UpdateConfigArgs): Buffer {
   return Buffer.concat([
     encU8(IX_TAG.UpdateConfig),
     encU64(args.fundingHorizonSlots),
     encU64(args.fundingKBps),
-    encU128("0"),  // funding_inv_scale_notional_e6 (removed, placeholder)
     encI64(args.fundingMaxPremiumBps),
     encI64(args.fundingMaxBpsPerSlot),
   ]);
 }
 
-/**
- * SetMaintenanceFee instruction data (17 bytes)
- */
-export interface SetMaintenanceFeeArgs {
-  newFee: bigint | string;
-}
-
-export function encodeSetMaintenanceFee(args: SetMaintenanceFeeArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.SetMaintenanceFee),
-    encU128(args.newFee),
-  ]);
-}
-
-/**
- * SetOracleAuthority instruction data (33 bytes)
- * Sets the oracle price authority. Pass zero pubkey to disable and require Pyth/Chainlink.
- */
-export interface SetOracleAuthorityArgs {
-  newAuthority: PublicKey | string;
-}
-
-export function encodeSetOracleAuthority(args: SetOracleAuthorityArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.SetOracleAuthority),
-    encPubkey(args.newAuthority),
-  ]);
-}
-
-/**
- * PushOraclePrice instruction data (17 bytes)
- * Push a new oracle price (oracle authority only).
- * The price should be in e6 format and already include any inversion/scaling.
- */
-export interface PushOraclePriceArgs {
-  priceE6: bigint | string;
-  timestamp: bigint | string;
-}
-
+// ---------- Oracle ----------
+export interface PushOraclePriceArgs { priceE6: bigint | string; timestamp: bigint | string; }
 export function encodePushOraclePrice(args: PushOraclePriceArgs): Buffer {
   return Buffer.concat([
     encU8(IX_TAG.PushOraclePrice),
@@ -402,153 +324,76 @@ export function encodePushOraclePrice(args: PushOraclePriceArgs): Buffer {
   ]);
 }
 
-/**
- * SetOraclePriceCap instruction data (9 bytes)
- * Set oracle price circuit breaker cap (admin only).
- * max_change_e2bps in 0.01 bps units (1_000_000 = 100%). 0 = disabled.
- */
-export interface SetOraclePriceCapArgs {
-  maxChangeE2bps: bigint | string;
-}
-
+export interface SetOraclePriceCapArgs { maxChangeE2bps: bigint | string; }
 export function encodeSetOraclePriceCap(args: SetOraclePriceCapArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.SetOraclePriceCap),
-    encU64(args.maxChangeE2bps),
-  ]);
+  return Buffer.concat([encU8(IX_TAG.SetOraclePriceCap), encU64(args.maxChangeE2bps)]);
 }
 
-/**
- * ResolveMarket instruction data (1 byte)
- * Resolves a binary/premarket - sets RESOLVED flag, positions force-closed via crank.
- * Requires admin oracle price (authority_price_e6) to be set first.
- */
+// ---------- Resolve ----------
 export function encodeResolveMarket(): Buffer {
   return encU8(IX_TAG.ResolveMarket);
 }
 
-/**
- * WithdrawInsurance instruction data (1 byte)
- * Withdraw insurance fund to admin (requires RESOLVED and all positions closed).
- */
-export function encodeWithdrawInsurance(): Buffer {
-  return encU8(IX_TAG.WithdrawInsurance);
-}
-
-/**
- * AdminForceCloseAccount instruction data (3 bytes)
- * Force-close an abandoned account after market resolution.
- * Requires RESOLVED flag, zero position, admin signer.
- */
-export interface AdminForceCloseAccountArgs {
-  userIdx: number;
-}
-
-export function encodeAdminForceCloseAccount(args: AdminForceCloseAccountArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.AdminForceCloseAccount),
-    encU16(args.userIdx),
-  ]);
-}
-
-/**
- * SetInsuranceWithdrawPolicy instruction data (51 bytes)
- * Layout: tag(1) + authority(32) + min_withdraw_base(8) + max_withdraw_bps(2) + cooldown_slots(8)
- * Set limited insurance-withdraw policy (admin only, resolved market).
- */
-export interface SetInsuranceWithdrawPolicyArgs {
-  authority: PublicKey | string;
-  minWithdrawBase: bigint | string;
-  maxWithdrawBps: number;
-  cooldownSlots: bigint | string;
-}
-
-export function encodeSetInsuranceWithdrawPolicy(args: SetInsuranceWithdrawPolicyArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.SetInsuranceWithdrawPolicy),
-    encPubkey(args.authority),
-    encU64(args.minWithdrawBase),
-    encU16(args.maxWithdrawBps),
-    encU64(args.cooldownSlots),
-  ]);
-}
-
-/**
- * WithdrawInsuranceLimited instruction data (9 bytes)
- * Layout: tag(1) + amount(8)
- * Withdraw insurance under configured min/max/cooldown constraints.
- */
-export interface WithdrawInsuranceLimitedArgs {
-  amount: bigint | string;
-}
-
-export function encodeWithdrawInsuranceLimited(args: WithdrawInsuranceLimitedArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.WithdrawInsuranceLimited),
-    encU64(args.amount),
-  ]);
-}
-
-/**
- * QueryLpFees instruction data (3 bytes)
- * Layout: tag(1) + lp_idx(2)
- * Query cumulative fees earned by an LP position. Returns via set_return_data.
- */
-export interface QueryLpFeesArgs {
-  lpIdx: number;
-}
-
-export function encodeQueryLpFees(args: QueryLpFeesArgs): Buffer {
-  return Buffer.concat([
-    encU8(IX_TAG.QueryLpFees),
-    encU16(args.lpIdx),
-  ]);
-}
-
-/**
- * ReclaimEmptyAccount instruction data (3 bytes)
- * Layout: tag(1) + user_idx(2)
- */
-export function encodeReclaimEmptyAccount(args: { userIdx: number }): Buffer {
-  return Buffer.concat([encU8(IX_TAG.ReclaimEmptyAccount), encU16(args.userIdx)]);
-}
-
-/**
- * SettleAccount instruction data (3 bytes)
- * Layout: tag(1) + user_idx(2)
- */
-export function encodeSettleAccount(args: { userIdx: number }): Buffer {
-  return Buffer.concat([encU8(IX_TAG.SettleAccount), encU16(args.userIdx)]);
-}
-
-/**
- * DepositFeeCredits instruction data (11 bytes)
- * Layout: tag(1) + user_idx(2) + amount(8)
- */
-export function encodeDepositFeeCredits(args: { userIdx: number; amount: bigint | string }): Buffer {
-  return Buffer.concat([encU8(IX_TAG.DepositFeeCredits), encU16(args.userIdx), encU64(args.amount)]);
-}
-
-/**
- * ConvertReleasedPnl instruction data (11 bytes)
- * Layout: tag(1) + user_idx(2) + amount(8)
- */
-export function encodeConvertReleasedPnl(args: { userIdx: number; amount: bigint | string }): Buffer {
-  return Buffer.concat([encU8(IX_TAG.ConvertReleasedPnl), encU16(args.userIdx), encU64(args.amount)]);
-}
-
-/**
- * ResolvePermissionless instruction data (1 byte)
- * Layout: tag(1)
- */
 export function encodeResolvePermissionless(): Buffer {
   return encU8(IX_TAG.ResolvePermissionless);
 }
 
-/**
- * ForceCloseResolved instruction data (3 bytes)
- * Layout: tag(1) + user_idx(2)
- */
 export function encodeForceCloseResolved(args: { userIdx: number }): Buffer {
   return Buffer.concat([encU8(IX_TAG.ForceCloseResolved), encU16(args.userIdx)]);
+}
+
+export interface AdminForceCloseAccountArgs { userIdx: number; }
+export function encodeAdminForceCloseAccount(args: AdminForceCloseAccountArgs): Buffer {
+  return Buffer.concat([encU8(IX_TAG.AdminForceCloseAccount), encU16(args.userIdx)]);
+}
+
+// ---------- Account lifecycle ----------
+export function encodeReclaimEmptyAccount(args: { userIdx: number }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.ReclaimEmptyAccount), encU16(args.userIdx)]);
+}
+
+export function encodeSettleAccount(args: { userIdx: number }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.SettleAccount), encU16(args.userIdx)]);
+}
+
+export function encodeDepositFeeCredits(args: { userIdx: number; amount: bigint | string }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.DepositFeeCredits), encU16(args.userIdx), encU64(args.amount)]);
+}
+
+export function encodeConvertReleasedPnl(args: { userIdx: number; amount: bigint | string }): Buffer {
+  return Buffer.concat([encU8(IX_TAG.ConvertReleasedPnl), encU16(args.userIdx), encU64(args.amount)]);
+}
+
+// ---------- Catchup ----------
+export function encodeCatchupAccrue(): Buffer {
+  return encU8(IX_TAG.CatchupAccrue);
+}
+
+// ---------- Authority management (replaces UpdateAdmin, SetOracleAuthority) ----------
+export interface UpdateAuthorityArgs {
+  kind: number; // AUTHORITY_KIND.ADMIN | ORACLE | INSURANCE | CLOSE
+  newPubkey: PublicKey | string;
+}
+export function encodeUpdateAuthority(args: UpdateAuthorityArgs): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.UpdateAuthority),
+    encU8(args.kind),
+    encPubkey(args.newPubkey),
+  ]);
+}
+
+/**
+ * Back-compat shim: SetOracleAuthority was removed in favor of
+ * UpdateAuthority { kind: ORACLE }. Scripts still calling this get the
+ * new wire format transparently.
+ */
+export function encodeSetOracleAuthority(args: { newAuthority: PublicKey | string }): Buffer {
+  return encodeUpdateAuthority({ kind: AUTHORITY_KIND.ORACLE, newPubkey: args.newAuthority });
+}
+
+/**
+ * Back-compat shim: UpdateAdmin → UpdateAuthority { kind: ADMIN }.
+ */
+export function encodeUpdateAdmin(args: { newAdmin: PublicKey | string }): Buffer {
+  return encodeUpdateAuthority({ kind: AUTHORITY_KIND.ADMIN, newPubkey: args.newAdmin });
 }

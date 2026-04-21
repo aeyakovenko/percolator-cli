@@ -167,10 +167,12 @@ export const ACCOUNTS_SET_RISK_THRESHOLD: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * UpdateAdmin: 2 accounts
+ * UpdateAuthority (kind=ADMIN): 3 accounts
+ * [current_authority (signer), new_authority (signer unless burn), slab (writable)]
  */
 export const ACCOUNTS_UPDATE_ADMIN: readonly AccountSpec[] = [
-  { name: "admin", signer: true, writable: false },
+  { name: "current_authority", signer: true, writable: false },
+  { name: "new_authority", signer: false, writable: false },
   { name: "slab", signer: false, writable: true },
 ] as const;
 
@@ -204,11 +206,12 @@ export const ACCOUNTS_SET_MAINTENANCE_FEE: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * SetOracleAuthority: 2 accounts
- * Sets the oracle price authority (admin only)
+ * UpdateAuthority (kind=ORACLE): 3 accounts
+ * [current_authority (signer), new_authority (signer unless burn), slab (writable)]
  */
 export const ACCOUNTS_SET_ORACLE_AUTHORITY: readonly AccountSpec[] = [
-  { name: "admin", signer: true, writable: false },
+  { name: "current_authority", signer: true, writable: false },
+  { name: "new_authority", signer: false, writable: false },
   { name: "slab", signer: false, writable: true },
 ] as const;
 

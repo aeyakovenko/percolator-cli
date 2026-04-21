@@ -13,7 +13,6 @@ import { registerTradeCpi } from "./commands/trade-cpi.js";
 import { registerLiquidateAtOracle } from "./commands/liquidate-at-oracle.js";
 import { registerCloseAccount } from "./commands/close-account.js";
 import { registerTopupInsurance } from "./commands/topup-insurance.js";
-import { registerSetRiskThreshold } from "./commands/set-risk-threshold.js";
 import { registerUpdateAdmin } from "./commands/update-admin.js";
 import { registerCloseSlab } from "./commands/close-slab.js";
 import { registerCloseAllSlabs } from "./commands/close-all-slabs.js";
@@ -68,7 +67,6 @@ export function createCli(): Command {
   registerLiquidateAtOracle(program);
   registerCloseAccount(program);
   registerTopupInsurance(program);
-  registerSetRiskThreshold(program);
   registerUpdateAdmin(program);
   registerCloseSlab(program);
   registerCloseAllSlabs(program);

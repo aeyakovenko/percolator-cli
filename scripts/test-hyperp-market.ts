@@ -76,7 +76,7 @@ import { buildIx } from "../src/runtime/tx.js";
 // Program IDs
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
-const SLAB_SIZE = 1451800;
+const SLAB_SIZE = 1525656;
 const MATCHER_CTX_SIZE = 320;
 
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");

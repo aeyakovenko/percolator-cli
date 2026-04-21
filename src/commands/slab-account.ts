@@ -39,7 +39,6 @@ export function registerSlabAccount(program: Command): void {
             {
               idx,
               kind: kindStr,
-              accountId: account.accountId.toString(),
               owner: account.owner.toBase58(),
               capital: account.capital.toString(),
               pnl: account.pnl.toString(),
@@ -47,12 +46,20 @@ export function registerSlabAccount(program: Command): void {
               positionBasisQ: account.positionBasisQ.toString(),
               adlABasis: account.adlABasis.toString(),
               adlKSnap: account.adlKSnap.toString(),
+              fSnap: account.fSnap.toString(),
               adlEpochSnap: account.adlEpochSnap.toString(),
               feeCredits: account.feeCredits.toString(),
               lastFeeSlot: account.lastFeeSlot.toString(),
-              feesEarnedTotal: account.feesEarnedTotal.toString(),
-              warmupStartedAtSlot: account.warmupStartedAtSlot.toString(),
-              warmupSlopePerStep: account.warmupSlopePerStep.toString(),
+              schedPresent: account.schedPresent,
+              schedRemainingQ: account.schedRemainingQ.toString(),
+              schedAnchorQ: account.schedAnchorQ.toString(),
+              schedStartSlot: account.schedStartSlot.toString(),
+              schedHorizon: account.schedHorizon.toString(),
+              schedReleaseQ: account.schedReleaseQ.toString(),
+              pendingPresent: account.pendingPresent,
+              pendingRemainingQ: account.pendingRemainingQ.toString(),
+              pendingHorizon: account.pendingHorizon.toString(),
+              pendingCreatedSlot: account.pendingCreatedSlot.toString(),
               matcherProgram: account.matcherProgram.toBase58(),
               matcherContext: account.matcherContext.toBase58(),
             },
@@ -62,7 +69,6 @@ export function registerSlabAccount(program: Command): void {
         );
       } else {
         console.log(`--- Account ${idx} (${kindStr}) ---`);
-        console.log(`Account ID:              ${account.accountId}`);
         console.log(`Owner:                   ${account.owner.toBase58()}`);
         console.log("");
         console.log("--- Capital & PnL ---");
@@ -71,17 +77,23 @@ export function registerSlabAccount(program: Command): void {
         console.log(`Reserved PnL:            ${account.reservedPnl}`);
         console.log(`Fee Credits:             ${account.feeCredits}`);
         console.log(`Last Fee Slot:           ${account.lastFeeSlot}`);
-        console.log(`Fees Earned Total:       ${account.feesEarnedTotal}`);
         console.log("");
         console.log("--- Position ---");
         console.log(`Position Basis Q:        ${account.positionBasisQ}`);
         console.log(`ADL A Basis:             ${account.adlABasis}`);
         console.log(`ADL K Snap:              ${account.adlKSnap}`);
+        console.log(`F Snap:                  ${account.fSnap}`);
         console.log(`ADL Epoch Snap:          ${account.adlEpochSnap}`);
         console.log("");
-        console.log("--- Warmup ---");
-        console.log(`Warmup Started:          ${account.warmupStartedAtSlot}`);
-        console.log(`Warmup Slope:            ${account.warmupSlopePerStep}`);
+        console.log("--- Warmup Buckets (two-bucket) ---");
+        console.log(`Sched present:           ${account.schedPresent}`);
+        console.log(`Sched remaining_q:       ${account.schedRemainingQ}`);
+        console.log(`Sched anchor_q:          ${account.schedAnchorQ}`);
+        console.log(`Sched start/horizon:     ${account.schedStartSlot} / ${account.schedHorizon}`);
+        console.log(`Sched release_q:         ${account.schedReleaseQ}`);
+        console.log(`Pending present:         ${account.pendingPresent}`);
+        console.log(`Pending remaining_q:     ${account.pendingRemainingQ}`);
+        console.log(`Pending horizon/created: ${account.pendingHorizon} / ${account.pendingCreatedSlot}`);
         if (account.kind === AccountKind.LP) {
           console.log("");
           console.log("--- Matcher (LP only) ---");

@@ -1,54 +1,58 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
-// Constants from Rust (updated for ADL refactor 2026-03)
+// =============================================================================
+// Constants — BPF layout (u128/i128 have 8-byte alignment, not 16)
+// Source: /home/anatoly/percolator/src/percolator.rs,
+//         /home/anatoly/percolator-prog/src/percolator.rs (state mod)
+//
+// Layout summary:
+//   SLAB_LEN      = 1_525_656
+//   HEADER_LEN    = 136          (SlabHeader)
+//   CONFIG_LEN    = 400          (MarketConfig)
+//   ENGINE_OFF    = 536          = align_up(136 + 400, 8)
+//   ENGINE_LEN    = 1_492_192    (fixed 17_632 + 4096 * 360)
+//   RISK_BUF_OFF  = 2_028_728
+//   RISK_BUF_LEN  = 160
+//   GEN_TABLE_OFF = 2_028_888
+//   GEN_TABLE_LEN = 32_768       (MAX_ACCOUNTS * 8)
+//   Total         = 1_525_656    -- wait: engine starts at 536, engine_len=1_492_192
+//                                -- so RISK_BUF_OFF = 536 + 1_492_192 = 1_492_728
+//                                -- GEN_TABLE_OFF = 1_492_888
+//                                -- SLAB_LEN = 1_492_888 + 32_768 = 1_525_656 ✓
+// =============================================================================
 const MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
-const HEADER_LEN = 72;    // SlabHeader: magic(8) + version(4) + bump(1) + _padding(3) + admin(32) + _reserved(24)
-const CONFIG_OFFSET = HEADER_LEN;  // MarketConfig starts right after header
-// MarketConfig: collateral_mint(32) + vault_pubkey(32) + index_feed_id(32) + max_staleness_secs(8) +
-//               conf_filter_bps(2) + bump(1) + invert(1) + unit_scale(4) +
-//               funding_horizon_slots(8) + funding_k_bps(8) + funding_inv_scale_notional_e6(16) +
-//               funding_max_premium_bps(8) + funding_max_bps_per_slot(8) +
-//               thresh_floor(16) + thresh_risk_bps(8) + thresh_update_interval_slots(8) +
-//               thresh_step_bps(8) + thresh_alpha_bps(8) + thresh_min(16) + thresh_max(16) + thresh_min_step(16) +
-//               oracle_authority(32) + authority_price_e6(8) + authority_timestamp(8) +
-//               oracle_price_cap_e2bps(8) + last_effective_price_e6(8) +
-//               max_maintenance_fee_per_slot(16) + max_insurance_floor(16) +
-//               min_oracle_price_cap_e2bps(8) +
-//               insurance_withdraw_max_bps(2) + _iw_padding(6) +
-//               insurance_withdraw_cooldown_slots(8) + _iw_padding2(8) +
-//               max_insurance_floor_change_per_day(16) +
-//               resolution_slot(8) + last_hyperp_index_slot(8) +
-//               last_mark_push_slot(16) + last_insurance_withdraw_slot(8) + _liw_padding(8) +
-//               mark_ewma_e6(8) + mark_ewma_last_slot(8) + mark_ewma_halflife_slots(8) + _ewma_padding(8) +
-//               permissionless_resolve_stale_slots(8) + _perm_resolve_padding(8) +
-//               mark_min_fee(8) + force_close_delay_slots(8)
-const CONFIG_LEN = 400;  // ENGINE_OFF=472 = align_up(72+400, 8)
-const RESERVED_OFF = 48;  // Offset of _reserved field within SlabHeader
+const HEADER_LEN = 136;
+const CONFIG_OFFSET = HEADER_LEN;
+const CONFIG_LEN = 400;
+const RESERVED_OFF = 48;             // nonce at [0..8], mat_counter at [8..16]
 
 // Flag bits in header._padding[0] at offset 13
-const FLAG_RESOLVED = 1 << 0;
-const FLAG_POLICY_CONFIGURED = 1 << 1;
+const FLAG_CPI_IN_PROGRESS = 1 << 2;
+const FLAG_ORACLE_INITIALIZED = 1 << 3;
+
+// =============================================================================
+// Slab sizes
+// =============================================================================
+export const SLAB_LEN = 1_525_656;
+export { HEADER_LEN, CONFIG_LEN };
 
 /**
- * Slab header (72 bytes)
+ * Slab header (136 bytes).
+ * Layout: magic(8) + version(4) + bump(1) + _padding[3] + admin(32)
+ *       + _reserved[24] + insurance_authority(32) + close_authority(32)
  */
 export interface SlabHeader {
   magic: bigint;
   version: number;
   bump: number;
   flags: number;
-  resolved: boolean;
-  policyConfigured: boolean;
   admin: PublicKey;
   nonce: bigint;
-  lastThrUpdateSlot: bigint;
+  matCounter: bigint;
+  insuranceAuthority: PublicKey;
+  closeAuthority: PublicKey;
 }
 
-/**
- * Market config (starts at offset 72)
- * Layout: collateral_mint(32) + vault_pubkey(32) + index_feed_id(32)
- *         + max_staleness_secs(8) + conf_filter_bps(2) + vault_authority_bump(1) + invert(1) + unit_scale(4)
- */
 export interface MarketConfig {
   collateralMint: PublicKey;
   vaultPubkey: PublicKey;
@@ -60,25 +64,29 @@ export interface MarketConfig {
   unitScale: number;
   fundingHorizonSlots: bigint;
   fundingKBps: bigint;
-  fundingMaxPremiumBps: bigint;
-  fundingMaxBpsPerSlot: bigint;
+  fundingMaxPremiumBps: bigint;     // i64
+  fundingMaxBpsPerSlot: bigint;     // i64
   oracleAuthority: PublicKey;
   authorityPriceE6: bigint;
   authorityTimestamp: bigint;
   oraclePriceCapE2bps: bigint;
   lastEffectivePriceE6: bigint;
-  maxInsuranceFloor: bigint;
+  maxInsuranceFloor: bigint;        // u128
   minOraclePriceCapE2bps: bigint;
   insuranceWithdrawMaxBps: number;
   insuranceWithdrawCooldownSlots: bigint;
-  resolutionSlot: bigint;
   lastHyperpIndexSlot: bigint;
   lastMarkPushSlot: bigint;
   lastInsuranceWithdrawSlot: bigint;
+  firstObservedStaleSlot: bigint;
   markEwmaE6: bigint;
   markEwmaLastSlot: bigint;
   markEwmaHalflifeSlots: bigint;
-  permissionlessResolveStaleslots: bigint;
+  permissionlessResolveStaleSlots: bigint;
+  lastGoodOracleSlot: bigint;
+  maintenanceFeePerSlot: bigint;    // u128
+  feeSweepCursorWord: bigint;
+  feeSweepCursorBit: bigint;
   markMinFee: bigint;
   forceCloseDelaySlots: bigint;
 }
@@ -98,7 +106,7 @@ export async function fetchSlab(
 }
 
 /**
- * Parse slab header (first 64 bytes).
+ * Parse slab header (first 136 bytes).
  */
 export function parseHeader(data: Buffer): SlabHeader {
   if (data.length < HEADER_LEN) {
@@ -112,30 +120,22 @@ export function parseHeader(data: Buffer): SlabHeader {
 
   const version = data.readUInt32LE(8);
   const bump = data.readUInt8(12);
-  const flags = data.readUInt8(13);  // _padding[0] contains flags
+  const flags = data.readUInt8(13);
   const admin = new PublicKey(data.subarray(16, 48));
-
-  // Reserved field: nonce at [0..8], lastThrUpdateSlot at [8..16]
   const nonce = data.readBigUInt64LE(RESERVED_OFF);
-  const lastThrUpdateSlot = data.readBigUInt64LE(RESERVED_OFF + 8);
+  const matCounter = data.readBigUInt64LE(RESERVED_OFF + 8);
+  const insuranceAuthority = new PublicKey(data.subarray(72, 104));
+  const closeAuthority = new PublicKey(data.subarray(104, 136));
 
   return {
-    magic,
-    version,
-    bump,
-    flags,
-    resolved: (flags & FLAG_RESOLVED) !== 0,
-    policyConfigured: (flags & FLAG_POLICY_CONFIGURED) !== 0,
-    admin,
-    nonce,
-    lastThrUpdateSlot,
+    magic, version, bump, flags, admin,
+    nonce, matCounter,
+    insuranceAuthority, closeAuthority,
   };
 }
 
 /**
- * Parse market config (starts at byte 72).
- * Layout: collateral_mint(32) + vault_pubkey(32) + index_feed_id(32)
- *         + max_staleness_secs(8) + conf_filter_bps(2) + vault_authority_bump(1) + invert(1) + unit_scale(4)
+ * Parse MarketConfig starting at HEADER_LEN.
  */
 export function parseConfig(data: Buffer): MarketConfig {
   const minLen = CONFIG_OFFSET + CONFIG_LEN;
@@ -145,354 +145,248 @@ export function parseConfig(data: Buffer): MarketConfig {
 
   let off = CONFIG_OFFSET;
 
-  const collateralMint = new PublicKey(data.subarray(off, off + 32));
-  off += 32;
-
-  const vaultPubkey = new PublicKey(data.subarray(off, off + 32));
-  off += 32;
-
-  // index_feed_id (32 bytes) - Pyth feed ID, stored as 32 bytes
-  const indexFeedId = new PublicKey(data.subarray(off, off + 32));
-  off += 32;
-
-  const maxStalenessSlots = data.readBigUInt64LE(off);
-  off += 8;
-
-  const confFilterBps = data.readUInt16LE(off);
-  off += 2;
-
-  const vaultAuthorityBump = data.readUInt8(off);
-  off += 1;
-
-  const invert = data.readUInt8(off);
-  off += 1;
-
-  const unitScale = data.readUInt32LE(off);
-  off += 4;
-
-  // Funding rate parameters
-  const fundingHorizonSlots = data.readBigUInt64LE(off);
-  off += 8;
-
-  const fundingKBps = data.readBigUInt64LE(off);
-  off += 8;
-
-  // funding_inv_scale_notional_e6 removed; funding_max_premium_bps is now i64
-  const fundingMaxPremiumBps = data.readBigInt64LE(off);
-  off += 8;
-
-  const fundingMaxBpsPerSlot = data.readBigInt64LE(off);
-  off += 8;
-
-  // Oracle authority fields (threshold params removed)
-  const oracleAuthority = new PublicKey(data.subarray(off, off + 32));
-  off += 32;
-
-  const authorityPriceE6 = data.readBigUInt64LE(off);
-  off += 8;
-
-  const authorityTimestamp = data.readBigInt64LE(off);
-  off += 8;
-
-  // Oracle price circuit breaker
-  const oraclePriceCapE2bps = data.readBigUInt64LE(off);
-  off += 8;
-
-  const lastEffectivePriceE6 = data.readBigUInt64LE(off);
-  off += 8;
-
-  // Per-market admin limits (maxMaintenanceFeePerSlot removed)
-  const maxInsuranceFloor = readU128LE(data, off);
-  off += 16;
-
-  const minOraclePriceCapE2bps = data.readBigUInt64LE(off);
-  off += 8;
-
-  // Insurance withdrawal limits (replaces old _limits_reserved)
-  const insuranceWithdrawMaxBps = data.readUInt16LE(off);
-  off += 2;
-
-  // _iw_padding (6 bytes)
-  off += 6;
-
-  const insuranceWithdrawCooldownSlots = data.readBigUInt64LE(off);
-  off += 8;
-
-  // _iw_padding2 (8 bytes)
-  off += 8;
-
-  // maxInsuranceFloorChangePerDay removed
-
-  const resolutionSlot = data.readBigUInt64LE(off);
-  off += 8;
-
-  const lastHyperpIndexSlot = data.readBigUInt64LE(off);
-  off += 8;
-
-  const lastMarkPushSlot = readU128LE(data, off);
-  off += 16;
-
-  const lastInsuranceWithdrawSlot = data.readBigUInt64LE(off);
-  off += 8;
-  off += 8; // _liw_padding
-
-  const markEwmaE6 = data.readBigUInt64LE(off);
-  off += 8;
-  const markEwmaLastSlot = data.readBigUInt64LE(off);
-  off += 8;
-  const markEwmaHalflifeSlots = data.readBigUInt64LE(off);
-  off += 8;
+  const collateralMint = new PublicKey(data.subarray(off, off + 32));        off += 32;
+  const vaultPubkey = new PublicKey(data.subarray(off, off + 32));            off += 32;
+  const indexFeedId = new PublicKey(data.subarray(off, off + 32));            off += 32;
+  const maxStalenessSlots = data.readBigUInt64LE(off);                        off += 8;
+  const confFilterBps = data.readUInt16LE(off);                               off += 2;
+  const vaultAuthorityBump = data.readUInt8(off);                             off += 1;
+  const invert = data.readUInt8(off);                                         off += 1;
+  const unitScale = data.readUInt32LE(off);                                   off += 4;
+  const fundingHorizonSlots = data.readBigUInt64LE(off);                      off += 8;
+  const fundingKBps = data.readBigUInt64LE(off);                              off += 8;
+  const fundingMaxPremiumBps = data.readBigInt64LE(off);                      off += 8;
+  const fundingMaxBpsPerSlot = data.readBigInt64LE(off);                      off += 8;
+  const oracleAuthority = new PublicKey(data.subarray(off, off + 32));        off += 32;
+  const authorityPriceE6 = data.readBigUInt64LE(off);                         off += 8;
+  const authorityTimestamp = data.readBigInt64LE(off);                        off += 8;
+  const oraclePriceCapE2bps = data.readBigUInt64LE(off);                      off += 8;
+  const lastEffectivePriceE6 = data.readBigUInt64LE(off);                     off += 8;
+  const maxInsuranceFloor = readU128LE(data, off);                            off += 16;
+  const minOraclePriceCapE2bps = data.readBigUInt64LE(off);                   off += 8;
+  const insuranceWithdrawMaxBps = data.readUInt16LE(off);                     off += 2;
+  off += 6; // _iw_padding
+  const insuranceWithdrawCooldownSlots = data.readBigUInt64LE(off);           off += 8;
+  off += 16; // _iw_padding2 [u64; 2]
+  const lastHyperpIndexSlot = data.readBigUInt64LE(off);                      off += 8;
+  const lastMarkPushSlot = readU128LE(data, off);                             off += 16;
+  const lastInsuranceWithdrawSlot = data.readBigUInt64LE(off);                off += 8;
+  const firstObservedStaleSlot = data.readBigUInt64LE(off);                   off += 8;
+  const markEwmaE6 = data.readBigUInt64LE(off);                               off += 8;
+  const markEwmaLastSlot = data.readBigUInt64LE(off);                         off += 8;
+  const markEwmaHalflifeSlots = data.readBigUInt64LE(off);                    off += 8;
   off += 8; // _ewma_padding
-
-  const permissionlessResolveStaleslots = data.readBigUInt64LE(off);
-  off += 8;
-  const lastGoodOracleSlot = data.readBigUInt64LE(off);
-  off += 8;
-
-  const markMinFee = data.readBigUInt64LE(off);
-  off += 8;
-  const forceCloseDelaySlots = data.readBigUInt64LE(off); // off += 8;
+  const permissionlessResolveStaleSlots = data.readBigUInt64LE(off);          off += 8;
+  const lastGoodOracleSlot = data.readBigUInt64LE(off);                       off += 8;
+  const maintenanceFeePerSlot = readU128LE(data, off);                        off += 16;
+  const feeSweepCursorWord = data.readBigUInt64LE(off);                       off += 8;
+  const feeSweepCursorBit = data.readBigUInt64LE(off);                        off += 8;
+  const markMinFee = data.readBigUInt64LE(off);                               off += 8;
+  const forceCloseDelaySlots = data.readBigUInt64LE(off);                     // off += 8;
 
   return {
-    collateralMint,
-    vaultPubkey,
-    indexFeedId,
-    maxStalenessSlots,
-    confFilterBps,
-    vaultAuthorityBump,
-    invert,
-    unitScale,
-    fundingHorizonSlots,
-    fundingKBps,
-    fundingMaxPremiumBps,
-    fundingMaxBpsPerSlot,
-    oracleAuthority,
-    authorityPriceE6,
-    authorityTimestamp,
-    oraclePriceCapE2bps,
-    lastEffectivePriceE6,
-    maxInsuranceFloor,
-    minOraclePriceCapE2bps,
-    insuranceWithdrawMaxBps,
-    insuranceWithdrawCooldownSlots,
-    resolutionSlot,
-    lastHyperpIndexSlot,
-    lastMarkPushSlot,
-    lastInsuranceWithdrawSlot,
-    markEwmaE6,
-    markEwmaLastSlot,
-    markEwmaHalflifeSlots,
-    permissionlessResolveStaleslots,
-    markMinFee,
-    forceCloseDelaySlots,
+    collateralMint, vaultPubkey, indexFeedId,
+    maxStalenessSlots, confFilterBps, vaultAuthorityBump, invert, unitScale,
+    fundingHorizonSlots, fundingKBps, fundingMaxPremiumBps, fundingMaxBpsPerSlot,
+    oracleAuthority, authorityPriceE6, authorityTimestamp,
+    oraclePriceCapE2bps, lastEffectivePriceE6,
+    maxInsuranceFloor, minOraclePriceCapE2bps,
+    insuranceWithdrawMaxBps, insuranceWithdrawCooldownSlots,
+    lastHyperpIndexSlot, lastMarkPushSlot, lastInsuranceWithdrawSlot, firstObservedStaleSlot,
+    markEwmaE6, markEwmaLastSlot, markEwmaHalflifeSlots,
+    permissionlessResolveStaleSlots, lastGoodOracleSlot,
+    maintenanceFeePerSlot, feeSweepCursorWord, feeSweepCursorBit,
+    markMinFee, forceCloseDelaySlots,
   };
 }
 
-/**
- * Read nonce from slab header reserved field.
- */
 export function readNonce(data: Buffer): bigint {
-  if (data.length < RESERVED_OFF + 8) {
-    throw new Error("Slab data too short for nonce");
-  }
+  if (data.length < RESERVED_OFF + 8) throw new Error("Slab data too short for nonce");
   return data.readBigUInt64LE(RESERVED_OFF);
 }
 
-/**
- * Read last threshold update slot from slab header reserved field.
- */
-export function readLastThrUpdateSlot(data: Buffer): bigint {
-  if (data.length < RESERVED_OFF + 16) {
-    throw new Error("Slab data too short for lastThrUpdateSlot");
-  }
+export function readMatCounter(data: Buffer): bigint {
+  if (data.length < RESERVED_OFF + 16) throw new Error("Slab data too short for matCounter");
   return data.readBigUInt64LE(RESERVED_OFF + 8);
 }
 
 // =============================================================================
-// RiskParams Layout (184 bytes, repr(C) with 8-byte alignment on SBF)
-//
-// Fields:
-//   maintenance_margin_bps: u64      @   0  (8 bytes)
-//   initial_margin_bps: u64          @   8  (8 bytes)
-//   trading_fee_bps: u64             @  16  (8 bytes)
-//   max_accounts: u64                @  24  (8 bytes)
-//   new_account_fee: U128            @  32  (16 bytes)
-//   max_crank_staleness_slots: u64   @  48  (8 bytes)
-//   liquidation_fee_bps: u64         @  56  (8 bytes)
-//   liquidation_fee_cap: U128        @  64  (16 bytes)
-//   min_liquidation_abs: U128        @  80  (16 bytes)
-//   min_initial_deposit: U128        @  96  (16 bytes)
-//   min_nonzero_mm_req: u128         @ 112  (16 bytes)
-//   min_nonzero_im_req: u128         @ 128  (16 bytes)
-//   insurance_floor: U128            @ 144  (16 bytes)
-//   h_min: u64                       @ 160  (8 bytes)
-//   h_max: u64                       @ 168  (8 bytes)
-//   resolve_price_deviation_bps: u64 @ 176  (8 bytes)
-// Total: 184 bytes
+// RiskParams Layout (200 bytes, BPF 8-byte alignment)
 // =============================================================================
-const PARAMS_MAINTENANCE_MARGIN_OFF = 0;        // u64
-const PARAMS_INITIAL_MARGIN_OFF = 8;            // u64
-const PARAMS_TRADING_FEE_OFF = 16;              // u64
-const PARAMS_MAX_ACCOUNTS_OFF = 24;             // u64
-const PARAMS_NEW_ACCOUNT_FEE_OFF = 32;          // U128 (16 bytes)
-const PARAMS_MAX_CRANK_STALENESS_OFF = 48;      // u64
-const PARAMS_LIQUIDATION_FEE_BPS_OFF = 56;      // u64
-const PARAMS_LIQUIDATION_FEE_CAP_OFF = 64;      // U128 (16 bytes)
-const PARAMS_MIN_LIQUIDATION_OFF = 80;          // U128 (16 bytes)
-const PARAMS_MIN_INITIAL_DEPOSIT_OFF = 96;      // U128 (16 bytes)
-const PARAMS_MIN_NONZERO_MM_REQ_OFF = 112;      // u128 (16 bytes)
-const PARAMS_MIN_NONZERO_IM_REQ_OFF = 128;      // u128 (16 bytes)
-const PARAMS_INSURANCE_FLOOR_OFF = 144;         // U128 (16 bytes)
-const PARAMS_SIZE = 184;
+const PARAMS_MAINTENANCE_MARGIN_OFF = 0;
+const PARAMS_INITIAL_MARGIN_OFF = 8;
+const PARAMS_TRADING_FEE_OFF = 16;
+const PARAMS_MAX_ACCOUNTS_OFF = 24;
+const PARAMS_MAX_CRANK_STALENESS_OFF = 32;
+const PARAMS_LIQUIDATION_FEE_BPS_OFF = 40;
+const PARAMS_LIQUIDATION_FEE_CAP_OFF = 48;     // U128
+const PARAMS_MIN_LIQUIDATION_OFF = 64;         // U128
+const PARAMS_MIN_INITIAL_DEPOSIT_OFF = 80;     // U128
+const PARAMS_MIN_NONZERO_MM_REQ_OFF = 96;      // u128
+const PARAMS_MIN_NONZERO_IM_REQ_OFF = 112;     // u128
+const PARAMS_INSURANCE_FLOOR_OFF = 128;        // U128
+const PARAMS_H_MIN_OFF = 144;
+const PARAMS_H_MAX_OFF = 152;
+const PARAMS_RESOLVE_PRICE_DEVIATION_OFF = 160;
+const PARAMS_MAX_ACCRUAL_DT_OFF = 168;
+const PARAMS_MAX_ABS_FUNDING_OFF = 176;
+const PARAMS_MIN_FUNDING_LIFETIME_OFF = 184;
+const PARAMS_MAX_ACTIVE_POSITIONS_OFF = 192;
+const PARAMS_SIZE = 200;
 
 // =============================================================================
-// Account Layout (4368 bytes, repr(C), SBF 8-byte alignment)
-//
-// Fields:
-//   account_id: u64              @   0  (8 bytes)
-//   capital: U128                @   8  (16 bytes)
-//   kind: u8                     @  24  (1 byte + 7 padding)
-//   pnl: i128                    @  32  (16 bytes)
-//   reserved_pnl: u128           @  48  (16 bytes)
-//   position_basis_q: i128       @  64  (16 bytes)
-//   adl_a_basis: u128            @  80  (16 bytes)
-//   adl_k_snap: i128             @  96  (16 bytes)
-//   adl_epoch_snap: u64          @ 112  (8 bytes)
-//   matcher_program: [u8;32]     @ 120  (32 bytes)
-//   matcher_context: [u8;32]     @ 152  (32 bytes)
-//   owner: [u8;32]               @ 184  (32 bytes)
-//   fee_credits: I128            @ 216  (16 bytes)
-//   fees_earned_total: U128      @ 232  (16 bytes)
-//   exact_reserve_cohorts: [RC;62] @ 248 (3968 bytes)
-//   exact_cohort_count: u8       @ 4216 (1 byte + 7 padding)
-//   overflow_older: ReserveCohort @ 4224 (64 bytes)
-//   overflow_older_present: u8    @ 4288 (1 byte + 7 padding)
-//   overflow_newest: ReserveCohort @ 4296 (64 bytes)
-//   overflow_newest_present: u8   @ 4360 (1 byte + 7 padding)
-// Total: 4368 bytes
+// Account Layout (360 bytes, BPF)
 // =============================================================================
-// Account v12.17: account_id removed, fees_earned_total removed, two-bucket warmup
-const ACCT_CAPITAL_OFF = 0;               // U128 (16 bytes)
-const ACCT_KIND_OFF = 16;                 // u8 (1 byte + 7 padding)
-const ACCT_PNL_OFF = 24;                  // i128 (16 bytes)
-const ACCT_RESERVED_PNL_OFF = 40;         // u128 (16 bytes)
-const ACCT_POSITION_BASIS_Q_OFF = 56;     // i128 (16 bytes)
-const ACCT_ADL_A_BASIS_OFF = 72;          // u128 (16 bytes)
-const ACCT_ADL_K_SNAP_OFF = 88;           // i128 (16 bytes)
-const ACCT_F_SNAP_OFF = 104;              // i128 (16 bytes)
-const ACCT_ADL_EPOCH_SNAP_OFF = 120;      // u64 (8 bytes)
-const ACCT_MATCHER_PROGRAM_OFF = 128;     // [u8;32] (32 bytes)
-const ACCT_MATCHER_CONTEXT_OFF = 160;     // [u8;32] (32 bytes)
-const ACCT_OWNER_OFF = 192;               // [u8;32] (32 bytes)
-const ACCT_FEE_CREDITS_OFF = 224;         // I128 (16 bytes)
+const ACCT_CAPITAL_OFF = 0;
+const ACCT_KIND_OFF = 16;
+const ACCT_PNL_OFF = 24;
+const ACCT_RESERVED_PNL_OFF = 40;
+const ACCT_POSITION_BASIS_Q_OFF = 56;
+const ACCT_ADL_A_BASIS_OFF = 72;
+const ACCT_ADL_K_SNAP_OFF = 88;
+const ACCT_F_SNAP_OFF = 104;
+const ACCT_ADL_EPOCH_SNAP_OFF = 120;
+const ACCT_MATCHER_PROGRAM_OFF = 128;
+const ACCT_MATCHER_CONTEXT_OFF = 160;
+const ACCT_OWNER_OFF = 192;
+const ACCT_FEE_CREDITS_OFF = 224;
+const ACCT_LAST_FEE_SLOT_OFF = 240;
+const ACCT_SCHED_PRESENT_OFF = 248;
+const ACCT_SCHED_REMAINING_Q_OFF = 256;
+const ACCT_SCHED_ANCHOR_Q_OFF = 272;
+const ACCT_SCHED_START_SLOT_OFF = 288;
+const ACCT_SCHED_HORIZON_OFF = 296;
+const ACCT_SCHED_RELEASE_Q_OFF = 304;
+const ACCT_PENDING_PRESENT_OFF = 320;
+const ACCT_PENDING_REMAINING_Q_OFF = 328;
+const ACCT_PENDING_HORIZON_OFF = 344;
+const ACCT_PENDING_CREATED_SLOT_OFF = 352;
 
-const MAX_ACCOUNTS = 4096;
-const ACCOUNT_SIZE = 352;  // v12.17: two-bucket warmup, no cohort arrays
-const BITMAP_WORDS = 64;
+const ACCOUNT_SIZE = 360;
+
+/**
+ * Layout table — all fields that depend on MAX_ACCOUNTS.
+ *
+ * The program can be built with different MAX_ACCOUNTS values:
+ *   small  (256)  → SLAB_LEN    96_696   (~0.67 SOL rent)
+ *   medium (1024) → SLAB_LEN   381_656
+ *   full   (4096) → SLAB_LEN 1_525_656   (~10.6 SOL rent)
+ *
+ * Everything before the `used` bitmap is MAX_ACCOUNTS-independent
+ * (fixed engine prefix ends at 728). Everything after shifts.
+ */
+export interface SlabLayout {
+  maxAccounts: number;
+  bitmapWords: number;
+  slabLen: number;
+  engineOff: number;
+  engineNumUsedOff: number;     // within engine
+  engineFreeHeadOff: number;
+  engineAccountsOff: number;
+  accountSize: number;
+  paramsSize: number;
+}
+
+function computeLayout(maxAccounts: number): SlabLayout {
+  const bitmapWords = Math.ceil(maxAccounts / 64);
+  // Fixed engine prefix (vault..f_epoch_start_short_num) ends at 728.
+  const usedOff = 728;
+  const bitmapBytes = bitmapWords * 8;
+  const numUsedOff = usedOff + bitmapBytes;
+  const freeHeadOff = numUsedOff + 2;
+  const nextFreeOff = freeHeadOff + 2;
+  const prevFreeOff = nextFreeOff + maxAccounts * 2;
+  const afterPrev = prevFreeOff + maxAccounts * 2;
+  const accountsOff = (afterPrev + 7) & ~7; // align to 8
+  const engineLen = accountsOff + maxAccounts * ACCOUNT_SIZE;
+  const engineOff = 536;
+  const riskBufLen = 160;
+  const genTableLen = maxAccounts * 8;
+  const slabLen = engineOff + engineLen + riskBufLen + genTableLen;
+  return {
+    maxAccounts,
+    bitmapWords,
+    slabLen,
+    engineOff,
+    engineNumUsedOff: numUsedOff,
+    engineFreeHeadOff: freeHeadOff,
+    engineAccountsOff: accountsOff,
+    accountSize: ACCOUNT_SIZE,
+    paramsSize: 200,
+  };
+}
+
+/**
+ * Select layout based on observed slab account data length.
+ * Falls back to full-capacity layout if the length is unknown.
+ */
+export function layoutForDataLength(dataLen: number): SlabLayout {
+  for (const cap of [64, 256, 1024, 4096]) {
+    const l = computeLayout(cap);
+    if (l.slabLen === dataLen) return l;
+  }
+  return computeLayout(4096);
+}
+
+// Full-capacity layout used by default — matches production devnet program.
+const DEFAULT_LAYOUT = computeLayout(4096);
+const MAX_ACCOUNTS = DEFAULT_LAYOUT.maxAccounts;
+const BITMAP_WORDS = DEFAULT_LAYOUT.bitmapWords;
 
 // =============================================================================
-// RiskEngine Layout (repr(C), SBF 8-byte alignment for u128/i128)
-//
-// ENGINE_OFF = align_up(HEADER_LEN + CONFIG_LEN, 8) = align_up(72 + 512, 8) = 584
-//
-// Fields:
-//   vault: U128                          @     0  (16 bytes)
-//   insurance_fund: { U128 }              @    16  (16 bytes)
-//   params: RiskParams                   @    32  (184 bytes)
-//   current_slot: u64                    @   216  (8 bytes)
-//   funding_rate_bps_per_slot_last: i64  @   224  (8 bytes)
-//   last_crank_slot: u64                 @   232  (8 bytes)
-//   max_crank_staleness_slots: u64       @   240  (8 bytes)
-//   c_tot: U128                          @   248  (16 bytes)
-//   pnl_pos_tot: u128                    @   264  (16 bytes)
-//   pnl_matured_pos_tot: u128            @   280  (16 bytes)
-//   liq_cursor: u16                      @   296  (2 bytes)
-//   gc_cursor: u16                       @   298  (2 bytes)
-//   [4 bytes padding]
-//   last_full_sweep_start_slot: u64      @   304  (8 bytes)
-//   last_full_sweep_completed_slot: u64  @   312  (8 bytes)
-//   crank_cursor: u16                    @   320  (2 bytes)
-//   sweep_start_idx: u16                 @   322  (2 bytes)
-//   [4 bytes padding]
-//   lifetime_liquidations: u64           @   328  (8 bytes)
-//   adl_mult_long: u128                  @   336  (16 bytes)
-//   adl_mult_short: u128                 @   352  (16 bytes)
-//   adl_coeff_long: i128                 @   368  (16 bytes)
-//   adl_coeff_short: i128                @   384  (16 bytes)
-//   adl_epoch_long: u64                  @   400  (8 bytes)
-//   adl_epoch_short: u64                 @   408  (8 bytes)
-//   adl_epoch_start_k_long: i128         @   416  (16 bytes)
-//   adl_epoch_start_k_short: i128        @   432  (16 bytes)
-//   oi_eff_long_q: u128                  @   448  (16 bytes)
-//   oi_eff_short_q: u128                 @   464  (16 bytes)
-//   side_mode_long: u8                   @   480  (1 byte)
-//   side_mode_short: u8                  @   481  (1 byte)
-//   [6 bytes padding]
-//   stored_pos_count_long: u64           @   488  (8 bytes)
-//   stored_pos_count_short: u64          @   496  (8 bytes)
-//   stale_account_count_long: u64        @   504  (8 bytes)
-//   stale_account_count_short: u64       @   512  (8 bytes)
-//   phantom_dust_bound_long_q: u128      @   520  (16 bytes)
-//   phantom_dust_bound_short_q: u128     @   536  (16 bytes)
-//   materialized_account_count: u64      @   552  (8 bytes)
-//   last_oracle_price: u64               @   560  (8 bytes)
-//   last_market_slot: u64                @   568  (8 bytes)
-//   funding_price_sample_last: u64       @   576  (8 bytes)
-//   used: [u64; 64]                      @   584  (512 bytes)
-//   num_used_accounts: u16               @  1096  (2 bytes)
-//   [6 bytes padding]
-//   next_account_id: u64                 @  1104  (8 bytes)
-//   free_head: u16                       @  1112  (2 bytes)
-//   next_free: [u16; 4096]               @  1114  (8192 bytes)
-//   [6 bytes padding for account alignment]
-//   accounts: [Account; 4096]            @  9312  (4096 * 280 = 1146880 bytes)
-//
-// ENGINE_OFF = align_up(HEADER_LEN + CONFIG_LEN, 8) = align_up(72 + 368, 8) = 440
-//
-// Total engine size = 5032 + 2048 * 4368 = 8950696
-// RISK_BUF_OFF = ENGINE_OFF + ENGINE_LEN = 440 + 8950696 = 8951136
-// RISK_BUF_LEN = 160
-// SLAB_LEN = 8951136 + 160 = 1451800
+// RiskEngine Layout (BPF, 8-byte u128/i128 alignment). ENGINE_OFF = 536.
+// All offsets below are RELATIVE to ENGINE_OFF.
 // =============================================================================
-const ENGINE_OFF = 472;  // Verified BPF offset from program tests
+const ENGINE_OFF = 536;
 
-// Verified BPF offsets from program test code (commit 2ce4477, updated for v12.17)
-const ENGINE_VAULT_OFF = 0;                          // U128 (16 bytes)
-const ENGINE_INSURANCE_OFF = 16;                     // InsuranceFund { U128 } (16 bytes)
-const ENGINE_PARAMS_OFF = 32;                        // RiskParams (184 bytes)
-const ENGINE_CURRENT_SLOT_OFF = 216;                 // u64
-const ENGINE_MARKET_MODE_OFF = 224;                  // u8 (MarketMode enum)
-const ENGINE_RESOLVED_PRICE_OFF = 232;               // u64 (verified)
-const ENGINE_C_TOT_OFF = 296;                        // U128 (verified)
-const ENGINE_PNL_POS_TOT_OFF = 312;                  // u128 (verified)
-const ENGINE_PNL_MATURED_POS_TOT_OFF = 328;          // u128
-const ENGINE_GC_CURSOR_OFF = 344;                    // u16
-const ENGINE_ADL_MULT_LONG_OFF = 352;                // u128 (verified)
-const ENGINE_ADL_MULT_SHORT_OFF = 368;               // u128 (verified)
-const ENGINE_ADL_COEFF_LONG_OFF = 384;               // i128
-const ENGINE_ADL_COEFF_SHORT_OFF = 400;              // i128
-const ENGINE_ADL_EPOCH_LONG_OFF = 424;               // u64 (verified)
-const ENGINE_ADL_EPOCH_SHORT_OFF = 432;              // u64 (verified)
-const ENGINE_ADL_EPOCH_START_K_LONG_OFF = 440;       // i128 (estimated: after epoch_short)
-const ENGINE_ADL_EPOCH_START_K_SHORT_OFF = 456;      // i128
-const ENGINE_OI_EFF_LONG_Q_OFF = 472;               // u128
-const ENGINE_OI_EFF_SHORT_Q_OFF = 488;              // u128
-const ENGINE_SIDE_MODE_LONG_OFF = 504;               // u8 (estimated)
-const ENGINE_SIDE_MODE_SHORT_OFF = 505;              // u8
-const ENGINE_STORED_POS_COUNT_LONG_OFF = 512;        // u64
-const ENGINE_STORED_POS_COUNT_SHORT_OFF = 520;       // u64
-const ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF = 528;     // u64
-const ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF = 536;    // u64
-const ENGINE_PHANTOM_DUST_LONG_OFF = 544;            // u128
-const ENGINE_PHANTOM_DUST_SHORT_OFF = 560;           // u128
-const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 576;   // u64
-const ENGINE_LAST_ORACLE_PRICE_OFF = 584;
-const ENGINE_LAST_MARKET_SLOT_OFF = 592;
-const ENGINE_BITMAP_OFF = 664;                       // [u64; 64] = 512 bytes (verified)
-const ENGINE_NUM_USED_OFF = 1176;                    // u16 (verified)
-const ENGINE_FREE_HEAD_OFF = 1178;                   // u16
-// next_free: [u16; 4096] at 1180 (8192 bytes)
-const ENGINE_ACCOUNTS_OFF = 9376;                    // accounts: [Account; 4096] (verified) (exact from SLAB_LEN calculation)
+const ENGINE_VAULT_OFF = 0;                           // U128
+const ENGINE_INSURANCE_OFF = 16;                      // InsuranceFund { U128 }
+const ENGINE_PARAMS_OFF = 32;                         // RiskParams (200)
+const ENGINE_CURRENT_SLOT_OFF = 232;                  // u64
+const ENGINE_MARKET_MODE_OFF = 240;                   // u8
+const ENGINE_RESOLVED_PRICE_OFF = 248;                // u64
+const ENGINE_RESOLVED_SLOT_OFF = 256;                 // u64
+const ENGINE_RESOLVED_PAYOUT_H_NUM_OFF = 264;         // u128
+const ENGINE_RESOLVED_PAYOUT_H_DEN_OFF = 280;         // u128
+const ENGINE_RESOLVED_PAYOUT_READY_OFF = 296;         // u8
+const ENGINE_RESOLVED_K_LONG_TERMINAL_OFF = 304;      // i128
+const ENGINE_RESOLVED_K_SHORT_TERMINAL_OFF = 320;     // i128
+const ENGINE_RESOLVED_LIVE_PRICE_OFF = 336;           // u64
+const ENGINE_LAST_CRANK_SLOT_OFF = 344;               // u64
+const ENGINE_C_TOT_OFF = 352;                         // U128
+const ENGINE_PNL_POS_TOT_OFF = 368;                   // u128
+const ENGINE_PNL_MATURED_POS_TOT_OFF = 384;           // u128
+const ENGINE_GC_CURSOR_OFF = 400;                     // u16
+const ENGINE_ADL_MULT_LONG_OFF = 408;                 // u128
+const ENGINE_ADL_MULT_SHORT_OFF = 424;                // u128
+const ENGINE_ADL_COEFF_LONG_OFF = 440;                // i128
+const ENGINE_ADL_COEFF_SHORT_OFF = 456;               // i128
+const ENGINE_ADL_EPOCH_LONG_OFF = 472;                // u64
+const ENGINE_ADL_EPOCH_SHORT_OFF = 480;               // u64
+const ENGINE_ADL_EPOCH_START_K_LONG_OFF = 488;        // i128
+const ENGINE_ADL_EPOCH_START_K_SHORT_OFF = 504;       // i128
+const ENGINE_OI_EFF_LONG_Q_OFF = 520;                 // u128
+const ENGINE_OI_EFF_SHORT_Q_OFF = 536;                // u128
+const ENGINE_SIDE_MODE_LONG_OFF = 552;                // u8
+const ENGINE_SIDE_MODE_SHORT_OFF = 553;               // u8
+const ENGINE_STORED_POS_COUNT_LONG_OFF = 560;         // u64
+const ENGINE_STORED_POS_COUNT_SHORT_OFF = 568;        // u64
+const ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF = 576;      // u64
+const ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF = 584;     // u64
+const ENGINE_PHANTOM_DUST_LONG_OFF = 592;             // u128
+const ENGINE_PHANTOM_DUST_SHORT_OFF = 608;            // u128
+const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 624;    // u64
+const ENGINE_NEG_PNL_ACCOUNT_COUNT_OFF = 632;         // u64
+const ENGINE_LAST_ORACLE_PRICE_OFF = 640;             // u64
+const ENGINE_FUND_PX_LAST_OFF = 648;                  // u64
+const ENGINE_LAST_MARKET_SLOT_OFF = 656;              // u64
+const ENGINE_F_LONG_NUM_OFF = 664;                    // i128
+const ENGINE_F_SHORT_NUM_OFF = 680;                   // i128
+const ENGINE_F_EPOCH_START_LONG_NUM_OFF = 696;        // i128
+const ENGINE_F_EPOCH_START_SHORT_NUM_OFF = 712;       // i128
+const ENGINE_BITMAP_OFF = 728;                        // bitmap start — MA-independent
+// num_used_off, free_head_off, accounts_off are MA-dependent (see SlabLayout).
+// For full capacity (MA=4096): num_used=1240, free_head=1242, accounts=17632.
 
 // =============================================================================
 // Interfaces
@@ -507,7 +401,7 @@ export interface RiskParams {
   initialMarginBps: bigint;
   tradingFeeBps: bigint;
   maxAccounts: bigint;
-  newAccountFee: bigint;
+  maxCrankStalenessSlots: bigint;
   liquidationFeeBps: bigint;
   liquidationFeeCap: bigint;
   minLiquidationAbs: bigint;
@@ -515,24 +409,44 @@ export interface RiskParams {
   minNonzeroMmReq: bigint;
   minNonzeroImReq: bigint;
   insuranceFloor: bigint;
+  hMin: bigint;
+  hMax: bigint;
+  resolvePriceDeviationBps: bigint;
+  maxAccrualDtSlots: bigint;
+  maxAbsFundingE9PerSlot: bigint;
+  minFundingLifetimeSlots: bigint;
+  maxActivePositionsPerSide: bigint;
 }
 
 export enum SideMode {
   Normal = 0,
-  ReduceOnly = 1,
-  CloseOnly = 2,
+  DrainOnly = 1,
+  ResetPending = 2,
+}
+
+export enum MarketMode {
+  Live = 0,
+  Resolved = 1,
 }
 
 export interface EngineState {
   vault: bigint;
   insuranceFund: InsuranceFund;
   currentSlot: bigint;
+  marketMode: MarketMode;
+  resolvedPrice: bigint;
+  resolvedSlot: bigint;
+  resolvedPayoutHNum: bigint;
+  resolvedPayoutHDen: bigint;
+  resolvedPayoutReady: number;
+  resolvedKLongTerminalDelta: bigint;
+  resolvedKShortTerminalDelta: bigint;
+  resolvedLivePrice: bigint;
   lastCrankSlot: bigint;
   cTot: bigint;
   pnlPosTot: bigint;
   pnlMaturedPosTot: bigint;
   gcCursor: number;
-  // ADL state
   adlMultLong: bigint;
   adlMultShort: bigint;
   adlCoeffLong: bigint;
@@ -552,9 +466,16 @@ export interface EngineState {
   phantomDustBoundLongQ: bigint;
   phantomDustBoundShortQ: bigint;
   materializedAccountCount: bigint;
+  negPnlAccountCount: bigint;
   lastOraclePrice: bigint;
+  fundPxLast: bigint;
   lastMarketSlot: bigint;
+  fLongNum: bigint;
+  fShortNum: bigint;
+  fEpochStartLongNum: bigint;
+  fEpochStartShortNum: bigint;
   numUsedAccounts: number;
+  freeHead: number;
 }
 
 export enum AccountKind {
@@ -570,26 +491,34 @@ export interface Account {
   positionBasisQ: bigint;
   adlABasis: bigint;
   adlKSnap: bigint;
+  fSnap: bigint;
   adlEpochSnap: bigint;
   matcherProgram: PublicKey;
   matcherContext: PublicKey;
   owner: PublicKey;
   feeCredits: bigint;
+  lastFeeSlot: bigint;
+  schedPresent: number;
+  schedRemainingQ: bigint;
+  schedAnchorQ: bigint;
+  schedStartSlot: bigint;
+  schedHorizon: bigint;
+  schedReleaseQ: bigint;
+  pendingPresent: number;
+  pendingRemainingQ: bigint;
+  pendingHorizon: bigint;
+  pendingCreatedSlot: bigint;
 }
 
 // =============================================================================
-// Helper: read signed i128 from buffer
-// Match Rust's I128 wrapper: read both halves as unsigned, then interpret as signed
+// Signed / unsigned 128-bit readers
 // =============================================================================
 function readI128LE(buf: Buffer, offset: number): bigint {
   const lo = buf.readBigUInt64LE(offset);
   const hi = buf.readBigUInt64LE(offset + 8);
   const unsigned = (hi << 64n) | lo;
-  // If high bit is set, convert to negative (two's complement)
   const SIGN_BIT = 1n << 127n;
-  if (unsigned >= SIGN_BIT) {
-    return unsigned - (1n << 128n);
-  }
+  if (unsigned >= SIGN_BIT) return unsigned - (1n << 128n);
   return unsigned;
 }
 
@@ -603,22 +532,16 @@ function readU128LE(buf: Buffer, offset: number): bigint {
 // Parsing Functions
 // =============================================================================
 
-/**
- * Parse RiskParams from engine data.
- * Note: invert/unitScale are in MarketConfig, not RiskParams.
- */
 export function parseParams(data: Buffer): RiskParams {
   const base = ENGINE_OFF + ENGINE_PARAMS_OFF;
-  if (data.length < base + PARAMS_SIZE) {
-    throw new Error("Slab data too short for RiskParams");
-  }
+  if (data.length < base + PARAMS_SIZE) throw new Error("Slab data too short for RiskParams");
 
   return {
     maintenanceMarginBps: data.readBigUInt64LE(base + PARAMS_MAINTENANCE_MARGIN_OFF),
     initialMarginBps: data.readBigUInt64LE(base + PARAMS_INITIAL_MARGIN_OFF),
     tradingFeeBps: data.readBigUInt64LE(base + PARAMS_TRADING_FEE_OFF),
     maxAccounts: data.readBigUInt64LE(base + PARAMS_MAX_ACCOUNTS_OFF),
-    newAccountFee: readU128LE(data, base + PARAMS_NEW_ACCOUNT_FEE_OFF),
+    maxCrankStalenessSlots: data.readBigUInt64LE(base + PARAMS_MAX_CRANK_STALENESS_OFF),
     liquidationFeeBps: data.readBigUInt64LE(base + PARAMS_LIQUIDATION_FEE_BPS_OFF),
     liquidationFeeCap: readU128LE(data, base + PARAMS_LIQUIDATION_FEE_CAP_OFF),
     minLiquidationAbs: readU128LE(data, base + PARAMS_MIN_LIQUIDATION_OFF),
@@ -626,29 +549,39 @@ export function parseParams(data: Buffer): RiskParams {
     minNonzeroMmReq: readU128LE(data, base + PARAMS_MIN_NONZERO_MM_REQ_OFF),
     minNonzeroImReq: readU128LE(data, base + PARAMS_MIN_NONZERO_IM_REQ_OFF),
     insuranceFloor: readU128LE(data, base + PARAMS_INSURANCE_FLOOR_OFF),
+    hMin: data.readBigUInt64LE(base + PARAMS_H_MIN_OFF),
+    hMax: data.readBigUInt64LE(base + PARAMS_H_MAX_OFF),
+    resolvePriceDeviationBps: data.readBigUInt64LE(base + PARAMS_RESOLVE_PRICE_DEVIATION_OFF),
+    maxAccrualDtSlots: data.readBigUInt64LE(base + PARAMS_MAX_ACCRUAL_DT_OFF),
+    maxAbsFundingE9PerSlot: data.readBigUInt64LE(base + PARAMS_MAX_ABS_FUNDING_OFF),
+    minFundingLifetimeSlots: data.readBigUInt64LE(base + PARAMS_MIN_FUNDING_LIFETIME_OFF),
+    maxActivePositionsPerSide: data.readBigUInt64LE(base + PARAMS_MAX_ACTIVE_POSITIONS_OFF),
   };
 }
 
-/**
- * Parse RiskEngine state (excluding accounts array).
- */
 export function parseEngine(data: Buffer): EngineState {
+  const layout = layoutForDataLength(data.length);
   const base = ENGINE_OFF;
-  if (data.length < base + ENGINE_ACCOUNTS_OFF) {
-    throw new Error("Slab data too short for RiskEngine");
-  }
+  if (data.length < base + layout.engineAccountsOff) throw new Error("Slab data too short for RiskEngine");
 
   return {
     vault: readU128LE(data, base + ENGINE_VAULT_OFF),
-    insuranceFund: {
-      balance: readU128LE(data, base + ENGINE_INSURANCE_OFF),
-    },
+    insuranceFund: { balance: readU128LE(data, base + ENGINE_INSURANCE_OFF) },
     currentSlot: data.readBigUInt64LE(base + ENGINE_CURRENT_SLOT_OFF),
+    marketMode: data.readUInt8(base + ENGINE_MARKET_MODE_OFF) as MarketMode,
+    resolvedPrice: data.readBigUInt64LE(base + ENGINE_RESOLVED_PRICE_OFF),
+    resolvedSlot: data.readBigUInt64LE(base + ENGINE_RESOLVED_SLOT_OFF),
+    resolvedPayoutHNum: readU128LE(data, base + ENGINE_RESOLVED_PAYOUT_H_NUM_OFF),
+    resolvedPayoutHDen: readU128LE(data, base + ENGINE_RESOLVED_PAYOUT_H_DEN_OFF),
+    resolvedPayoutReady: data.readUInt8(base + ENGINE_RESOLVED_PAYOUT_READY_OFF),
+    resolvedKLongTerminalDelta: readI128LE(data, base + ENGINE_RESOLVED_K_LONG_TERMINAL_OFF),
+    resolvedKShortTerminalDelta: readI128LE(data, base + ENGINE_RESOLVED_K_SHORT_TERMINAL_OFF),
+    resolvedLivePrice: data.readBigUInt64LE(base + ENGINE_RESOLVED_LIVE_PRICE_OFF),
+    lastCrankSlot: data.readBigUInt64LE(base + ENGINE_LAST_CRANK_SLOT_OFF),
     cTot: readU128LE(data, base + ENGINE_C_TOT_OFF),
     pnlPosTot: readU128LE(data, base + ENGINE_PNL_POS_TOT_OFF),
     pnlMaturedPosTot: readU128LE(data, base + ENGINE_PNL_MATURED_POS_TOT_OFF),
     gcCursor: data.readUInt16LE(base + ENGINE_GC_CURSOR_OFF),
-    // ADL state
     adlMultLong: readU128LE(data, base + ENGINE_ADL_MULT_LONG_OFF),
     adlMultShort: readU128LE(data, base + ENGINE_ADL_MULT_SHORT_OFF),
     adlCoeffLong: readI128LE(data, base + ENGINE_ADL_COEFF_LONG_OFF),
@@ -668,39 +601,38 @@ export function parseEngine(data: Buffer): EngineState {
     phantomDustBoundLongQ: readU128LE(data, base + ENGINE_PHANTOM_DUST_LONG_OFF),
     phantomDustBoundShortQ: readU128LE(data, base + ENGINE_PHANTOM_DUST_SHORT_OFF),
     materializedAccountCount: data.readBigUInt64LE(base + ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF),
+    negPnlAccountCount: data.readBigUInt64LE(base + ENGINE_NEG_PNL_ACCOUNT_COUNT_OFF),
     lastOraclePrice: data.readBigUInt64LE(base + ENGINE_LAST_ORACLE_PRICE_OFF),
+    fundPxLast: data.readBigUInt64LE(base + ENGINE_FUND_PX_LAST_OFF),
     lastMarketSlot: data.readBigUInt64LE(base + ENGINE_LAST_MARKET_SLOT_OFF),
-    numUsedAccounts: data.readUInt16LE(base + ENGINE_NUM_USED_OFF),
+    fLongNum: readI128LE(data, base + ENGINE_F_LONG_NUM_OFF),
+    fShortNum: readI128LE(data, base + ENGINE_F_SHORT_NUM_OFF),
+    fEpochStartLongNum: readI128LE(data, base + ENGINE_F_EPOCH_START_LONG_NUM_OFF),
+    fEpochStartShortNum: readI128LE(data, base + ENGINE_F_EPOCH_START_SHORT_NUM_OFF),
+    numUsedAccounts: data.readUInt16LE(base + layout.engineNumUsedOff),
+    freeHead: data.readUInt16LE(base + layout.engineFreeHeadOff),
   };
 }
 
-/**
- * Read bitmap to get list of used account indices.
- */
 export function parseUsedIndices(data: Buffer): number[] {
+  const layout = layoutForDataLength(data.length);
   const base = ENGINE_OFF + ENGINE_BITMAP_OFF;
-  if (data.length < base + BITMAP_WORDS * 8) {
-    throw new Error("Slab data too short for bitmap");
-  }
+  if (data.length < base + layout.bitmapWords * 8) throw new Error("Slab data too short for bitmap");
 
   const used: number[] = [];
-  for (let word = 0; word < BITMAP_WORDS; word++) {
+  for (let word = 0; word < layout.bitmapWords; word++) {
     const bits = data.readBigUInt64LE(base + word * 8);
     if (bits === 0n) continue;
     for (let bit = 0; bit < 64; bit++) {
-      if ((bits >> BigInt(bit)) & 1n) {
-        used.push(word * 64 + bit);
-      }
+      if ((bits >> BigInt(bit)) & 1n) used.push(word * 64 + bit);
     }
   }
   return used;
 }
 
-/**
- * Check if a specific account index is used.
- */
 export function isAccountUsed(data: Buffer, idx: number): boolean {
-  if (idx < 0 || idx >= MAX_ACCOUNTS) return false;
+  const layout = layoutForDataLength(data.length);
+  if (idx < 0 || idx >= layout.maxAccounts) return false;
   const base = ENGINE_OFF + ENGINE_BITMAP_OFF;
   const word = Math.floor(idx / 64);
   const bit = idx % 64;
@@ -708,30 +640,20 @@ export function isAccountUsed(data: Buffer, idx: number): boolean {
   return ((bits >> BigInt(bit)) & 1n) !== 0n;
 }
 
-/**
- * Calculate the maximum valid account index for a given slab size.
- */
 export function maxAccountIndex(dataLen: number): number {
-  const accountsEnd = dataLen - ENGINE_OFF - ENGINE_ACCOUNTS_OFF;
-  if (accountsEnd <= 0) return 0;
-  return Math.floor(accountsEnd / ACCOUNT_SIZE);
+  const layout = layoutForDataLength(dataLen);
+  return layout.maxAccounts;
 }
 
-/**
- * Parse a single account by index.
- */
 export function parseAccount(data: Buffer, idx: number): Account {
-  const maxIdx = maxAccountIndex(data.length);
-  if (idx < 0 || idx >= maxIdx) {
-    throw new Error(`Account index out of range: ${idx} (max: ${maxIdx - 1})`);
+  const layout = layoutForDataLength(data.length);
+  if (idx < 0 || idx >= layout.maxAccounts) {
+    throw new Error(`Account index out of range: ${idx} (max: ${layout.maxAccounts - 1})`);
   }
 
-  const base = ENGINE_OFF + ENGINE_ACCOUNTS_OFF + idx * ACCOUNT_SIZE;
-  if (data.length < base + ACCOUNT_SIZE) {
-    throw new Error("Slab data too short for account");
-  }
+  const base = ENGINE_OFF + layout.engineAccountsOff + idx * ACCOUNT_SIZE;
+  if (data.length < base + ACCOUNT_SIZE) throw new Error("Slab data too short for account");
 
-  // Read the kind field directly from offset 24 (u8 with 7 bytes padding)
   const kindByte = data.readUInt8(base + ACCT_KIND_OFF);
   const kind = kindByte === 1 ? AccountKind.LP : AccountKind.User;
 
@@ -743,24 +665,29 @@ export function parseAccount(data: Buffer, idx: number): Account {
     positionBasisQ: readI128LE(data, base + ACCT_POSITION_BASIS_Q_OFF),
     adlABasis: readU128LE(data, base + ACCT_ADL_A_BASIS_OFF),
     adlKSnap: readI128LE(data, base + ACCT_ADL_K_SNAP_OFF),
+    fSnap: readI128LE(data, base + ACCT_F_SNAP_OFF),
     adlEpochSnap: data.readBigUInt64LE(base + ACCT_ADL_EPOCH_SNAP_OFF),
     matcherProgram: new PublicKey(data.subarray(base + ACCT_MATCHER_PROGRAM_OFF, base + ACCT_MATCHER_PROGRAM_OFF + 32)),
     matcherContext: new PublicKey(data.subarray(base + ACCT_MATCHER_CONTEXT_OFF, base + ACCT_MATCHER_CONTEXT_OFF + 32)),
     owner: new PublicKey(data.subarray(base + ACCT_OWNER_OFF, base + ACCT_OWNER_OFF + 32)),
     feeCredits: readI128LE(data, base + ACCT_FEE_CREDITS_OFF),
+    lastFeeSlot: data.readBigUInt64LE(base + ACCT_LAST_FEE_SLOT_OFF),
+    schedPresent: data.readUInt8(base + ACCT_SCHED_PRESENT_OFF),
+    schedRemainingQ: readU128LE(data, base + ACCT_SCHED_REMAINING_Q_OFF),
+    schedAnchorQ: readU128LE(data, base + ACCT_SCHED_ANCHOR_Q_OFF),
+    schedStartSlot: data.readBigUInt64LE(base + ACCT_SCHED_START_SLOT_OFF),
+    schedHorizon: data.readBigUInt64LE(base + ACCT_SCHED_HORIZON_OFF),
+    schedReleaseQ: readU128LE(data, base + ACCT_SCHED_RELEASE_Q_OFF),
+    pendingPresent: data.readUInt8(base + ACCT_PENDING_PRESENT_OFF),
+    pendingRemainingQ: readU128LE(data, base + ACCT_PENDING_REMAINING_Q_OFF),
+    pendingHorizon: data.readBigUInt64LE(base + ACCT_PENDING_HORIZON_OFF),
+    pendingCreatedSlot: data.readBigUInt64LE(base + ACCT_PENDING_CREATED_SLOT_OFF),
   };
 }
 
-/**
- * Parse all used accounts.
- * Filters out indices that would be beyond the slab's account storage capacity.
- */
 export function parseAllAccounts(data: Buffer): { idx: number; account: Account }[] {
   const indices = parseUsedIndices(data);
   const maxIdx = maxAccountIndex(data.length);
   const validIndices = indices.filter(idx => idx < maxIdx);
-  return validIndices.map(idx => ({
-    idx,
-    account: parseAccount(data, idx),
-  }));
+  return validIndices.map(idx => ({ idx, account: parseAccount(data, idx) }));
 }

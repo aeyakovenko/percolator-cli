@@ -13,6 +13,9 @@ import {
 import * as fs from "fs";
 import {
   encodeInitMarket, encodeInitUser, encodeInitLP,
+} from "../src/abi/instructions.js";
+import { defaultInitMarketArgs } from "./_default-market.js";
+import {
   encodeDepositCollateral, encodeWithdrawCollateral,
   encodeKeeperCrank, encodeTradeNoCpi, encodeTradeCpi,
   encodeCloseAccount, encodeCloseSlab, encodeTopUpInsurance,
@@ -43,7 +46,7 @@ const RPC = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
-const SLAB_SIZE = 1451800;
+const SLAB_SIZE = 1525656;
 const conn = new Connection(RPC, "confirmed");
 const payer = Keypair.fromSecretKey(new Uint8Array(
   JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))
@@ -135,19 +138,7 @@ async function main() {
   // ════════════════════════════════════════
   console.log("\n=== 1. InitMarket: verify every parsed field ===");
   {
-    const data = encodeInitMarket({
-      admin: payer.publicKey, collateralMint: mint, indexFeedId: "0000000000000000000000000000000000000000000000000000000000000000",
-      maxStalenessSecs: "100000000", confFilterBps: 200, invert: 0, unitScale: 0,
-      initialMarkPriceE6: "100000000",  // $100 initial mark (Hyperp mode)
-      maxMaintenanceFeePerSlot: "1000000000", maxInsuranceFloor: "10000000000000000",
-      minOraclePriceCapE2bps: "0",
-      warmupPeriodSlots: "4", maintenanceMarginBps: "500", initialMarginBps: "1000",
-      tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "1000000",
-      insuranceFloor: "0", maintenanceFeePerSlot: "100", maxCrankStalenessSlots: "200",
-      liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
-      liquidationBufferBps: "50", minLiquidationAbs: "100000",
-      minInitialDeposit: "1000000", minNonzeroMmReq: "100000", minNonzeroImReq: "200000",
-    });
+    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint));
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, mint, vault,
       WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
@@ -165,8 +156,10 @@ async function main() {
     check("header.magic", h.magic === 0x504552434f4c4154n, `got ${h.magic.toString(16)}`);
     check("header.version >= 0", h.version >= 0);
     check("header.admin", h.admin.equals(payer.publicKey));
-    check("header.resolved=false", !h.resolved);
+    check("engine.marketMode=Live", e.marketMode === 0);
     check("header.nonce=0", h.nonce === 0n, `got ${h.nonce}`);
+    check("header.insuranceAuthority set", !h.insuranceAuthority.equals(new PublicKey(new Uint8Array(32))));
+    check("header.closeAuthority set", !h.closeAuthority.equals(new PublicKey(new Uint8Array(32))));
 
     // Config — every field
     check("config.collateralMint", c.collateralMint.equals(mint));
@@ -177,17 +170,17 @@ async function main() {
     check("config.vaultAuthorityBump > 0", c.vaultAuthorityBump > 0);
     check("config.fundingHorizonSlots > 0", c.fundingHorizonSlots > 0n);
     check("config.maxInsuranceFloor", c.maxInsuranceFloor === 10000000000000000n);
-    check("config.resolutionSlot (init)", c.resolutionSlot >= 0n);
     check("config.markEwmaE6 (Hyperp init)", c.markEwmaE6 >= 0n);
     check("config.forceCloseDelaySlots=0", c.forceCloseDelaySlots === 0n);
+    check("config.maintenanceFeePerSlot=0", c.maintenanceFeePerSlot === 0n);
 
     // Params — every field
     check("params.mm=500", p.maintenanceMarginBps === 500n);
     check("params.im=1000", p.initialMarginBps === 1000n);
     check("params.tradingFee=10", p.tradingFeeBps === 10n);
     check("params.maxAccounts=64", p.maxAccounts === 64n);
-    check("params.newAccountFee=1M", p.newAccountFee === 1000000n);
-    check("params field (h_max via wire)", true);
+    check("params.hMin=4", p.hMin === 4n);
+    check("params.hMax=200", p.hMax === 200n);
     check("params.liqFeeBps=100", p.liquidationFeeBps === 100n);
     check("params.liqFeeCap=1B", p.liquidationFeeCap === 1000000000n);
     check("params.minLiqAbs=100K", p.minLiquidationAbs === 100000n);
@@ -195,6 +188,8 @@ async function main() {
     check("params.minMm=100K", p.minNonzeroMmReq === 100000n);
     check("params.minIm=200K", p.minNonzeroImReq === 200000n);
     check("params.insuranceFloor=0", p.insuranceFloor === 0n);
+    check("params.maxActivePositionsPerSide>=1", p.maxActivePositionsPerSide >= 1n);
+    check("params.maxAccrualDtSlots>0", p.maxAccrualDtSlots > 0n);
 
     // Engine — every field at init
     check("engine.vault=0", e.vault === 0n);
@@ -219,7 +214,7 @@ async function main() {
   {
     try {
       await tx([buildIx({ programId: PROG,
-        keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, slab.publicKey]),
+        keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, payer.publicKey, slab.publicKey]),
         data: encodeSetOracleAuthority({ newAuthority: payer.publicKey }) })], [payer]);
       console.log("    SetOracleAuthority OK");
     } catch (e: any) { console.log("    SetOracleAuthority FAIL:", e.message?.slice(0, 100)); throw e; }
@@ -547,11 +542,11 @@ async function main() {
       data: encodeResolveMarket() })], [payer]);
 
     const buf1 = await fetchSlab(conn, slab.publicKey);
-    const h1 = parseHeader(buf1);
-    const c1 = parseConfig(buf1);
-    check("resolve: header resolved or mode changed", h1.resolved || true);
-    check("resolve: market state changed", true, //
-      `got ${c1.resolutionSlot}`);
+    const e1 = parseEngine(buf1);
+    check("resolve: market mode == Resolved", e1.marketMode === 1,
+      `got marketMode=${e1.marketMode}`);
+    check("resolve: resolvedSlot > 0", e1.resolvedSlot > 0n,
+      `got ${e1.resolvedSlot}`);
 
     // Crank to force-close LP
     const crankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [

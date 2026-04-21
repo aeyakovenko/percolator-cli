@@ -28,19 +28,23 @@ export function registerSlabHeader(program: Command): void {
               bump: header.bump,
               admin: header.admin.toBase58(),
               nonce: header.nonce.toString(),
-              lastThrUpdateSlot: header.lastThrUpdateSlot.toString(),
+              matCounter: header.matCounter.toString(),
+              insuranceAuthority: header.insuranceAuthority.toBase58(),
+              closeAuthority: header.closeAuthority.toBase58(),
             },
             null,
             2
           )
         );
       } else {
-        console.log(`Magic:              0x${header.magic.toString(16)}`);
-        console.log(`Version:            ${header.version}`);
-        console.log(`Bump:               ${header.bump}`);
-        console.log(`Admin:              ${header.admin.toBase58()}`);
-        console.log(`Nonce:              ${header.nonce}`);
-        console.log(`Last Thr Update:    ${header.lastThrUpdateSlot}`);
+        console.log(`Magic:               0x${header.magic.toString(16)}`);
+        console.log(`Version:             ${header.version}`);
+        console.log(`Bump:                ${header.bump}`);
+        console.log(`Admin:               ${header.admin.toBase58()}`);
+        console.log(`Insurance Authority: ${header.insuranceAuthority.toBase58()}`);
+        console.log(`Close Authority:     ${header.closeAuthority.toBase58()}`);
+        console.log(`Nonce:               ${header.nonce}`);
+        console.log(`Mat Counter:         ${header.matCounter}`);
       }
     });
 }

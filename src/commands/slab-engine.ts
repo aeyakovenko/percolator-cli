@@ -24,17 +24,16 @@ export function registerSlabEngine(program: Command): void {
           JSON.stringify(
             {
               vault: engine.vault.toString(),
-              insuranceFund: {
-                balance: engine.insuranceFund.balance.toString(),
-              },
+              insuranceFund: { balance: engine.insuranceFund.balance.toString() },
               currentSlot: engine.currentSlot.toString(),
-              fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
+              marketMode: engine.marketMode,
+              resolvedPrice: engine.resolvedPrice.toString(),
+              resolvedSlot: engine.resolvedSlot.toString(),
               lastCrankSlot: engine.lastCrankSlot.toString(),
-              maxCrankStalenessSlots: engine.maxCrankStalenessSlots.toString(),
               cTot: engine.cTot.toString(),
               pnlPosTot: engine.pnlPosTot.toString(),
               pnlMaturedPosTot: engine.pnlMaturedPosTot.toString(),
-              lifetimeLiquidations: engine.lifetimeLiquidations.toString(),
+              gcCursor: engine.gcCursor,
               adlMultLong: engine.adlMultLong.toString(),
               adlMultShort: engine.adlMultShort.toString(),
               adlCoeffLong: engine.adlCoeffLong.toString(),
@@ -48,11 +47,14 @@ export function registerSlabEngine(program: Command): void {
               storedPosCountLong: engine.storedPosCountLong.toString(),
               storedPosCountShort: engine.storedPosCountShort.toString(),
               materializedAccountCount: engine.materializedAccountCount.toString(),
+              negPnlAccountCount: engine.negPnlAccountCount.toString(),
               lastOraclePrice: engine.lastOraclePrice.toString(),
+              fundPxLast: engine.fundPxLast.toString(),
               lastMarketSlot: engine.lastMarketSlot.toString(),
-              fundingPriceSampleLast: engine.fundingPriceSampleLast.toString(),
+              fLongNum: engine.fLongNum.toString(),
+              fShortNum: engine.fShortNum.toString(),
               numUsedAccounts: engine.numUsedAccounts,
-              nextAccountId: engine.nextAccountId.toString(),
+              freeHead: engine.freeHead,
             },
             null,
             2
@@ -63,14 +65,15 @@ export function registerSlabEngine(program: Command): void {
         console.log(`Vault Balance:           ${engine.vault}`);
         console.log(`Insurance Balance:       ${engine.insuranceFund.balance}`);
         console.log("");
-        console.log("--- Funding ---");
-        console.log(`Funding Rate (bps/slot): ${engine.fundingRateBpsPerSlotLast}`);
-        console.log(`Funding Price Sample:    ${engine.fundingPriceSampleLast}`);
+        console.log("--- Market ---");
+        console.log(`Market Mode:             ${engine.marketMode === 0 ? "Live" : "Resolved"}`);
+        console.log(`Resolved Price:          ${engine.resolvedPrice}`);
+        console.log(`Resolved Slot:           ${engine.resolvedSlot}`);
         console.log(`Current Slot:            ${engine.currentSlot}`);
         console.log("");
         console.log("--- Aggregates ---");
         console.log(`C_tot (total capital):   ${engine.cTot}`);
-        console.log(`PnL_pos_tot (pos PnL):   ${engine.pnlPosTot}`);
+        console.log(`PnL_pos_tot:             ${engine.pnlPosTot}`);
         console.log(`PnL_matured_pos_tot:     ${engine.pnlMaturedPosTot}`);
         console.log(`OI Eff Long Q:           ${engine.oiEffLongQ}`);
         console.log(`OI Eff Short Q:          ${engine.oiEffShortQ}`);
@@ -80,26 +83,28 @@ export function registerSlabEngine(program: Command): void {
         console.log(`ADL Mult Short:          ${engine.adlMultShort}`);
         console.log(`ADL Coeff Long:          ${engine.adlCoeffLong}`);
         console.log(`ADL Coeff Short:         ${engine.adlCoeffShort}`);
-        console.log(`ADL Epoch Long:          ${engine.adlEpochLong}`);
-        console.log(`ADL Epoch Short:         ${engine.adlEpochShort}`);
+        console.log(`ADL Epoch Long/Short:    ${engine.adlEpochLong} / ${engine.adlEpochShort}`);
         console.log("");
         console.log("--- Side Modes ---");
-        console.log(`Side Mode Long:          ${engine.sideModeLong}`);
-        console.log(`Side Mode Short:         ${engine.sideModeShort}`);
-        console.log(`Stored Pos Count Long:   ${engine.storedPosCountLong}`);
-        console.log(`Stored Pos Count Short:  ${engine.storedPosCountShort}`);
+        console.log(`Side Mode Long/Short:    ${engine.sideModeLong} / ${engine.sideModeShort}`);
+        console.log(`Stored Pos Count L/S:    ${engine.storedPosCountLong} / ${engine.storedPosCountShort}`);
+        console.log("");
+        console.log("--- Funding (F) ---");
+        console.log(`F Long Num:              ${engine.fLongNum}`);
+        console.log(`F Short Num:             ${engine.fShortNum}`);
+        console.log(`Fund Px Last:            ${engine.fundPxLast}`);
         console.log("");
         console.log("--- Keeper ---");
         console.log(`Last Crank Slot:         ${engine.lastCrankSlot}`);
-        console.log(`Max Crank Staleness:     ${engine.maxCrankStalenessSlots}`);
-        console.log(`Lifetime Liquidations:   ${engine.lifetimeLiquidations}`);
         console.log(`Last Oracle Price:       ${engine.lastOraclePrice}`);
         console.log(`Last Market Slot:        ${engine.lastMarketSlot}`);
+        console.log(`GC Cursor:               ${engine.gcCursor}`);
         console.log("");
         console.log("--- Accounts ---");
-        console.log(`Num Used Accounts:       ${engine.numUsedAccounts}`);
-        console.log(`Materialized Accounts:   ${engine.materializedAccountCount}`);
-        console.log(`Next Account ID:         ${engine.nextAccountId}`);
+        console.log(`Num Used:                ${engine.numUsedAccounts}`);
+        console.log(`Free Head:               ${engine.freeHead}`);
+        console.log(`Materialized:            ${engine.materializedAccountCount}`);
+        console.log(`Neg-PnL Accounts:        ${engine.negPnlAccountCount}`);
       }
     });
 }

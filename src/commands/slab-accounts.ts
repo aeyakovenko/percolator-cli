@@ -23,7 +23,6 @@ export function registerSlabAccounts(program: Command): void {
         const output = accounts.map(({ idx, account }) => ({
           idx,
           kind: account.kind === AccountKind.LP ? "LP" : "User",
-          accountId: account.accountId.toString(),
           owner: account.owner.toBase58(),
           capital: account.capital.toString(),
           pnl: account.pnl.toString(),
@@ -38,8 +37,8 @@ export function registerSlabAccounts(program: Command): void {
         }
 
         console.log(`Found ${accounts.length} active account(s):\n`);
-        console.log("Idx   Type  AcctID  Owner                                        Capital              Position");
-        console.log("----  ----  ------  -------------------------------------------  -------------------  --------------------");
+        console.log("Idx   Type  Owner                                        Capital              Position");
+        console.log("----  ----  -------------------------------------------  -------------------  --------------------");
 
         for (const { idx, account } of accounts) {
           const kindStr = account.kind === AccountKind.LP ? "LP  " : "User";
@@ -47,7 +46,7 @@ export function registerSlabAccounts(program: Command): void {
           const capitalStr = account.capital.toString().padStart(19);
           const posStr = account.positionBasisQ.toString().padStart(20);
           console.log(
-            `${idx.toString().padStart(4)}  ${kindStr}  ${account.accountId.toString().padStart(6)}  ${ownerShort}  ${capitalStr}  ${posStr}`
+            `${idx.toString().padStart(4)}  ${kindStr}  ${ownerShort}  ${capitalStr}  ${posStr}`
           );
         }
 
