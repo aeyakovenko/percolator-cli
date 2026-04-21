@@ -74,6 +74,7 @@ export interface MarketConfig {
   maxInsuranceFloor: bigint;        // u128
   minOraclePriceCapE2bps: bigint;
   insuranceWithdrawMaxBps: number;
+  tvlInsuranceCapMult: number;    // v12.19+: deposit cap = k × insurance (0 = disabled)
   insuranceWithdrawCooldownSlots: bigint;
   lastHyperpIndexSlot: bigint;
   lastMarkPushSlot: bigint;
@@ -166,7 +167,8 @@ export function parseConfig(data: Buffer): MarketConfig {
   const maxInsuranceFloor = readU128LE(data, off);                            off += 16;
   const minOraclePriceCapE2bps = data.readBigUInt64LE(off);                   off += 8;
   const insuranceWithdrawMaxBps = data.readUInt16LE(off);                     off += 2;
-  off += 6; // _iw_padding
+  const tvlInsuranceCapMult = data.readUInt16LE(off);                         off += 2;
+  off += 4; // _iw_padding (shrunk from 6 → 4 bytes in v12.19+)
   const insuranceWithdrawCooldownSlots = data.readBigUInt64LE(off);           off += 8;
   off += 16; // _iw_padding2 [u64; 2]
   const lastHyperpIndexSlot = data.readBigUInt64LE(off);                      off += 8;
@@ -192,7 +194,7 @@ export function parseConfig(data: Buffer): MarketConfig {
     oracleAuthority, authorityPriceE6, authorityTimestamp,
     oraclePriceCapE2bps, lastEffectivePriceE6,
     maxInsuranceFloor, minOraclePriceCapE2bps,
-    insuranceWithdrawMaxBps, insuranceWithdrawCooldownSlots,
+    insuranceWithdrawMaxBps, tvlInsuranceCapMult, insuranceWithdrawCooldownSlots,
     lastHyperpIndexSlot, lastMarkPushSlot, lastInsuranceWithdrawSlot, firstObservedStaleSlot,
     markEwmaE6, markEwmaLastSlot, markEwmaHalflifeSlots, initRestartSlot,
     permissionlessResolveStaleSlots, lastGoodOracleSlot,
