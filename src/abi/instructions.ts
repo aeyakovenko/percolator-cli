@@ -73,7 +73,7 @@ export const AUTHORITY_KIND = {
  *   insurance_withdraw_max_bps(2) + insurance_withdraw_cooldown_slots(8) +
  *   permissionless_resolve_stale_slots(8) +
  *   funding_horizon_slots(8) + funding_k_bps(8) +
- *   funding_max_premium_bps(i64) + funding_max_bps_per_slot(i64) +
+ *   funding_max_premium_bps(i64) + funding_max_e9_per_slot(i64) +
  *   mark_min_fee(8) + force_close_delay_slots(8)
  */
 export interface InitMarketArgs {
@@ -111,7 +111,7 @@ export interface InitMarketArgs {
   fundingHorizonSlots: bigint | string;
   fundingKBps: bigint | string;
   fundingMaxPremiumBps: bigint | string;    // i64
-  fundingMaxBpsPerSlot: bigint | string;    // i64
+  fundingMaxE9PerSlot: bigint | string;    // i64
   markMinFee: bigint | string;
   forceCloseDelaySlots: bigint | string;
 }
@@ -171,7 +171,7 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encU64(args.fundingHorizonSlots),
     encU64(args.fundingKBps),
     encI64(args.fundingMaxPremiumBps),
-    encI64(args.fundingMaxBpsPerSlot),
+    encI64(args.fundingMaxE9PerSlot),
     encU64(args.markMinFee),
     encU64(args.forceCloseDelaySlots),
   ]);
@@ -302,7 +302,7 @@ export interface UpdateConfigArgs {
   fundingHorizonSlots: bigint | string;
   fundingKBps: bigint | string;
   fundingMaxPremiumBps: bigint | string;   // i64
-  fundingMaxBpsPerSlot: bigint | string;   // i64
+  fundingMaxE9PerSlot: bigint | string;   // i64
 }
 export function encodeUpdateConfig(args: UpdateConfigArgs): Buffer {
   return Buffer.concat([
@@ -310,7 +310,7 @@ export function encodeUpdateConfig(args: UpdateConfigArgs): Buffer {
     encU64(args.fundingHorizonSlots),
     encU64(args.fundingKBps),
     encI64(args.fundingMaxPremiumBps),
-    encI64(args.fundingMaxBpsPerSlot),
+    encI64(args.fundingMaxE9PerSlot),
   ]);
 }
 

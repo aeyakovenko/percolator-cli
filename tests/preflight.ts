@@ -773,7 +773,7 @@ async function main() {
     const data = encodeUpdateConfig({
       fundingHorizonSlots: "500", fundingKBps: "200",
       
-      fundingMaxPremiumBps: "500", fundingMaxBpsPerSlot: "100",
+      fundingMaxPremiumBps: "500", fundingMaxE9PerSlot: "100",
     });
     await tx([buildIx({ programId: PROG,
       keys: buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
@@ -1517,7 +1517,7 @@ async function main() {
     data: encodeUpdateConfig({
       fundingHorizonSlots: "10", fundingKBps: "1000", // 10x multiplier
       
-      fundingMaxPremiumBps: "5000", fundingMaxBpsPerSlot: "500",
+      fundingMaxPremiumBps: "5000", fundingMaxE9PerSlot: "500",
     }) })], [payer]);
 
   // Create new user for funding test

@@ -51,7 +51,7 @@ export function registerInitMarket(program: Command): void {
     .requiredOption("--funding-horizon-slots <string>", "Funding horizon (slots)")
     .requiredOption("--funding-k-bps <string>", "Funding k (bps)")
     .requiredOption("--funding-max-premium-bps <string>", "Funding max premium (i64 bps)")
-    .requiredOption("--funding-max-bps-per-slot <string>", "Funding max rate (i64 bps/slot)")
+    .requiredOption("--funding-max-e9-per-slot <string>", "Funding max rate (i64 e9 parts-per-billion per slot; v12.18+)")
     .requiredOption("--mark-min-fee <string>", "Min fee for full mark weight (0=disabled)")
     .requiredOption("--force-close-delay <string>", "Force-close delay after resolve (slots)")
     .action(async (opts, cmd) => {
@@ -105,7 +105,7 @@ export function registerInitMarket(program: Command): void {
         fundingHorizonSlots: opts.fundingHorizonSlots,
         fundingKBps: opts.fundingKBps,
         fundingMaxPremiumBps: opts.fundingMaxPremiumBps,
-        fundingMaxBpsPerSlot: opts.fundingMaxBpsPerSlot,
+        fundingMaxE9PerSlot: opts.fundingMaxE9PerSlot,
         markMinFee: opts.markMinFee,
         forceCloseDelaySlots: opts.forceCloseDelay,
       });

@@ -55,7 +55,7 @@ export function defaultInitMarketArgs(
     fundingHorizonSlots: "500",
     fundingKBps: "100",
     fundingMaxPremiumBps: "500",
-    fundingMaxBpsPerSlot: "10",
+    fundingMaxE9PerSlot: "1000",   // v12.18 e9 units; see prodInitMarketArgs for math
     markMinFee: "0",
     forceCloseDelaySlots: "0",
     ...overrides,
@@ -83,8 +83,8 @@ export function defaultInitMarketArgs(
 //     doesn't feel broken.
 //
 //   permissionlessResolveStaleSlots:
-//     100 000 slots ≈ 11 hours — the program's hard ceiling is
-//     `max_accrual_dt_slots` (100 000, engine constant). Must exceed
+//     100 000 slots ≈ 11 hours. Program ceiling is `max_accrual_dt_slots`
+//     (10 000 000 in v12.18, raised from 100 000). Must exceed
 //     `max_crank_staleness_slots` AND be ≥ `h_max` so warmup cohorts
 //     mature before the market becomes permissionlessly resolvable.
 //     After this much oracle staleness anyone can ResolvePermissionless.
@@ -169,14 +169,18 @@ export function prodInitMarketArgs(
     // Traders-are-rug-proof: even if admin key is lost, anyone can
     // resolve after 11 h of oracle staleness, then force-close stuck
     // positions 22 h after resolution.
-    permissionlessResolveStaleSlots: "100000",   // ~11 h (hard cap = max_accrual_dt_slots)
+    permissionlessResolveStaleSlots: "100000",   // ~11 h (cap = max_accrual_dt_slots = 10 M in v12.18)
     forceCloseDelaySlots:            "200000",   // ~22 h (cap = MAX_FORCE_CLOSE_DELAY_SLOTS = 10 M)
 
-    // Funding — enforce the engine's envelope; review per-asset.
+    // Funding — v12.18 API takes engine-native e9 (parts-per-billion per
+    // slot), NOT bps. Engine global ceiling is 10_000 e9/slot (~0.22%/day
+    // at sustained max; realistic perp markets run 3-5 orders of magnitude
+    // below this). Wrapper default is 1_000 e9/slot (~0.022%/day cap,
+    // non-binding on any normal market).
     fundingHorizonSlots:  "7200",    // ~48 min EWMA
     fundingKBps:          "100",     // 1× multiplier
     fundingMaxPremiumBps: "500",     // 5 % premium cap
-    fundingMaxBpsPerSlot: "1",       // 1 bps/slot (≈21.6 %/day cap; tighten if spec requires)
+    fundingMaxE9PerSlot:  "1000",    // 1e-6/slot ≈ 0.022%/day cap (envelope, not rate)
 
     // Fee-weighted EWMA on trade marks
     markMinFee: "0",

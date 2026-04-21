@@ -65,7 +65,7 @@ export interface MarketConfig {
   fundingHorizonSlots: bigint;
   fundingKBps: bigint;
   fundingMaxPremiumBps: bigint;     // i64
-  fundingMaxBpsPerSlot: bigint;     // i64
+  fundingMaxE9PerSlot: bigint;     // i64
   oracleAuthority: PublicKey;
   authorityPriceE6: bigint;
   authorityTimestamp: bigint;
@@ -156,7 +156,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   const fundingHorizonSlots = data.readBigUInt64LE(off);                      off += 8;
   const fundingKBps = data.readBigUInt64LE(off);                              off += 8;
   const fundingMaxPremiumBps = data.readBigInt64LE(off);                      off += 8;
-  const fundingMaxBpsPerSlot = data.readBigInt64LE(off);                      off += 8;
+  const fundingMaxE9PerSlot = data.readBigInt64LE(off);                      off += 8;
   const oracleAuthority = new PublicKey(data.subarray(off, off + 32));        off += 32;
   const authorityPriceE6 = data.readBigUInt64LE(off);                         off += 8;
   const authorityTimestamp = data.readBigInt64LE(off);                        off += 8;
@@ -187,7 +187,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   return {
     collateralMint, vaultPubkey, indexFeedId,
     maxStalenessSlots, confFilterBps, vaultAuthorityBump, invert, unitScale,
-    fundingHorizonSlots, fundingKBps, fundingMaxPremiumBps, fundingMaxBpsPerSlot,
+    fundingHorizonSlots, fundingKBps, fundingMaxPremiumBps, fundingMaxE9PerSlot,
     oracleAuthority, authorityPriceE6, authorityTimestamp,
     oraclePriceCapE2bps, lastEffectivePriceE6,
     maxInsuranceFloor, minOraclePriceCapE2bps,
