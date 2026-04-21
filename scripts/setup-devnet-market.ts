@@ -1,95 +1,86 @@
 /**
- * Setup a persistent devnet inverted market for testing
+ * Provision a persistent inverted SOL/USD market on devnet.
  *
- * DISCLAIMER: This code is for EDUCATIONAL PURPOSES ONLY.
- * The percolator program has NOT been audited. Do NOT use in production
- * or with real funds. Use at your own risk.
+ * Collateral: wrapped SOL (9 decimals, unit_scale=0 → 1 lamport = 1 engine unit).
+ * Oracle:     Chainlink SOL/USD @ 99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR
+ *             (live on devnet, owner HEvSKofv…).
+ * Invert:     1 — mark reads as "SOL per USD" (1e12 / raw_e6).
  *
- * This script creates:
- * - An inverted SOL/USD market using Chainlink's live oracle
- * - A funded insurance fund (100 tokens)
- * - A 50bps passive matcher LP (10 tokens collateral)
+ * Maintenance-fee target: ≈ $5/day/account at SOL ≈ $85.
+ *   250 lamports/slot × 216 000 slots/day = 54 M lamports = 0.054 SOL.
  *
- * Usage:
- *   npx tsx scripts/setup-devnet-market.ts
- *
- * The market info is saved to devnet-market.json for reference.
+ * Writes the deployment summary to devnet-market.json.
  */
 
 import "dotenv/config";
 import {
-  Connection,
-  Keypair,
-  PublicKey,
-  Transaction,
-  sendAndConfirmTransaction,
-  ComputeBudgetProgram,
-  SystemProgram,
-  SYSVAR_CLOCK_PUBKEY,
-  SYSVAR_RENT_PUBKEY,
-  LAMPORTS_PER_SOL,
+  Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction,
+  ComputeBudgetProgram, SystemProgram, LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
-  getOrCreateAssociatedTokenAccount,
-  TOKEN_PROGRAM_ID,
-  NATIVE_MINT,
+  getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID, NATIVE_MINT,
 } from "@solana/spl-token";
 import * as fs from "fs";
 import {
-  encodeInitMarket,
-  encodeInitLP,
-  encodeDepositCollateral,
-  encodeTopUpInsurance,
-  encodeKeeperCrank,
+  encodeInitMarket, encodeInitLP, encodeDepositCollateral,
+  encodeTopUpInsurance, encodeKeeperCrank,
 } from "../src/abi/instructions.js";
 import {
-  ACCOUNTS_INIT_MARKET,
-  ACCOUNTS_INIT_LP,
-  ACCOUNTS_DEPOSIT_COLLATERAL,
-  ACCOUNTS_TOPUP_INSURANCE,
-  ACCOUNTS_KEEPER_CRANK,
-  buildAccountMetas,
+  ACCOUNTS_INIT_MARKET, ACCOUNTS_INIT_LP, ACCOUNTS_DEPOSIT_COLLATERAL,
+  ACCOUNTS_TOPUP_INSURANCE, ACCOUNTS_KEEPER_CRANK, buildAccountMetas, WELL_KNOWN,
 } from "../src/abi/accounts.js";
 import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
-import { parseHeader, parseConfig, parseEngine, parseUsedIndices } from "../src/solana/slab.js";
+import {
+  parseHeader, parseConfig, parseEngine, parseUsedIndices, SLAB_LEN,
+} from "../src/solana/slab.js";
 import { buildIx } from "../src/runtime/tx.js";
+import { prodInitMarketArgs } from "./_default-market.js";
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-// Chainlink SOL/USD on devnet (actively updated!)
-const CHAINLINK_SOL_USD = new PublicKey("99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR");
-
-// Program IDs
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
+const CHAINLINK_SOL_USD = new PublicKey("99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR");
+const CHAINLINK_OWNER = "HEvSKofvBgfaexv23kMabbYqxasxU3mQ4ibBMEmJWHny";
 const MATCHER_CTX_SIZE = 320;
 
-// Market parameters
-// SLAB_SIZE = ENGINE_OFF(584) + ENGINE_ACCOUNTS_OFF(9312) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
-// Updated for liquidation_buffer_bps + insurance_floor removal
-const SLAB_SIZE = 1525656;
-
-// Funding amounts (in lamports with 9 decimals for wrapped SOL)
+// Funding amounts (wrapped SOL, 9 decimals).
 const INSURANCE_FUND_AMOUNT = 1_000_000_000n;  // 1 SOL
-const LP_COLLATERAL_AMOUNT = 1_000_000_000n;   // 1 SOL
+const LP_COLLATERAL_AMOUNT  = 1_000_000_000n;  // 1 SOL
+const WRAP_AMOUNT           = 5 * LAMPORTS_PER_SOL; // headroom for fees + funding
 
 // ============================================================================
-// HELPERS
+// CHAINLINK VERIFICATION
 // ============================================================================
 
-async function getChainlinkPrice(connection: Connection): Promise<{ price: number; timestamp: number }> {
-  const info = await connection.getAccountInfo(CHAINLINK_SOL_USD);
-  if (!info) throw new Error("Chainlink oracle not found");
+async function verifyChainlink(conn: Connection): Promise<{ rawE6: bigint; invertedE6: bigint; priceUsd: number; ageSec: number }> {
+  const info = await conn.getAccountInfo(CHAINLINK_SOL_USD);
+  if (!info) throw new Error(`Chainlink feed not found: ${CHAINLINK_SOL_USD.toBase58()}`);
+  if (info.owner.toBase58() !== CHAINLINK_OWNER) {
+    throw new Error(`Chainlink owner mismatch: got ${info.owner.toBase58()}, expected ${CHAINLINK_OWNER}`);
+  }
+  if (info.data.length < 232) {
+    throw new Error(`Chainlink data too short: ${info.data.length} bytes (need >= 232)`);
+  }
 
-  const data = info.data;
-  const decimals = data.readUInt8(138);
-  const timestamp = Number(data.readBigUInt64LE(208));
-  const answer = data.readBigInt64LE(216);
+  const decimals = info.data.readUInt8(138);
+  const timestamp = Number(info.data.readBigUInt64LE(208));
+  const answer = info.data.readBigInt64LE(216);
+  const priceUsd = Number(answer) / Math.pow(10, decimals);
+  const ageSec = Math.floor(Date.now() / 1000) - timestamp;
 
-  const price = Number(answer) / Math.pow(10, decimals);
-  return { price, timestamp };
+  if (ageSec < 0 || ageSec > 3600) {
+    throw new Error(`Chainlink feed stale: age=${ageSec}s`);
+  }
+  if (priceUsd < 10 || priceUsd > 10000) {
+    throw new Error(`Chainlink price unreasonable: $${priceUsd.toFixed(2)}`);
+  }
+
+  const rawE6 = BigInt(answer) * (10n ** 6n) / (10n ** BigInt(decimals));
+  const invertedE6 = 1_000_000_000_000n / rawE6;
+  return { rawE6, invertedE6, priceUsd, ageSec };
 }
 
 // ============================================================================
@@ -97,350 +88,270 @@ async function getChainlinkPrice(connection: Connection): Promise<{ price: numbe
 // ============================================================================
 
 async function main() {
-  console.log("\n" + "=".repeat(70));
-  console.log("PERCOLATOR DEVNET MARKET SETUP");
-  console.log("=".repeat(70));
-  console.log("\n*** DISCLAIMER: FOR EDUCATIONAL PURPOSES ONLY ***");
-  console.log("*** This code has NOT been audited. Do NOT use with real funds. ***\n");
-  console.log("This script creates a persistent inverted SOL/USD market on devnet.");
-  console.log("Market uses Chainlink's live SOL/USD oracle for price feeds.\n");
+  console.log("═".repeat(70));
+  console.log("PERCOLATOR — INVERTED SOL/USD DEVNET MARKET (Chainlink oracle)");
+  console.log("═".repeat(70));
 
-  // Setup connection and wallet
   const walletPath = process.env.WALLET_PATH || `${process.env.HOME}/.config/solana/id.json`;
-  const payer = Keypair.fromSecretKey(
-    new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8")))
-  );
-  const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+  const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8"))));
+  const rpc = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
+  const conn = new Connection(rpc, "confirmed");
 
+  console.log(`RPC:    ${rpc}`);
   console.log(`Wallet: ${payer.publicKey.toBase58()}`);
-  const balance = await connection.getBalance(payer.publicKey);
-  console.log(`Balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL\n`);
+  const startBal = await conn.getBalance(payer.publicKey);
+  console.log(`SOL:    ${(startBal / LAMPORTS_PER_SOL).toFixed(4)}`);
 
-  if (balance < 10 * LAMPORTS_PER_SOL) {
-    console.log("WARNING: Low balance. Consider running: solana airdrop 5");
-  }
+  // ── Step 1: verify oracle liveness ──
+  console.log("\n[1] Verifying Chainlink SOL/USD oracle...");
+  const { rawE6, invertedE6, priceUsd, ageSec } = await verifyChainlink(conn);
+  console.log(`    feed:        ${CHAINLINK_SOL_USD.toBase58()}`);
+  console.log(`    price:       $${priceUsd.toFixed(4)}  (age ${ageSec}s)`);
+  console.log(`    raw_e6:      ${rawE6}`);
+  console.log(`    inverted_e6: ${invertedE6}  (${(Number(invertedE6)/1e6).toFixed(6)} SOL = $1)`);
 
-  // Check Chainlink oracle
-  console.log("Step 1: Verifying Chainlink oracle...");
-  const { price, timestamp } = await getChainlinkPrice(connection);
-  const age = (Date.now() / 1000) - timestamp;
-  console.log(`  Oracle: ${CHAINLINK_SOL_USD.toBase58()}`);
-  console.log(`  Current price: $${price.toFixed(2)}`);
-  console.log(`  Age: ${age.toFixed(0)} seconds`);
-
-  if (age > 3600) {
-    console.log("  WARNING: Oracle is stale (> 1 hour old)");
-  } else {
-    console.log("  Oracle is FRESH");
-  }
-
-  // Use wrapped SOL as collateral
-  console.log("\nStep 2: Using wrapped SOL as collateral...");
-  const mint = NATIVE_MINT;
-  console.log(`  Mint: ${mint.toBase58()} (Wrapped SOL)`);
-
-  // Create slab account
-  console.log("\nStep 3: Creating slab account...");
+  // ── Step 2: create slab ──
+  console.log("\n[2] Creating slab account...");
   const slab = Keypair.generate();
-  console.log(`  Slab: ${slab.publicKey.toBase58()}`);
-
-  const rentExempt = await connection.getMinimumBalanceForRentExemption(SLAB_SIZE);
-  console.log(`  Rent: ${(rentExempt / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
-
-  const createSlabTx = new Transaction();
-  createSlabTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
-  createSlabTx.add(SystemProgram.createAccount({
-    fromPubkey: payer.publicKey,
-    newAccountPubkey: slab.publicKey,
-    lamports: rentExempt,
-    space: SLAB_SIZE,
-    programId: PROGRAM_ID,
-  }));
-  await sendAndConfirmTransaction(connection, createSlabTx, [payer, slab], { commitment: "confirmed" });
-
-  // Derive vault PDA
-  const [vaultPda, vaultBump] = deriveVaultAuthority(PROGRAM_ID, slab.publicKey);
-  console.log(`  Vault PDA: ${vaultPda.toBase58()}`);
-
-  // Create vault ATA
-  const vaultAccount = await getOrCreateAssociatedTokenAccount(
-    connection, payer, mint, vaultPda, true
-  );
-  const vault = vaultAccount.address;
-  console.log(`  Vault ATA: ${vault.toBase58()}`);
-
-  // Initialize market (INVERTED)
-  console.log("\nStep 4: Initializing INVERTED market...");
-  const feedId = Buffer.from(CHAINLINK_SOL_USD.toBytes()).toString("hex");
-
-  const initMarketData = encodeInitMarket({
-    admin: payer.publicKey,
-    collateralMint: mint,
-    indexFeedId: feedId,
-    maxStalenessSecs: "3600",        // 1 hour staleness
-    confFilterBps: 500,              // 5% confidence filter
-    invert: 1,                       // INVERTED market
-    unitScale: 0,
-    initialMarkPriceE6: "0",         // Not Hyperp mode, so this is ignored
-    maxMaintenanceFeePerSlot: "1000000000",  // Per-market admin limit
-    maxInsuranceFloor: "10000000000000000", // Per-market admin limit (MAX_VAULT_TVL)
-    minOraclePriceCapE2bps: "0",             // No floor
-    warmupPeriodSlots: "10",
-    maintenanceMarginBps: "500",     // 5% maintenance margin
-    initialMarginBps: "1000",        // 10% initial margin
-    tradingFeeBps: "10",             // 0.1% trading fee
-    maxAccounts: "1024",             // Allow many accounts
-    newAccountFee: "1000000",        // 0.001 SOL to create account
-    insuranceFloor: "0",
-    maintenanceFeePerSlot: "0",
-    maxCrankStalenessSlots: "200",
-    liquidationFeeBps: "100",        // 1% liquidation fee
-    liquidationFeeCap: "1000000000", // 1000 token cap
-    liquidationBufferBps: "50",      // 0.5% buffer
-    minLiquidationAbs: "100000",     // 0.1 token minimum
-    minInitialDeposit: "1000000",   // 1 token minimum initial deposit
-    minNonzeroMmReq: "100000",     // 0.1 token min MM requirement
-    minNonzeroImReq: "200000",     // 0.2 token min IM requirement
-  });
-
-  const initMarketKeys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
-    payer.publicKey,
-    slab.publicKey,
-    mint,
-    vault,
-    TOKEN_PROGRAM_ID,
-    SYSVAR_CLOCK_PUBKEY,
-    SYSVAR_RENT_PUBKEY,
-    vaultPda,
-    SystemProgram.programId,
-  ]);
-
-  const initTx = new Transaction();
-  initTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }));
-  initTx.add(buildIx({ programId: PROGRAM_ID, keys: initMarketKeys, data: initMarketData }));
-  await sendAndConfirmTransaction(connection, initTx, [payer], { commitment: "confirmed" });
-  console.log("  Market initialized (inverted=true)");
-
-  // Run initial keeper crank
-  console.log("\nStep 5: Running initial keeper crank...");
-  const crankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
-  const crankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
-    payer.publicKey,
-    slab.publicKey,
-    SYSVAR_CLOCK_PUBKEY,
-    CHAINLINK_SOL_USD,
-  ]);
-
-  const crankTx = new Transaction();
-  crankTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
-  crankTx.add(buildIx({ programId: PROGRAM_ID, keys: crankKeys, data: crankData }));
-  await sendAndConfirmTransaction(connection, crankTx, [payer], { commitment: "confirmed", skipPreflight: true });
-  console.log("  Keeper crank executed");
-
-  // Create admin wrapped SOL account and fund it
-  console.log("\nStep 6: Creating admin wrapped SOL account...");
-  const adminAta = await getOrCreateAssociatedTokenAccount(
-    connection, payer, mint, payer.publicKey
-  );
-  // Fund admin ATA with wrapped SOL for LP collateral + insurance + fees
-  const wrapAmount = 5 * LAMPORTS_PER_SOL;  // 5 SOL
-  const wrapTx = new Transaction();
-  wrapTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
-  wrapTx.add(SystemProgram.transfer({
-    fromPubkey: payer.publicKey,
-    toPubkey: adminAta.address,
-    lamports: wrapAmount,
-  }));
-  wrapTx.add({
-    programId: TOKEN_PROGRAM_ID,
-    keys: [{ pubkey: adminAta.address, isSigner: false, isWritable: true }],
-    data: Buffer.from([17]),  // SyncNative instruction
-  });
-  await sendAndConfirmTransaction(connection, wrapTx, [payer], { commitment: "confirmed" });
-  console.log(`  Wrapped ${wrapAmount / LAMPORTS_PER_SOL} SOL to admin ATA`);
-
-  // Create LP with 50bps matcher
-  console.log("\nStep 7: Creating LP with 50bps passive matcher...");
-
-  // Get current used indices
-  const slabInfo = await connection.getAccountInfo(slab.publicKey);
-  const usedIndices = slabInfo ? parseUsedIndices(slabInfo.data) : [];
-  const lpIndex = usedIndices.length;
-
-  // Create matcher context account
-  const matcherCtxKp = Keypair.generate();
-  const matcherRent = await connection.getMinimumBalanceForRentExemption(MATCHER_CTX_SIZE);
-
-  const createMatcherTx = new Transaction();
-  createMatcherTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
-  createMatcherTx.add(SystemProgram.createAccount({
-    fromPubkey: payer.publicKey,
-    newAccountPubkey: matcherCtxKp.publicKey,
-    lamports: matcherRent,
-    space: MATCHER_CTX_SIZE,
-    programId: MATCHER_PROGRAM_ID,
-  }));
-  await sendAndConfirmTransaction(connection, createMatcherTx, [payer, matcherCtxKp], { commitment: "confirmed" });
-  console.log(`  Matcher context: ${matcherCtxKp.publicKey.toBase58()}`);
-
-  // Derive LP PDA
-  const [lpPda] = deriveLpPda(PROGRAM_ID, slab.publicKey, lpIndex);
-  console.log(`  LP PDA: ${lpPda.toBase58()}`);
-
-  // Initialize matcher context
-  const initMatcherTx = new Transaction();
-  initMatcherTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
-  initMatcherTx.add({
-    programId: MATCHER_PROGRAM_ID,
-    keys: [
-      { pubkey: lpPda, isSigner: false, isWritable: false },
-      { pubkey: matcherCtxKp.publicKey, isSigner: false, isWritable: true },
-    ],
-    data: (() => {
-      // Tag=2 (MATCHER_INIT_VAMM_TAG), 66-byte structured init data
-      const buf = Buffer.alloc(66);
-      buf.writeUInt8(2, 0);          // tag = 2
-      buf.writeUInt8(0, 1);          // kind = Passive
-      buf.writeUInt32LE(5, 2);       // trading_fee_bps = 5
-      buf.writeUInt32LE(50, 6);      // base_spread_bps = 50
-      buf.writeUInt32LE(100, 10);    // max_total_bps = 100
-      buf.writeUInt32LE(0, 14);      // impact_k_bps = 0
-      // liquidity_notional_e6 = 0 (u128 at offset 18, passive allows 0)
-      // max_fill_abs = 10_000_000_000_000 (10T, u128 at offset 34)
-      buf.writeBigUInt64LE(10_000_000_000_000n, 34);
-      // max_inventory_abs = 0 (u128 at offset 50, 0 = no limit)
-      return buf;
-    })(),
-  });
-  await sendAndConfirmTransaction(connection, initMatcherTx, [payer], { commitment: "confirmed" });
-  console.log("  Matcher context initialized");
-
-  // Initialize LP account
-  const initLpData = encodeInitLP({
-    matcherProgram: MATCHER_PROGRAM_ID,
-    matcherContext: matcherCtxKp.publicKey,
-    feePayment: "2000000",  // 0.002 SOL
-  });
-  const initLpKeys = buildAccountMetas(ACCOUNTS_INIT_LP, [
-    payer.publicKey,
-    slab.publicKey,
-    adminAta.address,
-    vault,
-    TOKEN_PROGRAM_ID,
-    SYSVAR_CLOCK_PUBKEY,
-  ]);
-
-  const initLpTx = new Transaction();
-  initLpTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
-  initLpTx.add(buildIx({ programId: PROGRAM_ID, keys: initLpKeys, data: initLpData }));
-  await sendAndConfirmTransaction(connection, initLpTx, [payer], { commitment: "confirmed" });
-  console.log(`  LP initialized at index ${lpIndex}`);
-
-  // Deposit collateral to LP
-  console.log("\nStep 8: Depositing collateral to LP...");
-  const depositData = encodeDepositCollateral({ userIdx: lpIndex, amount: LP_COLLATERAL_AMOUNT.toString() });
-  const depositKeys = buildAccountMetas(ACCOUNTS_DEPOSIT_COLLATERAL, [
-    payer.publicKey,
-    slab.publicKey,
-    adminAta.address,
-    vault,
-    TOKEN_PROGRAM_ID,
-    SYSVAR_CLOCK_PUBKEY,
-  ]);
-
-  const depositTx = new Transaction();
-  depositTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
-  depositTx.add(buildIx({ programId: PROGRAM_ID, keys: depositKeys, data: depositData }));
-  await sendAndConfirmTransaction(connection, depositTx, [payer], { commitment: "confirmed" });
-  console.log(`  Deposited ${Number(LP_COLLATERAL_AMOUNT) / 1e9} SOL to LP`);
-
-  // Top up insurance fund
-  console.log("\nStep 9: Topping up insurance fund...");
-  const topupData = encodeTopUpInsurance({ amount: INSURANCE_FUND_AMOUNT.toString() });
-  const topupKeys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [
-    payer.publicKey,
-    slab.publicKey,
-    adminAta.address,
-    vault,
-    TOKEN_PROGRAM_ID,
-    SYSVAR_CLOCK_PUBKEY,
-  ]);
-
-  const topupTx = new Transaction();
-  topupTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }));
-  topupTx.add(buildIx({ programId: PROGRAM_ID, keys: topupKeys, data: topupData }));
-  await sendAndConfirmTransaction(connection, topupTx, [payer], { commitment: "confirmed" });
-  console.log(`  Insurance fund topped up with ${Number(INSURANCE_FUND_AMOUNT) / 1e9} SOL`);
-
-  // Verify final state
-  console.log("\nStep 10: Verifying market state...");
-  const finalSlabInfo = await connection.getAccountInfo(slab.publicKey);
-  if (finalSlabInfo) {
-    const header = parseHeader(finalSlabInfo.data);
-    const config = parseConfig(finalSlabInfo.data);
-    const engine = parseEngine(finalSlabInfo.data);
-
-    console.log(`  Version: ${header.version}`);
-    console.log(`  Admin: ${header.admin.toBase58()}`);
-    console.log(`  Inverted: ${config.invert === 1 ? "Yes" : "No"}`);
-    console.log(`  Insurance fund: ${Number(engine.insuranceFund.balance) / 1e9} SOL`);
-    console.log(`  C_tot: ${Number(engine.cTot) / 1e9} SOL`);
-    console.log(`  PnL_pos_tot: ${Number(engine.pnlPosTot) / 1e9} SOL`);
+  const rent = await conn.getMinimumBalanceForRentExemption(SLAB_LEN);
+  console.log(`    slab:  ${slab.publicKey.toBase58()}`);
+  console.log(`    size:  ${SLAB_LEN} bytes  rent: ${(rent/LAMPORTS_PER_SOL).toFixed(4)} SOL`);
+  {
+    const t = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 50_000 }))
+      .add(SystemProgram.createAccount({
+        fromPubkey: payer.publicKey, newAccountPubkey: slab.publicKey,
+        lamports: rent, space: SLAB_LEN, programId: PROGRAM_ID,
+      }));
+    await sendAndConfirmTransaction(conn, t, [payer, slab], { commitment: "confirmed" });
   }
 
-  // Save market info
-  const marketInfo = {
+  // ── Step 3: vault PDA + ATA ──
+  const [vaultPda] = deriveVaultAuthority(PROGRAM_ID, slab.publicKey);
+  const vaultAcc = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, vaultPda, true);
+  console.log(`    vault pda:  ${vaultPda.toBase58()}`);
+  console.log(`    vault ata:  ${vaultAcc.address.toBase58()}`);
+
+  // ── Step 4: InitMarket (inverted, Chainlink) ──
+  console.log("\n[3] InitMarket (inverted Chainlink SOL/USD, SOL collateral)...");
+  const feedIdHex = Buffer.from(CHAINLINK_SOL_USD.toBytes()).toString("hex");
+  const initArgs = prodInitMarketArgs(payer.publicKey, NATIVE_MINT, {
+    // Chainlink oracle account (non-Hyperp path)
+    indexFeedId:          feedIdHex,
+    // Initial mark ignored for non-Hyperp — program reads Chainlink at init
+    initialMarkPriceE6:   "0",
+    // SOL-9 collateral, no scaling: 1 lamport = 1 engine unit
+    unitScale:            0,
+    invert:               1,
+    // Chainlink heartbeat is ~seconds on devnet; 60 s cushion is generous
+    maxStalenessSecs:     "60",
+    // Chainlink has no confidence interval, so confFilter is unused on this path
+    confFilterBps:        0,
+    // $5/day target for SOL-9 collateral: 250 lamports/slot × 216_000 = 54 M/day
+    maintenanceFeePerSlot: "250",
+    // SOL-denominated minimums (~$10 at SOL=$85 is 0.118 SOL)
+    minInitialDeposit:    "118000000",    // 0.118 SOL
+    minNonzeroMmReq:      "1200000",      // 0.0012 SOL
+    minNonzeroImReq:      "2400000",      // 0.0024 SOL
+    liquidationFeeCap:    "11700000000",  // 11.7 SOL cap ≈ $1 000 max
+    minLiquidationAbs:    "11700000",     // 0.0117 SOL ≈ $1 min
+    // Insurance ceilings
+    maxInsuranceFloor:    "10000000000000000", // 10 M SOL ceiling (engine u128)
+    // Non-Hyperp resolvability — perm-resolve already ≤ max_accrual_dt_slots
+    // (100 000) so this passes; also satisfies the non-Hyperp invariant
+    // (need perm-resolve > 0 OR min_oracle_price_cap > 0).
+  });
+  {
+    const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
+      payer.publicKey, slab.publicKey, NATIVE_MINT, vaultAcc.address,
+      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
+      CHAINLINK_SOL_USD,                // accounts[7] = oracle (Chainlink)
+      WELL_KNOWN.systemProgram,
+    ]);
+    const t = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }))
+      .add(buildIx({ programId: PROGRAM_ID, keys, data: encodeInitMarket(initArgs) }));
+    const sig = await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed" });
+    console.log(`    sig: ${sig.slice(0, 40)}...`);
+  }
+
+  // ── Step 5: warm-up keeper crank ──
+  console.log("\n[4] Initial permissionless KeeperCrank...");
+  {
+    const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
+      payer.publicKey, slab.publicKey, WELL_KNOWN.clock, CHAINLINK_SOL_USD,
+    ]);
+    const t = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }))
+      .add(buildIx({
+        programId: PROGRAM_ID, keys,
+        data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }),
+      }));
+    await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed", skipPreflight: true });
+  }
+
+  // ── Step 6: admin wSOL ATA + wrap some SOL ──
+  console.log("\n[5] Wrapping SOL for LP collateral + insurance fund...");
+  const adminAta = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, payer.publicKey);
+  {
+    const t = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 30_000 }))
+      .add(SystemProgram.transfer({
+        fromPubkey: payer.publicKey, toPubkey: adminAta.address,
+        lamports: WRAP_AMOUNT,
+      }))
+      .add({
+        programId: TOKEN_PROGRAM_ID,
+        keys: [{ pubkey: adminAta.address, isSigner: false, isWritable: true }],
+        data: Buffer.from([17]), // SyncNative
+      });
+    await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed" });
+    console.log(`    wrapped ${WRAP_AMOUNT / LAMPORTS_PER_SOL} SOL → ${adminAta.address.toBase58()}`);
+  }
+
+  // ── Step 7: passive-matcher LP (idx 0) ──
+  console.log("\n[6] Creating passive-matcher LP at idx 0...");
+  const matcherCtx = Keypair.generate();
+  const [lpPda] = deriveLpPda(PROGRAM_ID, slab.publicKey, 0);
+
+  // Passive matcher init payload (66 bytes, tag=2).
+  const matcherInit = Buffer.alloc(66);
+  matcherInit[0] = 2; matcherInit[1] = 0;
+  matcherInit.writeUInt32LE(5,    2);  // trading_fee_bps    = 5 (0.05%)
+  matcherInit.writeUInt32LE(50,   6);  // base_spread_bps    = 50 (0.5%)
+  matcherInit.writeUInt32LE(500, 10);  // max_total_bps      = 500 (5%)
+  matcherInit.writeUInt32LE(0,   14);  // impact_k_bps       = 0 (Passive)
+  matcherInit.writeBigUInt64LE(10_000_000_000_000n, 34); // max_fill_abs lo
+
+  {
+    const createMatcher = SystemProgram.createAccount({
+      fromPubkey: payer.publicKey, newAccountPubkey: matcherCtx.publicKey,
+      lamports: await conn.getMinimumBalanceForRentExemption(MATCHER_CTX_SIZE),
+      space: MATCHER_CTX_SIZE, programId: MATCHER_PROGRAM_ID,
+    });
+    const initMatcher = {
+      programId: MATCHER_PROGRAM_ID,
+      keys: [
+        { pubkey: lpPda, isSigner: false, isWritable: false },
+        { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
+      ],
+      data: matcherInit,
+    };
+    const initLp = buildIx({
+      programId: PROGRAM_ID,
+      keys: buildAccountMetas(ACCOUNTS_INIT_LP, [
+        payer.publicKey, slab.publicKey, adminAta.address, vaultAcc.address,
+        WELL_KNOWN.tokenProgram, WELL_KNOWN.clock,
+      ]),
+      data: encodeInitLP({
+        matcherProgram: MATCHER_PROGRAM_ID,
+        matcherContext: matcherCtx.publicKey,
+        // Must be ≥ min_initial_deposit (0.118 SOL configured above).
+        feePayment: "120000000", // 0.12 SOL
+      }),
+    });
+    const t = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }))
+      .add(createMatcher)
+      .add(initMatcher)
+      .add(initLp);
+    await sendAndConfirmTransaction(conn, t, [payer, matcherCtx], { commitment: "confirmed" });
+    console.log(`    matcher ctx: ${matcherCtx.publicKey.toBase58()}`);
+    console.log(`    lp pda:      ${lpPda.toBase58()}`);
+  }
+
+  // ── Step 8: deposit LP collateral ──
+  console.log("\n[7] Depositing LP collateral...");
+  {
+    const keys = buildAccountMetas(ACCOUNTS_DEPOSIT_COLLATERAL, [
+      payer.publicKey, slab.publicKey, adminAta.address, vaultAcc.address,
+      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock,
+    ]);
+    const t = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 60_000 }))
+      .add(buildIx({
+        programId: PROGRAM_ID, keys,
+        data: encodeDepositCollateral({ userIdx: 0, amount: LP_COLLATERAL_AMOUNT.toString() }),
+      }));
+    await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed" });
+    console.log(`    deposited ${Number(LP_COLLATERAL_AMOUNT) / LAMPORTS_PER_SOL} SOL`);
+  }
+
+  // ── Step 9: insurance top-up ──
+  console.log("\n[8] Topping up insurance fund...");
+  {
+    const keys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [
+      payer.publicKey, slab.publicKey, adminAta.address, vaultAcc.address,
+      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock,
+    ]);
+    const t = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 60_000 }))
+      .add(buildIx({
+        programId: PROGRAM_ID, keys,
+        data: encodeTopUpInsurance({ amount: INSURANCE_FUND_AMOUNT.toString() }),
+      }));
+    await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed" });
+    console.log(`    insurance += ${Number(INSURANCE_FUND_AMOUNT) / LAMPORTS_PER_SOL} SOL`);
+  }
+
+  // ── Step 10: verify state ──
+  console.log("\n[9] Verifying final market state...");
+  const final = await conn.getAccountInfo(slab.publicKey);
+  if (!final) throw new Error("slab fetch failed");
+  const h = parseHeader(final.data);
+  const c = parseConfig(final.data);
+  const e = parseEngine(final.data);
+  const indices = parseUsedIndices(final.data);
+  console.log(`    admin:             ${h.admin.toBase58()}`);
+  console.log(`    insurance_auth:    ${h.insuranceAuthority.toBase58()}`);
+  console.log(`    close_auth:        ${h.closeAuthority.toBase58()}`);
+  console.log(`    inverted:          ${c.invert === 1 ? "yes" : "no"}`);
+  console.log(`    unit_scale:        ${c.unitScale}`);
+  console.log(`    max_staleness:     ${c.maxStalenessSlots}`);
+  console.log(`    last_oracle_price: ${e.lastOraclePrice}  (engine-space, after invert)`);
+  console.log(`    vault:             ${e.vault}  (= ${Number(e.vault)/LAMPORTS_PER_SOL} SOL)`);
+  console.log(`    c_tot:             ${e.cTot}`);
+  console.log(`    insurance:         ${e.insuranceFund.balance}  (= ${Number(e.insuranceFund.balance)/LAMPORTS_PER_SOL} SOL)`);
+  console.log(`    active accounts:   ${indices.join(", ") || "(none)"}`);
+  console.log(`    market_mode:       ${e.marketMode === 0 ? "Live" : "Resolved"}`);
+
+  // ── Step 11: save deployment manifest ──
+  const out = {
     network: "devnet",
     createdAt: new Date().toISOString(),
     programId: PROGRAM_ID.toBase58(),
     matcherProgramId: MATCHER_PROGRAM_ID.toBase58(),
     slab: slab.publicKey.toBase58(),
-    mint: mint.toBase58(),
-    vault: vault.toBase58(),
+    slabSize: SLAB_LEN,
+    mint: NATIVE_MINT.toBase58(),
+    collateral: "wSOL (9 decimals, unit_scale=0)",
+    vault: vaultAcc.address.toBase58(),
     vaultPda: vaultPda.toBase58(),
     oracle: CHAINLINK_SOL_USD.toBase58(),
+    oracleOwner: CHAINLINK_OWNER,
     oracleType: "chainlink",
     inverted: true,
     lp: {
-      index: lpIndex,
+      index: 0,
       pda: lpPda.toBase58(),
-      matcherContext: matcherCtxKp.publicKey.toBase58(),
-      collateral: Number(LP_COLLATERAL_AMOUNT) / 1e9,
+      matcherContext: matcherCtx.publicKey.toBase58(),
+      collateralLamports: Number(LP_COLLATERAL_AMOUNT),
     },
-    insuranceFund: Number(INSURANCE_FUND_AMOUNT) / 1e9,
+    insuranceFundLamports: Number(INSURANCE_FUND_AMOUNT),
     admin: payer.publicKey.toBase58(),
     adminAta: adminAta.address.toBase58(),
+    maintenanceFeePerSlot: initArgs.maintenanceFeePerSlot,
+    expectedDailyFee: "≈ 0.054 SOL/account/day",
+    permissionlessResolveStaleSlots: initArgs.permissionlessResolveStaleSlots,
+    forceCloseDelaySlots: initArgs.forceCloseDelaySlots,
   };
+  fs.writeFileSync("devnet-market.json", JSON.stringify(out, null, 2));
+  console.log("\n    devnet-market.json written.");
 
-  fs.writeFileSync("devnet-market.json", JSON.stringify(marketInfo, null, 2));
-  console.log("\nMarket info saved to devnet-market.json");
-
-  // Print summary
-  console.log("\n" + "=".repeat(70));
-  console.log("MARKET SETUP COMPLETE!");
-  console.log("=".repeat(70));
-  console.log(`
-Market Details:
-  Slab:           ${slab.publicKey.toBase58()}
-  Mint:           ${mint.toBase58()}
-  Vault:          ${vault.toBase58()}
-  Oracle:         ${CHAINLINK_SOL_USD.toBase58()} (Chainlink SOL/USD)
-  Type:           INVERTED (price = 1/SOL in USD terms)
-
-LP (50bps Passive Matcher):
-  Index:          ${lpIndex}
-  PDA:            ${lpPda.toBase58()}
-  Matcher Ctx:    ${matcherCtxKp.publicKey.toBase58()}
-  Collateral:     ${Number(LP_COLLATERAL_AMOUNT) / 1e9} SOL
-
-Insurance Fund:   ${Number(INSURANCE_FUND_AMOUNT) / 1e9} SOL
-
-Admin:            ${payer.publicKey.toBase58()}
-Admin ATA:        ${adminAta.address.toBase58()}
-`);
-
-  console.log("To trade against this market, see the README for examples.");
-  console.log("=".repeat(70) + "\n");
+  const endBal = await conn.getBalance(payer.publicKey);
+  console.log(`\nSOL spent:  ${((startBal - endBal) / LAMPORTS_PER_SOL).toFixed(4)}`);
+  console.log(`SOL left:   ${(endBal / LAMPORTS_PER_SOL).toFixed(4)}`);
+  console.log("═".repeat(70));
 }
 
-main().catch(console.error);
+main().catch(e => { console.error("FATAL:", e.message ?? e); process.exit(1); });
