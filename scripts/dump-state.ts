@@ -136,7 +136,7 @@ async function main() {
       fundingKBps: Number(config.fundingKBps),
       fundingInvScaleNotionalE6: config.fundingInvScaleNotionalE6.toString(),
       fundingMaxPremiumBps: Number(config.fundingMaxPremiumBps),
-      fundingMaxBpsPerSlot: Number(config.fundingMaxBpsPerSlot),
+      fundingMaxE9PerSlot: Number(config.fundingMaxE9PerSlot),
     },
 
     oraclePrice: {

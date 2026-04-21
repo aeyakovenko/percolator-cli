@@ -161,7 +161,7 @@ async function main() {
         kBps: Number(config.fundingKBps),
         invScaleNotionalE6: config.fundingInvScaleNotionalE6.toString(),
         maxPremiumBps: Number(config.fundingMaxPremiumBps),
-        maxBpsPerSlot: Number(config.fundingMaxBpsPerSlot),
+        maxBpsPerSlot: Number(config.fundingMaxE9PerSlot),
       },
 
       threshold: {

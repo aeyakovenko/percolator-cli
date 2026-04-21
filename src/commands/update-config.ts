@@ -17,7 +17,7 @@ const DEFAULTS = {
   fundingKBps: 100n,
   fundingInvScaleNotionalE6: 1_000_000_000_000n, // $1M in e6
   fundingMaxPremiumBps: 500n,
-  fundingMaxBpsPerSlot: 5n,
+  fundingMaxE9PerSlot: 5n,
   threshFloor: 0n,
   threshRiskBps: 50n,
   threshUpdateIntervalSlots: 10n,
@@ -61,7 +61,7 @@ export function registerUpdateConfig(program: Command): void {
         fundingKBps: opts.fundingKBps ? BigInt(opts.fundingKBps) : DEFAULTS.fundingKBps,
         fundingInvScaleNotionalE6: opts.fundingScale ? BigInt(opts.fundingScale) : DEFAULTS.fundingInvScaleNotionalE6,
         fundingMaxPremiumBps: opts.fundingMaxPremiumBps ? BigInt(opts.fundingMaxPremiumBps) : DEFAULTS.fundingMaxPremiumBps,
-        fundingMaxBpsPerSlot: opts.fundingMaxBpsPerSlot ? BigInt(opts.fundingMaxBpsPerSlot) : DEFAULTS.fundingMaxBpsPerSlot,
+        fundingMaxE9PerSlot: opts.fundingMaxE9PerSlot ? BigInt(opts.fundingMaxE9PerSlot) : DEFAULTS.fundingMaxE9PerSlot,
         threshFloor: opts.threshFloor ? BigInt(opts.threshFloor) : DEFAULTS.threshFloor,
         threshRiskBps: opts.threshRiskBps ? BigInt(opts.threshRiskBps) : DEFAULTS.threshRiskBps,
         threshUpdateIntervalSlots: opts.threshUpdateInterval ? BigInt(opts.threshUpdateInterval) : DEFAULTS.threshUpdateIntervalSlots,
@@ -101,7 +101,7 @@ export function registerUpdateConfig(program: Command): void {
         console.log(`  Funding K:           ${configArgs.fundingKBps} bps`);
         console.log(`  Funding Scale:       ${configArgs.fundingInvScaleNotionalE6}`);
         console.log(`  Funding Max Premium: ${configArgs.fundingMaxPremiumBps} bps`);
-        console.log(`  Funding Max/Slot:    ${configArgs.fundingMaxBpsPerSlot} bps`);
+        console.log(`  Funding Max/Slot:    ${configArgs.fundingMaxE9PerSlot} bps`);
         console.log(`  Thresh Floor:        ${configArgs.threshFloor}`);
         console.log(`  Thresh Risk:         ${configArgs.threshRiskBps} bps`);
         console.log(`  Thresh Interval:     ${configArgs.threshUpdateIntervalSlots} slots`);

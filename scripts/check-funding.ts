@@ -48,7 +48,7 @@ async function main() {
   console.log("  Horizon slots:", config.fundingHorizonSlots?.toString());
   console.log("  K BPS:", config.fundingKBps?.toString());
   console.log("  Max premium BPS:", config.fundingMaxPremiumBps?.toString());
-  console.log("  Max BPS per slot:", config.fundingMaxBpsPerSlot?.toString());
+  console.log("  Max BPS per slot:", config.fundingMaxE9PerSlot?.toString());
 
   // The formula for PnL from price change:
   // PnL = position_size * (current_price - entry_price) / 1e6
