@@ -1,10 +1,18 @@
 /**
- * Maintenance-fee keeper-sweep verification.
+ * Maintenance-fee keeper-sweep verification (incl. 50/50 keeper reward).
  *
- * Creates a Hyperp market with a nonzero maintenance_fee_per_slot,
- * materializes one LP + one user, lets slots pass, cranks, and checks
- * that fees flow from user capital → insurance fund through the
- * engine's per-account last_fee_slot cursor.
+ * Spec (wrapper src/percolator.rs:5173): after each KeeperCrank sweep,
+ * CRANK_REWARD_BPS = 5_000 (50%) of `sweep_delta` is paid back to
+ * `caller_idx` as capital; the remaining 50% stays in insurance.
+ * Permissionless cranks (caller_idx = u16::MAX) skip the reward.
+ *
+ * This test materializes LP (idx 0) + user (idx 1), lets slots pass,
+ * issues a KeeperCrank with caller_idx = 0 (LP), and asserts:
+ *   - user.lastFeeSlot advanced; user.capital decreased by full fee.
+ *   - lp.lastFeeSlot advanced; lp capital = lp_prev − lp_fee + reward.
+ *   - insurance gained exactly 50% of (user_fee + lp_fee).
+ *   - reward paid to LP = insurance_gain (50/50 split).
+ *   - vault == SPL; vault >= cTot + insurance (conservation).
  */
 import "dotenv/config";
 import {
@@ -140,14 +148,26 @@ async function main() {
     data: encodeInitUser({ feePayment: "1000000" }),
   })], [payer]);
 
-  // Deposit 100M into user
-  const DEPOSIT = 100_000_000n;
+  // Deposit 100M into user, 200M into LP.
+  // LP needs enough capital to pay its own maintenance fee in full
+  // (otherwise the shortfall is routed to fee_credits debt, which is
+  // NOT included in sweep_delta — the 50/50 split only covers what the
+  // sweep actually moves into insurance).
+  const USER_DEPOSIT = 100_000_000n;
+  const LP_DEPOSIT = 200_000_000n;
   await tx([buildIx({ programId: PROG,
     keys: buildAccountMetas(ACCOUNTS_DEPOSIT_COLLATERAL, [
       payer.publicKey, slab.publicKey, payerAta.address, vault,
       WELL_KNOWN.tokenProgram, WELL_KNOWN.clock,
     ]),
-    data: encodeDepositCollateral({ userIdx: 1, amount: DEPOSIT.toString() }),
+    data: encodeDepositCollateral({ userIdx: 1, amount: USER_DEPOSIT.toString() }),
+  })], [payer]);
+  await tx([buildIx({ programId: PROG,
+    keys: buildAccountMetas(ACCOUNTS_DEPOSIT_COLLATERAL, [
+      payer.publicKey, slab.publicKey, payerAta.address, vault,
+      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock,
+    ]),
+    data: encodeDepositCollateral({ userIdx: 0, amount: LP_DEPOSIT.toString() }),
   })], [payer]);
 
   const buf0 = await fetchSlab(conn, slab.publicKey);
@@ -163,22 +183,18 @@ async function main() {
   check("init: vault == SPL", e0.vault === spl0);
   check("init: vault >= cTot + insurance", e0.vault >= e0.cTot + e0.insuranceFund.balance);
 
-  console.log(`\n=== Waiting 15s for slot progression, then 3 cranks ===`);
-  await new Promise(r => setTimeout(r, 15000));
+  console.log(`\n=== Waiting 20s for slot progression, then 1 crank (caller=LP idx 0) ===`);
+  await new Promise(r => setTimeout(r, 20000));
 
-  for (let i = 0; i < 3; i++) {
-    try {
-      await tx([buildIx({ programId: PROG,
-        keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
-          payer.publicKey, slab.publicKey, WELL_KNOWN.clock, payer.publicKey,
-        ]),
-        data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }),
-      })], [payer], 400_000);
-    } catch (e: any) {
-      console.log(`  crank ${i}: ${e.message?.slice(0, 100)}`);
-    }
-    await new Promise(r => setTimeout(r, 2000));
-  }
+  // Single crank with caller_idx = 0 (LP). Non-permissionless → reward paid.
+  // Pass LP's owner as the caller signer slot (accounts[0]), LP does not
+  // need to sign — the wrapper credits reward by idx, not by key.
+  await tx([buildIx({ programId: PROG,
+    keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
+      payer.publicKey, slab.publicKey, WELL_KNOWN.clock, payer.publicKey,
+    ]),
+    data: encodeKeeperCrank({ callerIdx: 0, candidates: [] }),
+  })], [payer], 400_000);
 
   const buf1 = await fetchSlab(conn, slab.publicKey);
   const e1 = parseEngine(buf1);
@@ -192,31 +208,53 @@ async function main() {
   console.log(`  lp[0]   capital=${lp1.capital} lastFeeSlot=${lp1.lastFeeSlot}`);
   console.log(`  SPL=${spl1} currentSlot=${e1.currentSlot}`);
 
-  const slotsElapsed = Number(e1.currentSlot) - Number(e0.currentSlot);
-  const userCapDrop = u0.capital - u1.capital;
-  const lpCapDrop = lp0.capital - lp1.capital;
+  const rate = BigInt(MAINT_FEE_PER_SLOT);
+  const userDt = u1.lastFeeSlot - u0.lastFeeSlot;
+  const lpDt = lp1.lastFeeSlot - lp0.lastFeeSlot;
+  const userFee = userDt * rate;
+  const lpFee = lpDt * rate;
+  const totalFees = userFee + lpFee;
+  const expectedReward = totalFees / 2n;           // 50/50 split
+  const expectedInsGain = totalFees - expectedReward;
+  const userCapDrop = u0.capital - u1.capital;     // user paid fee, no reward
+  const lpCapDelta = lp1.capital - lp0.capital;    // lp paid fee then received reward
+  const lpNetDrop = -lpCapDelta;                   // negative means lp gained (reward > fee)
+  const observedReward = lp1.capital - lp0.capital + lpFee; // lp.cap_delta + lp.fee_paid
   const insGain = e1.insuranceFund.balance - e0.insuranceFund.balance;
 
-  console.log(`\n  slots elapsed: ${slotsElapsed}`);
-  console.log(`  user capital drop: ${userCapDrop}`);
-  console.log(`  lp   capital drop: ${lpCapDrop}`);
-  console.log(`  insurance gain:    ${insGain}`);
+  console.log(`\n  user dt=${userDt} slots  → user_fee = ${userFee}`);
+  console.log(`  lp   dt=${lpDt} slots  → lp_fee   = ${lpFee}`);
+  console.log(`  total_fees swept          = ${totalFees}`);
+  console.log(`  expected reward to LP     = ${expectedReward}`);
+  console.log(`  expected insurance gain   = ${expectedInsGain}`);
+  console.log(`  observed reward to LP     = ${observedReward}`);
+  console.log(`  observed insurance gain   = ${insGain}`);
+  console.log(`  observed user capital drop= ${userCapDrop}`);
 
-  check("user lastFeeSlot advanced past init", u1.lastFeeSlot > u0.lastFeeSlot,
+  check("user lastFeeSlot advanced", u1.lastFeeSlot > u0.lastFeeSlot,
     `before=${u0.lastFeeSlot} after=${u1.lastFeeSlot}`);
-  check("user capital decreased (fees charged)", u1.capital < u0.capital,
-    `before=${u0.capital} after=${u1.capital}`);
-  check("insurance fund received fees", e1.insuranceFund.balance > e0.insuranceFund.balance,
-    `before=${e0.insuranceFund.balance} after=${e1.insuranceFund.balance}`);
-  check("fee amount ≥ 1 × slot-rate per charged slot",
-    userCapDrop >= BigInt(MAINT_FEE_PER_SLOT),
-    `drop=${userCapDrop} rate=${MAINT_FEE_PER_SLOT}`);
+  check("lp   lastFeeSlot advanced", lp1.lastFeeSlot > lp0.lastFeeSlot,
+    `before=${lp0.lastFeeSlot} after=${lp1.lastFeeSlot}`);
+  check("user capital decreased by EXACTLY user_fee", userCapDrop === userFee,
+    `drop=${userCapDrop} expected=${userFee}`);
+  check("insurance gained EXACTLY 50% of total fees",
+    insGain === expectedInsGain,
+    `gain=${insGain} expected=${expectedInsGain}`);
+  check("keeper (LP) received EXACTLY 50% of total fees as reward",
+    observedReward === expectedReward,
+    `observed=${observedReward} expected=${expectedReward}`);
+  check("LP net capital change = reward − lp_fee",
+    lp1.capital - lp0.capital === expectedReward - lpFee,
+    `delta=${lp1.capital - lp0.capital} expected=${expectedReward - lpFee}`);
+  check("50/50 split: reward == insurance_gain",
+    observedReward === insGain);
+  check("conservation: cap_delta(user)+cap_delta(lp)+ins_delta = 0",
+    (u1.capital - u0.capital) + (lp1.capital - lp0.capital) + insGain === 0n,
+    `sum=${(u1.capital - u0.capital) + (lp1.capital - lp0.capital) + insGain}`);
   check("conservation: vault == SPL (fees don't move tokens)", e1.vault === spl1,
     `vault=${e1.vault} SPL=${spl1}`);
   check("accounting: vault >= cTot + insurance",
     e1.vault >= e1.cTot + e1.insuranceFund.balance);
-  check("total debit = insurance gain", userCapDrop + lpCapDrop === insGain,
-    `user=${userCapDrop} + lp=${lpCapDrop} vs insGain=${insGain}`);
 
   console.log(`\n════════════════════════════`);
   console.log(`  TOTAL: ${passed} passed, ${failed} failed`);
