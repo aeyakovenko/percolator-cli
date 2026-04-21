@@ -144,7 +144,7 @@ async function main() {
       WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
       vaultPda, WELL_KNOWN.systemProgram,
     ]);
-    await tx([buildIx({ programId: PROG, keys, data })], [payer]);
+    await tx([buildIx({ programId: PROG, keys, data })], [payer], 1_400_000);
 
     const buf = await fetchSlab(conn, slab.publicKey);
     const h = parseHeader(buf);

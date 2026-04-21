@@ -100,14 +100,16 @@ async function main() {
   const payerAta = await getOrCreateAssociatedTokenAccount(conn, payer, mint, payer.publicKey);
   await mintTo(conn, payer, mint, payerAta.address, payer, 10_000_000_000); // 10K tokens
 
-  // InitMarket (Hyperp, $100 mark)
+  // InitMarket (Hyperp, $100 mark). Full-capacity build (MAX_ACCOUNTS=4096)
+  // needs a much bigger CU budget — engine.init_in_place zero-writes 4096
+  // accounts plus next_free/prev_free arrays.
   await tx([buildIx({ programId: PROG,
     keys: buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, mint, vault,
       WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent, vaultPda, WELL_KNOWN.systemProgram,
     ]),
     data: encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint)),
-  })], [payer]);
+  })], [payer], 1_400_000);
   console.log("Market initialized: " + slab.publicKey.toBase58());
 
   // Set oracle authority + push price
