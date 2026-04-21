@@ -772,8 +772,8 @@ async function main() {
   await check("UpdateConfig succeeds (3 accounts)", async () => {
     const data = encodeUpdateConfig({
       fundingHorizonSlots: "500", fundingKBps: "200",
-      
       fundingMaxPremiumBps: "500", fundingMaxE9PerSlot: "100",
+      tvlInsuranceCapMult: 0,
     });
     await tx([buildIx({ programId: PROG,
       keys: buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
@@ -1522,8 +1522,8 @@ async function main() {
     keys: buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [payer.publicKey, hSlab.publicKey, WELL_KNOWN.clock, hSlab.publicKey]),
     data: encodeUpdateConfig({
       fundingHorizonSlots: "10", fundingKBps: "1000", // 10x multiplier
-      
       fundingMaxPremiumBps: "5000", fundingMaxE9PerSlot: "500",
+      tvlInsuranceCapMult: 0,
     }) })], [payer]);
 
   // Create new user for funding test — guard against pre-state issues

@@ -297,12 +297,19 @@ export function encodeCloseSlab(): Buffer {
   return encU8(IX_TAG.CloseSlab);
 }
 
-// ---------- UpdateConfig (funding-only, 4 fields) ----------
+// ---------- UpdateConfig (funding + TVL cap, 5 fields) ----------
 export interface UpdateConfigArgs {
   fundingHorizonSlots: bigint | string;
   fundingKBps: bigint | string;
   fundingMaxPremiumBps: bigint | string;   // i64
-  fundingMaxE9PerSlot: bigint | string;   // i64
+  fundingMaxE9PerSlot: bigint | string;    // i64
+  /**
+   * v12.19+: admin-opt-in deposit cap. Rejects DepositCollateral if
+   * post-state `c_tot > tvlInsuranceCapMult × insurance_fund.balance`.
+   * 0 = disabled. Typical production value: 10–100 (20 = 20× insurance
+   * coverage).
+   */
+  tvlInsuranceCapMult: number;             // u16
 }
 export function encodeUpdateConfig(args: UpdateConfigArgs): Buffer {
   return Buffer.concat([
@@ -311,6 +318,7 @@ export function encodeUpdateConfig(args: UpdateConfigArgs): Buffer {
     encU64(args.fundingKBps),
     encI64(args.fundingMaxPremiumBps),
     encI64(args.fundingMaxE9PerSlot),
+    encU16(args.tvlInsuranceCapMult),
   ]);
 }
 

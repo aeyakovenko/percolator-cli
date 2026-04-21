@@ -48,6 +48,7 @@ export function registerUpdateConfig(program: Command): void {
     .option("--thresh-min <n>", "Minimum threshold (default: 0)")
     .option("--thresh-max <n>", "Maximum threshold (default: 10000000000000000000)")
     .option("--thresh-min-step <n>", "Minimum threshold step (default: 1)")
+    .option("--tvl-insurance-cap-mult <n>", "Deposit cap: c_tot ≤ k × insurance (0=disabled, 20=20× coverage)", "0")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -70,6 +71,7 @@ export function registerUpdateConfig(program: Command): void {
         threshMin: opts.threshMin ? BigInt(opts.threshMin) : DEFAULTS.threshMin,
         threshMax: opts.threshMax ? BigInt(opts.threshMax) : DEFAULTS.threshMax,
         threshMinStep: opts.threshMinStep ? BigInt(opts.threshMinStep) : DEFAULTS.threshMinStep,
+        tvlInsuranceCapMult: parseInt(opts.tvlInsuranceCapMult ?? "0", 10),
       };
 
       const ixData = encodeUpdateConfig(configArgs);
