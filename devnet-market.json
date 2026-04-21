@@ -1,29 +1,55 @@
 {
   "network": "devnet",
-  "createdAt": "2026-04-21T14:06:31.394Z",
+  "createdAt": "2026-04-21T19:49:19.702Z",
+  "description": "Production-mirror devnet market: inverted SOL/USD, Chainlink oracle, 5× max leverage, 20× insurance deposit cap, $5/day maintenance fee, 48h auto-shutdown, ALL 5 AUTHORITIES BURNED",
   "programId": "2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp",
   "matcherProgramId": "4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy",
-  "slab": "G9gPE6qKKRn6GQcnF4C7iFypVo3nMeP4wgBuaNuaLDXr",
-  "slabSize": 1525656,
+  "slab": "Fdk2wuL3mq9x7SXXMagCXyMrrTpMSA9YqDanAE7HUT43",
+  "slabSize": 1525688,
   "mint": "So11111111111111111111111111111111111111112",
-  "collateral": "wSOL (9 decimals, unit_scale=0)",
-  "vault": "GcmdkCUSXg1nQExP3351n5izwU7pKnbaxFYrkFQL21G8",
-  "vaultPda": "FRGoBGGbe2yRR3Xc3carbeXGh8KNsEQUWzFvMiTKLRPT",
+  "vault": "6KAGTuoJUC1UeHXyyL62jGjN6eMR3XdrDQNtS2KSBuH",
   "oracle": "99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR",
-  "oracleOwner": "HEvSKofvBgfaexv23kMabbYqxasxU3mQ4ibBMEmJWHny",
   "oracleType": "chainlink",
   "inverted": true,
-  "lp": {
-    "index": 0,
-    "pda": "FVp9imJjcdzjSKqBkHWY381VwrvdAuc9YMdwddEXR7rk",
-    "matcherContext": "ov9RfbFHBRX6uXMCSFbj5P3QwN2TqNUhq2RNqAfqGWB",
-    "collateralLamports": 1000000000
+  "state": {
+    "vaultLamports": 7000000000,
+    "cTotLamports": 1120000000,
+    "insuranceLamports": 5880000000,
+    "lastOraclePriceE6": 11846,
+    "conservation": true,
+    "accounting": true
   },
-  "insuranceFundLamports": 1000000000,
-  "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
-  "adminAta": "7PTXsfTKCpQHPKZTsU1Mrdb3bwtExDeJGUmkaqkEbCrb",
-  "maintenanceFeePerSlot": "250",
-  "expectedDailyFee": "≈ 0.054 SOL/account/day",
-  "permissionlessResolveStaleSlots": "100000",
-  "forceCloseDelaySlots": "200000"
+  "risk": {
+    "initialMarginBps": 2000,
+    "maintenanceMarginBps": 1000,
+    "maxLeverage": "5×",
+    "tradingFeeBps": 10,
+    "liquidationFeeBps": 100,
+    "maxAccounts": 4096,
+    "minInitialDepositLamports": 118000000
+  },
+  "autoShutdown": {
+    "permissionlessResolveStaleSlots": 432000,
+    "forceCloseDelaySlots": 432000,
+    "maxCrankStalenessSlots": 20000,
+    "initRestartSlot": 455406515,
+    "shutdownHours": "48 h oracle stale OR cluster restart"
+  },
+  "depositCap": {
+    "tvlInsuranceCapMult": 20,
+    "enforced": true,
+    "currentCapLamports": 117600000000
+  },
+  "maintenanceFee": {
+    "perSlotLamports": 270,
+    "perDaySol": 0.05832,
+    "perDayUsd": "≈ $4.96"
+  },
+  "authorities": {
+    "admin": "BURNED",
+    "oracleAuthority": "BURNED",
+    "insuranceAuthority": "BURNED",
+    "closeAuthority": "BURNED",
+    "insuranceOperator": "BURNED"
+  }
 }

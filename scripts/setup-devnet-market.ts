@@ -24,14 +24,17 @@ import * as fs from "fs";
 import {
   encodeInitMarket, encodeInitLP, encodeDepositCollateral,
   encodeTopUpInsurance, encodeKeeperCrank,
+  encodeUpdateConfig, encodeUpdateAuthority, AUTHORITY_KIND,
 } from "../src/abi/instructions.js";
 import {
   ACCOUNTS_INIT_MARKET, ACCOUNTS_INIT_LP, ACCOUNTS_DEPOSIT_COLLATERAL,
-  ACCOUNTS_TOPUP_INSURANCE, ACCOUNTS_KEEPER_CRANK, buildAccountMetas, WELL_KNOWN,
+  ACCOUNTS_TOPUP_INSURANCE, ACCOUNTS_KEEPER_CRANK,
+  ACCOUNTS_UPDATE_CONFIG, ACCOUNTS_UPDATE_ADMIN,
+  buildAccountMetas, WELL_KNOWN,
 } from "../src/abi/accounts.js";
 import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
 import {
-  parseHeader, parseConfig, parseEngine, parseUsedIndices, SLAB_LEN,
+  parseHeader, parseConfig, parseEngine, parseUsedIndices, fetchSlab, SLAB_LEN,
 } from "../src/solana/slab.js";
 import { buildIx } from "../src/runtime/tx.js";
 import { prodInitMarketArgs } from "./_default-market.js";
@@ -47,9 +50,14 @@ const CHAINLINK_OWNER = "HEvSKofvBgfaexv23kMabbYqxasxU3mQ4ibBMEmJWHny";
 const MATCHER_CTX_SIZE = 320;
 
 // Funding amounts (wrapped SOL, 9 decimals).
-const INSURANCE_FUND_AMOUNT = 1_000_000_000n;  // 1 SOL
-const LP_COLLATERAL_AMOUNT  = 1_000_000_000n;  // 1 SOL
-const WRAP_AMOUNT           = 5 * LAMPORTS_PER_SOL; // headroom for fees + funding
+// $500 insurance at SOL≈$85  ⇒  5.88 SOL
+const INSURANCE_FUND_AMOUNT = 5_880_000_000n;
+// 1 SOL LP seed (bounded by the 20× cap once enabled: c_tot ≤ 20 × ins = 117.6 SOL)
+const LP_COLLATERAL_AMOUNT  = 1_000_000_000n;
+// Wrap headroom: 0.12 LP init fee + 1 SOL LP deposit + 5.88 SOL insurance
+//                + ~0.1 SOL for tx fees/atas = 7.1 SOL; round to 8.
+const WRAP_AMOUNT_SOL = 8;
+const WRAP_AMOUNT           = WRAP_AMOUNT_SOL * LAMPORTS_PER_SOL;
 
 // ============================================================================
 // CHAINLINK VERIFICATION
@@ -147,19 +155,28 @@ async function main() {
     maxStalenessSecs:     "60",
     // Chainlink has no confidence interval, so confFilter is unused on this path
     confFilterBps:        0,
-    // $5/day target for SOL-9 collateral: 250 lamports/slot × 216_000 = 54 M/day
-    maintenanceFeePerSlot: "250",
+    // $5/day target for SOL-9 collateral: 270 lamports/slot × 216 000 = 58.3 M/day
+    maintenanceFeePerSlot: "270",
+    // Leverage: 5× (20% IM / 10% MM)
+    initialMarginBps:      "2000",
+    maintenanceMarginBps:  "1000",
     // SOL-denominated minimums (~$10 at SOL=$85 is 0.118 SOL)
     minInitialDeposit:    "118000000",    // 0.118 SOL
     minNonzeroMmReq:      "1200000",      // 0.0012 SOL
     minNonzeroImReq:      "2400000",      // 0.0024 SOL
     liquidationFeeCap:    "11700000000",  // 11.7 SOL cap ≈ $1 000 max
     minLiquidationAbs:    "11700000",     // 0.0117 SOL ≈ $1 min
+    // 48-hour auto-shutdown on oracle stale or cluster restart
+    permissionlessResolveStaleSlots: "432000",  // 48 h
+    forceCloseDelaySlots:            "432000",  // 48 h
+    maxCrankStalenessSlots:          "20000",   // ~2 h 13 min (tolerate 2 missed hourly cranks)
+    hMin:                            "5000",    // ~33 min warmup floor
+    hMax:                            "100000",  // ~11 h warmup ceiling (≤ perm-resolve)
     // Insurance ceilings
     maxInsuranceFloor:    "10000000000000000", // 10 M SOL ceiling (engine u128)
-    // Non-Hyperp resolvability — perm-resolve already ≤ max_accrual_dt_slots
-    // (100 000) so this passes; also satisfies the non-Hyperp invariant
-    // (need perm-resolve > 0 OR min_oracle_price_cap > 0).
+    // insurance-operator path stays live at init with a per-call cap; burned after.
+    insuranceWithdrawMaxBps:         100,       // 1% per tx (soft-rate-limited via operator before burn)
+    insuranceWithdrawCooldownSlots:  "10",
   });
   {
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
@@ -294,7 +311,54 @@ async function main() {
     console.log(`    insurance += ${Number(INSURANCE_FUND_AMOUNT) / LAMPORTS_PER_SOL} SOL`);
   }
 
-  // ── Step 10: verify state ──
+  // ── Step 9: UpdateConfig — enable 20× deposit cap ──
+  console.log("\n[9] UpdateConfig: tvlInsuranceCapMult = 20 (deposit cap = 20 × insurance)...");
+  {
+    const keys = buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [
+      payer.publicKey, slab.publicKey, WELL_KNOWN.clock, CHAINLINK_SOL_USD,
+    ]);
+    const t = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 60_000 }))
+      .add(buildIx({
+        programId: PROGRAM_ID, keys,
+        data: encodeUpdateConfig({
+          fundingHorizonSlots:  "7200",
+          fundingKBps:          "100",
+          fundingMaxPremiumBps: "500",
+          fundingMaxE9PerSlot:  "1000",
+          tvlInsuranceCapMult:  20,
+        }),
+      }));
+    await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed" });
+    const cCheck = parseConfig(await fetchSlab(conn, slab.publicKey));
+    if (cCheck.tvlInsuranceCapMult !== 20) {
+      throw new Error(`tvlInsuranceCapMult verification: got ${cCheck.tvlInsuranceCapMult}`);
+    }
+    console.log(`    ✓ cap active: c_tot ≤ 20 × insurance (${Number(INSURANCE_FUND_AMOUNT)*20/LAMPORTS_PER_SOL} SOL max)`);
+  }
+
+  // ── Step 10: Burn ALL 5 authorities (ADMIN last) ──
+  console.log("\n[10] Burning all 5 authorities...");
+  const ZERO = PublicKey.default;
+  for (const [name, kind] of [
+    ["INSURANCE_OPERATOR", AUTHORITY_KIND.INSURANCE_OPERATOR],
+    ["ORACLE",             AUTHORITY_KIND.ORACLE],
+    ["INSURANCE",          AUTHORITY_KIND.INSURANCE],
+    ["CLOSE",              AUTHORITY_KIND.CLOSE],
+    ["ADMIN",              AUTHORITY_KIND.ADMIN], // must be last
+  ] as const) {
+    const keys = buildAccountMetas(ACCOUNTS_UPDATE_ADMIN, [payer.publicKey, ZERO, slab.publicKey]);
+    const t = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 60_000 }))
+      .add(buildIx({
+        programId: PROGRAM_ID, keys,
+        data: encodeUpdateAuthority({ kind, newPubkey: ZERO }),
+      }));
+    await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed" });
+    console.log(`    ✓ ${name} burned`);
+  }
+
+  // ── Step 11: verify state ──
   console.log("\n[9] Verifying final market state...");
   const final = await conn.getAccountInfo(slab.publicKey);
   if (!final) throw new Error("slab fetch failed");
@@ -302,10 +366,18 @@ async function main() {
   const c = parseConfig(final.data);
   const e = parseEngine(final.data);
   const indices = parseUsedIndices(final.data);
-  console.log(`    admin:             ${h.admin.toBase58()}`);
-  console.log(`    insurance_auth:    ${h.insuranceAuthority.toBase58()}`);
-  console.log(`    close_auth:        ${h.closeAuthority.toBase58()}`);
+  const ZERO_KEY = PublicKey.default;
+  const status = (pk: PublicKey) => pk.equals(ZERO_KEY) ? "🔥 BURNED" : pk.toBase58();
+  console.log(`    admin:              ${status(h.admin)}`);
+  console.log(`    oracle_authority:   ${status(c.oracleAuthority)}`);
+  console.log(`    insurance_auth:     ${status(h.insuranceAuthority)}`);
+  console.log(`    close_auth:         ${status(h.closeAuthority)}`);
+  console.log(`    insurance_operator: ${status(h.insuranceOperator)}`);
   console.log(`    inverted:          ${c.invert === 1 ? "yes" : "no"}`);
+  console.log(`    tvl_cap_mult:      ${c.tvlInsuranceCapMult} (deposit cap = k × insurance)`);
+  console.log(`    perm_resolve:      ${c.permissionlessResolveStaleSlots} slots (~${Number(c.permissionlessResolveStaleSlots)*0.4/3600}h)`);
+  console.log(`    force_close delay: ${c.forceCloseDelaySlots} slots (~${Number(c.forceCloseDelaySlots)*0.4/3600}h)`);
+  console.log(`    maint fee / slot:  ${c.maintenanceFeePerSlot} (~${Number(c.maintenanceFeePerSlot)*216000/1e9} SOL/day/account)`);
   console.log(`    unit_scale:        ${c.unitScale}`);
   console.log(`    max_staleness:     ${c.maxStalenessSlots}`);
   console.log(`    last_oracle_price: ${e.lastOraclePrice}  (engine-space, after invert)`);
@@ -338,12 +410,20 @@ async function main() {
       collateralLamports: Number(LP_COLLATERAL_AMOUNT),
     },
     insuranceFundLamports: Number(INSURANCE_FUND_AMOUNT),
-    admin: payer.publicKey.toBase58(),
-    adminAta: adminAta.address.toBase58(),
+    insuranceFundUsd: "≈ $500 at SOL=$85",
+    tvlInsuranceCapMult: 20,
+    tvlCapUsd: "≈ $10 000 max c_tot",
+    admin: "🔥 BURNED",
+    insuranceAuthority: "🔥 BURNED",
+    closeAuthority: "🔥 BURNED",
+    insuranceOperator: "🔥 BURNED",
+    oracleAuthority: "🔥 BURNED",
+    initialAdminAta: adminAta.address.toBase58(),
     maintenanceFeePerSlot: initArgs.maintenanceFeePerSlot,
-    expectedDailyFee: "≈ 0.054 SOL/account/day",
+    expectedDailyFee: "≈ 0.058 SOL/account/day (≈ $5 @ SOL=$85)",
     permissionlessResolveStaleSlots: initArgs.permissionlessResolveStaleSlots,
     forceCloseDelaySlots: initArgs.forceCloseDelaySlots,
+    autoShutdown: "48h oracle stale → ResolvePermissionless; 48h post-resolve → ForceCloseResolved",
   };
   fs.writeFileSync("devnet-market.json", JSON.stringify(out, null, 2));
   console.log("\n    devnet-market.json written.");
