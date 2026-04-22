@@ -68,6 +68,38 @@ MAX_ACCOUNTS:        4096
 
 Verify locally: `solana program dump -u m BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw /tmp/mainnet.so` then `head -c 394832 /tmp/mainnet.so | sha256sum` — must output the SHA above.
 
+### Reproducing the binary from source
+
+The program cannot use the standard `solana-verify` / OtterSec automated flow because `percolator-prog/Cargo.toml` uses `percolator = { path = "../percolator" }` — a sibling-dir path dep. Docker sandboxes that clone only one repo can't resolve it. Reproducing locally is straightforward:
+
+```bash
+# 1. Clone both repos as siblings at the deployed commits
+mkdir percolator-build && cd percolator-build
+git clone https://github.com/aeyakovenko/percolator.git
+git clone https://github.com/aeyakovenko/percolator-prog.git
+( cd percolator      && git checkout 3f55f871a3aa29d7b582fc2641d2106cbac0c32e )
+( cd percolator-prog && git checkout 06f86fb125525af81c0bfd19a295095dda102c07 )
+
+# 2. Build with default features (MAX_ACCOUNTS=4096).
+#    Requires solana CLI 1.18+ toolchain for SBF.
+cd percolator-prog
+cargo build-sbf
+
+# 3. Hash the ELF.
+sha256sum target/deploy/percolator_prog.so
+#   Expected: 3f78e2f279dc29aa373fca57cfc56a56d70b8a5e85a16e5a090a2f2d5d9efbcc
+
+# 4. Hash the on-chain bytes (strip trailing ProgramData zero padding to
+#    the ELF size) and compare.
+solana program dump -u m BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw /tmp/deployed.so
+head -c 394832 /tmp/deployed.so | sha256sum
+#   Must match the `cargo build-sbf` hash exactly.
+```
+
+The two hashes matching proves the deployed program is byte-identical to the commits named above.
+
+> Future deploys that want the automated OtterSec badge should vendor the engine crate into `percolator-prog/engine/` as a git submodule (or via a crates.io release) so the build is self-contained from one repo clone.
+
 **Configuration:**
 - Inverted (mark = SOL per USD), wSOL collateral, unit_scale=0 (1 lamport = 1 engine unit)
 - Insurance fund: 5 SOL (≈ $435 at init, SOL=$87.32)
