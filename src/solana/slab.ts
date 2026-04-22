@@ -440,12 +440,18 @@ function computeLayout(maxAccounts: number): SlabLayout {
   };
 }
 
+const KNOWN_CAPACITIES = [64, 256, 1024, 4096] as const;
+
 export function layoutForDataLength(dataLen: number): SlabLayout {
-  for (const cap of [64, 256, 1024, 4096]) {
+  for (const cap of KNOWN_CAPACITIES) {
     const l = computeLayout(cap);
     if (l.slabLen === dataLen) return l;
   }
-  return computeLayout(4096);
+  const known = KNOWN_CAPACITIES.map(c => `${c} (${computeLayout(c).slabLen} bytes)`).join(", ");
+  throw new Error(
+    `Slab data length ${dataLen} does not match any known layout. ` +
+    `Expected one of: ${known}`
+  );
 }
 
 // =============================================================================
