@@ -22,7 +22,11 @@ export interface AccountSpec {
 // ============================================================================
 
 /**
- * InitMarket: 9 accounts (Pyth Pull - feed_id is in instruction data, not as accounts)
+ * InitMarket: 9 accounts.
+ * Slot 7 (`oracle`) is the Pyth/Chainlink index feed for non-Hyperp markets;
+ * for Hyperp markets (all-zero feed_id) it is unread and any key is accepted.
+ * Slots 4 (tokenProgram), 6 (rent), 8 (systemProgram) are not referenced by
+ * the wrapper but must be present to pass `expect_len(accounts, 9)`.
  */
 export const ACCOUNTS_INIT_MARKET: readonly AccountSpec[] = [
   { name: "admin", signer: true, writable: false },
@@ -32,7 +36,7 @@ export const ACCOUNTS_INIT_MARKET: readonly AccountSpec[] = [
   { name: "tokenProgram", signer: false, writable: false },
   { name: "clock", signer: false, writable: false },
   { name: "rent", signer: false, writable: false },
-  { name: "dummyAta", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
   { name: "systemProgram", signer: false, writable: false },
 ] as const;
 
@@ -364,9 +368,23 @@ export const ACCOUNTS_FORCE_CLOSE_RESOLVED: readonly AccountSpec[] = [
 ] as const;
 
 /**
- * ResolvePermissionless: 3 accounts
+ * ResolvePermissionless: 2 accounts.
+ * Wrapper enforces `expect_len(accounts, 2)` — no oracle account. The
+ * instruction settles at engine.last_oracle_price; liveness is judged
+ * by stored slots, not by submitting a fresh feed.
  */
 export const ACCOUNTS_RESOLVE_PERMISSIONLESS: readonly AccountSpec[] = [
+  { name: "slab", signer: false, writable: true },
+  { name: "clock", signer: false, writable: false },
+] as const;
+
+/**
+ * CatchupAccrue: 3 accounts (slab, clock, oracle).
+ * Requires a LIVE oracle — proves the market is live before advancing
+ * the engine's market clock. Dead-oracle markets must route through
+ * ResolvePermissionless instead.
+ */
+export const ACCOUNTS_CATCHUP_ACCRUE: readonly AccountSpec[] = [
   { name: "slab", signer: false, writable: true },
   { name: "clock", signer: false, writable: false },
   { name: "oracle", signer: false, writable: false },

@@ -30,7 +30,7 @@ export function registerSlabHeader(program: Command): void {
               nonce: header.nonce.toString(),
               matCounter: header.matCounter.toString(),
               insuranceAuthority: header.insuranceAuthority.toBase58(),
-              closeAuthority: header.closeAuthority.toBase58(),
+              insuranceOperator: header.insuranceOperator.toBase58(),
             },
             null,
             2
@@ -42,7 +42,7 @@ export function registerSlabHeader(program: Command): void {
         console.log(`Bump:                ${header.bump}`);
         console.log(`Admin:               ${header.admin.toBase58()}`);
         console.log(`Insurance Authority: ${header.insuranceAuthority.toBase58()}`);
-        console.log(`Close Authority:     ${header.closeAuthority.toBase58()}`);
+        console.log(`Insurance Operator:  ${header.insuranceOperator.toBase58()}`);
         console.log(`Nonce:               ${header.nonce}`);
         console.log(`Mat Counter:         ${header.matCounter}`);
       }

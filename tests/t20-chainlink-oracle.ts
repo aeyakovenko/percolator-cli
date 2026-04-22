@@ -187,7 +187,7 @@ async function main() {
   });
 
   // Calculate rent
-  const slabSize = 1525688;
+  const slabSize = 1525624;
   const rentExempt = await connection.getMinimumBalanceForRentExemption(slabSize);
   console.log(`  Rent: ${(rentExempt / 1e9).toFixed(4)} SOL`);
 
@@ -227,7 +227,7 @@ async function main() {
       console.log(`    Version: ${header.version}`);
       console.log(`    Collateral: ${config.collateralMint.toBase58().slice(0, 16)}...`);
       console.log(`    Oracle (indexFeedId): ${config.indexFeedId.toBase58().slice(0, 16)}...`);
-      console.log(`    Max staleness: ${config.maxStalenessSlots} seconds`);
+      console.log(`    Max staleness: ${config.maxStalenessSecs} seconds`);
     }
 
   } catch (err: any) {

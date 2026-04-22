@@ -428,35 +428,43 @@ export class TestHarness {
     const oracle = EXISTING_BTC_USD_ORACLE;
     console.log(`  [Pyth] Using existing oracle: ${oracle.toBase58()}`);
 
-    // Build init-market instruction
+    // Build init-market instruction (v12.20 InitMarketArgs)
     const initMarketData = encodeInitMarket({
       admin: this.payer.publicKey,
       collateralMint: mint,
       indexFeedId: feedId,
-      maxStalenessSecs: TEST_MAX_STALENESS_SECS, // High tolerance for testing with existing accounts
-      confFilterBps: 200,        // 2%
-      invert,                    // Oracle inversion (0=no, 1=yes)
-      unitScale,                 // Lamports per unit (0=no scaling)
-      initialMarkPriceE6: "0",   // Not Hyperp mode
-      maxMaintenanceFeePerSlot: "1000000000",      // Per-market admin limit
-      maxInsuranceFloor: "10000000000000000",   // Per-market admin limit (MAX_VAULT_TVL)
-      minOraclePriceCapE2bps: "0",                 // No floor
-      warmupPeriodSlots: "10",
-      maintenanceMarginBps: "500",   // 5%
-      initialMarginBps: "1000",      // 10%
-      tradingFeeBps: "10",           // 0.1%
-      maxAccounts: maxAccounts.toString(),
-      newAccountFee: "1000000",      // 1 USDC
-      insuranceFloor: "0",
+      maxStalenessSecs: TEST_MAX_STALENESS_SECS,
+      confFilterBps: 200,
+      invert,
+      unitScale,
+      initialMarkPriceE6: "0",
       maintenanceFeePerSlot: "0",
+      minOraclePriceCapE2bps: "0",
+      // RiskParams wire fields (v12.20: no minInitialDeposit, no insuranceFloor)
+      hMin: "4",
+      maintenanceMarginBps: "500",
+      initialMarginBps: "1000",
+      tradingFeeBps: "10",
+      maxAccounts: maxAccounts.toString(),
+      newAccountFee: "0",
+      hMax: "200",
       maxCrankStalenessSlots: "200",
-      liquidationFeeBps: "100",      // 1%
-      liquidationFeeCap: "1000000000", // 1000 USDC
-      liquidationBufferBps: "50",    // 0.5%
-      minLiquidationAbs: "100000",   // 0.1 USDC
-      minInitialDeposit: "1000000",  // 1 USDC
-      minNonzeroMmReq: "100000",    // 0.1 USDC
-      minNonzeroImReq: "200000",    // 0.2 USDC
+      liquidationFeeBps: "100",
+      liquidationFeeCap: "1000000000",
+      resolvePriceDeviationBps: "5000",
+      minLiquidationAbs: "100000",
+      minNonzeroMmReq: "100000",
+      minNonzeroImReq: "200000",
+      // Extended tail
+      insuranceWithdrawMaxBps: 0,
+      insuranceWithdrawCooldownSlots: "0",
+      permissionlessResolveStaleSlots: "0",
+      fundingHorizonSlots: "500",
+      fundingKBps: "100",
+      fundingMaxPremiumBps: "500",
+      fundingMaxE9PerSlot: "1000",
+      markMinFee: "0",
+      forceCloseDelaySlots: "0",
     });
 
     const initMarketKeys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
@@ -512,15 +520,11 @@ export class TestHarness {
 
   /**
    * Calculate required slab size for given max accounts.
-   * The program expects a fixed slab size of SLAB_LEN = 1525688 bytes
-   * for MAX_ACCOUNTS=4096. The slab size must exactly match the program's expected size.
-   *
-   * SLAB_SIZE = ENGINE_OFF(584) + ENGINE_LEN(1156192) + RISK_BUF_LEN(160) = 1525688
-   * Updated for RiskBuffer addition.
+   * v12.20: HEADER(136) + CONFIG(400) + ENGINE(1525088) = 1525624.
+   * The program enforces data.len() == SLAB_LEN exactly.
    */
   private calculateSlabSize(_maxAccounts: number): number {
-    // Fixed SLAB_LEN expected by the program
-    return 1525688;
+    return 1525624;
   }
 
   // ==========================================================================

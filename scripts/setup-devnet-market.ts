@@ -161,7 +161,9 @@ async function main() {
     initialMarginBps:      "2000",
     maintenanceMarginBps:  "1000",
     // SOL-denominated minimums (~$10 at SOL=$85 is 0.118 SOL)
-    minInitialDeposit:    "118000000",    // 0.118 SOL
+    // v12.20: min_initial_deposit is gone; the dust gate is now the
+    // insurance-destined new_account_fee charged on every InitUser.
+    newAccountFee:        "118000000",    // 0.118 SOL ≈ $10 into insurance per account
     minNonzeroMmReq:      "1200000",      // 0.0012 SOL
     minNonzeroImReq:      "2400000",      // 0.0024 SOL
     liquidationFeeCap:    "11700000000",  // 11.7 SOL cap ≈ $1 000 max
@@ -172,9 +174,8 @@ async function main() {
     maxCrankStalenessSlots:          "20000",   // ~2 h 13 min (tolerate 2 missed hourly cranks)
     hMin:                            "5000",    // ~33 min warmup floor
     hMax:                            "100000",  // ~11 h warmup ceiling (≤ perm-resolve)
-    // Insurance ceilings
-    maxInsuranceFloor:    "10000000000000000", // 10 M SOL ceiling (engine u128)
-    // insurance-operator path stays live at init with a per-call cap; burned after.
+    // v12.20 removed max_insurance_floor — no admin-side cap to seed.
+    // Insurance-operator path stays live at init with a per-call cap; burned after.
     insuranceWithdrawMaxBps:         100,       // 1% per tx (soft-rate-limited via operator before burn)
     insuranceWithdrawCooldownSlots:  "10",
   });
@@ -337,14 +338,17 @@ async function main() {
     console.log(`    ✓ cap active: c_tot ≤ 20 × insurance (${Number(INSURANCE_FUND_AMOUNT)*20/LAMPORTS_PER_SOL} SOL max)`);
   }
 
-  // ── Step 10: Burn ALL 5 authorities (ADMIN last) ──
-  console.log("\n[10] Burning all 5 authorities...");
+  // ── Step 10: Burn authorities (ADMIN last) ──
+  // v12.20 merged the former CLOSE kind into ADMIN. For NON-HYPERP markets
+  // (like this Chainlink one) `hyperp_authority` is already zeroed at
+  // InitMarket (wrapper sets it to [0; 32] when is_hyperp=false), so it
+  // cannot and need not be burned — the burn tx would fail signing as
+  // Pubkey::default. That leaves three live authorities to burn.
+  console.log("\n[10] Burning authorities (hyperp_mark already zero at init for non-Hyperp)...");
   const ZERO = PublicKey.default;
   for (const [name, kind] of [
     ["INSURANCE_OPERATOR", AUTHORITY_KIND.INSURANCE_OPERATOR],
-    ["ORACLE",             AUTHORITY_KIND.ORACLE],
     ["INSURANCE",          AUTHORITY_KIND.INSURANCE],
-    ["CLOSE",              AUTHORITY_KIND.CLOSE],
     ["ADMIN",              AUTHORITY_KIND.ADMIN], // must be last
   ] as const) {
     const keys = buildAccountMetas(ACCOUNTS_UPDATE_ADMIN, [payer.publicKey, ZERO, slab.publicKey]);
@@ -369,9 +373,8 @@ async function main() {
   const ZERO_KEY = PublicKey.default;
   const status = (pk: PublicKey) => pk.equals(ZERO_KEY) ? "🔥 BURNED" : pk.toBase58();
   console.log(`    admin:              ${status(h.admin)}`);
-  console.log(`    oracle_authority:   ${status(c.oracleAuthority)}`);
+  console.log(`    hyperp_authority:   ${status(c.hyperpAuthority)}`);
   console.log(`    insurance_auth:     ${status(h.insuranceAuthority)}`);
-  console.log(`    close_auth:         ${status(h.closeAuthority)}`);
   console.log(`    insurance_operator: ${status(h.insuranceOperator)}`);
   console.log(`    inverted:          ${c.invert === 1 ? "yes" : "no"}`);
   console.log(`    tvl_cap_mult:      ${c.tvlInsuranceCapMult} (deposit cap = k × insurance)`);
@@ -379,7 +382,7 @@ async function main() {
   console.log(`    force_close delay: ${c.forceCloseDelaySlots} slots (~${Number(c.forceCloseDelaySlots)*0.4/3600}h)`);
   console.log(`    maint fee / slot:  ${c.maintenanceFeePerSlot} (~${Number(c.maintenanceFeePerSlot)*216000/1e9} SOL/day/account)`);
   console.log(`    unit_scale:        ${c.unitScale}`);
-  console.log(`    max_staleness:     ${c.maxStalenessSlots}`);
+  console.log(`    max_staleness:     ${c.maxStalenessSecs}`);
   console.log(`    last_oracle_price: ${e.lastOraclePrice}  (engine-space, after invert)`);
   console.log(`    vault:             ${e.vault}  (= ${Number(e.vault)/LAMPORTS_PER_SOL} SOL)`);
   console.log(`    c_tot:             ${e.cTot}`);
@@ -415,9 +418,8 @@ async function main() {
     tvlCapUsd: "≈ $10 000 max c_tot",
     admin: "🔥 BURNED",
     insuranceAuthority: "🔥 BURNED",
-    closeAuthority: "🔥 BURNED",
     insuranceOperator: "🔥 BURNED",
-    oracleAuthority: "🔥 BURNED",
+    hyperpAuthority: "🔥 BURNED",
     initialAdminAta: adminAta.address.toBase58(),
     maintenanceFeePerSlot: initArgs.maintenanceFeePerSlot,
     expectedDailyFee: "≈ 0.058 SOL/account/day (≈ $5 @ SOL=$85)",

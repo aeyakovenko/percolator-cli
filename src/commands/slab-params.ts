@@ -31,10 +31,8 @@ export function registerSlabParams(program: Command): void {
               liquidationFeeBps: params.liquidationFeeBps.toString(),
               liquidationFeeCap: params.liquidationFeeCap.toString(),
               minLiquidationAbs: params.minLiquidationAbs.toString(),
-              minInitialDeposit: params.minInitialDeposit.toString(),
               minNonzeroMmReq: params.minNonzeroMmReq.toString(),
               minNonzeroImReq: params.minNonzeroImReq.toString(),
-              insuranceFloor: params.insuranceFloor.toString(),
               hMin: params.hMin.toString(),
               hMax: params.hMax.toString(),
               resolvePriceDeviationBps: params.resolvePriceDeviationBps.toString(),
@@ -63,7 +61,6 @@ export function registerSlabParams(program: Command): void {
         console.log(`Min Liquidation Abs:     ${params.minLiquidationAbs}`);
         console.log("");
         console.log("--- Deposits ---");
-        console.log(`Min Initial Deposit:     ${params.minInitialDeposit}`);
         console.log(`Max Crank Staleness:     ${params.maxCrankStalenessSlots} slots`);
         console.log("");
         console.log("--- Capacity ---");
@@ -71,7 +68,6 @@ export function registerSlabParams(program: Command): void {
         console.log(`Max Active Per Side:     ${params.maxActivePositionsPerSide}`);
         console.log("");
         console.log("--- Insurance ---");
-        console.log(`Insurance Floor:         ${params.insuranceFloor}`);
         console.log("");
         console.log("--- Warmup / Resolve ---");
         console.log(`h_min:                   ${params.hMin} slots`);

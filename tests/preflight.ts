@@ -68,7 +68,7 @@ const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
 const FEED_ID = "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43";
-const SLAB_SIZE = 1525688;
+const SLAB_SIZE = 1525624;
 const MATCHER_CTX_SIZE = 320;
 
 const conn = new Connection(RPC, "confirmed");
@@ -216,7 +216,7 @@ async function main() {
   // ═══════════════════════════════════════════════════
   section("2. Market Lifecycle");
 
-  await check("InitMarket succeeds (slab=1525688 bytes)", async () => {
+  await check("InitMarket succeeds (slab=1525624 bytes)", async () => {
     const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "4", maxCrankStalenessSlots: "200", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: "0".repeat(64) }));
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, mint, vault,
@@ -240,22 +240,20 @@ async function main() {
     assert(c.collateralMint.equals(mint), "mint");
     assert(c.vaultPubkey.equals(vault), "vault");
     assert(c.confFilterBps === 200, `confFilter=${c.confFilterBps}`);
-    assert(c.maxInsuranceFloor === 10000000000000000n, `maxInsFloor=${c.maxInsuranceFloor}`);
+    assert(c.newAccountFee >= 0n, `newAccountFee=${c.newAccountFee}`);
     assert(c.insuranceWithdrawMaxBps === 0, `insWithdrawBps=${c.insuranceWithdrawMaxBps}`);
     assert(c.insuranceWithdrawCooldownSlots === 0n, `insWithdrawCooldown`);
   });
 
-  await check("Params: all 15 risk params match", async () => {
+  await check("Params: v12.20 risk params match", async () => {
     const buf = await fetchSlab(conn, slab.publicKey);
     const p = parseParams(buf);
     assert(p.maintenanceMarginBps === 500n, `mm=${p.maintenanceMarginBps}`);
     assert(p.initialMarginBps === 1000n, `im=${p.initialMarginBps}`);
     assert(p.tradingFeeBps === 10n, `fee=${p.tradingFeeBps}`);
     assert(p.maxAccounts === 64n, `maxAccts=${p.maxAccounts}`);
-    assert(p.minInitialDeposit === 1000000n, `minDep=${p.minInitialDeposit}`);
     assert(p.minNonzeroMmReq === 100000n, `minMm=${p.minNonzeroMmReq}`);
     assert(p.minNonzeroImReq === 200000n, `minIm=${p.minNonzeroImReq}`);
-    assert(p.insuranceFloor === 0n, `insFloor=${p.insuranceFloor}`);
   });
 
   await check("Engine: vault=0, numUsed=0, slot set", async () => {
@@ -281,7 +279,7 @@ async function main() {
       keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [payer.publicKey, payer.publicKey, slab.publicKey]),
       data })], [payer]);
     const buf = await fetchSlab(conn, slab.publicKey);
-    assert(parseConfig(buf).oracleAuthority.equals(payer.publicKey), "authority mismatch");
+    assert(parseConfig(buf).hyperpAuthority.equals(payer.publicKey), "authority mismatch");
   });
 
   await check("PushOraclePrice succeeds, config reflects price", async () => {
@@ -289,8 +287,8 @@ async function main() {
       keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
       data: pushPrice("50000000") })], [payer]); // $50 in e6
     const c = parseConfig(await fetchSlab(conn, slab.publicKey));
-    assert(c.authorityPriceE6 === 50000000n, `price=${c.authorityPriceE6}`);
-    assert(c.authorityTimestamp > 0n, `ts=${c.authorityTimestamp}`);
+    assert(c.hyperpMarkE6 === 50000000n, `price=${c.hyperpMarkE6}`);
+    assert(c.lastOraclePublishTime > 0n, `ts=${c.lastOraclePublishTime}`);
   });
 
   await check("SetOraclePriceCap succeeds, config reflects cap", async () => {
@@ -637,7 +635,7 @@ async function main() {
     const buf = await fetchSlab(conn, slab.publicKey);
     const acc = parseAccount(buf, 2);
     const config = parseConfig(buf);
-    console.log(`    pos=${acc.positionBasisQ}, capital=${acc.capital}, authPrice=${config.authorityPriceE6}, effective=${config.lastEffectivePriceE6}`);
+    console.log(`    pos=${acc.positionBasisQ}, capital=${acc.capital}, authPrice=${config.hyperpMarkE6}, effective=${config.lastEffectivePriceE6}`);
 
     if (acc.positionBasisQ !== 0n) {
       // Try LiquidateAtOracle - may not liquidate if user isn't underwater at effective price
@@ -1136,7 +1134,7 @@ async function main() {
     const hBuf = await fetchSlab(conn, hSlab.publicKey);
     const hConfig = parseConfig(hBuf);
     const hEngine = parseEngine(hBuf);
-    console.log(`    After cranks: effectivePrice=${hConfig.lastEffectivePriceE6}, authPrice=${hConfig.authorityPriceE6}, cap=${hConfig.oraclePriceCapE2bps}`);
+    console.log(`    After cranks: effectivePrice=${hConfig.lastEffectivePriceE6}, authPrice=${hConfig.hyperpMarkE6}, cap=${hConfig.oraclePriceCapE2bps}`);
     console.log(`    lastOraclePrice=${hEngine.lastOraclePrice}, lastMarketSlot=${hEngine.lastMarketSlot}`);
   });
 
@@ -1743,7 +1741,7 @@ async function main() {
   await check("ResolvePermissionless rejected (oracle not stale)", async () => {
     try {
       await tx([buildIx({ programId: PROG,
-        keys: buildAccountMetas(ACCOUNTS_RESOLVE_PERMISSIONLESS, [hSlab.publicKey, WELL_KNOWN.clock, payer.publicKey]),
+        keys: buildAccountMetas(ACCOUNTS_RESOLVE_PERMISSIONLESS, [hSlab.publicKey, WELL_KNOWN.clock]),
         data: encodeResolvePermissionless() })], [payer]);
       assert(false, "should have been rejected");
     } catch (e: any) {

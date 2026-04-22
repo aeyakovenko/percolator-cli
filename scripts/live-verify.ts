@@ -46,7 +46,7 @@ const RPC = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
-const SLAB_SIZE = 1525688;
+const SLAB_SIZE = 1525624;
 const conn = new Connection(RPC, "confirmed");
 const payer = Keypair.fromSecretKey(new Uint8Array(
   JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))
@@ -159,7 +159,7 @@ async function main() {
     check("engine.marketMode=Live", e.marketMode === 0);
     check("header.nonce=0", h.nonce === 0n, `got ${h.nonce}`);
     check("header.insuranceAuthority set", !h.insuranceAuthority.equals(new PublicKey(new Uint8Array(32))));
-    check("header.closeAuthority set", !h.closeAuthority.equals(new PublicKey(new Uint8Array(32))));
+    check("header.insuranceOperator set", !h.insuranceOperator.equals(new PublicKey(new Uint8Array(32))));
 
     // Config — every field
     check("config.collateralMint", c.collateralMint.equals(mint));
@@ -169,7 +169,7 @@ async function main() {
     check("config.unitScale=0", c.unitScale === 0);
     check("config.vaultAuthorityBump > 0", c.vaultAuthorityBump > 0);
     check("config.fundingHorizonSlots > 0", c.fundingHorizonSlots > 0n);
-    check("config.maxInsuranceFloor", c.maxInsuranceFloor === 10000000000000000n);
+    check("config.newAccountFee set", c.newAccountFee >= 0n);
     check("config.markEwmaE6 (Hyperp init)", c.markEwmaE6 >= 0n);
     check("config.forceCloseDelaySlots=0", c.forceCloseDelaySlots === 0n);
     check("config.maintenanceFeePerSlot=0", c.maintenanceFeePerSlot === 0n);
@@ -184,10 +184,8 @@ async function main() {
     check("params.liqFeeBps=100", p.liquidationFeeBps === 100n);
     check("params.liqFeeCap=1B", p.liquidationFeeCap === 1000000000n);
     check("params.minLiqAbs=100K", p.minLiquidationAbs === 100000n);
-    check("params.minDeposit=1M", p.minInitialDeposit === 1000000n);
     check("params.minMm=100K", p.minNonzeroMmReq === 100000n);
     check("params.minIm=200K", p.minNonzeroImReq === 200000n);
-    check("params.insuranceFloor=0", p.insuranceFloor === 0n);
     check("params.maxActivePositionsPerSide>=1", p.maxActivePositionsPerSide >= 1n);
     check("params.maxAccrualDtSlots>0", p.maxAccrualDtSlots > 0n);
 
@@ -242,8 +240,8 @@ async function main() {
     check("crank: currentSlot advances", postE.currentSlot >= preE.currentSlot);
 
     const c = parseConfig(postBuf);
-    check("oracle: authorityPriceE6=100M", c.authorityPriceE6 === 100000000n);
-    check("oracle: oracleAuthority set", c.oracleAuthority.equals(payer.publicKey));
+    check("oracle: hyperpMarkE6=100M", c.hyperpMarkE6 === 100000000n);
+    check("oracle: hyperpAuthority set", c.hyperpAuthority.equals(payer.publicKey));
   }
 
   // ════════════════════════════════════════

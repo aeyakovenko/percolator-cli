@@ -28,13 +28,12 @@ export function registerSlabConfig(program: Command): void {
               collateralMint: mktConfig.collateralMint.toBase58(),
               vault: mktConfig.vaultPubkey.toBase58(),
               indexFeedId: mktConfig.indexFeedId.toBase58(),
-              maxStalenessSlots: mktConfig.maxStalenessSlots.toString(),
+              maxStalenessSecs: mktConfig.maxStalenessSecs.toString(),
               confFilterBps: mktConfig.confFilterBps,
               vaultAuthorityBump: mktConfig.vaultAuthorityBump,
               invert: mktConfig.invert,
               unitScale: mktConfig.unitScale,
               maintenanceFeePerSlot: mktConfig.maintenanceFeePerSlot.toString(),
-              maxInsuranceFloor: mktConfig.maxInsuranceFloor.toString(),
               minOraclePriceCapE2bps: mktConfig.minOraclePriceCapE2bps.toString(),
             },
             null,
@@ -46,13 +45,12 @@ export function registerSlabConfig(program: Command): void {
         console.log(`Collateral Mint:    ${mktConfig.collateralMint.toBase58()}`);
         console.log(`Vault:              ${mktConfig.vaultPubkey.toBase58()}`);
         console.log(`Index Feed ID:      ${mktConfig.indexFeedId.toBase58()}`);
-        console.log(`Max Staleness:      ${mktConfig.maxStalenessSlots} slots`);
+        console.log(`Max Staleness:      ${mktConfig.maxStalenessSecs} slots`);
         console.log(`Conf Filter:        ${mktConfig.confFilterBps} bps`);
         console.log(`Vault Auth Bump:    ${mktConfig.vaultAuthorityBump}`);
         console.log(`Invert:             ${mktConfig.invert}`);
         console.log(`Unit Scale:         ${mktConfig.unitScale}`);
         console.log(`Maint Fee/Slot:     ${mktConfig.maintenanceFeePerSlot}`);
-        console.log(`Max Insurance Floor: ${mktConfig.maxInsuranceFloor}`);
         console.log(`Min Oracle Cap:     ${mktConfig.minOraclePriceCapE2bps} e2bps`);
       }
     });

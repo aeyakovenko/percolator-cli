@@ -44,30 +44,70 @@ Or use command-line flags:
 - `--json` - Output in JSON format
 - `--simulate` - Simulate transaction without sending
 
+## Mainnet (test deployment, admin-free)
+
+```
+Program:     BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw  (percolator-prog 61f3ae0 — upgrade authority BURNED)
+Slab:        5ZamUkAiXtvYQijNiRcuGaea66TVbbTPusHfwMX1kTqB  (inverted SOL/USD, all 3 market auths BURNED)
+Oracle:      7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE  (Pyth SOL/USD PriceUpdateV2, sponsored shard 0)
+Feed ID:     ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d
+Vault ATA:   AcJsfpbuUKHHdoqPuLccRsK794nHecM1XKySE6Umefvr  (wrapped SOL, PDA-signed)
+Matcher:     (none — third parties provision their own)
+```
+
+**Configuration:**
+- Inverted (mark = SOL per USD), wSOL collateral, unit_scale=0 (1 lamport = 1 engine unit)
+- Insurance fund: 5 SOL (≈ $435 at init, SOL=$87.32)
+- `tvlInsuranceCapMult = 20` → max `c_tot` = 100 SOL (≈ $8,700), grows as insurance grows from new-account fees
+- `maintenanceFeePerSlot = 265` lamports → ~0.0572 SOL/day/account ≈ **$5/day at SOL=$87**
+- `new_account_fee = 57_000_000` lamports ≈ **$5 per `InitUser` / `InitLP`** (all routed to insurance)
+- `permissionlessResolveStaleSlots = 432_000` (~48 h) + `forceCloseDelaySlots = 432_000` (~48 h) = **auto-shutdown on 48 h oracle silence**
+- `maxStalenessSecs = 60` (Pyth sponsor posts every ~2 s, so this is very loose)
+- 5× leverage (20% IM / 10% MM)
+- No LP → no trading yet. Third-party matcher deployers create their own matcher program and call `InitLP` (anyone can — no admin gate on the LP slot).
+
+### Hourly Crank
+
+A permissionless keeper crank runs once per hour via cron (see `scripts/mainnet-crank.ts`). This keeps the market inside the 48 h staleness window and advances funding/accounting. Anyone can run it with their own wallet — it's a free tx signature (~5000 lamports) with no reward since it's permissionless:
+
+```bash
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com \
+  npx tsx scripts/mainnet-crank.ts
+```
+
+Example crontab entry (adjust paths for your system):
+
+```cron
+0 * * * * cd /path/to/percolator-cli && SOLANA_RPC_URL=https://api.mainnet-beta.solana.com /path/to/npx tsx scripts/mainnet-crank.ts >> mainnet-crank.log 2>&1
+```
+
+The script reads the manifest at `mainnet-market.json`, so dropping a copy of that file next to the script on any host is enough to run an independent keeper.
+
 ## Devnet
 
 ```
-Program:        2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp (percolator-prog, v12.18 4-way auth)
+Program:        2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp (percolator-prog, v12.20 HEAD)
 Matcher:        4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy (percolator-match, ABI v2)
+Slab:           dtrNVk7otCtcmPvrARnLxi5nWoNFYQYS7b9vC1Yjnt2 (admin-free inverted SOL/USD, Chainlink)
 Chainlink:      99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (SOL/USD)
 ```
 
 ### On-chain layout (BPF)
 
 ```
-SLAB_LEN        1_525_656 bytes     (~10.6 SOL rent for MAX_ACCOUNTS=4096)
-HEADER_LEN      136                 (adds insurance_authority + close_authority to SlabHeader)
+SLAB_LEN        1_525_624 bytes     (~10.6 SOL rent for MAX_ACCOUNTS=4096; v12.20)
+HEADER_LEN      136                 (admin + insurance_authority + insurance_operator — close_authority merged into admin)
 CONFIG_LEN      400
 ENGINE_OFF      536                 = align_up(136 + 400, 8)
 ACCOUNT_SIZE    360                 (two-bucket warmup: sched + pending)
-MAX_ACCOUNTS    4096                (configurable via `small`/`medium` features)
+MAX_ACCOUNTS    4096                (configurable via `small`/`medium` cargo features)
 ```
 
-The parser in `src/solana/slab.ts` derives the MAX_ACCOUNTS-dependent offsets from the slab account data length, so small (96_696), medium (382_488), and full (1_525_656) deployments parse transparently.
+The parser in `src/solana/slab.ts` derives the MAX_ACCOUNTS-dependent offsets from the slab account data length, so small, medium, and full deployments parse transparently.
 
-### Instruction set (v12.18)
+### Instruction set (v12.20)
 
-Removed: `SetRiskThreshold`, `UpdateAdmin` (tag 12), `SetMaintenanceFee`, `SetOracleAuthority` (tag 16), `SetInsuranceWithdrawPolicy`, `WithdrawInsuranceLimited`, `QueryLpFees`. All four authority roles are now rotated via `UpdateAuthority { kind, new_pubkey }` (tag 32). Added: `CatchupAccrue` (tag 31), `UpdateAuthority` (tag 32).
+Removed: `SetRiskThreshold`, `UpdateAdmin` (tag 12), `SetMaintenanceFee`, `SetOracleAuthority` (tag 16), `SetInsuranceWithdrawPolicy`, `QueryLpFees`. All four authority roles (admin, hyperp_mark, insurance, insurance_operator) are rotated via `UpdateAuthority { kind, new_pubkey }` (tag 32). Added: `CatchupAccrue` (tag 31), `UpdateAuthority` (tag 32), `WithdrawInsuranceLimited` (tag 23, restored and gated on `insurance_operator`).
 
 ### Create a Test Market
 

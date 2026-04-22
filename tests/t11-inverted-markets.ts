@@ -253,7 +253,7 @@ async function runT11Tests(): Promise<void> {
 
     console.log(`    Invert: ${snapshot.config.invert}`);
     console.log(`    UnitScale: ${snapshot.config.unitScale}`);
-    console.log(`    MaxStaleness: ${snapshot.config.maxStalenessSlots}`);
+    console.log(`    MaxStaleness: ${snapshot.config.maxStalenessSecs}`);
     console.log(`    ConfFilter: ${snapshot.config.confFilterBps}`);
   });
 

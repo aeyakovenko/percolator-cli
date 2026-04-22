@@ -150,7 +150,7 @@ async function main() {
       collateralMint: config.collateralMint.toBase58(),
       vault: config.vaultPubkey.toBase58(),
       indexFeedId: config.indexFeedId.toBase58(),
-      maxStalenessSlots: config.maxStalenessSlots.toString(),
+      maxStalenessSecs: config.maxStalenessSecs.toString(),
       confFilterBps: config.confFilterBps,
       vaultAuthorityBump: config.vaultAuthorityBump,
       invert: config.invert,

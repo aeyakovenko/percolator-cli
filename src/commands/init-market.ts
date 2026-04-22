@@ -26,7 +26,6 @@ export function registerInitMarket(program: Command): void {
     .option("--unit-scale <number>", "Lamports per unit scale (0=no scaling)", "0")
     .option("--initial-mark-price <string>", "Initial mark price e6 (required non-zero for Hyperp mode)", "0")
     .requiredOption("--maintenance-fee-per-slot <string>", "Periodic maintenance fee per slot per account (u128)")
-    .requiredOption("--max-insurance-floor <string>", "Max insurance floor admin can set (u128, >0)")
     .option("--min-oracle-price-cap <string>", "Min oracle price cap e2bps floor (0=no floor)", "0")
     // RiskParams
     .requiredOption("--h-min <string>", "Warmup horizon floor (slots)")
@@ -34,14 +33,13 @@ export function registerInitMarket(program: Command): void {
     .requiredOption("--initial-margin-bps <string>", "Initial margin (bps)")
     .requiredOption("--trading-fee-bps <string>", "Trading fee (bps)")
     .requiredOption("--max-accounts <string>", "Max accounts (must be <= 4096 power of two)")
-    .requiredOption("--insurance-floor <string>", "Insurance floor (u128)")
+    .requiredOption("--new-account-fee <string>", "New-account init fee, insurance-destined (u128; v12.20+)")
     .requiredOption("--h-max <string>", "Warmup horizon ceiling (slots)")
     .requiredOption("--max-crank-staleness <string>", "Max crank staleness (slots)")
     .requiredOption("--liquidation-fee-bps <string>", "Liquidation fee (bps)")
     .requiredOption("--liquidation-fee-cap <string>", "Liquidation fee cap (u128)")
     .requiredOption("--resolve-price-deviation-bps <string>", "Resolve price deviation bound (bps)")
     .requiredOption("--min-liquidation-abs <string>", "Min liquidation absolute (u128)")
-    .requiredOption("--min-initial-deposit <string>", "Min initial deposit (u128)")
     .requiredOption("--min-nonzero-mm-req <string>", "Min nonzero maintenance margin requirement (u128)")
     .requiredOption("--min-nonzero-im-req <string>", "Min nonzero initial margin requirement (u128)")
     // Extended tail (required — partial tail rejected)
@@ -82,21 +80,19 @@ export function registerInitMarket(program: Command): void {
         unitScale: parseInt(opts.unitScale, 10),
         initialMarkPriceE6: opts.initialMarkPrice,
         maintenanceFeePerSlot: opts.maintenanceFeePerSlot,
-        maxInsuranceFloor: opts.maxInsuranceFloor,
         minOraclePriceCapE2bps: opts.minOraclePriceCap,
         hMin: opts.hMin,
         maintenanceMarginBps: opts.maintenanceMarginBps,
         initialMarginBps: opts.initialMarginBps,
         tradingFeeBps: opts.tradingFeeBps,
         maxAccounts: opts.maxAccounts,
-        insuranceFloor: opts.insuranceFloor,
+        newAccountFee: opts.newAccountFee,
         hMax: opts.hMax,
         maxCrankStalenessSlots: opts.maxCrankStaleness,
         liquidationFeeBps: opts.liquidationFeeBps,
         liquidationFeeCap: opts.liquidationFeeCap,
         resolvePriceDeviationBps: opts.resolvePriceDeviationBps,
         minLiquidationAbs: opts.minLiquidationAbs,
-        minInitialDeposit: opts.minInitialDeposit,
         minNonzeroMmReq: opts.minNonzeroMmReq,
         minNonzeroImReq: opts.minNonzeroImReq,
         insuranceWithdrawMaxBps: parseInt(opts.insuranceWithdrawMaxBps, 10),

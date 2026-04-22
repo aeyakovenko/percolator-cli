@@ -10,7 +10,7 @@ import type { InitMarketArgs } from "../src/abi/instructions.js";
 //     with a large value to make the sweep readable in one crank, e.g.
 //     check-maint-fees.ts uses 1_000_000 = ~$216k/day/account).
 //   - hMin=4, hMax=200: warmup 1.6–80 s so tests don't wait hours.
-//   - min_initial_deposit=1 USDC: tests use small amounts.
+//   - newAccountFee=0: tests can spawn accounts for free.
 //   - permissionlessResolveStaleSlots=0, forceCloseDelaySlots=0: admin
 //     can resolve instantly. Fine for tests, unsafe if admin dies.
 //   - maxCrankStalenessSlots=10000 (~66 min at 400ms/slot): permissive
@@ -31,21 +31,19 @@ export function defaultInitMarketArgs(
     unitScale: 0,
     initialMarkPriceE6: "100000000", // $100
     maintenanceFeePerSlot: "0",
-    maxInsuranceFloor: "10000000000000000",
     minOraclePriceCapE2bps: "0",
     hMin: "4",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",
     tradingFeeBps: "10",
     maxAccounts: "64",
-    insuranceFloor: "0",
+    newAccountFee: "0",
     hMax: "200",
     maxCrankStalenessSlots: "10000",
     liquidationFeeBps: "100",
     liquidationFeeCap: "1000000000",
     resolvePriceDeviationBps: "5000",
     minLiquidationAbs: "100000",
-    minInitialDeposit: "1000000",
     minNonzeroMmReq: "100000",
     minNonzeroImReq: "200000",
     // withdrawal disabled by default — tests that need it set both fields
@@ -95,19 +93,21 @@ export function defaultInitMarketArgs(
 //     positions. Upper cap 10 000 000 slots.
 //
 //     Together these two and the four-way authority split
-//     (admin / oracle / insurance / close) form the
+//     (admin / hyperp-mark / insurance / insurance-operator) form the
 //     "traders-are-rug-proof" configuration the program's guard
-//     comments describe.
+//     comments describe. (v12.20: close_authority was merged into
+//     admin; CloseSlab is now gated on header.admin.)
 //
 //   maxCrankStalenessSlots:
 //     500 slots (≈3 min 20 s). Tight enough to keep margin checks
 //     honest, loose enough that keeper backoff / fee-market spikes
 //     don't trigger spurious risk-reduction mode.
 //
-//   minInitialDeposit / min_nonzero_*_req:
-//     $10 floor ($10 / $0.10 MM / $0.20 IM). Keeps dust accounts out,
-//     matches the $5/day fee (account has ≥ 2 days survival with no
-//     trading activity).
+//   newAccountFee / min_nonzero_*_req:
+//     $10 init fee + $0.10 MM / $0.20 IM. Keeps dust accounts out —
+//     each InitUser irrevocably transfers $10 to the insurance fund,
+//     so bot-farming opens is uneconomic. Matches the $5/day fee
+//     (account has ≥ 2 days survival with no trading activity).
 //
 //   funding*:
 //     Unchanged from test (they're protocol-level envelopes the engine
@@ -139,8 +139,7 @@ export function prodInitMarketArgs(
     // For SOL-9 collateral set 250 (same $5/day target at SOL=$100).
     maintenanceFeePerSlot: "25",
 
-    // --- Per-market admin ceilings (set once, immutable) ---
-    maxInsuranceFloor:       "100000000000000",  // $100 M ceiling (u128 µUSDC)
+    // --- Per-market oracle floor ---
     minOraclePriceCapE2bps:  "0",                // 0 = no floor; non-Hyperp must set this OR perm-resolve
 
     // --- Risk params ---
@@ -150,13 +149,16 @@ export function prodInitMarketArgs(
     initialMarginBps:        "1000",             // 10 % IM → 10× max leverage
     tradingFeeBps:           "10",               // 0.1 %
     maxAccounts:             "4096",             // full capacity
-    insuranceFloor:          "0",                // admin can raise later
+    // v12.20: new-account init fee (insurance-destined). Acts as dust gate +
+    // insurance top-up on each new Account. $10 matches the old
+    // min_initial_deposit floor so bot-farming opening/closing empty
+    // accounts is uneconomic.
+    newAccountFee:           "10000000",         // $10 in µUSDC
     maxCrankStalenessSlots:  "500",              // ~3 min 20 s
     liquidationFeeBps:       "100",              // 1 % liquidation fee
     liquidationFeeCap:       "1000000000",       // $1 000 max per liquidation
     resolvePriceDeviationBps:"500",              // 5 % max settlement-price deviation
     minLiquidationAbs:       "1000000",          // $1 min liquidation size
-    minInitialDeposit:       "10000000",         // $10 min deposit
     minNonzeroMmReq:         "100000",           // $0.10 min MM req
     minNonzeroImReq:         "200000",           // $0.20 min IM req
 
