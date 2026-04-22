@@ -31,13 +31,13 @@ export function registerSlabGet(program: Command): void {
           nonce: header.nonce.toString(),
           matCounter: header.matCounter.toString(),
           insuranceAuthority: header.insuranceAuthority.toBase58(),
-          closeAuthority: header.closeAuthority.toBase58(),
+          insuranceOperator: header.insuranceOperator.toBase58(),
         },
         config: {
           collateralMint: mktConfig.collateralMint.toBase58(),
           vault: mktConfig.vaultPubkey.toBase58(),
           indexFeedId: mktConfig.indexFeedId.toBase58(),
-          maxStalenessSlots: mktConfig.maxStalenessSlots.toString(),
+          maxStalenessSecs: mktConfig.maxStalenessSecs.toString(),
           confFilterBps: mktConfig.confFilterBps,
           vaultAuthorityBump: mktConfig.vaultAuthorityBump,
           invert: mktConfig.invert,
@@ -58,12 +58,12 @@ export function registerSlabGet(program: Command): void {
         console.log(`Nonce:              ${output.header.nonce}`);
         console.log(`Mat Counter:        ${output.header.matCounter}`);
         console.log(`Insurance Auth:     ${output.header.insuranceAuthority}`);
-        console.log(`Close Authority:    ${output.header.closeAuthority}`);
+        console.log(`Insurance Operator: ${output.header.insuranceOperator}`);
         console.log("\n--- Config ---");
         console.log(`Collateral Mint:    ${output.config.collateralMint}`);
         console.log(`Vault:              ${output.config.vault}`);
         console.log(`Index Feed ID:      ${output.config.indexFeedId}`);
-        console.log(`Max Staleness:      ${output.config.maxStalenessSlots} slots`);
+        console.log(`Max Staleness:      ${output.config.maxStalenessSecs} slots`);
         console.log(`Conf Filter:        ${output.config.confFilterBps} bps`);
         console.log(`Vault Auth Bump:    ${output.config.vaultAuthorityBump}`);
         console.log(`Invert:             ${output.config.invert}`);

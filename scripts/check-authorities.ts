@@ -1,11 +1,14 @@
 /**
  * Authority coverage: every kind × (rotate, burn, wrong-signer, post-burn).
  *
- *   kind=0 ADMIN     → header.admin            (UpdateConfig, AdminForceClose, ResolveMarket, SetOraclePriceCap)
- *   kind=1 ORACLE    → config.oracle_authority (PushOraclePrice)
- *   kind=2 INSURANCE → header.insurance_authority (WithdrawInsurance — unbounded)
- *   kind=3 CLOSE     → header.close_authority  (CloseSlab)
+ *   kind=0 ADMIN              → header.admin             (UpdateConfig, AdminForceClose,
+ *                                                          ResolveMarket, SetOraclePriceCap,
+ *                                                          CloseSlab — merged from CLOSE in v12.20)
+ *   kind=1 HYPERP_MARK        → config.hyperp_authority  (PushOraclePrice; renamed from oracle_authority)
+ *   kind=2 INSURANCE          → header.insurance_authority (WithdrawInsurance — unbounded)
  *   kind=4 INSURANCE_OPERATOR → header.insurance_operator (WithdrawInsuranceLimited)
+ *
+ *   (kind=3 CLOSE was deleted in v12.20; CloseSlab is now ADMIN-gated.)
  *
  * For each kind we verify:
  *   1. parseHeader / parseConfig exposes the authority field.
@@ -77,7 +80,7 @@ async function expectReject(name: string, fn: () => Promise<any>, containsAny: s
 
 async function main() {
   console.log("═".repeat(70));
-  console.log("AUTHORITY COVERAGE — all 5 kinds × rotate / burn / wrong-signer / post-burn");
+  console.log("AUTHORITY COVERAGE — 4 kinds × rotate / burn / wrong-signer / post-burn (v12.20)");
   console.log("═".repeat(70));
 
   const slab = Keypair.generate();
@@ -108,6 +111,9 @@ async function main() {
       forceCloseDelaySlots:            "200000",
       hMax:                            "50000",  // must be ≤ perm-resolve
       hMin:                            "1000",
+      // v12.20 F2 defense: Hyperp + perm-resolve requires mark_min_fee > 0
+      // so self-trades can't refresh liveness and block permissionless resolve.
+      markMinFee:                      "1000",
       // Seed insurance-limited path so INSURANCE_OPERATOR has something to gate
       insuranceWithdrawMaxBps:         100,      // 1% per tx
       insuranceWithdrawCooldownSlots:  "10",
@@ -126,14 +132,13 @@ async function main() {
 
   console.log(`\nSlab: ${slab.publicKey.toBase58()}\n`);
 
-  // ── 1. Parser exposes all 5 fields ────────────────────────────
+  // ── 1. Parser exposes all 4 fields ────────────────────────────
   {
     const h = parseHeader(await fetchSlab(conn, slab.publicKey));
     const c = parseConfig(await fetchSlab(conn, slab.publicKey));
     check("parseHeader.insuranceAuthority = payer (default)", h.insuranceAuthority.equals(payer.publicKey));
-    check("parseHeader.closeAuthority     = payer (default)", h.closeAuthority.equals(payer.publicKey));
     check("parseHeader.insuranceOperator  = payer (default)", h.insuranceOperator.equals(payer.publicKey));
-    check("parseConfig.oracleAuthority    = payer (default at init)", c.oracleAuthority.equals(payer.publicKey));
+    check("parseConfig.hyperpAuthority    = payer (default at init)", c.hyperpAuthority.equals(payer.publicKey));
     check("parseHeader.admin              = payer (default)", h.admin.equals(payer.publicKey));
   }
 
@@ -152,9 +157,8 @@ async function main() {
   await new Promise(r => setTimeout(r, 1500));
   for (const [name, kind] of [
     ["ADMIN", AUTHORITY_KIND.ADMIN],
-    ["ORACLE", AUTHORITY_KIND.ORACLE],
+    ["HYPERP_MARK", AUTHORITY_KIND.HYPERP_MARK],
     ["INSURANCE", AUTHORITY_KIND.INSURANCE],
-    ["CLOSE", AUTHORITY_KIND.CLOSE],
     ["INSURANCE_OPERATOR", AUTHORITY_KIND.INSURANCE_OPERATOR],
   ] as const) {
     await expectReject(
@@ -171,15 +175,15 @@ async function main() {
   //     Verify instead that rotate requires the NEW key to sign (non-burn).
   const newOracleKp = Keypair.generate();
   await expectReject(
-    "ORACLE: rotate to non-zero rejected without new-key signer",
+    "HYPERP_MARK: rotate to non-zero rejected without new-key signer",
     () => tx([buildIx({
       programId: PROG,
       keys: buildAccountMetas(ACCOUNTS_UPDATE_ADMIN, [payer.publicKey, newOracleKp.publicKey, slab.publicKey]),
-      data: encodeUpdateAuthority({ kind: AUTHORITY_KIND.ORACLE, newPubkey: newOracleKp.publicKey }),
+      data: encodeUpdateAuthority({ kind: AUTHORITY_KIND.HYPERP_MARK, newPubkey: newOracleKp.publicKey }),
     })], [payer] /* no newOracleKp signer */),
   );
 
-  // ── 4. Rotate ORACLE → newOracleKp (both signers) ──
+  // ── 4. Rotate HYPERP_MARK → newOracleKp (both signers) ──
   await tx([buildIx({
     programId: PROG,
     keys: [
@@ -187,11 +191,11 @@ async function main() {
       { pubkey: newOracleKp.publicKey, isSigner: true, isWritable: false },
       { pubkey: slab.publicKey,        isSigner: false, isWritable: true },
     ],
-    data: encodeUpdateAuthority({ kind: AUTHORITY_KIND.ORACLE, newPubkey: newOracleKp.publicKey }),
+    data: encodeUpdateAuthority({ kind: AUTHORITY_KIND.HYPERP_MARK, newPubkey: newOracleKp.publicKey }),
   })], [payer, newOracleKp]);
   {
     const c = parseConfig(await fetchSlab(conn, slab.publicKey));
-    check("ORACLE rotated to new key", c.oracleAuthority.equals(newOracleKp.publicKey));
+    check("HYPERP_MARK rotated to new key", c.hyperpAuthority.equals(newOracleKp.publicKey));
   }
 
   // Rotate back so we can continue with payer-owned tests.
@@ -208,15 +212,14 @@ async function main() {
       { pubkey: payer.publicKey,       isSigner: true, isWritable: false },
       { pubkey: slab.publicKey,        isSigner: false, isWritable: true },
     ],
-    data: encodeUpdateAuthority({ kind: AUTHORITY_KIND.ORACLE, newPubkey: payer.publicKey }),
+    data: encodeUpdateAuthority({ kind: AUTHORITY_KIND.HYPERP_MARK, newPubkey: payer.publicKey }),
   })], [payer, newOracleKp]);  // payer first = pays fees; both sign
 
   // ── 5. Burn each NON-ADMIN authority (only current signer needed for burn) ──
   for (const [name, kind, check_key] of [
     ["INSURANCE_OPERATOR", AUTHORITY_KIND.INSURANCE_OPERATOR, "insuranceOperator"],
-    ["ORACLE",             AUTHORITY_KIND.ORACLE,             "oracleAuthority"],
+    ["HYPERP_MARK",        AUTHORITY_KIND.HYPERP_MARK,        "hyperpAuthority"],
     ["INSURANCE",          AUTHORITY_KIND.INSURANCE,          "insuranceAuthority"],
-    ["CLOSE",              AUTHORITY_KIND.CLOSE,              "closeAuthority"],
   ] as const) {
     await tx([buildIx({
       programId: PROG,
@@ -226,14 +229,14 @@ async function main() {
     const buf = await fetchSlab(conn, slab.publicKey);
     const h = parseHeader(buf);
     const c = parseConfig(buf);
-    const val = check_key === "oracleAuthority" ? c.oracleAuthority : (h as any)[check_key];
+    const val = check_key === "hyperpAuthority" ? c.hyperpAuthority : (h as any)[check_key];
     check(`${name} burned (field == 11111…)`, val.equals(ZERO));
   }
 
   // ── 6. Post-burn capability loss ─────────────────────────────────
-  //   ORACLE burned → PushOraclePrice rejected.
+  //   HYPERP_MARK burned → PushOraclePrice rejected.
   await expectReject(
-    "ORACLE burned → PushOraclePrice rejected",
+    "HYPERP_MARK burned → PushOraclePrice rejected",
     () => tx([buildIx({
       programId: PROG,
       keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
@@ -265,19 +268,6 @@ async function main() {
         WELL_KNOWN.tokenProgram, vaultAuth, WELL_KNOWN.clock,
       ]),
       data: encodeWithdrawInsuranceLimited({ amount: "100" }),
-    })], [payer]),
-  );
-
-  //   CLOSE burned → CloseSlab rejected (even if conditions met; will reject on auth first).
-  await expectReject(
-    "CLOSE burned → CloseSlab rejected",
-    () => tx([buildIx({
-      programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_CLOSE_SLAB, [
-        payer.publicKey, slab.publicKey, vAcc.address, vaultAuth, payerAta.address,
-        WELL_KNOWN.tokenProgram,
-      ]),
-      data: encodeCloseSlab(),
     })], [payer]),
   );
 
@@ -340,6 +330,18 @@ async function main() {
         payer.publicKey, slab.publicKey, WELL_KNOWN.clock, payer.publicKey,
       ]),
       data: encodeResolveMarket(),
+    })], [payer]),
+  );
+  // v12.20: CloseSlab is now ADMIN-gated (kind=3 CLOSE was deleted).
+  await expectReject(
+    "ADMIN burned → CloseSlab rejected",
+    () => tx([buildIx({
+      programId: PROG,
+      keys: buildAccountMetas(ACCOUNTS_CLOSE_SLAB, [
+        payer.publicKey, slab.publicKey, vAcc.address, vaultAuth, payerAta.address,
+        WELL_KNOWN.tokenProgram,
+      ]),
+      data: encodeCloseSlab(),
     })], [payer]),
   );
 

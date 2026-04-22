@@ -53,67 +53,60 @@ export const IX_TAG = {
  * Each role is independent — delegate or burn individually.
  */
 export const AUTHORITY_KIND = {
-  ADMIN: 0,               // header.admin
-  ORACLE: 1,              // config.oracle_authority
-  INSURANCE: 2,           // header.insurance_authority — tag 20 WithdrawInsurance (unbounded)
-  CLOSE: 3,               // header.close_authority — tag 13 CloseSlab
-  INSURANCE_OPERATOR: 4,  // header.insurance_operator — tag 23 WithdrawInsuranceLimited
+  ADMIN: 0,                // header.admin
+  HYPERP_MARK: 1,          // config.hyperp_authority (renamed from oracle_authority in v12.20)
+  INSURANCE: 2,            // header.insurance_authority — tag 20 WithdrawInsurance (unbounded)
+  // kind=3 CLOSE was deleted; close authority merged into ADMIN in v12.20
+  INSURANCE_OPERATOR: 4,   // header.insurance_operator — tag 23 WithdrawInsuranceLimited
+  ORACLE: 1,               // back-compat alias for HYPERP_MARK
+  CLOSE: 0,                // back-compat alias — CloseSlab now gated on ADMIN
 } as const;
 
 /**
- * InitMarket wire layout (core = 352 bytes; full with extended tail = 418 bytes).
- *
- * Core:
- *   tag(1) + admin(32) + mint(32) + index_feed_id(32) +
- *   max_staleness_secs(8) + conf_filter_bps(2) + invert(1) + unit_scale(4) +
- *   initial_mark_price_e6(8) +
- *   maintenance_fee_per_slot(u128) + max_insurance_floor(u128) +
- *   min_oracle_price_cap_e2bps(8) +
- *   RiskParams wire (192 bytes, see encodeRiskParamsWire)
- *
- * Extended tail (66 bytes — all-or-nothing; partial tails rejected):
- *   insurance_withdraw_max_bps(2) + insurance_withdraw_cooldown_slots(8) +
- *   permissionless_resolve_stale_slots(8) +
- *   funding_horizon_slots(8) + funding_k_bps(8) +
- *   funding_max_premium_bps(i64) + funding_max_e9_per_slot(i64) +
- *   mark_min_fee(8) + force_close_delay_slots(8)
+ * InitMarket wire layout (v12.20+):
+ *   core = 144 bytes (tag + admin + mint + feed + staleness + conf + invert +
+ *                     unit_scale + initial_mark + maint_fee_u128 +
+ *                     min_oracle_price_cap_u64)
+ *   RiskParams wire = 152 bytes (new_account_fee now in the slot formerly
+ *                     used for _compat + insurance_floor; insurance_floor +
+ *                     min_initial_deposit REMOVED)
+ *   extended tail = 66 bytes (unchanged)
+ *   Total: 362 bytes (down from 418 in v12.19).
  */
 export interface InitMarketArgs {
   admin: PublicKey | string;
   collateralMint: PublicKey | string;
-  indexFeedId: string;           // Pyth feed ID (64 hex chars). All zeros = Hyperp.
+  indexFeedId: string;
   maxStalenessSecs: bigint | string;
   confFilterBps: number;
   invert: number;
   unitScale: number;
   initialMarkPriceE6: bigint | string;
-  maintenanceFeePerSlot: bigint | string;   // u128
-  maxInsuranceFloor: bigint | string;       // u128
-  minOraclePriceCapE2bps: bigint | string;  // u64
-  // RiskParams wire fields
+  maintenanceFeePerSlot: bigint | string;      // u128
+  minOraclePriceCapE2bps: bigint | string;     // u64
+  // RiskParams wire fields (no insurance_floor, no min_initial_deposit)
   hMin: bigint | string;
   maintenanceMarginBps: bigint | string;
   initialMarginBps: bigint | string;
   tradingFeeBps: bigint | string;
   maxAccounts: bigint | string;
-  insuranceFloor: bigint | string;          // u128
+  newAccountFee: bigint | string;              // u128 — insurance-destined init fee
   hMax: bigint | string;
   maxCrankStalenessSlots: bigint | string;
   liquidationFeeBps: bigint | string;
-  liquidationFeeCap: bigint | string;       // u128
+  liquidationFeeCap: bigint | string;          // u128
   resolvePriceDeviationBps: bigint | string;
-  minLiquidationAbs: bigint | string;       // u128
-  minInitialDeposit: bigint | string;       // u128
-  minNonzeroMmReq: bigint | string;         // u128
-  minNonzeroImReq: bigint | string;         // u128
-  // Extended tail (required — program rejects partial tails)
+  minLiquidationAbs: bigint | string;          // u128
+  minNonzeroMmReq: bigint | string;            // u128
+  minNonzeroImReq: bigint | string;            // u128
+  // Extended tail
   insuranceWithdrawMaxBps: number;
   insuranceWithdrawCooldownSlots: bigint | string;
   permissionlessResolveStaleSlots: bigint | string;
   fundingHorizonSlots: bigint | string;
   fundingKBps: bigint | string;
-  fundingMaxPremiumBps: bigint | string;    // i64
-  fundingMaxE9PerSlot: bigint | string;    // i64
+  fundingMaxPremiumBps: bigint | string;       // i64
+  fundingMaxE9PerSlot: bigint | string;        // i64
   markMinFee: bigint | string;
   forceCloseDelaySlots: bigint | string;
 }
@@ -131,21 +124,27 @@ function encodeFeedId(feedId: string): Buffer {
  * Note the compat `_new_account_fee` u128 slot — still on the wire, discarded.
  */
 function encodeRiskParamsWire(args: InitMarketArgs): Buffer {
+  // v12.20 wire order (152 bytes):
+  //   h_min, maint_margin, init_margin, trading_fee, max_accounts,
+  //   new_account_fee (u128),
+  //   h_max, max_crank_staleness, liquidation_fee_bps,
+  //   liquidation_fee_cap (u128),
+  //   resolve_price_deviation_bps,
+  //   min_liquidation_abs (u128),
+  //   min_nonzero_mm_req (u128), min_nonzero_im_req (u128)
   return Buffer.concat([
     encU64(args.hMin),
     encU64(args.maintenanceMarginBps),
     encU64(args.initialMarginBps),
     encU64(args.tradingFeeBps),
     encU64(args.maxAccounts),
-    encU128("0"),                           // compat new_account_fee (discarded)
-    encU128(args.insuranceFloor),
+    encU128(args.newAccountFee),
     encU64(args.hMax),
     encU64(args.maxCrankStalenessSlots),
     encU64(args.liquidationFeeBps),
     encU128(args.liquidationFeeCap),
-    encU64(args.resolvePriceDeviationBps),  // was _liquidation_buffer_bps
+    encU64(args.resolvePriceDeviationBps),
     encU128(args.minLiquidationAbs),
-    encU128(args.minInitialDeposit),
     encU128(args.minNonzeroMmReq),
     encU128(args.minNonzeroImReq),
   ]);
@@ -163,7 +162,7 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encU32(args.unitScale),
     encU64(args.initialMarkPriceE6),
     encU128(args.maintenanceFeePerSlot),
-    encU128(args.maxInsuranceFloor),
+    // max_insurance_floor removed in v12.20
     encU64(args.minOraclePriceCapE2bps),
     encodeRiskParamsWire(args),
     // Extended tail (66 bytes)

@@ -130,7 +130,7 @@ async function main() {
       invert: config.invert,
       unitScale: config.unitScale,
       confFilterBps: config.confFilterBps,
-      maxStalenessSlots: config.maxStalenessSlots.toString(),
+      maxStalenessSecs: config.maxStalenessSecs.toString(),
       // Funding rate config
       fundingHorizonSlots: config.fundingHorizonSlots.toString(),
       fundingKBps: Number(config.fundingKBps),

@@ -54,7 +54,7 @@ function createMockSlab(): Buffer {
   const feedIdBytes = Buffer.alloc(32);
   feedIdBytes[0] = 5;
   feedIdBytes.copy(buf, 136);
-  // maxStalenessSlots: u64 at offset 168
+  // maxStalenessSecs: u64 at offset 168
   buf.writeBigUInt64LE(100n, 168);
   // confFilterBps: u16 at offset 176
   buf.writeUInt16LE(50, 176);
@@ -91,7 +91,7 @@ function createMockSlab(): Buffer {
   assert(config.collateralMint instanceof PublicKey, "config mint is PublicKey");
   assert(config.vaultPubkey instanceof PublicKey, "config vault is PublicKey");
   assert(config.indexFeedId instanceof PublicKey, "config indexFeedId is PublicKey");
-  assert(config.maxStalenessSlots === 100n, "config maxStalenessSlots");
+  assert(config.maxStalenessSecs === 100n, "config maxStalenessSecs");
   assert(config.confFilterBps === 50, "config confFilterBps");
   assert(config.vaultAuthorityBump === 254, "config vaultAuthorityBump");
   assert(config.invert === 1, "config invert");
