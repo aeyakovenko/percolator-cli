@@ -47,13 +47,26 @@ Or use command-line flags:
 ## Mainnet (test deployment, admin-free)
 
 ```
-Program:     BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw  (percolator-prog 61f3ae0 — upgrade authority BURNED)
+Program:     BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw  (upgrade authority BURNED)
 Slab:        5ZamUkAiXtvYQijNiRcuGaea66TVbbTPusHfwMX1kTqB  (inverted SOL/USD, all 3 market auths BURNED)
 Oracle:      7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE  (Pyth SOL/USD PriceUpdateV2, sponsored shard 0)
 Feed ID:     ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d
 Vault ATA:   AcJsfpbuUKHHdoqPuLccRsK794nHecM1XKySE6Umefvr  (wrapped SOL, PDA-signed)
 Matcher:     (none — third parties provision their own)
 ```
+
+**Build provenance** (reproducible from source + `cargo build-sbf` with default features):
+
+```
+BPF binary SHA-256:  3f78e2f279dc29aa373fca57cfc56a56d70b8a5e85a16e5a090a2f2d5d9efbcc
+BPF binary size:     394,832 bytes ELF
+percolator-prog:     06f86fb125525af81c0bfd19a295095dda102c07
+percolator (engine): 3f55f871a3aa29d7b582fc2641d2106cbac0c32e
+percolator-cli:      74e902f165dcac98c87eb80406a2a92a40cf8dc7
+MAX_ACCOUNTS:        4096
+```
+
+Verify locally: `solana program dump -u m BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw /tmp/mainnet.so` then `head -c 394832 /tmp/mainnet.so | sha256sum` — must output the SHA above.
 
 **Configuration:**
 - Inverted (mark = SOL per USD), wSOL collateral, unit_scale=0 (1 lamport = 1 engine unit)

@@ -2,6 +2,15 @@
   "network": "mainnet-beta",
   "createdAt": "2026-04-22T19:54:22.280Z",
   "programId": "BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw",
+  "build": {
+    "bpfSha256": "3f78e2f279dc29aa373fca57cfc56a56d70b8a5e85a16e5a090a2f2d5d9efbcc",
+    "bpfSizeBytes": 394832,
+    "wrapperCommit": "06f86fb125525af81c0bfd19a295095dda102c07",
+    "engineCommit": "3f55f871a3aa29d7b582fc2641d2106cbac0c32e",
+    "cliCommit": "74e902f165dcac98c87eb80406a2a92a40cf8dc7",
+    "maxAccounts": 4096,
+    "upgradeAuthority": "BURNED (--final)"
+  },
   "slab": "5ZamUkAiXtvYQijNiRcuGaea66TVbbTPusHfwMX1kTqB",
   "slabSize": 1525624,
   "mint": "So11111111111111111111111111111111111111112",
