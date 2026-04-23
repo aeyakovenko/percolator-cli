@@ -3,7 +3,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { fetchSlab, parseConfig, parseAccount } from "../solana/slab.js";
+import { fetchSlab, parseAccount } from "../solana/slab.js";
 import { deriveLpPda } from "../solana/pda.js";
 import { encodeTradeCpi } from "../abi/instructions.js";
 import {
@@ -28,6 +28,7 @@ export function registerTradeCpi(program: Command): void {
     .requiredOption("--size <string>", "Trade size (i128, positive=long, negative=short)")
     .requiredOption("--matcher-program <pubkey>", "Matcher program ID")
     .requiredOption("--matcher-context <pubkey>", "Matcher context account")
+    .requiredOption("--oracle <pubkey>", "Price oracle account")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -35,15 +36,14 @@ export function registerTradeCpi(program: Command): void {
 
       // Validate inputs
       const slabPk = validatePublicKey(opts.slab, "--slab");
+      const oracle = validatePublicKey(opts.oracle, "--oracle");
       const matcherProgram = validatePublicKey(opts.matcherProgram, "--matcher-program");
       const matcherContext = validatePublicKey(opts.matcherContext, "--matcher-context");
       const lpIdx = validateIndex(opts.lpIdx, "--lp-idx");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
       validateI128(opts.size, "--size");
 
-      // Fetch slab config for oracle
       const data = await fetchSlab(ctx.connection, slabPk);
-      const mktConfig = parseConfig(data);
 
       // Derive LP PDA
       const [lpPda] = deriveLpPda(ctx.programId, slabPk, lpIdx);
@@ -65,7 +65,7 @@ export function registerTradeCpi(program: Command): void {
         lpOwnerPk, // lpOwner (read from slab, not a signer)
         slabPk, // slab
         WELL_KNOWN.clock, // clock
-        mktConfig.indexFeedId, // oracle (use index feed ID from config)
+        oracle, // oracle
         matcherProgram, // matcherProg
         matcherContext, // matcherCtx
         lpPda, // lpPda
