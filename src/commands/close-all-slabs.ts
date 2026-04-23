@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { PublicKey, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -12,7 +12,7 @@ import {
   buildAccountMetas,
   WELL_KNOWN,
 } from "../abi/accounts.js";
-import { buildIx } from "../runtime/tx.js";
+import { buildIx, simulateOrSend } from "../runtime/tx.js";
 
 // PERCOLAT magic bytes for filtering
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
@@ -22,7 +22,7 @@ export function registerCloseAllSlabs(program: Command): void {
   program
     .command("close-all-slabs")
     .description("Find and close all slab accounts owned by the program (devnet cleanup)")
-    .option("--dry-run", "List slabs without closing them")
+    .option("--dry-run", "List slabs without closing them (no RPC tx; --dry-run takes precedence over --simulate)")
     .option("--limit <n>", "Maximum number of slabs to close", "100")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
@@ -30,6 +30,7 @@ export function registerCloseAllSlabs(program: Command): void {
       const ctx = createContext(config);
 
       const dryRun = opts.dryRun ?? false;
+      const simulate = flags.simulate ?? false;
       const limit = parseInt(opts.limit, 10);
 
       console.log(`Searching for slab accounts owned by ${ctx.programId.toBase58()}...`);
@@ -65,6 +66,9 @@ export function registerCloseAllSlabs(program: Command): void {
         return;
       }
 
+      // --dry-run short-circuits before any tx building; --simulate is only
+      // consulted on the send path below. If both are passed, --dry-run wins
+      // (strictly cheaper — no RPC round-trip per slab).
       if (dryRun) {
         console.log("\nSlabs (dry run - not closing):");
         for (const { pubkey, account } of slabs.slice(0, limit)) {
@@ -76,13 +80,13 @@ export function registerCloseAllSlabs(program: Command): void {
         return;
       }
 
-      // Close slabs
+      // Close slabs (or simulate each close if --simulate is set).
       let closed = 0;
       let failed = 0;
       let totalRecovered = 0;
 
       const toClose = slabs.slice(0, limit);
-      console.log(`\nClosing ${toClose.length} slab(s)...`);
+      console.log(`\n${simulate ? "Simulating" : "Closing"} ${toClose.length} slab(s)...`);
 
       for (const { pubkey, account } of toClose) {
         try {
@@ -106,18 +110,27 @@ export function registerCloseAllSlabs(program: Command): void {
             data: ixData,
           });
 
-          const tx = new Transaction();
-          tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }));
-          tx.add(ix);
-
-          const sig = await sendAndConfirmTransaction(ctx.connection, tx, [ctx.payer], {
+          const result = await simulateOrSend({
+            connection: ctx.connection,
+            ix,
+            signers: [ctx.payer],
+            simulate,
             commitment: ctx.commitment,
+            computeUnitLimit: 1_400_000,
           });
+
+          if (result.err) {
+            failed++;
+            const short = result.err.length > 50 ? result.err.slice(0, 50) : result.err;
+            console.log(`  Failed ${pubkey.toBase58().slice(0, 8)}...: ${short}`);
+            continue;
+          }
 
           const solRecovered = account.lamports / 1e9;
           totalRecovered += solRecovered;
           closed++;
-          console.log(`  Closed ${pubkey.toBase58().slice(0, 8)}... (+${solRecovered.toFixed(4)} SOL)`);
+          const verb = simulate ? "Would close" : "Closed";
+          console.log(`  ${verb} ${pubkey.toBase58().slice(0, 8)}... (+${solRecovered.toFixed(4)} SOL)`);
         } catch (e: any) {
           failed++;
           console.log(`  Failed ${pubkey.toBase58().slice(0, 8)}...: ${e.message?.slice(0, 50)}`);
@@ -125,8 +138,8 @@ export function registerCloseAllSlabs(program: Command): void {
       }
 
       console.log(`\nSummary:`);
-      console.log(`  Closed: ${closed}`);
+      console.log(`  ${simulate ? "Would close" : "Closed"}: ${closed}`);
       console.log(`  Failed: ${failed}`);
-      console.log(`  SOL recovered: ${totalRecovered.toFixed(4)}`);
+      console.log(`  SOL ${simulate ? "recoverable" : "recovered"}: ${totalRecovered.toFixed(4)}`);
     });
 }
