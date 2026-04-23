@@ -51,6 +51,7 @@ async function main() {
 
   // Derived engine values
   const insurance = engine.insuranceFund.balance;
+  const threshold = config.threshFloor;
   const surplus = insurance > threshold ? insurance - threshold : 0n;
 
   // Build accounts
