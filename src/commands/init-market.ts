@@ -52,6 +52,7 @@ export function registerInitMarket(program: Command): void {
     .requiredOption("--funding-max-e9-per-slot <string>", "Funding max rate (i64 e9 parts-per-billion per slot; v12.18+)")
     .requiredOption("--mark-min-fee <string>", "Min fee for full mark weight (0=disabled)")
     .requiredOption("--force-close-delay <string>", "Force-close delay after resolve (slots)")
+    .option("--acknowledge-cap-disabled", "Suppress the cap=0 warning on non-Hyperp markets (intentional)", false)
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -66,6 +67,47 @@ export function registerInitMarket(program: Command): void {
         : (opts.indexFeedId as string);
       if (feedIdHex.length !== 64 || !/^[0-9a-fA-F]+$/.test(feedIdHex)) {
         throw new Error("Invalid feed ID: must be 64 hex characters");
+      }
+
+      // F7 safety check — non-Hyperp market with min_oracle_price_cap_e2bps = 0
+      // permanently installs an unclamped Pyth price path if admin is later
+      // burned. See percolator-prog/scripts/security.md F7 and PR #44 for the
+      // derived-cap invariant. Warn (do not block) unless acknowledged.
+      const isHyperp = /^0+$/.test(feedIdHex);
+      if (!isHyperp && opts.minOraclePriceCap === "0" && !opts.acknowledgeCapDisabled) {
+        const im = parseInt(opts.initialMarginBps, 10);
+        const mm = parseInt(opts.maintenanceMarginBps, 10);
+        const stale = parseInt(opts.maxCrankStaleness, 10);
+        const derived = Number.isFinite(im) && Number.isFinite(mm) && Number.isFinite(stale) && stale > 0
+          ? Math.floor(((im - mm) * 100) / stale)
+          : 0;
+        console.warn("");
+        console.warn("  ⚠  WARNING  min-oracle-price-cap = 0 on a non-Hyperp market");
+        console.warn("");
+        console.warn("     With cap = 0, clamp_oracle_price short-circuits and any Pyth");
+        console.warn("     observation writes last_effective_price_e6 unclamped. If the admin");
+        console.warn("     is subsequently burned, the per-update circuit breaker cannot be");
+        console.warn("     restored for the lifetime of this market.");
+        console.warn("");
+        console.warn("     Combined with the IM-vs-band gap, a single Pyth observation that");
+        console.warn("     moves baseline by more than initialMarginBps drives max-leveraged");
+        console.warn("     positions into bankruptcy; residual loss absorbs from the insurance");
+        console.warn("     fund via `use_insurance_buffer`.");
+        console.warn("");
+        console.warn("     See: percolator-prog/scripts/security.md § F7");
+        console.warn("          aeyakovenko/percolator-prog#35, #36, #43, PR #44");
+        console.warn("");
+        if (derived > 0) {
+          console.warn(`     Suggested: --min-oracle-price-cap ${derived}`);
+          console.warn(`     Derivation: (IM_bps - MM_bps) * 100 / max_crank_staleness_slots`);
+          console.warn(`               = (${im} - ${mm}) * 100 / ${stale} = ${derived}`);
+          console.warn(`     (matches @aeyakovenko's derived-cap invariant, PR #44.)`);
+          console.warn("");
+        }
+        console.warn("     Pass --acknowledge-cap-disabled to suppress this warning if the");
+        console.warn("     trade-off is intentional (e.g., Hyperp-style markets, or deployments");
+        console.warn("     that will keep admin live). Proceeding anyway.");
+        console.warn("");
       }
 
       const [vaultPda] = deriveVaultAuthority(ctx.programId, slabPk);
