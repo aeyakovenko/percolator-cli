@@ -1,18 +1,40 @@
 /**
  * Comprehensive market dump — ALL on-chain data structures to market.json
+ *
+ * Usage:
+ *   npx tsx scripts/dump-market.ts [--slab <pubkey>] [--url <rpc>]
+ *
+ * If --slab is omitted, falls back to devnet-market.json in cwd.
  */
 import { Connection, PublicKey } from "@solana/web3.js";
 import {
   fetchSlab, parseHeader, parseConfig, parseParams, parseEngine,
-  parseAccount, parseUsedIndices, AccountKind,
+  parseAccount, parseUsedIndices, AccountKind, MarketMode, SideMode,
 } from "../src/solana/slab.js";
 import * as fs from "fs";
 
-const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
-const SLAB = new PublicKey(marketInfo.slab);
-const ORACLE = new PublicKey(marketInfo.oracle);
-const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+// ---------------- CLI args ----------------
+function getArg(name: string): string | undefined {
+  const i = process.argv.indexOf(`--${name}`);
+  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined;
+}
 
+const argSlab = getArg("slab");
+const argUrl = getArg("url");
+
+let SLAB: PublicKey;
+let ORACLE: PublicKey | null = null;
+if (argSlab) {
+  SLAB = new PublicKey(argSlab);
+} else {
+  const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+  SLAB = new PublicKey(marketInfo.slab);
+  if (marketInfo.oracle) ORACLE = new PublicKey(marketInfo.oracle);
+}
+const RPC_URL = argUrl ?? "https://api.devnet.solana.com";
+const connection = new Connection(RPC_URL, "confirmed");
+
+// ---------------- helpers ----------------
 function toJSON(obj: any): any {
   if (typeof obj === "bigint") return obj.toString();
   if (Array.isArray(obj)) return obj.map(toJSON);
@@ -29,11 +51,18 @@ function toJSON(obj: any): any {
 
 const sol = (n: bigint) => Number(n) / 1e9;
 const pct = (bps: bigint) => Number(bps) / 100;
+const marketModeStr = (m: MarketMode) => m === MarketMode.Resolved ? "Resolved" : "Live";
+const sideModeStr = (m: SideMode) =>
+  m === SideMode.Normal ? "Normal" : m === SideMode.DrainOnly ? "DrainOnly" : "ResetPending";
 
-async function getChainlinkPrice(oracle: PublicKey): Promise<{ price: bigint; decimals: number }> {
+async function getChainlinkPrice(oracle: PublicKey): Promise<{ price: bigint; decimals: number } | null> {
   const info = await connection.getAccountInfo(oracle);
-  if (!info) throw new Error("Oracle not found");
-  return { price: info.data.readBigInt64LE(216), decimals: info.data.readUInt8(138) };
+  if (!info) return null;
+  try {
+    return { price: info.data.readBigInt64LE(216), decimals: info.data.readUInt8(138) };
+  } catch {
+    return null;
+  }
 }
 
 async function main() {
@@ -44,15 +73,23 @@ async function main() {
   const engine = parseEngine(data);
   const indices = parseUsedIndices(data);
 
-  // Oracle
-  const oracleData = await getChainlinkPrice(ORACLE);
-  const rawOraclePriceE6 = oracleData.price * 1_000_000n / BigInt(10 ** oracleData.decimals);
-  const oraclePrice = rawOraclePriceE6 > 0n ? 1_000_000_000_000n / rawOraclePriceE6 : 0n;
+  // Oracle — only if we have an oracle pubkey (from devnet-market.json).
+  // For live mainnet slabs we may not have it; effectivePrice falls back to
+  // engine.lastOraclePrice.
+  let rawOraclePriceE6 = 0n;
+  let oraclePriceE6 = 0n;
+  let oracleData: { price: bigint; decimals: number } | null = null;
+  if (ORACLE) {
+    oracleData = await getChainlinkPrice(ORACLE);
+    if (oracleData) {
+      rawOraclePriceE6 = oracleData.price * 1_000_000n / BigInt(10 ** oracleData.decimals);
+      oraclePriceE6 = rawOraclePriceE6 > 0n ? 1_000_000_000_000n / rawOraclePriceE6 : 0n;
+    }
+  }
+  // Fallback to engine's last observed oracle price.
+  if (oraclePriceE6 === 0n) oraclePriceE6 = engine.lastOraclePrice;
 
-  // Derived engine values
   const insurance = engine.insuranceFund.balance;
-  const threshold = config.threshFloor;
-  const surplus = insurance > threshold ? insurance - threshold : 0n;
 
   // Build accounts
   const accounts = indices.map(idx => {
@@ -60,8 +97,7 @@ async function main() {
     if (!acc) return null;
 
     const posAbs = acc.positionBasisQ < 0n ? -acc.positionBasisQ : acc.positionBasisQ;
-    const notional = posAbs * oraclePrice / 1_000_000n;
-    // entryPrice no longer exists; unrealized PnL calculation removed
+    const notional = posAbs * oraclePriceE6 / 1_000_000n;
     const effectiveCapital = acc.capital + acc.pnl;
     const maintenanceReq = notional * params.maintenanceMarginBps / 10_000n;
     const marginRatioBps = notional > 0n ? effectiveCapital * 10_000n / notional : 99999n;
@@ -69,33 +105,31 @@ async function main() {
     return {
       index: idx,
       kind: acc.kind === AccountKind.LP ? "LP" : "USER",
-      accountId: acc.accountId.toString(),
+      // accountId: field removed in current slab version — index IS the id
       owner: acc.owner.toBase58(),
 
-      capital: {
-        raw: acc.capital.toString(),
-        sol: sol(acc.capital),
-      },
-      pnl: {
-        realized: { raw: acc.pnl.toString(), sol: sol(acc.pnl) },
-      },
-      effectiveCapital: {
-        raw: (effectiveCapital).toString(),
-        sol: sol(effectiveCapital),
-      },
+      capital: { raw: acc.capital.toString(), sol: sol(acc.capital) },
+      pnl: { realized: { raw: acc.pnl.toString(), sol: sol(acc.pnl) } },
+      effectiveCapital: { raw: effectiveCapital.toString(), sol: sol(effectiveCapital) },
 
       warmup: {
-        reservedPnl: acc.reservedPnl.toString(), // now u128
-        reservedPnlSol: sol(acc.reservedPnl),
-        warmupStartedAtSlot: acc.warmupStartedAtSlot.toString(),
-        warmupSlopePerStep: acc.warmupSlopePerStep.toString(),
-        warmupSlopePerStepSol: sol(acc.warmupSlopePerStep),
+        // warmup is now tracked by sched_*/pending_* buckets, not warmup_started_at_slot
+        reservedPnl: { raw: acc.reservedPnl.toString(), sol: sol(acc.reservedPnl) },
+        schedPresent: acc.schedPresent,
+        schedRemainingQ: acc.schedRemainingQ.toString(),
+        schedStartSlot: acc.schedStartSlot.toString(),
+        schedHorizonSlots: acc.schedHorizon.toString(),
+        pendingPresent: acc.pendingPresent,
+        pendingRemainingQ: acc.pendingRemainingQ.toString(),
+        pendingHorizonSlots: acc.pendingHorizon.toString(),
       },
 
       position: {
-        sizeUnits: acc.positionBasisQ.toString(),
+        sizeUnitsQ: acc.positionBasisQ.toString(),
         direction: acc.positionBasisQ > 0n ? "LONG" : acc.positionBasisQ < 0n ? "SHORT" : "FLAT",
         adlABasis: acc.adlABasis.toString(),
+        adlKSnap: acc.adlKSnap.toString(),
+        adlEpochSnap: acc.adlEpochSnap.toString(),
         notional: { raw: notional.toString(), sol: sol(notional) },
       },
 
@@ -107,9 +141,7 @@ async function main() {
           : marginRatioBps < params.maintenanceMarginBps * 2n ? "AT_RISK" : "SAFE",
       },
 
-      funding: {
-        adlKSnap: acc.adlKSnap.toString(),
-      },
+      funding: { fSnap: acc.fSnap.toString() },
 
       matcher: {
         program: acc.matcherProgram.toBase58(),
@@ -121,7 +153,9 @@ async function main() {
         lastFeeSlot: acc.lastFeeSlot.toString(),
       },
     };
-  }).filter(Boolean);
+  }).filter(Boolean) as any[];
+
+  const activePositions = accounts.filter(a => a.position.direction !== "FLAT").length;
 
   // Total capital across all accounts
   let totalCapital = 0n;
@@ -134,7 +168,8 @@ async function main() {
     _meta: {
       timestamp: new Date().toISOString(),
       slabAddress: SLAB.toBase58(),
-      oracleAddress: ORACLE.toBase58(),
+      oracleAddress: ORACLE ? ORACLE.toBase58() : null,
+      rpcUrl: RPC_URL,
       slabDataBytes: data.length,
     },
 
@@ -142,9 +177,13 @@ async function main() {
       magic: header.magic.toString(16),
       version: header.version,
       bump: header.bump,
+      flags: header.flags,
       admin: header.admin.toBase58(),
+      insuranceAuthority: header.insuranceAuthority.toBase58(),
+      insuranceOperator: header.insuranceOperator.toBase58(),
       nonce: header.nonce.toString(),
-      lastThresholdUpdateSlot: header.lastThrUpdateSlot.toString(),
+      matCounter: header.matCounter.toString(),
+      // lastThrUpdateSlot: field removed in current slab version
     },
 
     config: {
@@ -160,84 +199,178 @@ async function main() {
       funding: {
         horizonSlots: config.fundingHorizonSlots.toString(),
         kBps: Number(config.fundingKBps),
-        invScaleNotionalE6: config.fundingInvScaleNotionalE6.toString(),
+        // invScaleNotionalE6: field removed in current slab version
         maxPremiumBps: Number(config.fundingMaxPremiumBps),
-        maxBpsPerSlot: Number(config.fundingMaxE9PerSlot),
+        maxE9PerSlot: Number(config.fundingMaxE9PerSlot),
       },
 
-      threshold: {
-        floor: { raw: config.threshFloor.toString(), sol: sol(config.threshFloor) },
-        riskBps: Number(config.threshRiskBps),
-        updateIntervalSlots: config.threshUpdateIntervalSlots.toString(),
-        stepBps: Number(config.threshStepBps),
-        alphaBps: Number(config.threshAlphaBps),
-        min: { raw: config.threshMin.toString(), sol: sol(config.threshMin) },
-        max: { raw: config.threshMax.toString(), sol: sol(config.threshMax) },
-        minStep: { raw: config.threshMinStep.toString(), sol: sol(config.threshMinStep) },
+      // All threshold fields removed in current slab version (insurance floor
+      // replaced by tvl_insurance_cap_mult + insurance_withdraw_max_bps gating).
+      insuranceWithdraw: {
+        maxBps: config.insuranceWithdrawMaxBps,
+        cooldownSlots: config.insuranceWithdrawCooldownSlots.toString(),
+        lastWithdrawSlot: config.lastInsuranceWithdrawSlot.toString(),
+        tvlInsuranceCapMult: config.tvlInsuranceCapMult,
       },
 
-      oracleAuthority: {
-        authority: config.oracleAuthority.toBase58(),
-        authorityPriceE6: config.authorityPriceE6.toString(),
-        authorityTimestamp: config.authorityTimestamp.toString(),
+      hyperp: {
+        // oracleAuthority → hyperpAuthority; authorityPriceE6 → hyperpMarkE6;
+        // authorityTimestamp → lastOraclePublishTime
+        hyperpAuthority: config.hyperpAuthority.toBase58(),
+        hyperpMarkE6: config.hyperpMarkE6.toString(),
+        lastOraclePublishTime: config.lastOraclePublishTime.toString(),
+        lastHyperpIndexSlot: config.lastHyperpIndexSlot.toString(),
+        lastMarkPushSlot: config.lastMarkPushSlot.toString(),
+      },
+
+      priceCaps: {
+        oraclePriceCapE2bps: config.oraclePriceCapE2bps.toString(),
+        minOraclePriceCapE2bps: config.minOraclePriceCapE2bps.toString(),
+        lastEffectivePriceE6: config.lastEffectivePriceE6.toString(),
+      },
+
+      mark: {
+        markEwmaE6: config.markEwmaE6.toString(),
+        markEwmaLastSlot: config.markEwmaLastSlot.toString(),
+        markEwmaHalflifeSlots: config.markEwmaHalflifeSlots.toString(),
+        markMinFee: config.markMinFee.toString(),
+      },
+
+      resolve: {
+        initRestartSlot: config.initRestartSlot.toString(),
+        permissionlessResolveStaleSlots: config.permissionlessResolveStaleSlots.toString(),
+        lastGoodOracleSlot: config.lastGoodOracleSlot.toString(),
+        forceCloseDelaySlots: config.forceCloseDelaySlots.toString(),
+      },
+
+      fees: {
+        maintenanceFeePerSlot: { raw: config.maintenanceFeePerSlot.toString(), sol: sol(config.maintenanceFeePerSlot) },
+        newAccountFee: { raw: config.newAccountFee.toString(), sol: sol(config.newAccountFee) },
+        feeSweepCursorWord: config.feeSweepCursorWord.toString(),
+        feeSweepCursorBit: config.feeSweepCursorBit.toString(),
       },
     },
 
     riskParams: {
-      warmupPeriodSlots: params.warmupPeriodSlots.toString(),
+      // warmupPeriodSlots: field removed — warmup is now per-account via sched/pending
+      //                    horizons and maxAccrualDtSlots bounds the crank step.
+      maxAccrualDtSlots: params.maxAccrualDtSlots.toString(),
+      minFundingLifetimeSlots: params.minFundingLifetimeSlots.toString(),
       maintenanceMarginBps: Number(params.maintenanceMarginBps),
       maintenanceMarginPercent: pct(params.maintenanceMarginBps),
       initialMarginBps: Number(params.initialMarginBps),
       initialMarginPercent: pct(params.initialMarginBps),
       tradingFeeBps: Number(params.tradingFeeBps),
       maxAccounts: params.maxAccounts.toString(),
-      newAccountFee: { raw: params.newAccountFee.toString(), sol: sol(params.newAccountFee) },
-      maintenanceFeePerSlot: { raw: params.maintenanceFeePerSlot.toString(), sol: sol(params.maintenanceFeePerSlot) },
+      maxActivePositionsPerSide: params.maxActivePositionsPerSide.toString(),
+      // newAccountFee + maintenanceFeePerSlot moved to MarketConfig — see config.fees
       maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
       liquidationFeeBps: Number(params.liquidationFeeBps),
       liquidationFeePercent: pct(params.liquidationFeeBps),
       liquidationFeeCap: { raw: params.liquidationFeeCap.toString(), sol: sol(params.liquidationFeeCap) },
       minLiquidationAbs: { raw: params.minLiquidationAbs.toString(), sol: sol(params.minLiquidationAbs) },
+      minNonzeroMmReq: params.minNonzeroMmReq.toString(),
+      minNonzeroImReq: params.minNonzeroImReq.toString(),
+      hMin: params.hMin.toString(),
+      hMax: params.hMax.toString(),
+      resolvePriceDeviationBps: Number(params.resolvePriceDeviationBps),
+      maxAbsFundingE9PerSlot: params.maxAbsFundingE9PerSlot.toString(),
     },
 
     engine: {
       vault: { raw: engine.vault.toString(), sol: sol(engine.vault) },
-      insuranceFund: {
-        balance: { raw: insurance.toString(), sol: sol(insurance) },
-        threshold: { raw: threshold.toString(), sol: sol(threshold) },
-        surplus: { raw: surplus.toString(), sol: sol(surplus) },
+      insuranceFund: { balance: { raw: insurance.toString(), sol: sol(insurance) } },
+
+      marketMode: marketModeStr(engine.marketMode),
+      resolved: {
+        price: engine.resolvedPrice.toString(),
+        slot: engine.resolvedSlot.toString(),
+        payoutReady: engine.resolvedPayoutReady,
+        payoutHNum: engine.resolvedPayoutHNum.toString(),
+        payoutHDen: engine.resolvedPayoutHDen.toString(),
+        kLongTerminalDelta: engine.resolvedKLongTerminalDelta.toString(),
+        kShortTerminalDelta: engine.resolvedKShortTerminalDelta.toString(),
+        livePrice: engine.resolvedLivePrice.toString(),
       },
 
       slots: {
         current: engine.currentSlot.toString(),
         lastCrank: engine.lastCrankSlot.toString(),
-        maxCrankStaleness: engine.maxCrankStalenessSlots.toString(),
-        lastSweepStart: engine.lastSweepStartSlot.toString(),
-        lastSweepComplete: engine.lastSweepCompleteSlot.toString(),
+        lastMarket: engine.lastMarketSlot.toString(),
+        // maxCrankStalenessSlots lives on RiskParams — see riskParams
+        // lastSweepStart/Complete: fields removed in current slab version
+      },
+
+      capitalAccounting: {
+        cTot: { raw: engine.cTot.toString(), sol: sol(engine.cTot) },
+        pnlPosTot: engine.pnlPosTot.toString(),
+        pnlMaturedPosTot: engine.pnlMaturedPosTot.toString(),
+      },
+
+      oi: {
+        effLongQ: engine.oiEffLongQ.toString(),
+        effShortQ: engine.oiEffShortQ.toString(),
+        storedPosCountLong: engine.storedPosCountLong.toString(),
+        storedPosCountShort: engine.storedPosCountShort.toString(),
+        staleAccountCountLong: engine.staleAccountCountLong.toString(),
+        staleAccountCountShort: engine.staleAccountCountShort.toString(),
+        phantomDustBoundLongQ: engine.phantomDustBoundLongQ.toString(),
+        phantomDustBoundShortQ: engine.phantomDustBoundShortQ.toString(),
+      },
+
+      adl: {
+        multLong: engine.adlMultLong.toString(),
+        multShort: engine.adlMultShort.toString(),
+        coeffLong: engine.adlCoeffLong.toString(),
+        coeffShort: engine.adlCoeffShort.toString(),
+        epochLong: engine.adlEpochLong.toString(),
+        epochShort: engine.adlEpochShort.toString(),
+        epochStartKLong: engine.adlEpochStartKLong.toString(),
+        epochStartKShort: engine.adlEpochStartKShort.toString(),
+      },
+
+      sideMode: {
+        long: sideModeStr(engine.sideModeLong),
+        short: sideModeStr(engine.sideModeShort),
       },
 
       funding: {
-        fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
+        // fundingRateBpsPerSlotLast: field removed; use f_*_num accumulators
+        fLongNum: engine.fLongNum.toString(),
+        fShortNum: engine.fShortNum.toString(),
+        fEpochStartLongNum: engine.fEpochStartLongNum.toString(),
+        fEpochStartShortNum: engine.fEpochStartShortNum.toString(),
+        fundPxLast: engine.fundPxLast.toString(),
+        lastOraclePrice: engine.lastOraclePrice.toString(),
       },
 
-      // totalOpenInterest, netLpPos, lpSumAbs removed from engine
-
       counters: {
-        lifetimeLiquidations: Number(engine.lifetimeLiquidations),
+        // lifetimeLiquidations, nextAccountId: fields removed in current slab version
         numUsedAccounts: engine.numUsedAccounts,
-        nextAccountId: engine.nextAccountId.toString(),
+        materializedAccountCount: engine.materializedAccountCount.toString(),
+        negPnlAccountCount: engine.negPnlAccountCount.toString(),
+        gcCursor: engine.gcCursor,
       },
     },
 
-    oracle: {
+    oracle: oracleData ? {
       rawUsd: Number(oracleData.price) / Math.pow(10, oracleData.decimals),
       rawE6: rawOraclePriceE6.toString(),
       decimals: oracleData.decimals,
       inverted: config.invert === 1,
-      effectivePriceE6: oraclePrice.toString(),
+      effectivePriceE6: oraclePriceE6.toString(),
+    } : {
+      note: "No oracle pubkey supplied; using engine.lastOraclePrice for marks.",
+      effectivePriceE6: oraclePriceE6.toString(),
+      inverted: config.invert === 1,
     },
 
     accounts,
+
+    summary: {
+      numUsedAccounts: engine.numUsedAccounts,
+      activePositions,
+    },
 
     solvency: {
       vault: { raw: engine.vault.toString(), sol: sol(engine.vault) },
@@ -246,22 +379,33 @@ async function main() {
       totalClaims: { raw: (totalCapital + insurance).toString(), sol: sol(totalCapital + insurance) },
       surplus: { raw: (engine.vault - totalCapital - insurance).toString(), sol: sol(engine.vault - totalCapital - insurance) },
       solvent: engine.vault >= totalCapital + insurance,
-      strandedFunds: {
-        raw: (engine.vault - totalCapital - insurance).toString(),
-        sol: sol(engine.vault - totalCapital - insurance),
-        note: "Vault balance minus all claims (capital + insurance). Positive value indicates funds with no current owner.",
-      },
     },
   };
 
   fs.writeFileSync("market.json", JSON.stringify(toJSON(market), null, 2));
   console.log("Full market state dumped to market.json");
   console.log();
-  console.log("  Slab:           " + SLAB.toBase58());
-  console.log("  Accounts:       " + accounts.length);
-  console.log("  Vault:          " + sol(engine.vault).toFixed(6) + " SOL");
-  console.log("  Insurance:      " + sol(insurance).toFixed(6) + " SOL");
-  console.log("  Stranded funds: " + sol(engine.vault - totalCapital - insurance).toFixed(6) + " SOL");
+  console.log("  Slab:              " + SLAB.toBase58());
+  console.log("  RPC:               " + RPC_URL);
+  console.log("  Version:           " + header.version);
+  console.log("  MarketMode:        " + marketModeStr(engine.marketMode));
+  console.log("  Accounts (used):   " + engine.numUsedAccounts);
+  console.log("  Active positions:  " + activePositions);
+  console.log("  Vault:             " + sol(engine.vault).toFixed(6) + " SOL");
+  console.log("  Insurance:         " + sol(insurance).toFixed(6) + " SOL");
+  console.log("  MaintFee/slot:     " + config.maintenanceFeePerSlot.toString());
+  console.log("  NewAccountFee:     " + config.newAccountFee.toString());
+  console.log("  fundingKBps:       " + config.fundingKBps.toString());
+  console.log("  fundingHorizon:    " + config.fundingHorizonSlots.toString() + " slots");
+  console.log("  MM / IM bps:       " + params.maintenanceMarginBps + " / " + params.initialMarginBps);
+  console.log("  tradingFeeBps:     " + params.tradingFeeBps.toString());
+  console.log("  maxAccounts:       " + params.maxAccounts.toString());
+  console.log("  maxActivePosSide:  " + params.maxActivePositionsPerSide.toString());
+  console.log("  permResolveStale:  " + config.permissionlessResolveStaleSlots.toString() + " slots");
+  console.log("  LastCrankSlot:     " + engine.lastCrankSlot.toString());
+  console.log("  CurrentSlot:       " + engine.currentSlot.toString());
+  console.log("  cTot:              " + sol(engine.cTot).toFixed(6) + " SOL");
+  console.log("  Stranded:          " + sol(engine.vault - totalCapital - insurance).toFixed(6) + " SOL");
 }
 
-main().catch(console.error);
+main().catch(e => { console.error(e); process.exit(1); });
