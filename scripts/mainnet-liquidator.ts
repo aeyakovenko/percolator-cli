@@ -8,16 +8,15 @@
  * periods. The engine re-checks on-chain before liquidating, so a
  * false-positive candidate is a no-op there.
  *
- * Off-chain heuristic (conservative — may over-flag, never under-flag on
- * non-ADL'd accounts):
+ * Off-chain heuristic (matches engine §9.1 modulo ADL credits):
  *
- *   eq_approx   = capital + min(pnl, 0) - max(0, -fee_credits)    [drops positive
- *                                                                  matured_pnl
- *                                                                  which engine
- *                                                                  credits — can
- *                                                                  over-flag]
- *   notional    = |position_basis_q| * last_oracle_price / POS_SCALE(1_000_000)
- *   mm_req      = max(notional * mm_bps / 10000, min_nonzero_mm_req)
+ *   released_pnl = pnl - reserved_pnl            // engine's effective_matured_pnl
+ *                                                // for non-ADL'd accounts equals
+ *                                                // released positive PnL
+ *   eq_approx    = capital + min(pnl, 0) + max(0, released_pnl)
+ *                                              - max(0, -fee_credits)
+ *   notional     = |position_basis_q| * last_oracle_price / POS_SCALE(1_000_000)
+ *   mm_req       = max(notional * mm_bps / 10000, min_nonzero_mm_req)
  *   LIQUIDATABLE iff eq_approx <= mm_req
  *
  * If the off-chain check fires, submit `KeeperCrank` with up to 2
@@ -83,10 +82,12 @@ async function main() {
     const notional = (absPos * price) / POS_SCALE;
     const proportional = (notional * p.maintenanceMarginBps) / 10_000n;
     const mmReq = proportional > p.minNonzeroMmReq ? proportional : p.minNonzeroMmReq;
-    // eq_approx = capital + min(pnl, 0) - max(0, -fee_credits)
+    // eq_approx = capital + min(pnl, 0) + max(0, pnl - reservedPnl) - max(0, -fee_credits)
     const negPnl = a.pnl < 0n ? a.pnl : 0n;
+    const releasedPnl = a.pnl - a.reservedPnl;
+    const positiveReleased = releasedPnl > 0n ? releasedPnl : 0n;
     const feeDebt = a.feeCredits < 0n ? -a.feeCredits : 0n;
-    const eq = BigInt(a.capital) + negPnl - feeDebt;
+    const eq = BigInt(a.capital) + negPnl + positiveReleased - feeDebt;
     if (eq <= mmReq) cands.push({ idx: i, absPos, eq, mmReq });
   }
 
