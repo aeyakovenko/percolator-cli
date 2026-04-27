@@ -26,7 +26,8 @@
  * hung RPC doesn't pile up child processes the way the v1 mainnet hit.
  */
 
-import "dotenv/config";
+// Note: do NOT import "dotenv/config" — the repo's .env points at devnet.
+// This mainnet tick must NOT pick up a devnet URL from the .env file.
 import {
   Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction,
   ComputeBudgetProgram,
@@ -125,6 +126,30 @@ function diff(a: Snapshot, b: Snapshot): { flags: string[]; deltas: Record<strin
   return { flags, deltas };
 }
 
+function loadHeliusKey(): string | null {
+  const p = path.join(os.homedir(), ".helius");
+  if (!fs.existsSync(p)) return null;
+  return fs.readFileSync(p, "utf8").trim();
+}
+
+function pickRpc(): { rpc: string; label: string }[] {
+  // Primary: Helius (if key file present). Fallback: public mainnet.
+  // The tick script tries primary, then falls back per call on RPC error.
+  const out: { rpc: string; label: string }[] = [];
+  const key = loadHeliusKey();
+  if (key) out.push({ rpc: `https://mainnet.helius-rpc.com/?api-key=${key}`, label: "helius" });
+  out.push({ rpc: "https://api.mainnet-beta.solana.com", label: "public" });
+  // Allow explicit override via env (skips both — used for tests). Refuse
+  // any devnet URL since this tick is mainnet-only.
+  if (process.env.SOLANA_RPC_URL && process.env.SOLANA_RPC_URL !== "auto") {
+    if (/devnet|testnet/.test(process.env.SOLANA_RPC_URL)) {
+      throw new Error(`refusing devnet RPC for mainnet tick: ${process.env.SOLANA_RPC_URL}`);
+    }
+    return [{ rpc: process.env.SOLANA_RPC_URL, label: "env" }];
+  }
+  return out;
+}
+
 async function main() {
   const cwd = process.env.PERCOLATOR_DIR ?? path.dirname(new URL(import.meta.url).pathname);
   process.chdir(cwd);
@@ -134,8 +159,24 @@ async function main() {
   const vault = new PublicKey(m.vault);
   const oracle = new PublicKey(m.oracle);
 
-  const rpc = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
-  const conn = new Connection(rpc, "confirmed");
+  const rpcs = pickRpc();
+  // Try the first RPC; if it errors out building the connection / reading
+  // we'll log the failure and re-attempt with the next one. The crank tx
+  // itself is sent via whichever RPC produces a successful pre-snap.
+  let conn: Connection | null = null;
+  let rpcLabel = "";
+  for (const r of rpcs) {
+    try {
+      const c = new Connection(r.rpc, "confirmed");
+      // Cheap health probe: getLatestBlockhash. ~1 ms on Helius, ~50 ms public.
+      await c.getLatestBlockhash("processed");
+      conn = c;
+      rpcLabel = r.label;
+      break;
+    } catch (_) { /* try next */ }
+  }
+  if (!conn) throw new Error(`all RPCs failed: ${rpcs.map(r => r.label).join(",")}`);
+
   const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(
     fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8")
   )));
@@ -187,6 +228,7 @@ async function main() {
   log({
     iso: post.iso,
     slot: post.slot,
+    rpc: rpcLabel,
     marketSlotLag: post.marketSlotLag,
     crankSig: crankSig?.slice(0, 16) + "...",
     crankErr,

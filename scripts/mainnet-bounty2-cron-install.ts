@@ -39,13 +39,14 @@ if (!fs.existsSync(path.join(cliDir, "mainnet-bounty2-market.json"))) {
 
 const npx = which("npx");
 const timeoutBin = which("timeout"); // /usr/bin/timeout
-const rpcUrl = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 const logDir = path.join(os.homedir(), ".cache", "percolator");
 fs.mkdirSync(logDir, { recursive: true });
 const stderrLog = path.join(logDir, "bounty2-cron.stderr.log");
 
+// Don't pin SOLANA_RPC_URL — the tick auto-selects Helius (if ~/.helius
+// has a key) and falls back to mainnet-beta public RPC if Helius fails.
 const cronLine =
-  `* * * * * ${timeoutBin} 50 sh -c 'cd ${cliDir} && SOLANA_RPC_URL=${rpcUrl} PERCOLATOR_DIR=${cliDir} ${npx} tsx scripts/mainnet-bounty2-tick.ts >> ${stderrLog} 2>&1' ${TAG}`;
+  `* * * * * ${timeoutBin} 50 sh -c 'cd ${cliDir} && PERCOLATOR_DIR=${cliDir} ${npx} tsx scripts/mainnet-bounty2-tick.ts >> ${stderrLog} 2>&1' ${TAG}`;
 
 let existing = "";
 try {

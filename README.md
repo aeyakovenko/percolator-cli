@@ -46,20 +46,19 @@ Or use command-line flags:
 
 ## Mainnet Bounty 2 — `bounty_sol_20x_max`
 
-> **Status (2026-04-27, deploying):** fresh mainnet program at the spec
-> in [`percolator-stress/max_risk.md`](https://github.com/aeyakovenko/percolator-stress-test/blob/master/max_risk.md).
-> Runtime + verification metadata below; the slab pubkey is filled in
-> after `setup-mainnet-bounty2.ts` lands and is also recorded in
-> `mainnet-bounty2-market.json` at the repo root.
+> **Status (2026-04-27, LIVE):** all four market authorities + the program
+> upgrade authority are BURNED. The bounty pool is locked behind the
+> spec at [`percolator-stress/max_risk.md`](https://github.com/aeyakovenko/percolator-stress-test/blob/master/max_risk.md).
 
 ```
-Program:        (filled in after solana program deploy)
-Slab:           (filled in after setup-mainnet-bounty2.ts)
+Program:        6qWZvUtfyShbxTQkwjCayk3LuGqTGJwBo2QfkePK5jdJ  (upgrade authority BURNED)
+Slab:           CJKBStEn5VXEF9VNTChKKb5YW84MV7LycqMMziVuxJSc  (inverted SOL/USD, all 4 market auths BURNED)
 Oracle:         7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE  (Pyth SOL/USD PriceUpdateV2, sponsored shard 0)
 Feed ID:        ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d
-Vault ATA:      (filled in after setup)
+Vault ATA:      DVTjorxLQvdtoTmDarSHGBox4VCUPb9QQkDjz8mSUxor  (wrapped SOL, PDA-signed)
+Vault PDA:      FLnTKmFAtD3z3tTZj2Nyx52DRVwEzGz5ERwnPdK4ewR9
 Matcher:        (none — third parties provision their own)
-Insurance:      5 SOL seeded at deploy
+Insurance:      5 SOL seeded at deploy (≈$425 at SOL=$85)
 ```
 
 **Build provenance** (reproducible from `cargo build-sbf` on the pinned
