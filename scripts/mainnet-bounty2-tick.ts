@@ -113,10 +113,14 @@ function diff(a: Snapshot, b: Snapshot): { flags: string[]; deltas: Record<strin
     flags.push(`SIDE_MODE_NON_NORMAL(L=${b.sideModeLong},S=${b.sideModeShort})`);
   }
   if (b.priceMoveConsumed > 0n) {
-    deltas.priceMoveConsumed = b.priceMoveConsumed.toString();
-    // The threshold is per-market `admit_h_max_consumption_threshold`; bound
-    // operator-side as 80% of im (= 400 bps for 20x = 5% im) for early warn.
-    if (b.priceMoveConsumed > 400n) flags.push(`PRICE_MOVE_SAT(consumed=${b.priceMoveConsumed})`);
+    // Stored as `bps × PRICE_MOVE_CONSUMPTION_SCALE` (SCALE = 1e9), so
+    // divide by 1e9 to get bps. Threshold = 80% of im (= 400 bps for our
+    // 20x market with im=500 bps) — early warn before the engine flips
+    // fresh-PnL admission to slow-path at the spec's 500-bps trigger.
+    const SCALE = 1_000_000_000n;
+    const bps = b.priceMoveConsumed / SCALE;
+    deltas.priceMoveConsumedBps = bps.toString();
+    if (bps > 400n) flags.push(`PRICE_MOVE_SAT(consumed=${bps}bps)`);
   }
   if (!b.conservationOk) flags.push("CONSERVATION_BROKEN");
   if (!b.accountingOk) flags.push("ACCOUNTING_BROKEN");
