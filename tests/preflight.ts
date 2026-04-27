@@ -217,11 +217,10 @@ async function main() {
   section("2. Market Lifecycle");
 
   await check("InitMarket succeeds (slab=1525624 bytes)", async () => {
-    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "4", maxCrankStalenessSlots: "200", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: "0".repeat(64) }));
+    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "4", maxCrankStalenessSlots: "0", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: "0".repeat(64) }));
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, mint, vault,
-      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
-      vaultPda, WELL_KNOWN.systemProgram,
+      WELL_KNOWN.clock, vaultPda,
     ]);
     await tx([buildIx({ programId: PROG, keys, data })], [payer], 300_000);
   });
@@ -298,7 +297,6 @@ async function main() {
     await tx([buildIx({ programId: PROG,
       keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_PRICE_CAP, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock]),
       data })], [payer]);
-    assert(parseConfig(await fetchSlab(conn, slab.publicKey)).oraclePriceCapE2bps === 500000n, "cap");
     // Disable cap so cranks work with authority-only pricing (no stale Pyth dependency)
     await tx([buildIx({ programId: PROG,
       keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_PRICE_CAP, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock]),
@@ -890,13 +888,12 @@ async function main() {
   section("14. Error Handling");
 
   await check("Duplicate InitMarket rejected (AlreadyInitialized)", async () => {
-    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "4", maxCrankStalenessSlots: "200", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: "0".repeat(64) }));
+    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "4", maxCrankStalenessSlots: "0", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: "0".repeat(64) }));
     try {
       await tx([buildIx({ programId: PROG,
         keys: buildAccountMetas(ACCOUNTS_INIT_MARKET, [
           payer.publicKey, slab.publicKey, mint, vault,
-          WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
-          vaultPda, WELL_KNOWN.systemProgram,
+          WELL_KNOWN.clock, vaultPda,
         ]),
         data })], [payer]);
       throw new Error("should have failed");
@@ -958,11 +955,10 @@ async function main() {
   await sleep(DELAY);
 
   await check("Init Hyperp market (all-zeros feedId, mark=$100)", async () => {
-    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "20", maxCrankStalenessSlots: "200", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: ZERO_FEED }));
+    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "20", maxCrankStalenessSlots: "0", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: ZERO_FEED }));
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, hSlab.publicKey, mint, hVaultAcc.address,
-      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
-      hVaultPda, WELL_KNOWN.systemProgram,
+      WELL_KNOWN.clock, hVaultPda,
     ]);
     await tx([buildIx({ programId: PROG, keys, data })], [payer], 300_000);
   });
@@ -1134,7 +1130,6 @@ async function main() {
     const hBuf = await fetchSlab(conn, hSlab.publicKey);
     const hConfig = parseConfig(hBuf);
     const hEngine = parseEngine(hBuf);
-    console.log(`    After cranks: effectivePrice=${hConfig.lastEffectivePriceE6}, authPrice=${hConfig.hyperpMarkE6}, cap=${hConfig.oraclePriceCapE2bps}`);
     console.log(`    lastOraclePrice=${hEngine.lastOraclePrice}, lastMarketSlot=${hEngine.lastMarketSlot}`);
   });
 
@@ -1305,11 +1300,10 @@ async function main() {
   } else {
 
   await check("Init inverted Hyperp market (invert=1, mark=$100)", async () => {
-    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "2", maxCrankStalenessSlots: "200", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: ZERO_FEED }));
+    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "2", maxCrankStalenessSlots: "0", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: ZERO_FEED }));
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, iSlab!.publicKey, mint, iVaultAcc.address,
-      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
-      iVaultPda, WELL_KNOWN.systemProgram,
+      WELL_KNOWN.clock, iVaultPda,
     ]);
     await tx([buildIx({ programId: PROG, keys, data })], [payer], 300_000);
     const c = parseConfig(await fetchSlab(conn, iSlab!.publicKey));
@@ -1477,7 +1471,7 @@ async function main() {
   section("19. Unit Scale (offline)");
 
   await check("InitMarket encodes unitScale correctly", async () => {
-    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "2", maxCrankStalenessSlots: "200", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: ZERO_FEED }));
+    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "2", maxCrankStalenessSlots: "0", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: ZERO_FEED }));
     // unitScale is at offset: tag(1) + admin(32) + mint(32) + feed_id(32) + max_staleness(8) + conf_filter(2) + invert(1) = 108
     const encoded = data.readUInt32LE(108);
     assert(encoded === 1000, `unitScale encoded wrong: expected 1000, got ${encoded}`);
@@ -1485,7 +1479,7 @@ async function main() {
   });
 
   await check("InitMarket encodes unitScale=0 (default) correctly", async () => {
-    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "2", maxCrankStalenessSlots: "200", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: ZERO_FEED }));
+    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "2", maxCrankStalenessSlots: "0", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: ZERO_FEED }));
     const encoded = data.readUInt32LE(108);
     assert(encoded === 0, `unitScale=0 encoded wrong: got ${encoded}`);
   });
@@ -1855,7 +1849,7 @@ async function main() {
     const clFeedId = Buffer.from(CHAINLINK_SOL_USD.toBytes()).toString("hex");
     assert(clFeedId.length === 64, `feed ID hex length: ${clFeedId.length}`);
     // Verify encoding roundtrip
-    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "4", maxCrankStalenessSlots: "200", maintenanceFeePerSlot: "100", initialMarkPriceE6: "0", indexFeedId: clFeedId }));
+    const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "4", maxCrankStalenessSlots: "0", maintenanceFeePerSlot: "100", initialMarkPriceE6: "0", indexFeedId: clFeedId }));
     // Feed ID is at offset: tag(1) + admin(32) + mint(32) = 65, 32 bytes
     const encodedFeedId = data.subarray(65, 97).toString("hex");
     assert(encodedFeedId === clFeedId, `feed ID mismatch: ${encodedFeedId} vs ${clFeedId}`);

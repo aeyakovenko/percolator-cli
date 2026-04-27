@@ -142,7 +142,6 @@ async function main() {
     initialMarkPriceE6: INITIAL_MARK_PRICE.toString(), // Required for Hyperp
     maxMaintenanceFeePerSlot: "1000000000",  // Per-market admin limit
     maxInsuranceFloor: "10000000000000000", // Per-market admin limit (MAX_VAULT_TVL)
-    minOraclePriceCapE2bps: "0",             // No floor
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",
@@ -151,7 +150,6 @@ async function main() {
     newAccountFee: "1000000",
     insuranceFloor: "0",
     maintenanceFeePerSlot: "0",
-    maxCrankStalenessSlots: "200",
     liquidationFeeBps: "100",
     liquidationFeeCap: "1000000000",
     liquidationBufferBps: "50",
@@ -166,11 +164,8 @@ async function main() {
     slab.publicKey,
     mint,
     vault,
-    TOKEN_PROGRAM_ID,
     SYSVAR_CLOCK_PUBKEY,
-    SYSVAR_RENT_PUBKEY,
     vaultPda,
-    SystemProgram.programId,
   ]);
 
   const initTx = new Transaction();
@@ -311,7 +306,6 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
   console.log(`    Is Hyperp: ${isHyperp}`);
   console.log(`    Mark price: ${config.authorityPriceE6}`);
   console.log(`    Index price: ${config.lastEffectivePriceE6}`);
-  console.log(`    Oracle cap (e2bps): ${config.oraclePriceCapE2bps}`);
 
   // TEST 1: Create user and trade
   console.log("\n--- Test 1: Trading updates mark price ---");

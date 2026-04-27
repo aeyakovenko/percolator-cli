@@ -31,7 +31,6 @@ export function defaultInitMarketArgs(
     unitScale: 0,
     initialMarkPriceE6: "100000000", // $100
     maintenanceFeePerSlot: "0",
-    minOraclePriceCapE2bps: "0",
     hMin: "4",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",
@@ -39,13 +38,19 @@ export function defaultInitMarketArgs(
     maxAccounts: "64",
     newAccountFee: "0",
     hMax: "200",
-    maxCrankStalenessSlots: "10000",
+    // v12.21: ignored on chain (read+discarded). Send 0 placeholder.
+    maxCrankStalenessSlots: "0",
     liquidationFeeBps: "100",
     liquidationFeeCap: "1000000000",
     resolvePriceDeviationBps: "5000",
     minLiquidationAbs: "100000",
     minNonzeroMmReq: "100000",
     minNonzeroImReq: "200000",
+    // v12.21: per-slot price-move cap. Must be > 0; envelope:
+    //   max_price_move_bps_per_slot * MAX_ACCRUAL_DT_SLOTS(100) +
+    //   funding_part + liquidation_fee_bps <= maintenance_margin_bps
+    // 2 bps/slot * 100 = 200 bps headroom out of 500 bps MM.
+    maxPriceMoveBpsPerSlot: "2",
     // withdrawal disabled by default — tests that need it set both fields
     insuranceWithdrawMaxBps: 0,
     insuranceWithdrawCooldownSlots: "0",
@@ -139,12 +144,10 @@ export function prodInitMarketArgs(
     // For SOL-9 collateral set 250 (same $5/day target at SOL=$100).
     maintenanceFeePerSlot: "25",
 
-    // --- Per-market oracle floor ---
-    minOraclePriceCapE2bps:  "0",                // 0 = no floor; non-Hyperp must set this OR perm-resolve
-
     // --- Risk params ---
-    hMin:                    "1000",             // ~7 min warmup floor
-    hMax:                    "50000",            // ~5.5 hour warmup ceiling
+    // v12.21 §14.1: h_max <= permissionlessResolveStaleSlots <= 100.
+    hMin:                    "10",                // ~4 s warmup floor
+    hMax:                    "100",               // ~40 s warmup ceiling (= perm-resolve)
     maintenanceMarginBps:    "500",              // 5 % MM
     initialMarginBps:        "1000",             // 10 % IM → 10× max leverage
     tradingFeeBps:           "10",               // 0.1 %
@@ -154,13 +157,20 @@ export function prodInitMarketArgs(
     // min_initial_deposit floor so bot-farming opening/closing empty
     // accounts is uneconomic.
     newAccountFee:           "10000000",         // $10 in µUSDC
-    maxCrankStalenessSlots:  "500",              // ~3 min 20 s
+    // v12.21: discarded by wrapper but still on the wire. Send 0 placeholder.
+    maxCrankStalenessSlots:  "0",
     liquidationFeeBps:       "100",              // 1 % liquidation fee
     liquidationFeeCap:       "1000000000",       // $1 000 max per liquidation
     resolvePriceDeviationBps:"500",              // 5 % max settlement-price deviation
     minLiquidationAbs:       "1000000",          // $1 min liquidation size
     minNonzeroMmReq:         "100000",           // $0.10 min MM req
     minNonzeroImReq:         "200000",           // $0.20 min IM req
+    // v12.21: per-slot price-move cap. Solvency envelope (§1.4):
+    //   cap × 100 + funding_part + liq_fee_bps <= maintenance_margin_bps
+    // 2 bps/slot × 100 = 200 bps headroom out of 500 bps MM, leaves 200
+    // bps for liquidation_fee_bps + funding_part. Engine rejects accrue
+    // calls if observed price moves > cap × dt.
+    maxPriceMoveBpsPerSlot:  "2",
 
     // --- Extended tail ---
     // Insurance withdrawal: disabled by default. Set insurance_authority
@@ -168,11 +178,12 @@ export function prodInitMarketArgs(
     insuranceWithdrawMaxBps:         0,
     insuranceWithdrawCooldownSlots:  "0",
 
-    // Traders-are-rug-proof: even if admin key is lost, anyone can
-    // resolve after 11 h of oracle staleness, then force-close stuck
-    // positions 22 h after resolution.
-    permissionlessResolveStaleSlots: "100000",   // ~11 h (cap = max_accrual_dt_slots = 10 M in v12.18)
-    forceCloseDelaySlots:            "200000",   // ~22 h (cap = MAX_FORCE_CLOSE_DELAY_SLOTS = 10 M)
+    // v12.21 hard cap: permissionlessResolveStaleSlots <= MAX_ACCRUAL_DT_SLOTS = 100.
+    // 100 slots ≈ 40 sec at 400 ms/slot — far tighter than the prior 48 h window,
+    // because the wrapper now requires a crank every <100 slots OR the market
+    // becomes resolvable. Operationally: a continuous (sub-40s) cranker is required.
+    permissionlessResolveStaleSlots: "100",
+    forceCloseDelaySlots:            "200",      // 80 sec post-resolve before force-close
 
     // Funding — v12.18 API takes engine-native e9 (parts-per-billion per
     // slot), NOT bps. Engine global ceiling is 10_000 e9/slot (~0.22%/day

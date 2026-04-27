@@ -157,7 +157,6 @@ async function main() {
       maxAccounts: params.maxAccounts.toString(),
       newAccountFee: params.newAccountFee.toString(),
       maintenanceFeePerSlot: params.maintenanceFeePerSlot.toString(),
-      maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
       liquidationFeeBps: Number(params.liquidationFeeBps),
       liquidationFeePercent: Number(params.liquidationFeeBps) / 100,
       liquidationFeeCap: params.liquidationFeeCap.toString(),
@@ -172,18 +171,10 @@ async function main() {
         balanceSol: Number(engine.insuranceFund.balance) / 1e9,
       },
       currentSlot: engine.currentSlot.toString(),
-      fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
-      lastCrankSlot: engine.lastCrankSlot.toString(),
-      maxCrankStalenessSlots: engine.maxCrankStalenessSlots.toString(),
-      lastSweepStartSlot: engine.lastSweepStartSlot.toString(),
-      lastSweepCompleteSlot: engine.lastSweepCompleteSlot.toString(),
-      lifetimeLiquidations: Number(engine.lifetimeLiquidations),
+      lastMarketSlot: engine.lastMarketSlot.toString(),
+      rrCursorPosition: engine.rrCursorPosition.toString(),
+      sweepGeneration: engine.sweepGeneration.toString(),
       numUsedAccounts: engine.numUsedAccounts,
-    },
-
-    // Funding rate info (netLpPos, fundingIndexQpbE6, lastFundingSlot removed from engine)
-    funding: {
-      fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
     },
 
     accounts,

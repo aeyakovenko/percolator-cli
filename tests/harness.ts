@@ -439,7 +439,6 @@ export class TestHarness {
       unitScale,
       initialMarkPriceE6: "0",
       maintenanceFeePerSlot: "0",
-      minOraclePriceCapE2bps: "0",
       // RiskParams wire fields (v12.20: no minInitialDeposit, no insuranceFloor)
       hMin: "4",
       maintenanceMarginBps: "500",
@@ -448,7 +447,7 @@ export class TestHarness {
       maxAccounts: maxAccounts.toString(),
       newAccountFee: "0",
       hMax: "200",
-      maxCrankStalenessSlots: "200",
+      maxCrankStalenessSlots: "0",
       liquidationFeeBps: "100",
       liquidationFeeCap: "1000000000",
       resolvePriceDeviationBps: "5000",
@@ -472,11 +471,8 @@ export class TestHarness {
       slab.publicKey,        // slab
       mint,                  // mint
       vault,                 // vault
-      WELL_KNOWN.tokenProgram,
       WELL_KNOWN.clock,
-      WELL_KNOWN.rent,
-      vaultPda,              // dummyAta (unused, pass vault PDA)
-      WELL_KNOWN.systemProgram,
+      vaultPda,              // oracle placeholder for Hyperp tests
     ]);
 
     const initMarketIx = buildIx({
@@ -520,7 +516,7 @@ export class TestHarness {
 
   /**
    * Calculate required slab size for given max accounts.
-   * v12.20: HEADER(136) + CONFIG(400) + ENGINE(1525088) = 1525624.
+   * v12.20: HEADER(136) + CONFIG(384) + ENGINE(1525088) = 1525624.
    * The program enforces data.len() == SLAB_LEN exactly.
    */
   private calculateSlabSize(_maxAccounts: number): number {

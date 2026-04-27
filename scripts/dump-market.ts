@@ -192,7 +192,6 @@ async function main() {
       maxAccounts: params.maxAccounts.toString(),
       newAccountFee: { raw: params.newAccountFee.toString(), sol: sol(params.newAccountFee) },
       maintenanceFeePerSlot: { raw: params.maintenanceFeePerSlot.toString(), sol: sol(params.maintenanceFeePerSlot) },
-      maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
       liquidationFeeBps: Number(params.liquidationFeeBps),
       liquidationFeePercent: pct(params.liquidationFeeBps),
       liquidationFeeCap: { raw: params.liquidationFeeCap.toString(), sol: sol(params.liquidationFeeCap) },
@@ -209,22 +208,14 @@ async function main() {
 
       slots: {
         current: engine.currentSlot.toString(),
-        lastCrank: engine.lastCrankSlot.toString(),
-        maxCrankStaleness: engine.maxCrankStalenessSlots.toString(),
-        lastSweepStart: engine.lastSweepStartSlot.toString(),
-        lastSweepComplete: engine.lastSweepCompleteSlot.toString(),
-      },
-
-      funding: {
-        fundingRateBpsPerSlotLast: engine.fundingRateBpsPerSlotLast.toString(),
+        lastMarketSlot: engine.lastMarketSlot.toString(),
       },
 
       // totalOpenInterest, netLpPos, lpSumAbs removed from engine
 
       counters: {
-        lifetimeLiquidations: Number(engine.lifetimeLiquidations),
         numUsedAccounts: engine.numUsedAccounts,
-        nextAccountId: engine.nextAccountId.toString(),
+        materializedAccountCount: engine.materializedAccountCount.toString(),
       },
     },
 

@@ -27,7 +27,6 @@ export function registerSlabParams(program: Command): void {
               initialMarginBps: params.initialMarginBps.toString(),
               tradingFeeBps: params.tradingFeeBps.toString(),
               maxAccounts: params.maxAccounts.toString(),
-              maxCrankStalenessSlots: params.maxCrankStalenessSlots.toString(),
               liquidationFeeBps: params.liquidationFeeBps.toString(),
               liquidationFeeCap: params.liquidationFeeCap.toString(),
               minLiquidationAbs: params.minLiquidationAbs.toString(),
@@ -40,6 +39,7 @@ export function registerSlabParams(program: Command): void {
               maxAbsFundingE9PerSlot: params.maxAbsFundingE9PerSlot.toString(),
               minFundingLifetimeSlots: params.minFundingLifetimeSlots.toString(),
               maxActivePositionsPerSide: params.maxActivePositionsPerSide.toString(),
+              maxPriceMoveBpsPerSlot: params.maxPriceMoveBpsPerSlot.toString(),
             },
             null,
             2
@@ -60,9 +60,6 @@ export function registerSlabParams(program: Command): void {
         console.log(`Liquidation Fee Cap:     ${params.liquidationFeeCap}`);
         console.log(`Min Liquidation Abs:     ${params.minLiquidationAbs}`);
         console.log("");
-        console.log("--- Deposits ---");
-        console.log(`Max Crank Staleness:     ${params.maxCrankStalenessSlots} slots`);
-        console.log("");
         console.log("--- Capacity ---");
         console.log(`Max Accounts:            ${params.maxAccounts}`);
         console.log(`Max Active Per Side:     ${params.maxActivePositionsPerSide}`);
@@ -78,6 +75,9 @@ export function registerSlabParams(program: Command): void {
         console.log(`Max Accrual dt:          ${params.maxAccrualDtSlots} slots`);
         console.log(`Max |Rate| e9/slot:      ${params.maxAbsFundingE9PerSlot}`);
         console.log(`Min Funding Lifetime:    ${params.minFundingLifetimeSlots} slots`);
+        console.log("");
+        console.log("--- Price-Move Envelope (v12.21+) ---");
+        console.log(`Max Price Move:          ${params.maxPriceMoveBpsPerSlot} bps/slot`);
       }
     });
 }

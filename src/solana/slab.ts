@@ -2,25 +2,33 @@ import { Connection, PublicKey } from "@solana/web3.js";
 
 // =============================================================================
 // Constants — BPF layout (u128/i128 have 8-byte alignment, not 16)
-// v12.20+: SlabHeader shrank back to 136 bytes (close_authority removed;
-//          kept admin + insurance_authority + insurance_operator).
-//          RiskParams shrank to 168 bytes (min_initial_deposit removed).
-//          Engine layout shifts by -16 from params shrinkage.
+// v12.21+: MarketConfig shrank to 384 bytes
+//          - removed `oracle_price_cap_e2bps` and `min_oracle_price_cap_e2bps`
+//          - added `oracle_target_price_e6` + `oracle_target_publish_time`
+//          - replaced `_iw_padding[4]` with `insurance_withdraw_deposits_only:u8 + _iw_padding[3]`
+//          - replaced `_pad_obsolete_stale_slot:u64` with `insurance_withdraw_deposit_remaining:u64`
+//          → CONFIG_LEN: 400 → 384, ENGINE_OFF: 536 → 520
+//          v12.21 also grew ENGINE_LEN by +16 bytes (touched_count u8→u16, h_max_sticky_*
+//          rewritten as a 4096-bit bitmap, new admit_h_max_consumption_threshold field).
+//          Net: SLAB_LEN stays at 1_525_624 — config shrink and engine growth cancel.
+//          RiskParams: removed `max_crank_staleness_slots` (still on wire as 8 zero bytes for
+//          backward-compat read+discard), added `max_price_move_bps_per_slot` at the end.
+//          PARAMS_SIZE stays 168 (one u64 swap).
 //
 // Layout summary (MAX_ACCOUNTS=4096, BPF):
-//   SLAB_LEN      = 1_525_624
+//   SLAB_LEN      = 1_525_624     (UNCHANGED from v12.20)
 //   HEADER_LEN    = 136          (admin + insurance_auth + insurance_operator)
-//   CONFIG_LEN    = 400
-//   ENGINE_OFF    = 536          = align_up(136 + 400, 8)
+//   CONFIG_LEN    = 384
+//   ENGINE_OFF    = 520          = align_up(136 + 384, 8)
 //   PARAMS_SIZE   = 168
-//   ENGINE_LEN    = 1_492_160
+//   ENGINE_LEN    = 1_492_176    (grew by +16 vs v12.20)
 //   RISK_BUF_LEN  = 160
 //   GEN_TABLE_LEN = 32_768       (MAX_ACCOUNTS * 8)
 // =============================================================================
 const MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
 const HEADER_LEN = 136;
 const CONFIG_OFFSET = HEADER_LEN;
-const CONFIG_LEN = 400;
+const CONFIG_LEN = 384;
 const RESERVED_OFF = 48;             // nonce at [0..8], mat_counter at [8..16]
 
 // Flag bits in header._padding[0] at offset 13
@@ -46,11 +54,14 @@ export interface SlabHeader {
 }
 
 /**
- * MarketConfig (400 bytes, v12.20+).
- * Renames from prior: oracle_authority → hyperp_authority,
- * authority_price_e6 → hyperp_mark_e6, authority_timestamp → last_oracle_publish_time.
- * Fields removed: max_insurance_floor.
- * Fields added: new_account_fee (u128 at end).
+ * MarketConfig (384 bytes, v12.21+).
+ * v12.21 changes:
+ *   - removed `oracle_price_cap_e2bps` + `min_oracle_price_cap_e2bps` (16 bytes total)
+ *   - added `oracle_target_price_e6` + `oracle_target_publish_time` (16 bytes total)
+ *   - added `insurance_withdraw_deposits_only:u8` flag
+ *   - repurposed obsolete pad slot as `insurance_withdraw_deposit_remaining:u64`
+ *
+ * Net: same engine offsets minus 16 bytes for the removed oracle-cap fields.
  */
 export interface MarketConfig {
   collateralMint: PublicKey;
@@ -65,18 +76,20 @@ export interface MarketConfig {
   fundingKBps: bigint;
   fundingMaxPremiumBps: bigint;        // i64
   fundingMaxE9PerSlot: bigint;         // i64
-  hyperpAuthority: PublicKey;          // was oracleAuthority
-  hyperpMarkE6: bigint;                // was authorityPriceE6
-  lastOraclePublishTime: bigint;       // was authorityTimestamp (now Pyth publish_time)
-  oraclePriceCapE2bps: bigint;
-  lastEffectivePriceE6: bigint;
-  minOraclePriceCapE2bps: bigint;
-  insuranceWithdrawMaxBps: number;
+  hyperpAuthority: PublicKey;
+  hyperpMarkE6: bigint;
+  lastOraclePublishTime: bigint;       // i64
+  lastEffectivePriceE6: bigint;        // dt-capped staircase
+  insuranceWithdrawMaxBps: number;     // u16 — top bit (0x8000) is the deposits-only flag (v12.21+)
   tvlInsuranceCapMult: number;
+  insuranceWithdrawDepositsOnly: number; // u8 (v12.21)
   insuranceWithdrawCooldownSlots: bigint;
+  oracleTargetPriceE6: bigint;         // u64 (v12.21) — raw external oracle target in engine-space e6
+  oracleTargetPublishTime: bigint;     // i64 (v12.21)
   lastHyperpIndexSlot: bigint;
   lastMarkPushSlot: bigint;
   lastInsuranceWithdrawSlot: bigint;
+  insuranceWithdrawDepositRemaining: bigint; // u64 (v12.21) — repurposed obsolete pad
   markEwmaE6: bigint;
   markEwmaLastSlot: bigint;
   markEwmaHalflifeSlots: bigint;
@@ -88,7 +101,7 @@ export interface MarketConfig {
   feeSweepCursorBit: bigint;
   markMinFee: bigint;
   forceCloseDelaySlots: bigint;
-  newAccountFee: bigint;               // u128, new — insurance-destined init fee
+  newAccountFee: bigint;               // u128
 }
 
 export async function fetchSlab(connection: Connection, slabPubkey: PublicKey): Promise<Buffer> {
@@ -139,18 +152,18 @@ export function parseConfig(data: Buffer): MarketConfig {
   const hyperpAuthority = new PublicKey(data.subarray(off, off + 32));        off += 32;
   const hyperpMarkE6 = data.readBigUInt64LE(off);                             off += 8;
   const lastOraclePublishTime = data.readBigInt64LE(off);                     off += 8;
-  const oraclePriceCapE2bps = data.readBigUInt64LE(off);                      off += 8;
   const lastEffectivePriceE6 = data.readBigUInt64LE(off);                     off += 8;
-  const minOraclePriceCapE2bps = data.readBigUInt64LE(off);                   off += 8;
   const insuranceWithdrawMaxBps = data.readUInt16LE(off);                     off += 2;
   const tvlInsuranceCapMult = data.readUInt16LE(off);                         off += 2;
-  off += 4; // _iw_padding[4]
+  const insuranceWithdrawDepositsOnly = data.readUInt8(off);                  off += 1;
+  off += 3; // _iw_padding[3]
   const insuranceWithdrawCooldownSlots = data.readBigUInt64LE(off);           off += 8;
-  off += 16; // _iw_padding2 [u64; 2]
+  const oracleTargetPriceE6 = data.readBigUInt64LE(off);                      off += 8;
+  const oracleTargetPublishTime = data.readBigInt64LE(off);                   off += 8;
   const lastHyperpIndexSlot = data.readBigUInt64LE(off);                      off += 8;
   const lastMarkPushSlot = readU128LE(data, off);                             off += 16;
   const lastInsuranceWithdrawSlot = data.readBigUInt64LE(off);                off += 8;
-  off += 8; // _pad_obsolete_stale_slot (formerly first_observed_stale_slot)
+  const insuranceWithdrawDepositRemaining = data.readBigUInt64LE(off);        off += 8;
   const markEwmaE6 = data.readBigUInt64LE(off);                               off += 8;
   const markEwmaLastSlot = data.readBigUInt64LE(off);                         off += 8;
   const markEwmaHalflifeSlots = data.readBigUInt64LE(off);                    off += 8;
@@ -169,9 +182,12 @@ export function parseConfig(data: Buffer): MarketConfig {
     maxStalenessSecs, confFilterBps, vaultAuthorityBump, invert, unitScale,
     fundingHorizonSlots, fundingKBps, fundingMaxPremiumBps, fundingMaxE9PerSlot,
     hyperpAuthority, hyperpMarkE6, lastOraclePublishTime,
-    oraclePriceCapE2bps, lastEffectivePriceE6, minOraclePriceCapE2bps,
-    insuranceWithdrawMaxBps, tvlInsuranceCapMult, insuranceWithdrawCooldownSlots,
+    lastEffectivePriceE6,
+    insuranceWithdrawMaxBps, tvlInsuranceCapMult, insuranceWithdrawDepositsOnly,
+    insuranceWithdrawCooldownSlots,
+    oracleTargetPriceE6, oracleTargetPublishTime,
     lastHyperpIndexSlot, lastMarkPushSlot, lastInsuranceWithdrawSlot,
+    insuranceWithdrawDepositRemaining,
     markEwmaE6, markEwmaLastSlot, markEwmaHalflifeSlots, initRestartSlot,
     permissionlessResolveStaleSlots, lastGoodOracleSlot,
     maintenanceFeePerSlot, feeSweepCursorWord, feeSweepCursorBit,
@@ -190,25 +206,30 @@ export function readMatCounter(data: Buffer): bigint {
 }
 
 // =============================================================================
-// RiskParams Layout (168 bytes, BPF 8-byte alignment; v12.20+ — no min_initial_deposit)
+// RiskParams Layout (168 bytes, BPF 8-byte alignment; v12.21+).
+// Changes from v12.20:
+//   - removed `max_crank_staleness_slots` (u64) from in-memory storage
+//     (still present on the wire for backward-compat — read+discarded)
+//   - added `max_price_move_bps_per_slot` (u64) at the end
+// Net struct size unchanged at 168.
 // =============================================================================
 const PARAMS_MAINTENANCE_MARGIN_OFF = 0;
 const PARAMS_INITIAL_MARGIN_OFF = 8;
 const PARAMS_TRADING_FEE_OFF = 16;
 const PARAMS_MAX_ACCOUNTS_OFF = 24;
-const PARAMS_MAX_CRANK_STALENESS_OFF = 32;
-const PARAMS_LIQUIDATION_FEE_BPS_OFF = 40;
-const PARAMS_LIQUIDATION_FEE_CAP_OFF = 48;     // U128
-const PARAMS_MIN_LIQUIDATION_OFF = 64;         // U128
-const PARAMS_MIN_NONZERO_MM_REQ_OFF = 80;      // u128
-const PARAMS_MIN_NONZERO_IM_REQ_OFF = 96;      // u128
-const PARAMS_H_MIN_OFF = 112;
-const PARAMS_H_MAX_OFF = 120;
-const PARAMS_RESOLVE_PRICE_DEVIATION_OFF = 128;
-const PARAMS_MAX_ACCRUAL_DT_OFF = 136;
-const PARAMS_MAX_ABS_FUNDING_OFF = 144;
-const PARAMS_MIN_FUNDING_LIFETIME_OFF = 152;
-const PARAMS_MAX_ACTIVE_POSITIONS_OFF = 160;
+const PARAMS_LIQUIDATION_FEE_BPS_OFF = 32;     // was 40 (max_crank_staleness removed)
+const PARAMS_LIQUIDATION_FEE_CAP_OFF = 40;     // U128 (8-byte aligned on BPF)
+const PARAMS_MIN_LIQUIDATION_OFF = 56;         // U128
+const PARAMS_MIN_NONZERO_MM_REQ_OFF = 72;      // u128
+const PARAMS_MIN_NONZERO_IM_REQ_OFF = 88;      // u128
+const PARAMS_H_MIN_OFF = 104;
+const PARAMS_H_MAX_OFF = 112;
+const PARAMS_RESOLVE_PRICE_DEVIATION_OFF = 120;
+const PARAMS_MAX_ACCRUAL_DT_OFF = 128;
+const PARAMS_MAX_ABS_FUNDING_OFF = 136;
+const PARAMS_MIN_FUNDING_LIFETIME_OFF = 144;
+const PARAMS_MAX_ACTIVE_POSITIONS_OFF = 152;
+const PARAMS_MAX_PRICE_MOVE_OFF = 160;          // u64 (v12.21+)
 const PARAMS_SIZE = 168;
 
 // =============================================================================
@@ -242,11 +263,15 @@ const ACCT_PENDING_CREATED_SLOT_OFF = 352;
 const ACCOUNT_SIZE = 360;
 
 // =============================================================================
-// RiskEngine Layout (BPF). ENGINE_OFF = 536.
-// All offsets below are RELATIVE to ENGINE_OFF.
-// Shift from v12.19: -16 from params shrinkage (min_initial_deposit removed).
+// RiskEngine Layout (BPF). ENGINE_OFF = 520 (v12.21+, was 536).
+// v12.21 engine struct changes (relative to v12.20):
+//   - REMOVED: last_crank_slot (u64), gc_cursor + dead fields (-16 bytes total)
+//   - ADDED:   rr_cursor_position (u64), sweep_generation (u64),
+//              price_move_consumed_bps_this_generation (u128) (+32 bytes total)
+//   - Net: +16 bytes after materialized_account_count, shifting all fields
+//     from last_oracle_price onward by +16.
 // =============================================================================
-const ENGINE_OFF = 536;
+const ENGINE_OFF = 520;
 
 const ENGINE_VAULT_OFF = 0;
 const ENGINE_INSURANCE_OFF = 16;
@@ -261,39 +286,42 @@ const ENGINE_RESOLVED_PAYOUT_READY_OFF = 264;
 const ENGINE_RESOLVED_K_LONG_TERMINAL_OFF = 272;
 const ENGINE_RESOLVED_K_SHORT_TERMINAL_OFF = 288;
 const ENGINE_RESOLVED_LIVE_PRICE_OFF = 304;
-const ENGINE_LAST_CRANK_SLOT_OFF = 312;
-const ENGINE_C_TOT_OFF = 320;
-const ENGINE_PNL_POS_TOT_OFF = 336;
-const ENGINE_PNL_MATURED_POS_TOT_OFF = 352;
-const ENGINE_GC_CURSOR_OFF = 368;
-const ENGINE_ADL_MULT_LONG_OFF = 376;
-const ENGINE_ADL_MULT_SHORT_OFF = 392;
-const ENGINE_ADL_COEFF_LONG_OFF = 408;
-const ENGINE_ADL_COEFF_SHORT_OFF = 424;
-const ENGINE_ADL_EPOCH_LONG_OFF = 440;
-const ENGINE_ADL_EPOCH_SHORT_OFF = 448;
-const ENGINE_ADL_EPOCH_START_K_LONG_OFF = 456;
-const ENGINE_ADL_EPOCH_START_K_SHORT_OFF = 472;
-const ENGINE_OI_EFF_LONG_Q_OFF = 488;
-const ENGINE_OI_EFF_SHORT_Q_OFF = 504;
-const ENGINE_SIDE_MODE_LONG_OFF = 520;
-const ENGINE_SIDE_MODE_SHORT_OFF = 521;
-const ENGINE_STORED_POS_COUNT_LONG_OFF = 528;
-const ENGINE_STORED_POS_COUNT_SHORT_OFF = 536;
-const ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF = 544;
-const ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF = 552;
-const ENGINE_PHANTOM_DUST_LONG_OFF = 560;
-const ENGINE_PHANTOM_DUST_SHORT_OFF = 576;
-const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 592;
-const ENGINE_NEG_PNL_ACCOUNT_COUNT_OFF = 600;
-const ENGINE_LAST_ORACLE_PRICE_OFF = 608;
-const ENGINE_FUND_PX_LAST_OFF = 616;
-const ENGINE_LAST_MARKET_SLOT_OFF = 624;
-const ENGINE_F_LONG_NUM_OFF = 632;
-const ENGINE_F_SHORT_NUM_OFF = 648;
-const ENGINE_F_EPOCH_START_LONG_NUM_OFF = 664;
-const ENGINE_F_EPOCH_START_SHORT_NUM_OFF = 680;
-const ENGINE_BITMAP_OFF = 696;                        // bitmap start — MA-independent
+// last_crank_slot REMOVED (was at 312)
+const ENGINE_C_TOT_OFF = 312;
+const ENGINE_PNL_POS_TOT_OFF = 328;
+const ENGINE_PNL_MATURED_POS_TOT_OFF = 344;
+// gc_cursor + 7 bytes pad REMOVED (was 368-376)
+const ENGINE_ADL_MULT_LONG_OFF = 360;
+const ENGINE_ADL_MULT_SHORT_OFF = 376;
+const ENGINE_ADL_COEFF_LONG_OFF = 392;
+const ENGINE_ADL_COEFF_SHORT_OFF = 408;
+const ENGINE_ADL_EPOCH_LONG_OFF = 424;
+const ENGINE_ADL_EPOCH_SHORT_OFF = 432;
+const ENGINE_ADL_EPOCH_START_K_LONG_OFF = 440;
+const ENGINE_ADL_EPOCH_START_K_SHORT_OFF = 456;
+const ENGINE_OI_EFF_LONG_Q_OFF = 472;
+const ENGINE_OI_EFF_SHORT_Q_OFF = 488;
+const ENGINE_SIDE_MODE_LONG_OFF = 504;
+const ENGINE_SIDE_MODE_SHORT_OFF = 505;
+const ENGINE_STORED_POS_COUNT_LONG_OFF = 512;
+const ENGINE_STORED_POS_COUNT_SHORT_OFF = 520;
+const ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF = 528;
+const ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF = 536;
+const ENGINE_PHANTOM_DUST_LONG_OFF = 544;
+const ENGINE_PHANTOM_DUST_SHORT_OFF = 560;
+const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 576;
+const ENGINE_NEG_PNL_ACCOUNT_COUNT_OFF = 584;
+const ENGINE_RR_CURSOR_POSITION_OFF = 592;            // v12.21 new
+const ENGINE_SWEEP_GENERATION_OFF = 600;              // v12.21 new
+const ENGINE_PRICE_MOVE_CONSUMED_OFF = 608;           // v12.21 new (u128)
+const ENGINE_LAST_ORACLE_PRICE_OFF = 624;
+const ENGINE_FUND_PX_LAST_OFF = 632;
+const ENGINE_LAST_MARKET_SLOT_OFF = 640;
+const ENGINE_F_LONG_NUM_OFF = 648;
+const ENGINE_F_SHORT_NUM_OFF = 664;
+const ENGINE_F_EPOCH_START_LONG_NUM_OFF = 680;
+const ENGINE_F_EPOCH_START_SHORT_NUM_OFF = 696;
+const ENGINE_BITMAP_OFF = 712;                        // bitmap start (v12.21)
 
 // =============================================================================
 // Interfaces
@@ -308,7 +336,6 @@ export interface RiskParams {
   initialMarginBps: bigint;
   tradingFeeBps: bigint;
   maxAccounts: bigint;
-  maxCrankStalenessSlots: bigint;
   liquidationFeeBps: bigint;
   liquidationFeeCap: bigint;
   minLiquidationAbs: bigint;
@@ -321,6 +348,7 @@ export interface RiskParams {
   maxAbsFundingE9PerSlot: bigint;
   minFundingLifetimeSlots: bigint;
   maxActivePositionsPerSide: bigint;
+  maxPriceMoveBpsPerSlot: bigint;       // v12.21+
 }
 
 export enum SideMode { Normal = 0, DrainOnly = 1, ResetPending = 2 }
@@ -339,11 +367,9 @@ export interface EngineState {
   resolvedKLongTerminalDelta: bigint;
   resolvedKShortTerminalDelta: bigint;
   resolvedLivePrice: bigint;
-  lastCrankSlot: bigint;
   cTot: bigint;
   pnlPosTot: bigint;
   pnlMaturedPosTot: bigint;
-  gcCursor: number;
   adlMultLong: bigint;
   adlMultShort: bigint;
   adlCoeffLong: bigint;
@@ -364,6 +390,9 @@ export interface EngineState {
   phantomDustBoundShortQ: bigint;
   materializedAccountCount: bigint;
   negPnlAccountCount: bigint;
+  rrCursorPosition: bigint;             // v12.21
+  sweepGeneration: bigint;              // v12.21
+  priceMoveConsumedBpsThisGeneration: bigint;  // v12.21 (u128)
   lastOraclePrice: bigint;
   fundPxLast: bigint;
   lastMarketSlot: bigint;
@@ -472,7 +501,6 @@ export function parseParams(data: Buffer): RiskParams {
     initialMarginBps: data.readBigUInt64LE(base + PARAMS_INITIAL_MARGIN_OFF),
     tradingFeeBps: data.readBigUInt64LE(base + PARAMS_TRADING_FEE_OFF),
     maxAccounts: data.readBigUInt64LE(base + PARAMS_MAX_ACCOUNTS_OFF),
-    maxCrankStalenessSlots: data.readBigUInt64LE(base + PARAMS_MAX_CRANK_STALENESS_OFF),
     liquidationFeeBps: data.readBigUInt64LE(base + PARAMS_LIQUIDATION_FEE_BPS_OFF),
     liquidationFeeCap: readU128LE(data, base + PARAMS_LIQUIDATION_FEE_CAP_OFF),
     minLiquidationAbs: readU128LE(data, base + PARAMS_MIN_LIQUIDATION_OFF),
@@ -485,6 +513,7 @@ export function parseParams(data: Buffer): RiskParams {
     maxAbsFundingE9PerSlot: data.readBigUInt64LE(base + PARAMS_MAX_ABS_FUNDING_OFF),
     minFundingLifetimeSlots: data.readBigUInt64LE(base + PARAMS_MIN_FUNDING_LIFETIME_OFF),
     maxActivePositionsPerSide: data.readBigUInt64LE(base + PARAMS_MAX_ACTIVE_POSITIONS_OFF),
+    maxPriceMoveBpsPerSlot: data.readBigUInt64LE(base + PARAMS_MAX_PRICE_MOVE_OFF),
   };
 }
 
@@ -505,11 +534,9 @@ export function parseEngine(data: Buffer): EngineState {
     resolvedKLongTerminalDelta: readI128LE(data, base + ENGINE_RESOLVED_K_LONG_TERMINAL_OFF),
     resolvedKShortTerminalDelta: readI128LE(data, base + ENGINE_RESOLVED_K_SHORT_TERMINAL_OFF),
     resolvedLivePrice: data.readBigUInt64LE(base + ENGINE_RESOLVED_LIVE_PRICE_OFF),
-    lastCrankSlot: data.readBigUInt64LE(base + ENGINE_LAST_CRANK_SLOT_OFF),
     cTot: readU128LE(data, base + ENGINE_C_TOT_OFF),
     pnlPosTot: readU128LE(data, base + ENGINE_PNL_POS_TOT_OFF),
     pnlMaturedPosTot: readU128LE(data, base + ENGINE_PNL_MATURED_POS_TOT_OFF),
-    gcCursor: data.readUInt16LE(base + ENGINE_GC_CURSOR_OFF),
     adlMultLong: readU128LE(data, base + ENGINE_ADL_MULT_LONG_OFF),
     adlMultShort: readU128LE(data, base + ENGINE_ADL_MULT_SHORT_OFF),
     adlCoeffLong: readI128LE(data, base + ENGINE_ADL_COEFF_LONG_OFF),
@@ -530,6 +557,9 @@ export function parseEngine(data: Buffer): EngineState {
     phantomDustBoundShortQ: readU128LE(data, base + ENGINE_PHANTOM_DUST_SHORT_OFF),
     materializedAccountCount: data.readBigUInt64LE(base + ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF),
     negPnlAccountCount: data.readBigUInt64LE(base + ENGINE_NEG_PNL_ACCOUNT_COUNT_OFF),
+    rrCursorPosition: data.readBigUInt64LE(base + ENGINE_RR_CURSOR_POSITION_OFF),
+    sweepGeneration: data.readBigUInt64LE(base + ENGINE_SWEEP_GENERATION_OFF),
+    priceMoveConsumedBpsThisGeneration: readU128LE(data, base + ENGINE_PRICE_MOVE_CONSUMED_OFF),
     lastOraclePrice: data.readBigUInt64LE(base + ENGINE_LAST_ORACLE_PRICE_OFF),
     fundPxLast: data.readBigUInt64LE(base + ENGINE_FUND_PX_LAST_OFF),
     lastMarketSlot: data.readBigUInt64LE(base + ENGINE_LAST_MARKET_SLOT_OFF),

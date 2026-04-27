@@ -153,8 +153,9 @@ async function main() {
     invert:               1,
     // Chainlink heartbeat is ~seconds on devnet; 60 s cushion is generous
     maxStalenessSecs:     "60",
-    // Chainlink has no confidence interval, so confFilter is unused on this path
-    confFilterBps:        0,
+    // Chainlink has no confidence interval, so confFilter is unused. v12.21
+    // requires confFilterBps in [50, 1000]; pick the floor as a no-op value.
+    confFilterBps:        50,
     // $5/day target for SOL-9 collateral: 270 lamports/slot × 216 000 = 58.3 M/day
     maintenanceFeePerSlot: "270",
     // Leverage: 5× (20% IM / 10% MM)
@@ -163,17 +164,22 @@ async function main() {
     // SOL-denominated minimums (~$10 at SOL=$85 is 0.118 SOL)
     // v12.20: min_initial_deposit is gone; the dust gate is now the
     // insurance-destined new_account_fee charged on every InitUser.
+    // v12.21 §1.4 envelope: at the floor account size, worst-case liq fee
+    // must fit within the MM floor. Keep minLiquidationAbs ≪ minNonzeroMmReq.
     newAccountFee:        "118000000",    // 0.118 SOL ≈ $10 into insurance per account
-    minNonzeroMmReq:      "1200000",      // 0.0012 SOL
-    minNonzeroImReq:      "2400000",      // 0.0024 SOL
+    minNonzeroMmReq:      "10000000",     // 0.01 SOL — covers liq-fee floor (1M) with headroom
+    minNonzeroImReq:      "20000000",     // 0.02 SOL (2× MM)
     liquidationFeeCap:    "11700000000",  // 11.7 SOL cap ≈ $1 000 max
-    minLiquidationAbs:    "11700000",     // 0.0117 SOL ≈ $1 min
-    // 48-hour auto-shutdown on oracle stale or cluster restart
-    permissionlessResolveStaleSlots: "432000",  // 48 h
-    forceCloseDelaySlots:            "432000",  // 48 h
-    maxCrankStalenessSlots:          "20000",   // ~2 h 13 min (tolerate 2 missed hourly cranks)
-    hMin:                            "5000",    // ~33 min warmup floor
-    hMax:                            "100000",  // ~11 h warmup ceiling (≤ perm-resolve)
+    minLiquidationAbs:    "1000000",      // 0.001 SOL — small floor so envelope holds
+    // v12.21: hard cap permissionlessResolveStaleSlots <= MAX_ACCRUAL_DT_SLOTS = 100.
+    // 100 slots ≈ 40 sec — operationally requires a continuous (sub-40s) cranker.
+    // The §14.1 invariant also forces h_max <= perm_resolve, so warmup ceilings
+    // collapse to ≤ 40 s.
+    permissionlessResolveStaleSlots: "100",
+    forceCloseDelaySlots:            "200",
+    maxCrankStalenessSlots:          "0",   // v12.21 read+discard
+    hMin:                            "10",    // ~4 s warmup floor
+    hMax:                            "100",   // ~40 s warmup ceiling (= perm-resolve)
     // v12.20 removed max_insurance_floor — no admin-side cap to seed.
     // Insurance-operator path stays live at init with a per-call cap; burned after.
     insuranceWithdrawMaxBps:         100,       // 1% per tx (soft-rate-limited via operator before burn)
@@ -182,9 +188,7 @@ async function main() {
   {
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, NATIVE_MINT, vaultAcc.address,
-      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
-      CHAINLINK_SOL_USD,                // accounts[7] = oracle (Chainlink)
-      WELL_KNOWN.systemProgram,
+      WELL_KNOWN.clock, CHAINLINK_SOL_USD,
     ]);
     const t = new Transaction()
       .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }))

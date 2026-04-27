@@ -22,22 +22,21 @@ export interface AccountSpec {
 // ============================================================================
 
 /**
- * InitMarket: 9 accounts.
- * Slot 7 (`oracle`) is the Pyth/Chainlink index feed for non-Hyperp markets;
- * for Hyperp markets (all-zero feed_id) it is unread and any key is accepted.
- * Slots 4 (tokenProgram), 6 (rent), 8 (systemProgram) are not referenced by
- * the wrapper but must be present to pass `expect_len(accounts, 9)`.
+ * InitMarket: 6 accounts (v12.21+; was 9).
+ *   [0] admin   — signer; must equal `args.admin`
+ *   [1] slab    — writable; sized exactly SLAB_LEN
+ *   [2] mint    — SPL Token mint, must equal `args.collateral_mint`
+ *   [3] vault   — SPL token account at the vault PDA
+ *   [4] clock   — Clock sysvar
+ *   [5] oracle  — Pyth/Chainlink index feed (unread for Hyperp markets)
  */
 export const ACCOUNTS_INIT_MARKET: readonly AccountSpec[] = [
   { name: "admin", signer: true, writable: false },
   { name: "slab", signer: false, writable: true },
   { name: "mint", signer: false, writable: false },
   { name: "vault", signer: false, writable: false },
-  { name: "tokenProgram", signer: false, writable: false },
   { name: "clock", signer: false, writable: false },
-  { name: "rent", signer: false, writable: false },
   { name: "oracle", signer: false, writable: false },
-  { name: "systemProgram", signer: false, writable: false },
 ] as const;
 
 /**
@@ -226,15 +225,7 @@ export const ACCOUNTS_SET_ORACLE_AUTHORITY: readonly AccountSpec[] = [
   { name: "slab", signer: false, writable: true },
 ] as const;
 
-/**
- * SetOraclePriceCap: 3 accounts
- * Set circuit-breaker cap for oracle price changes (admin only)
- */
-export const ACCOUNTS_SET_ORACLE_PRICE_CAP: readonly AccountSpec[] = [
-  { name: "admin", signer: true, writable: false },
-  { name: "slab", signer: false, writable: true },
-  { name: "clock", signer: false, writable: false },
-] as const;
+// SetOraclePriceCap (tag 18) was deleted in v12.21 — no account spec.
 
 /**
  * PushOraclePrice: 2 accounts

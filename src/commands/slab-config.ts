@@ -34,7 +34,10 @@ export function registerSlabConfig(program: Command): void {
               invert: mktConfig.invert,
               unitScale: mktConfig.unitScale,
               maintenanceFeePerSlot: mktConfig.maintenanceFeePerSlot.toString(),
-              minOraclePriceCapE2bps: mktConfig.minOraclePriceCapE2bps.toString(),
+              oracleTargetPriceE6: mktConfig.oracleTargetPriceE6.toString(),
+              oracleTargetPublishTime: mktConfig.oracleTargetPublishTime.toString(),
+              insuranceWithdrawDepositsOnly: mktConfig.insuranceWithdrawDepositsOnly,
+              insuranceWithdrawDepositRemaining: mktConfig.insuranceWithdrawDepositRemaining.toString(),
             },
             null,
             2
@@ -51,7 +54,10 @@ export function registerSlabConfig(program: Command): void {
         console.log(`Invert:             ${mktConfig.invert}`);
         console.log(`Unit Scale:         ${mktConfig.unitScale}`);
         console.log(`Maint Fee/Slot:     ${mktConfig.maintenanceFeePerSlot}`);
-        console.log(`Min Oracle Cap:     ${mktConfig.minOraclePriceCapE2bps} e2bps`);
+        console.log(`Oracle Target e6:   ${mktConfig.oracleTargetPriceE6}`);
+        console.log(`Oracle Target ts:   ${mktConfig.oracleTargetPublishTime}`);
+        console.log(`InsW Deposits-Only: ${mktConfig.insuranceWithdrawDepositsOnly === 1 ? "yes" : "no"}`);
+        console.log(`InsW Dep Remaining: ${mktConfig.insuranceWithdrawDepositRemaining}`);
       }
     });
 }

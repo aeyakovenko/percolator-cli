@@ -206,9 +206,10 @@ async function main() {
     minLiquidationAbs:    "11500000",     // 0.0115 SOL ≈ $1
 
     // 48-hour auto-shutdown on oracle stale (432 000 slots @ 400 ms).
-    permissionlessResolveStaleSlots: "432000",
-    forceCloseDelaySlots:            "432000",
-    maxCrankStalenessSlots:          "20000",   // ~2h 13min tolerance
+    // v12.21: hard cap permissionlessResolveStaleSlots <= MAX_ACCRUAL_DT_SLOTS = 100.
+    permissionlessResolveStaleSlots: "100",
+    forceCloseDelaySlots:            "200",
+    maxCrankStalenessSlots:          "0",   // v12.21 read+discard
     hMin:                            "5000",    // ~33 min warmup floor
     hMax:                            "100000",  // ~11 h warmup ceiling
 
@@ -223,9 +224,7 @@ async function main() {
   {
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, NATIVE_MINT, vaultAcc.address,
-      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
-      PYTH_SOL_USD,                     // accounts[7] = oracle (Pyth PriceUpdateV2)
-      WELL_KNOWN.systemProgram,
+      WELL_KNOWN.clock, PYTH_SOL_USD,
     ]);
     const t = new Transaction()
       .add(...withPriority(400_000))

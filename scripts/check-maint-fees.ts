@@ -91,7 +91,7 @@ async function main() {
   await tx([buildIx({ programId: PROG,
     keys: buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, mint, vault,
-      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent, vaultAuth, WELL_KNOWN.systemProgram,
+      WELL_KNOWN.clock, vaultAuth,
     ]),
     data: encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, {
       maintenanceFeePerSlot: MAINT_FEE_PER_SLOT,
