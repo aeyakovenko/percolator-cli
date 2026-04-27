@@ -102,15 +102,14 @@ async function main() {
     programId: PROG,
     keys: buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, mint, vAcc.address,
-      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
-      vaultAuth, WELL_KNOWN.systemProgram,
+      WELL_KNOWN.clock, vaultAuth,
     ]),
     data: encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, {
-      // prod-level perm-resolve + force-close (prod defaults: 100k / 200k)
-      permissionlessResolveStaleSlots: "100000",
-      forceCloseDelaySlots:            "200000",
-      hMax:                            "50000",  // must be ≤ perm-resolve
-      hMin:                            "1000",
+      // perm-resolve ≤ MAX_ACCRUAL_DT_SLOTS = 100 (v12.21)
+      permissionlessResolveStaleSlots: "100",
+      forceCloseDelaySlots:            "200",
+      hMax:                            "50",   // must be ≤ perm-resolve
+      hMin:                            "10",
       // v12.20 F2 defense: Hyperp + perm-resolve requires mark_min_fee > 0
       // so self-trades can't refresh liveness and block permissionless resolve.
       markMinFee:                      "1000",

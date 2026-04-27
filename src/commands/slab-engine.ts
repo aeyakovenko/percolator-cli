@@ -29,11 +29,12 @@ export function registerSlabEngine(program: Command): void {
               marketMode: engine.marketMode,
               resolvedPrice: engine.resolvedPrice.toString(),
               resolvedSlot: engine.resolvedSlot.toString(),
-              lastCrankSlot: engine.lastCrankSlot.toString(),
               cTot: engine.cTot.toString(),
               pnlPosTot: engine.pnlPosTot.toString(),
               pnlMaturedPosTot: engine.pnlMaturedPosTot.toString(),
-              gcCursor: engine.gcCursor,
+              rrCursorPosition: engine.rrCursorPosition.toString(),
+              sweepGeneration: engine.sweepGeneration.toString(),
+              priceMoveConsumedBpsThisGeneration: engine.priceMoveConsumedBpsThisGeneration.toString(),
               adlMultLong: engine.adlMultLong.toString(),
               adlMultShort: engine.adlMultShort.toString(),
               adlCoeffLong: engine.adlCoeffLong.toString(),
@@ -95,10 +96,11 @@ export function registerSlabEngine(program: Command): void {
         console.log(`Fund Px Last:            ${engine.fundPxLast}`);
         console.log("");
         console.log("--- Keeper ---");
-        console.log(`Last Crank Slot:         ${engine.lastCrankSlot}`);
         console.log(`Last Oracle Price:       ${engine.lastOraclePrice}`);
         console.log(`Last Market Slot:        ${engine.lastMarketSlot}`);
-        console.log(`GC Cursor:               ${engine.gcCursor}`);
+        console.log(`RR Cursor Position:      ${engine.rrCursorPosition}`);
+        console.log(`Sweep Generation:        ${engine.sweepGeneration}`);
+        console.log(`PriceMoveConsumed bps:   ${engine.priceMoveConsumedBpsThisGeneration}`);
         console.log("");
         console.log("--- Accounts ---");
         console.log(`Num Used:                ${engine.numUsedAccounts}`);

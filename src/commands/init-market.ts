@@ -3,7 +3,6 @@ import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { deriveVaultAuthority } from "../solana/pda.js";
 import { encodeInitMarket } from "../abi/instructions.js";
 import {
   ACCOUNTS_INIT_MARKET,
@@ -19,6 +18,7 @@ export function registerInitMarket(program: Command): void {
     .requiredOption("--slab <pubkey>", "Slab account public key")
     .requiredOption("--mint <pubkey>", "Collateral token mint")
     .requiredOption("--vault <pubkey>", "Collateral vault token account")
+    .requiredOption("--oracle <pubkey>", "Oracle account (Pyth PriceUpdateV2 / Chainlink aggregator; for Hyperp pass any pubkey)")
     .requiredOption("--index-feed-id <hex>", "Pyth index feed ID (64 hex chars, no 0x; all zeros for Hyperp)")
     .requiredOption("--max-staleness-secs <string>", "Max oracle staleness (seconds)")
     .requiredOption("--conf-filter-bps <number>", "Oracle confidence filter (bps)")
@@ -26,7 +26,6 @@ export function registerInitMarket(program: Command): void {
     .option("--unit-scale <number>", "Lamports per unit scale (0=no scaling)", "0")
     .option("--initial-mark-price <string>", "Initial mark price e6 (required non-zero for Hyperp mode)", "0")
     .requiredOption("--maintenance-fee-per-slot <string>", "Periodic maintenance fee per slot per account (u128)")
-    .option("--min-oracle-price-cap <string>", "Min oracle price cap e2bps floor (0=no floor)", "0")
     // RiskParams
     .requiredOption("--h-min <string>", "Warmup horizon floor (slots)")
     .requiredOption("--maintenance-margin-bps <string>", "Maintenance margin (bps)")
@@ -42,6 +41,7 @@ export function registerInitMarket(program: Command): void {
     .requiredOption("--min-liquidation-abs <string>", "Min liquidation absolute (u128)")
     .requiredOption("--min-nonzero-mm-req <string>", "Min nonzero maintenance margin requirement (u128)")
     .requiredOption("--min-nonzero-im-req <string>", "Min nonzero initial margin requirement (u128)")
+    .requiredOption("--max-price-move-bps-per-slot <string>", "Per-slot price-move cap in bps (v12.21+, must be > 0)")
     // Extended tail (required — partial tail rejected)
     .requiredOption("--insurance-withdraw-max-bps <number>", "Max bps withdrawable from insurance per tx (0=disabled)")
     .requiredOption("--insurance-withdraw-cooldown <string>", "Insurance withdrawal cooldown (slots)")
@@ -60,6 +60,7 @@ export function registerInitMarket(program: Command): void {
       const slabPk = new PublicKey(opts.slab);
       const mint = new PublicKey(opts.mint);
       const vault = new PublicKey(opts.vault);
+      const oracle = new PublicKey(opts.oracle);
 
       const feedIdHex = (opts.indexFeedId as string).startsWith("0x")
         ? (opts.indexFeedId as string).slice(2)
@@ -67,8 +68,6 @@ export function registerInitMarket(program: Command): void {
       if (feedIdHex.length !== 64 || !/^[0-9a-fA-F]+$/.test(feedIdHex)) {
         throw new Error("Invalid feed ID: must be 64 hex characters");
       }
-
-      const [vaultPda] = deriveVaultAuthority(ctx.programId, slabPk);
 
       const ixData = encodeInitMarket({
         admin: ctx.payer.publicKey,
@@ -80,7 +79,6 @@ export function registerInitMarket(program: Command): void {
         unitScale: parseInt(opts.unitScale, 10),
         initialMarkPriceE6: opts.initialMarkPrice,
         maintenanceFeePerSlot: opts.maintenanceFeePerSlot,
-        minOraclePriceCapE2bps: opts.minOraclePriceCap,
         hMin: opts.hMin,
         maintenanceMarginBps: opts.maintenanceMarginBps,
         initialMarginBps: opts.initialMarginBps,
@@ -95,6 +93,7 @@ export function registerInitMarket(program: Command): void {
         minLiquidationAbs: opts.minLiquidationAbs,
         minNonzeroMmReq: opts.minNonzeroMmReq,
         minNonzeroImReq: opts.minNonzeroImReq,
+        maxPriceMoveBpsPerSlot: opts.maxPriceMoveBpsPerSlot,
         insuranceWithdrawMaxBps: parseInt(opts.insuranceWithdrawMaxBps, 10),
         insuranceWithdrawCooldownSlots: opts.insuranceWithdrawCooldown,
         permissionlessResolveStaleSlots: opts.permissionlessResolveStale,
@@ -111,11 +110,8 @@ export function registerInitMarket(program: Command): void {
         slabPk,              // slab
         mint,                // mint
         vault,               // vault
-        WELL_KNOWN.tokenProgram,
         WELL_KNOWN.clock,
-        WELL_KNOWN.rent,
-        vaultPda,            // placeholder (unused)
-        WELL_KNOWN.systemProgram,
+        oracle,
       ]);
 
       const ix = buildIx({ programId: ctx.programId, keys, data: ixData });

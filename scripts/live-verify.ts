@@ -141,8 +141,7 @@ async function main() {
     const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint));
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, mint, vault,
-      WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, WELL_KNOWN.rent,
-      vaultPda, WELL_KNOWN.systemProgram,
+      WELL_KNOWN.clock, vaultPda,
     ]);
     await tx([buildIx({ programId: PROG, keys, data })], [payer], 1_400_000);
 

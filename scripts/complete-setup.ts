@@ -153,7 +153,6 @@ async function main() {
     const engine = parseEngine(slabInfo.data as Buffer);
     console.log("   Admin:", header.admin.toBase58());
     console.log("   Inverted:", config.invert === 1);
-    console.log("   Oracle cap:", config.oraclePriceCapE2bps.toString(), "e2bps");
     console.log("   Last eff price:", config.lastEffectivePriceE6.toString());
     console.log("   Insurance:", Number(engine.insuranceFund.balance) / 1e9, "SOL");
     console.log("   C_tot:", Number(engine.cTot) / 1e9, "SOL");

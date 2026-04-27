@@ -148,16 +148,14 @@ async function main() {
     initialMarkPriceE6: "0",
     maxMaintenanceFeePerSlot: "1000000000",
     maxInsuranceFloor: "10000000000000000",
-    minOraclePriceCapE2bps: "0",
     warmupPeriodSlots: "10",
     maintenanceMarginBps: "500",     // 5%
     initialMarginBps: "1000",        // 10%
     tradingFeeBps: "10",             // 0.1%
     maxAccounts: "64",
     newAccountFee: "1000000",        // 1 USDC
-    insuranceFloor: "0",
     maintenanceFeePerSlot: "0",
-    maxCrankStalenessSlots: "200",
+    maxCrankStalenessSlots: "0",
     liquidationFeeBps: "100",        // 1%
     liquidationFeeCap: "1000000000", // 1000 USDC
     liquidationBufferBps: "50",      // 0.5%
@@ -167,17 +165,14 @@ async function main() {
     minNonzeroImReq: "200000",
   });
 
-  // InitMarket accounts (9 total) - feed_id is in instruction data, not as account
+  // InitMarket accounts (6 total, v12.21) - feed_id is in instruction data, not as account
   const initMarketKeys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
     payer.publicKey,      // admin (signer)
     slabKp.publicKey,     // slab (writable)
     mint,                 // mint
     vaultAccount.address, // vault
-    TOKEN_PROGRAM_ID,     // tokenProgram
     SYSVAR_CLOCK_PUBKEY,  // clock
-    SYSVAR_RENT_PUBKEY,   // rent
-    vaultAuthority,       // dummyAta (unused, pass vault PDA)
-    SystemProgram.programId, // systemProgram
+    vaultAuthority,       // oracle placeholder
   ]);
 
   const initMarketIx = buildIx({

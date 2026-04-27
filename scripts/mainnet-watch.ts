@@ -25,7 +25,6 @@ type Snapshot = {
   insurance: bigint;
   capCeiling: bigint;
   lastOraclePrice: bigint;
-  lastCrankSlot: bigint;
   lastMarketSlot: bigint;
   pythPriceUsd: number;
   pythAgeSec: number;
@@ -66,7 +65,6 @@ async function sample(conn: Connection, slab: PublicKey, oracle: PublicKey, vaul
     insurance: e.insuranceFund.balance,
     capCeiling: e.insuranceFund.balance * BigInt(c.tvlInsuranceCapMult),
     lastOraclePrice: e.lastOraclePrice,
-    lastCrankSlot: e.lastCrankSlot,
     lastMarketSlot: e.lastMarketSlot,
     pythPriceUsd,
     pythAgeSec,
@@ -117,7 +115,7 @@ async function main() {
   console.log(`[${new Date().toISOString()}] START  slab=${slab.toBase58()} poll=${POLL_INTERVAL_MS}ms permResolveWindow=${permResolveWindow}`);
 
   // Keep a rolling tally of activity
-  let lastNumUsed = -1, lastCTot = -1n, lastInsurance = -1n, lastCrankSlot = -1n;
+  let lastNumUsed = -1, lastCTot = -1n, lastInsurance = -1n, lastMarketSlot = -1n;
   let iter = 0;
 
   while (true) {
@@ -132,8 +130,8 @@ async function main() {
       if (lastNumUsed !== -1 && s.numUsed !== lastNumUsed) deltas.push(`numUsed:${lastNumUsed}→${s.numUsed}`);
       if (lastCTot !== -1n && s.cTot !== lastCTot) deltas.push(`cTot:${sol(lastCTot)}→${sol(s.cTot)}`);
       if (lastInsurance !== -1n && s.insurance !== lastInsurance) deltas.push(`insurance:${sol(lastInsurance)}→${sol(s.insurance)}`);
-      if (lastCrankSlot !== -1n && s.lastCrankSlot !== lastCrankSlot) deltas.push(`crank:${lastCrankSlot}→${s.lastCrankSlot}`);
-      lastNumUsed = s.numUsed; lastCTot = s.cTot; lastInsurance = s.insurance; lastCrankSlot = s.lastCrankSlot;
+      if (lastMarketSlot !== -1n && s.lastMarketSlot !== lastMarketSlot) deltas.push(`marketSlot:${lastMarketSlot}→${s.lastMarketSlot}`);
+      lastNumUsed = s.numUsed; lastCTot = s.cTot; lastInsurance = s.insurance; lastMarketSlot = s.lastMarketSlot;
 
       const tag = anomalies.length > 0 ? "ALERT" : (deltas.length > 0 ? "ACTIVE" : "ok");
       const deltaStr = deltas.length > 0 ? ` Δ=[${deltas.join(" ")}]` : "";
@@ -142,7 +140,7 @@ async function main() {
       console.log(
         `[${s.iso}] ${tag.padEnd(6)} slot=${s.slot} mode=${s.mode === 0 ? "Live" : "Resolved"} ` +
         `nUsed=${s.numUsed} vault=${sol(s.vault)} cTot=${sol(s.cTot)} ins=${sol(s.insurance)} ` +
-        `pyth=$${s.pythPriceUsd.toFixed(2)}/${s.pythAgeSec}s crankAge=${s.slot - Number(s.lastCrankSlot)}sl` +
+        `pyth=$${s.pythPriceUsd.toFixed(2)}/${s.pythAgeSec}s mktAge=${s.slot - Number(s.lastMarketSlot)}sl` +
         deltaStr + anomalyStr
       );
     } catch (e: any) {

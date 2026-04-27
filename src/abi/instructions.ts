@@ -34,7 +34,7 @@ export const IX_TAG = {
   UpdateConfig: 14,
   WithdrawInsuranceLimited: 23, // v12.19+ restored — gated on insurance_operator
   PushOraclePrice: 17,
-  SetOraclePriceCap: 18,
+  // 18 SetOraclePriceCap deleted in v12.21
   ResolveMarket: 19,
   WithdrawInsurance: 20,
   AdminForceCloseAccount: 21,
@@ -77,21 +77,21 @@ export interface InitMarketArgs {
   admin: PublicKey | string;
   collateralMint: PublicKey | string;
   indexFeedId: string;
-  maxStalenessSecs: bigint | string;
-  confFilterBps: number;
+  maxStalenessSecs: bigint | string;           // <= 600 (v12.21)
+  confFilterBps: number;                        // [50, 1000] (v12.21)
   invert: number;
   unitScale: number;
   initialMarkPriceE6: bigint | string;
   maintenanceFeePerSlot: bigint | string;      // u128
-  minOraclePriceCapE2bps: bigint | string;     // u64
-  // RiskParams wire fields (no insurance_floor, no min_initial_deposit)
-  hMin: bigint | string;
+  // RiskParams wire fields
+  hMin: bigint | string;                       // > 0 (v12.21)
   maintenanceMarginBps: bigint | string;
   initialMarginBps: bigint | string;
   tradingFeeBps: bigint | string;
   maxAccounts: bigint | string;
   newAccountFee: bigint | string;              // u128 — insurance-destined init fee
-  hMax: bigint | string;
+  hMax: bigint | string;                       // >= h_min (v12.21)
+  /** v12.21: discarded by wrapper but still on the wire (8 zero bytes). */
   maxCrankStalenessSlots: bigint | string;
   liquidationFeeBps: bigint | string;
   liquidationFeeCap: bigint | string;          // u128
@@ -99,9 +99,15 @@ export interface InitMarketArgs {
   minLiquidationAbs: bigint | string;          // u128
   minNonzeroMmReq: bigint | string;            // u128
   minNonzeroImReq: bigint | string;            // u128
-  // Extended tail
+  /** v12.21: per-slot price-move cap in bps. Must be > 0. Wrapper enforces
+   *  the §1.4 solvency envelope: `max_price_move_bps_per_slot * 100 (slot
+   *  envelope) + funding_part + liquidation_fee_bps <= maintenance_margin_bps`. */
+  maxPriceMoveBpsPerSlot: bigint | string;
+  // Extended tail (66 bytes)
+  /** Top bit 0x8000 = INSURANCE_WITHDRAW_DEPOSITS_ONLY_FLAG. Low 15 bits = bps cap. */
   insuranceWithdrawMaxBps: number;
   insuranceWithdrawCooldownSlots: bigint | string;
+  /** v12.21: must be 0 OR in [1, 100] (≤ MAX_ACCRUAL_DT_SLOTS). */
   permissionlessResolveStaleSlots: bigint | string;
   fundingHorizonSlots: bigint | string;
   fundingKBps: bigint | string;
@@ -120,18 +126,12 @@ function encodeFeedId(feedId: string): Buffer {
 }
 
 /**
- * RiskParams wire format (192 bytes). Field order matches `read_risk_params`.
- * Note the compat `_new_account_fee` u128 slot — still on the wire, discarded.
+ * RiskParams wire format (160 bytes, v12.21+). Field order matches the
+ * wrapper's `read_risk_params`. `max_crank_staleness_slots` is still
+ * on the wire but read+discarded by the wrapper. New: `max_price_move_bps_per_slot`
+ * appended at the end (must be > 0).
  */
 function encodeRiskParamsWire(args: InitMarketArgs): Buffer {
-  // v12.20 wire order (152 bytes):
-  //   h_min, maint_margin, init_margin, trading_fee, max_accounts,
-  //   new_account_fee (u128),
-  //   h_max, max_crank_staleness, liquidation_fee_bps,
-  //   liquidation_fee_cap (u128),
-  //   resolve_price_deviation_bps,
-  //   min_liquidation_abs (u128),
-  //   min_nonzero_mm_req (u128), min_nonzero_im_req (u128)
   return Buffer.concat([
     encU64(args.hMin),
     encU64(args.maintenanceMarginBps),
@@ -140,13 +140,14 @@ function encodeRiskParamsWire(args: InitMarketArgs): Buffer {
     encU64(args.maxAccounts),
     encU128(args.newAccountFee),
     encU64(args.hMax),
-    encU64(args.maxCrankStalenessSlots),
+    encU64(args.maxCrankStalenessSlots),         // v12.21: read+discarded by wrapper
     encU64(args.liquidationFeeBps),
     encU128(args.liquidationFeeCap),
     encU64(args.resolvePriceDeviationBps),
     encU128(args.minLiquidationAbs),
     encU128(args.minNonzeroMmReq),
     encU128(args.minNonzeroImReq),
+    encU64(args.maxPriceMoveBpsPerSlot),         // v12.21+ (NEW; must be > 0)
   ]);
 }
 
@@ -162,8 +163,7 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encU32(args.unitScale),
     encU64(args.initialMarkPriceE6),
     encU128(args.maintenanceFeePerSlot),
-    // max_insurance_floor removed in v12.20
-    encU64(args.minOraclePriceCapE2bps),
+    // v12.21: min_oracle_price_cap_e2bps removed from wire
     encodeRiskParamsWire(args),
     // Extended tail (66 bytes)
     encU16(args.insuranceWithdrawMaxBps),
@@ -344,10 +344,7 @@ export function encodePushOraclePrice(args: PushOraclePriceArgs): Buffer {
   ]);
 }
 
-export interface SetOraclePriceCapArgs { maxChangeE2bps: bigint | string; }
-export function encodeSetOraclePriceCap(args: SetOraclePriceCapArgs): Buffer {
-  return Buffer.concat([encU8(IX_TAG.SetOraclePriceCap), encU64(args.maxChangeE2bps)]);
-}
+// SetOraclePriceCap (tag 18) was deleted in v12.21 — no replacement encoder.
 
 // ---------- Resolve ----------
 export function encodeResolveMarket(): Buffer {

@@ -44,7 +44,14 @@ Or use command-line flags:
 - `--json` - Output in JSON format
 - `--simulate` - Simulate transaction without sending
 
-## Mainnet (test deployment, admin-free)
+## Deprecated: v12.20 Mainnet (sunset)
+
+> **Status (2026-04-22):** the v12.20 mainnet test market below is being
+> sunset. Live state is left running for transparency; new development
+> targets the v12.21 devnet market in the next section. The CLI on this
+> branch (`master`) parses the v12.21 wire format and is **not**
+> backwards-compatible with the v12.20 slab — checkout commit
+> `74e902f1` if you need to interact with the deprecated mainnet market.
 
 ```
 Program:     BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw  (upgrade authority BURNED)
@@ -128,31 +135,51 @@ Example crontab entry (adjust paths for your system):
 
 The script reads the manifest at `mainnet-market.json`, so dropping a copy of that file next to the script on any host is enough to run an independent keeper.
 
-## Devnet
+## Devnet (v12.21, current)
 
 ```
-Program:        2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp (percolator-prog, v12.20 HEAD)
+Program:        2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp (percolator-prog, v12.21)
 Matcher:        4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy (percolator-match, ABI v2)
-Slab:           dtrNVk7otCtcmPvrARnLxi5nWoNFYQYS7b9vC1Yjnt2 (admin-free inverted SOL/USD, Chainlink)
+Slab:           52e67qT6aUiP41CR2JaZQfSAkbZr5MTTZUeYWWwb2zCN (admin-free inverted SOL/USD, Chainlink)
 Chainlink:      99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR (SOL/USD)
 ```
+
+**Build provenance** (deployed program SHA matches local `cargo build-sbf` byte-for-byte):
+
+```
+BPF binary SHA-256:  51008b3d16986adac08e276a3a3e683787a5372ed1dc84af43fd89b1343d0501
+BPF binary size:     447,520 bytes ELF
+percolator-prog:     de98bf203ee8df383a0181ae7ed0dccc1867db27
+percolator (engine): 5940285737b514af4416cd8394773abc79e6366d
+MAX_ACCOUNTS:        4096
+```
+
+### v12.21 highlights
+
+- **MarketConfig** lost `oracle_price_cap_e2bps` + `min_oracle_price_cap_e2bps` (16 bytes); gained `oracle_target_price_e6` + `oracle_target_publish_time` and a 1-byte `insurance_withdraw_deposits_only` flag. CONFIG_LEN: 400 → 384.
+- **RiskParams** wire still 160 bytes: `max_crank_staleness_slots` is read+discarded, replaced by `max_price_move_bps_per_slot` (must be > 0, enforces §1.4 solvency envelope).
+- **Engine `MAX_ACCRUAL_DT_SLOTS = 100`** (was 10 000 000). Hard cap: `permissionlessResolveStaleSlots ≤ 100`, **and** `h_max ≤ permissionlessResolveStaleSlots`. Effective auto-shutdown window is **~40 sec**, so a continuous (sub-40 s) cranker is mandatory once a market has any traffic.
+- **InitMarket account list shrank to 6** keys: `[admin, slab, mint, vault, clock, oracle]`. Token program / rent / system program are no longer passed.
+- **SetOraclePriceCap (tag 18) removed.** Authority rotations still go through `UpdateAuthority` (tag 32).
+- **Conf filter** must be in `[50, 1000]` bps; oracle staleness must be in `(0, 600]` seconds.
 
 ### On-chain layout (BPF)
 
 ```
-SLAB_LEN        1_525_624 bytes     (~10.6 SOL rent for MAX_ACCOUNTS=4096; v12.20)
-HEADER_LEN      136                 (admin + insurance_authority + insurance_operator — close_authority merged into admin)
-CONFIG_LEN      400
-ENGINE_OFF      536                 = align_up(136 + 400, 8)
-ACCOUNT_SIZE    360                 (two-bucket warmup: sched + pending)
+SLAB_LEN        1_525_624 bytes     (unchanged — engine grew +16 to offset MarketConfig shrink)
+HEADER_LEN      136                 (admin + insurance_authority + insurance_operator)
+CONFIG_LEN      384                 (v12.21: -16 vs v12.20)
+ENGINE_OFF      520                 = align_up(136 + 384, 8)
+ENGINE_LEN      1_492_176           (+16 vs v12.20: rr_cursor + sweep_generation + price_move_consumed)
+ACCOUNT_SIZE    360                 (unchanged)
 MAX_ACCOUNTS    4096                (configurable via `small`/`medium` cargo features)
 ```
 
 The parser in `src/solana/slab.ts` derives the MAX_ACCOUNTS-dependent offsets from the slab account data length, so small, medium, and full deployments parse transparently.
 
-### Instruction set (v12.20)
+### Instruction set (v12.21)
 
-Removed: `SetRiskThreshold`, `UpdateAdmin` (tag 12), `SetMaintenanceFee`, `SetOracleAuthority` (tag 16), `SetInsuranceWithdrawPolicy`, `QueryLpFees`. All four authority roles (admin, hyperp_mark, insurance, insurance_operator) are rotated via `UpdateAuthority { kind, new_pubkey }` (tag 32). Added: `CatchupAccrue` (tag 31), `UpdateAuthority` (tag 32), `WithdrawInsuranceLimited` (tag 23, restored and gated on `insurance_operator`).
+Removed since v12.18: `SetRiskThreshold`, `UpdateAdmin` (tag 12), `SetMaintenanceFee`, `SetOracleAuthority` (tag 16), `SetInsuranceWithdrawPolicy`, `QueryLpFees`. v12.21 also drops `SetOraclePriceCap` (tag 18). All four authority roles (admin, hyperp_mark, insurance, insurance_operator) are rotated via `UpdateAuthority { kind, new_pubkey }` (tag 32). `CatchupAccrue` (tag 31) and `WithdrawInsuranceLimited` (tag 23, gated on `insurance_operator`) remain.
 
 ### Create a Test Market
 
