@@ -31,13 +31,11 @@ export function registerLiquidateAtOracle(program: Command): void {
       // Build instruction data
       const ixData = encodeLiquidateAtOracle({ targetIdx });
 
-      // Build account metas (order matches ACCOUNTS_LIQUIDATE_AT_ORACLE)
-      // Note: account[0] is unused but required
+      // v12.21+: LiquidateAtOracle is permissionless and takes 3 accounts.
       const keys = buildAccountMetas(ACCOUNTS_LIQUIDATE_AT_ORACLE, [
-        ctx.payer.publicKey, // unused (but must be present)
-        slabPk, // slab
-        WELL_KNOWN.clock, // clock
-        oracle, // oracle
+        slabPk,
+        WELL_KNOWN.clock,
+        oracle,
       ]);
 
       const ix = buildIx({

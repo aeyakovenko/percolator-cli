@@ -50,11 +50,11 @@ export function defaultInitMarketArgs(
     minLiquidationAbs: "10000",
     minNonzeroMmReq: "100000",
     minNonzeroImReq: "200000",
-    // v12.21: per-slot price-move cap. Must be > 0; envelope:
-    //   max_price_move_bps_per_slot * MAX_ACCRUAL_DT_SLOTS(100) +
-    //   funding_part + liquidation_fee_bps <= maintenance_margin_bps
-    // 2 bps/slot * 100 = 200 bps headroom out of 500 bps MM.
-    maxPriceMoveBpsPerSlot: "2",
+    // v12.21 cc0650a: MAX_ACCRUAL_DT_SLOTS = 10. Envelope:
+    //   max_price_move * 10 + funding + liq_fee < mm = 500
+    // 20 bps/slot × 10 = 200 bps headroom — wide enough for matcher
+    // CPI fills (100 bps spread) at any 1-slot envelope step.
+    maxPriceMoveBpsPerSlot: "20",
     // withdrawal disabled by default — tests that need it set both fields
     insuranceWithdrawMaxBps: 0,
     insuranceWithdrawCooldownSlots: "0",
