@@ -102,12 +102,15 @@ async function verifyPyth(conn: Connection) {
   if (info.owner.toBase58() !== PYTH_RECEIVER_OWNER) {
     throw new Error(`Pyth owner mismatch: got ${info.owner.toBase58()}, expected ${PYTH_RECEIVER_OWNER}`);
   }
-  // PriceUpdateV2: discriminator(8)+write_authority(32)+verification(2)+feed_id(32)
-  // +price@74(8)+conf@82(8)+expo@90(4)+publish_time@94(8)
+  // PriceUpdateV2: anchor disc(8) + write_authority(32) + verification(1)
+  // = price_message starts at byte 41. Then feed_id(32) + price@73(i64) +
+  // conf@81(u64) + expo@89(i32) + publish_time@93(i64). These offsets
+  // match what the deprecated v1 mainnet-watch.ts used and what the
+  // Pyth Solana Receiver canonically writes.
   const d = info.data;
-  const price = d.readBigInt64LE(74);
-  const expo = d.readInt32LE(90);
-  const publishTs = Number(d.readBigInt64LE(94));
+  const price = d.readBigInt64LE(73);
+  const expo = d.readInt32LE(89);
+  const publishTs = Number(d.readBigInt64LE(93));
   const priceUsd = Number(price) * Math.pow(10, expo);
   const ageSec = Math.floor(Date.now() / 1000) - publishTs;
   console.log(`    Pyth SOL/USD: $${priceUsd.toFixed(4)}  (age ${ageSec}s)`);
@@ -142,31 +145,58 @@ async function main() {
   console.log(`Wallet: ${payer.publicKey.toBase58()}`);
   const balLamports = await conn.getBalance(payer.publicKey);
   console.log(`SOL:    ${(balLamports / LAMPORTS_PER_SOL).toFixed(4)}`);
-  if (balLamports < 19 * LAMPORTS_PER_SOL) {
-    throw new Error(`Insufficient SOL — need ≥ 19, have ${balLamports / LAMPORTS_PER_SOL}`);
+  // Need 5 SOL insurance + ~0.3 SOL fees if slab is reused, ~16 SOL fresh.
+  const minSol = process.env.SLAB_PUBKEY ? 5.5 : 19;
+  if (balLamports < minSol * LAMPORTS_PER_SOL) {
+    throw new Error(`Insufficient SOL — need ≥ ${minSol}, have ${balLamports / LAMPORTS_PER_SOL}`);
   }
 
   console.log("\n[1] Verifying Pyth SOL/USD feed...");
   await verifyPyth(conn);
 
   // ── Step 2: slab account ──
+  // Idempotent: pass SLAB_PUBKEY=<base58> on retry to reuse an existing
+  // slab whose createAccount succeeded but the rest of the script didn't
+  // finish. The slab is NOT a signer in InitMarket (only writable), so
+  // reusing by pubkey only is safe — no keypair needed.
   console.log("\n[2] Creating slab account...");
-  const slab = Keypair.generate();
+  const slabPubkeyOverride = process.env.SLAB_PUBKEY;
+  let slabPubkey: PublicKey;
+  let slabKp: Keypair | null = null;
+  if (slabPubkeyOverride) {
+    slabPubkey = new PublicKey(slabPubkeyOverride);
+    console.log(`    slab: ${slabPubkey.toBase58()}  (reused from $SLAB_PUBKEY)`);
+  } else {
+    slabKp = Keypair.generate();
+    slabPubkey = slabKp.publicKey;
+    // Persist BEFORE submission so a crash mid-tx doesn't lose the keypair.
+    const persistPath = `/home/anatoly/percolator-bounty2-slab.json`;
+    fs.writeFileSync(persistPath, JSON.stringify(Array.from(slabKp.secretKey)));
+    console.log(`    slab: ${slabPubkey.toBase58()}  (keypair saved to ${persistPath})`);
+  }
   const rent = await conn.getMinimumBalanceForRentExemption(SLAB_LEN);
-  console.log(`    slab: ${slab.publicKey.toBase58()}`);
   console.log(`    size: ${SLAB_LEN} bytes  rent: ${(rent / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
-  {
+  const existing = await conn.getAccountInfo(slabPubkey);
+  if (!existing) {
+    if (!slabKp) throw new Error("SLAB_PUBKEY override given but account doesn't exist on chain");
     const t = new Transaction()
       .add(...withPriority(50_000))
       .add(SystemProgram.createAccount({
-        fromPubkey: payer.publicKey, newAccountPubkey: slab.publicKey,
+        fromPubkey: payer.publicKey, newAccountPubkey: slabPubkey,
         lamports: rent, space: SLAB_LEN, programId: PROGRAM_ID,
       }));
-    await sendAndConfirmTransaction(conn, t, [payer, slab], { commitment: "confirmed" });
+    await sendAndConfirmTransaction(conn, t, [payer, slabKp], { commitment: "confirmed" });
+  } else if (existing.owner.toBase58() !== PROGRAM_ID.toBase58() || existing.data.length !== SLAB_LEN) {
+    throw new Error(`Slab account at ${slabPubkey.toBase58()} exists but is not a valid percolator slab (owner=${existing.owner.toBase58()}, len=${existing.data.length})`);
+  } else {
+    console.log("    (slab account already exists, skipping createAccount)");
   }
+  // For the rest of the script, treat slabPubkey as the slab id. If we
+  // need to sign as the slab somewhere later (we don't, in this flow),
+  // we'd need slabKp — but reusing by pubkey only is fine for InitMarket.
 
   // ── Step 3: vault PDA + ATA ──
-  const [vaultPda] = deriveVaultAuthority(PROGRAM_ID, slab.publicKey);
+  const [vaultPda] = deriveVaultAuthority(PROGRAM_ID, slabPubkey);
   const vaultAcc = await getOrCreateAssociatedTokenAccount(conn, payer, NATIVE_MINT, vaultPda, true);
   console.log(`    vault PDA:  ${vaultPda.toBase58()}`);
   console.log(`    vault ATA:  ${vaultAcc.address.toBase58()}`);
@@ -218,7 +248,7 @@ async function main() {
   });
   {
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
-      payer.publicKey, slab.publicKey, NATIVE_MINT, vaultAcc.address,
+      payer.publicKey, slabPubkey, NATIVE_MINT, vaultAcc.address,
       WELL_KNOWN.clock, PYTH_SOL_USD,
     ]);
     const t = new Transaction()
@@ -233,7 +263,7 @@ async function main() {
   const crankIx = () => buildIx({
     programId: PROGRAM_ID,
     keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
-      payer.publicKey, slab.publicKey, WELL_KNOWN.clock, PYTH_SOL_USD,
+      payer.publicKey, slabPubkey, WELL_KNOWN.clock, PYTH_SOL_USD,
     ]),
     data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }),
   });
@@ -268,7 +298,7 @@ async function main() {
       .add(buildIx({
         programId: PROGRAM_ID,
         keys: buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [
-          payer.publicKey, slab.publicKey, adminAta.address, vaultAcc.address,
+          payer.publicKey, slabPubkey, adminAta.address, vaultAcc.address,
           WELL_KNOWN.tokenProgram, WELL_KNOWN.clock,
         ]),
         data: encodeTopUpInsurance({ amount: INSURANCE_FUND_AMOUNT.toString() }),
@@ -286,7 +316,7 @@ async function main() {
       .add(buildIx({
         programId: PROGRAM_ID,
         keys: buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [
-          payer.publicKey, slab.publicKey, WELL_KNOWN.clock, PYTH_SOL_USD,
+          payer.publicKey, slabPubkey, WELL_KNOWN.clock, PYTH_SOL_USD,
         ]),
         data: encodeUpdateConfig({
           fundingHorizonSlots:  "7200",
@@ -297,7 +327,7 @@ async function main() {
         }),
       }));
     await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed" });
-    const c = parseConfig(await fetchSlab(conn, slab.publicKey));
+    const c = parseConfig(await fetchSlab(conn, slabPubkey));
     if (c.tvlInsuranceCapMult !== 20) {
       throw new Error(`tvl_cap_mult verification: got ${c.tvlInsuranceCapMult}`);
     }
@@ -313,7 +343,7 @@ async function main() {
 
   // ── Step 10: verify state ──
   console.log("\n[9] Verifying market state...");
-  const buf = await fetchSlab(conn, slab.publicKey);
+  const buf = await fetchSlab(conn, slabPubkey);
   const h = parseHeader(buf);
   const c = parseConfig(buf);
   const e = parseEngine(buf);
@@ -341,7 +371,7 @@ async function main() {
     bountyVersion: "bounty_sol_20x_max",
     createdAt: new Date().toISOString(),
     programId: PROGRAM_ID.toBase58(),
-    slab: slab.publicKey.toBase58(),
+    slab: slabPubkey.toBase58(),
     slabSize: SLAB_LEN,
     mint: NATIVE_MINT.toBase58(),
     collateral: "wSOL (9 decimals, unit_scale=0)",
