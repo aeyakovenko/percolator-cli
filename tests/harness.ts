@@ -914,10 +914,9 @@ export class TestHarness {
    * Execute keeper crank in permissionless mode (default) or with caller account.
    * Permissionless mode (callerIdx=65535) can be used on empty markets.
    * @param callerIdx - Index of caller account, or 65535 (CRANK_NO_CALLER) for permissionless
-   * @param allowPanic - Whether to allow panic on error
    */
-  async keeperCrank(ctx: TestContext, cuLimit: number = 200000, callerIdx: number = CRANK_NO_CALLER, allowPanic: boolean = false): Promise<TxResult> {
-    const ixData = encodeKeeperCrank({ callerIdx, allowPanic });
+  async keeperCrank(ctx: TestContext, cuLimit: number = 200000, callerIdx: number = CRANK_NO_CALLER): Promise<TxResult> {
+    const ixData = encodeKeeperCrank({ callerIdx });
     const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
       this.payer.publicKey,
       ctx.slab.publicKey,
@@ -941,8 +940,8 @@ export class TestHarness {
    * Execute keeper crank as a specific user.
    * The user must own the account at their accountIndex.
    */
-  async keeperCrankAsUser(ctx: TestContext, user: UserContext, cuLimit: number = 200000, allowPanic: boolean = false): Promise<TxResult> {
-    const ixData = encodeKeeperCrank({ callerIdx: user.accountIndex, allowPanic });
+  async keeperCrankAsUser(ctx: TestContext, user: UserContext, cuLimit: number = 200000): Promise<TxResult> {
+    const ixData = encodeKeeperCrank({ callerIdx: user.accountIndex });
     const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
       user.keypair.publicKey,
       ctx.slab.publicKey,

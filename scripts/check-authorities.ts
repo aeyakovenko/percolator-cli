@@ -29,13 +29,13 @@ import {
 import * as fs from "fs";
 import {
   encodeInitMarket, encodeUpdateAuthority, AUTHORITY_KIND,
-  encodePushOraclePrice, encodeSetOraclePriceCap, encodeResolveMarket,
+  encodePushOraclePrice, encodeResolveMarket,
   encodeTopUpInsurance, encodeWithdrawInsurance, encodeCloseSlab,
   encodeUpdateConfig, encodeWithdrawInsuranceLimited,
 } from "../src/abi/instructions.js";
 import {
   ACCOUNTS_INIT_MARKET, ACCOUNTS_UPDATE_ADMIN, ACCOUNTS_SET_ORACLE_AUTHORITY,
-  ACCOUNTS_PUSH_ORACLE_PRICE, ACCOUNTS_SET_ORACLE_PRICE_CAP,
+  ACCOUNTS_PUSH_ORACLE_PRICE,
   ACCOUNTS_RESOLVE_MARKET, ACCOUNTS_TOPUP_INSURANCE,
   ACCOUNTS_WITHDRAW_INSURANCE, ACCOUNTS_CLOSE_SLAB, ACCOUNTS_UPDATE_CONFIG,
   buildAccountMetas, WELL_KNOWN,
@@ -311,16 +311,8 @@ async function main() {
       }),
     })], [payer]),
   );
-  await expectReject(
-    "ADMIN burned → SetOraclePriceCap rejected",
-    () => tx([buildIx({
-      programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_SET_ORACLE_PRICE_CAP, [
-        payer.publicKey, slab.publicKey, WELL_KNOWN.clock,
-      ]),
-      data: encodeSetOraclePriceCap({ maxChangeE2bps: "500000" }),
-    })], [payer]),
-  );
+  // SetOraclePriceCap (tag 18) was deleted in v12.21 — no admin entry point
+  // exists for runtime price-cap changes; the cap is init-immutable.
   await expectReject(
     "ADMIN burned → ResolveMarket rejected",
     () => tx([buildIx({
