@@ -1,19 +1,47 @@
 # Pre-Production Deployment Checklist
 
-Two test suites verify the protocol on-chain. Both require `SOLANA_RPC_URL` in `.env`.
+Five suites verify the protocol on-chain against v12.21. All require
+`SOLANA_RPC_URL` in `.env`. Devnet rent is ~10.6 SOL per slab and is NOT
+reclaimable on v12.21 (the `unsafe_close` feature was removed).
 
 ```bash
-# 1. Preflight — 93 checks, 25 sections, 3 market types (Pyth, Hyperp, Inverted)
-#    ~24 SOL for multi-slab rent (reclaimed at end)
-npx tsx tests/preflight.ts
+# 1. Preflight — 92 checks, 25 sections, 3 market types
+npx tsx tests/preflight.ts                     # ~32 SOL (3 slabs)
 
-# 2. Live state verification — 105 checks, 9 sections, exhaustive before/after diffs
-#    ~8 SOL for single slab (reclaimed at end)
-npx tsx scripts/live-verify.ts
+# 2. Live state verification — 79 checks across 7 sections
+npx tsx scripts/live-verify.ts                 # ~10.6 SOL (1 slab)
 
-# 3. Unit tests — offline, no SOL needed
+# 3. Maintenance-fee 50/50 keeper-reward sweep — 12 checks
+npx tsx scripts/check-maint-fees.ts            # ~10.6 SOL (1 slab)
+
+# 4. Authority rotation/burn coverage — 21 checks (4 kinds × all paths)
+npx tsx scripts/check-authorities.ts           # ~10.6 SOL (1 slab)
+
+# 5. Stress: bankruptcy + ADL + bank run — invariants asserted at every phase
+npx tsx scripts/stress-bankrun.ts              # ~10.6 SOL (1 slab)
+
+# 6. Unit tests — offline, no SOL needed
 pnpm test
 ```
+
+## v12.21 caveats
+
+- **`MAX_ACCRUAL_DT_SLOTS = 100`** (engine-level, ~40 sec). All multi-step
+  flows must refresh the mark and crank between health-sensitive ops or
+  the next call returns `CatchupRequired` (0x1d). Single-shot tests are
+  unaffected.
+- **§1.4 envelope** at init: `min_liquidation_abs` MUST be much smaller
+  than `min_nonzero_mm_req` or the wrapper rejects with `EngineOverflow`
+  (0x12). Defaults: `min_liquidation_abs=10_000`, `min_nonzero_mm_req=100_000`.
+- **Anti-spam invariant**: `new_account_fee == 0 AND maintenance_fee_per_slot == 0`
+  is rejected. Set at least one nonzero.
+- **Hyperp price-move cap**: `max_price_move_bps_per_slot=2` clamps how
+  fast `engine.last_oracle_price` can step. Full-size closing trades on
+  Hyperp markets that haven't been cranked recently can trip the cap and
+  return `OracleInvalid` (0x0c). Workaround: refresh + crank between
+  trades to keep the per-slot move budget non-zero.
+- **`SetOraclePriceCap` (tag 18) deleted**. The cap is init-immutable
+  via `RiskParams.max_price_move_bps_per_slot`.
 
 ---
 

@@ -30,7 +30,9 @@ export function defaultInitMarketArgs(
     invert: 0,
     unitScale: 0,
     initialMarkPriceE6: "100000000", // $100
-    maintenanceFeePerSlot: "0",
+    // v12.21 wrapper rejects markets where new_account_fee == 0 AND
+    // maintenance_fee_per_slot == 0 (anti-spam invariant). Set one nonzero.
+    maintenanceFeePerSlot: "1",
     hMin: "4",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",
@@ -43,7 +45,9 @@ export function defaultInitMarketArgs(
     liquidationFeeBps: "100",
     liquidationFeeCap: "1000000000",
     resolvePriceDeviationBps: "5000",
-    minLiquidationAbs: "100000",
+    // v12.21 §1.4: at floor, max(liq_fee_raw, min_liq_abs) + loss <= mm_req.
+    // Keep min_liquidation_abs ~10× smaller than min_nonzero_mm_req.
+    minLiquidationAbs: "10000",
     minNonzeroMmReq: "100000",
     minNonzeroImReq: "200000",
     // v12.21: per-slot price-move cap. Must be > 0; envelope:
