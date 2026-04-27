@@ -44,6 +44,118 @@ Or use command-line flags:
 - `--json` - Output in JSON format
 - `--simulate` - Simulate transaction without sending
 
+## Mainnet Bounty 2 — `bounty_sol_20x_max`
+
+> **Status (2026-04-27, deploying):** fresh mainnet program at the spec
+> in [`percolator-stress/max_risk.md`](https://github.com/aeyakovenko/percolator-stress-test/blob/master/max_risk.md).
+> Runtime + verification metadata below; the slab pubkey is filled in
+> after `setup-mainnet-bounty2.ts` lands and is also recorded in
+> `mainnet-bounty2-market.json` at the repo root.
+
+```
+Program:        (filled in after solana program deploy)
+Slab:           (filled in after setup-mainnet-bounty2.ts)
+Oracle:         7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE  (Pyth SOL/USD PriceUpdateV2, sponsored shard 0)
+Feed ID:        ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d
+Vault ATA:      (filled in after setup)
+Matcher:        (none — third parties provision their own)
+Insurance:      5 SOL seeded at deploy
+```
+
+**Build provenance** (reproducible from `cargo build-sbf` on the pinned
+commits below):
+
+```
+BPF binary SHA-256:  7c5b75aff1bd2a3f9ea145b63ee74a0c55d3af50922e802dac63388ef0639d1e
+BPF binary size:     447,504 bytes ELF
+percolator-prog:     c6e61e6ce0557163eb621a3329abc50d3952be8a   (head; binary == cc0650a — only test files differ)
+percolator (engine): 5940285737b514af4416cd8394773abc79e6366d   (pinned via Cargo.toml git rev)
+percolator-cli:      <commit at deploy> (set-upgrade-authority + cron + watcher)
+MAX_ACCOUNTS:        4096
+```
+
+The wrapper's only direct dependency that isn't a published crate is the
+engine — pulled by Cargo.toml as
+`percolator = { git = "https://github.com/aeyakovenko/percolator", rev = "5940285…" }`.
+The pinned `rev` makes `cargo build-sbf` deterministic across machines.
+
+Verify locally:
+
+```bash
+# 1. Clone the program at the deployed commit.
+git clone https://github.com/aeyakovenko/percolator-prog.git
+cd percolator-prog
+git checkout c6e61e6   # or any commit with src/percolator.rs identical to cc0650a
+
+# 2. Build (cargo will fetch the engine git dep at the pinned rev).
+cargo build-sbf
+
+# 3. Hash the ELF.
+sha256sum target/deploy/percolator_prog.so
+#   Expected: 7c5b75aff1bd2a3f9ea145b63ee74a0c55d3af50922e802dac63388ef0639d1e
+
+# 4. Hash the on-chain bytes.
+solana program dump -u m <PROGRAM_ID> /tmp/deployed.so
+head -c 447504 /tmp/deployed.so | sha256sum
+#   Must match the cargo build-sbf hash exactly.
+```
+
+For an automated reproducibility check inside docker (OtterSec-style),
+`solana-verify build --library-name percolator_prog` works against this
+repo because the engine dep is fetched by `rev`, not by sibling-dir path.
+
+**Configuration (max_risk.md verbatim where the v12.21 wrapper accepts it):**
+
+| Param | Value | Notes |
+|---|---|---|
+| `mm` (maintenance margin) | 500 bps | = im, no opening buffer at max leverage |
+| `im` (initial margin) | 500 bps | 1/L = 5% → 20x nominal max leverage |
+| `max_price_move_bps_per_slot` | 49 | 99.2% of §1.4 envelope ceiling |
+| `max_accrual_dt_slots` | 10 | wrapper-hardcoded |
+| `h_min` | 0 | spec fast-path admission |
+| `h_max` | 86_400 | ~9.6h profit maturity ceiling |
+| `trading_fee` | 1 bp | undercuts every CEX/DEX globally |
+| `liquidation_fee` | 5 bps | frees envelope budget for max_move |
+| `min_nonzero_mm_req` / `min_nonzero_im_req` | 500 / 600 | exact-N proof room |
+| `min_liquidation_abs` | 0 | no per-call dust floor |
+| `liquidation_fee_cap` | 50 × 10⁹ | $50K cap (atomic, pegged) |
+| `permissionless_resolve_stale_slots` | 432_000 (~48 h) | matches deprecated v1 mainnet |
+| `force_close_delay_slots` | 432_000 (~48 h) | post-resolve grace |
+| `new_account_fee` | 5_882_000 lamports (~$0.50) | bounty pool top-up |
+| `maintenance_fee_per_slot` | 58 lamports | ~$1/day flat (SOL @ ~$85) |
+| `tvl_insurance_cap_mult` | 20 | deposit cap = 20× insurance |
+| Insurance seed | 5 SOL (~$425) | bounty target; grows with adoption |
+
+**Operational keepalive** — cron runs `mainnet-bounty2-tick.ts` every
+minute. Each tick takes a slab snapshot, submits a permissionless
+`KeeperCrank`, takes a second snapshot, and writes one JSONL line to
+`~/.cache/percolator/bounty2-tick.log` with deltas and event flags.
+
+Watched flags (any appearing in the log = page on-call):
+
+- `INSURANCE_DROP` — bounty hit candidate, investigate immediately
+- `CONSERVATION_BROKEN` — vault SPL ≠ engine.vault, deeper bug
+- `ACCOUNTING_BROKEN` — vault < cTot + insurance
+- `ACCRUE_LAG(>600 sl)` — cranker is broken; > 4 minute gap
+- `SIDE_MODE_NON_NORMAL` — liquidation cascade in progress
+- `PRICE_MOVE_SAT(consumed=…)` — price-move-consumption threshold tripped
+- `ACCOUNT_OPENED` / `ACCOUNT_CLOSED` — informational
+
+Install/refresh cron after the setup script lands:
+
+```bash
+SOLANA_RPC_URL=https://your.rpc/ npx tsx scripts/mainnet-bounty2-cron-install.ts
+tail -f ~/.cache/percolator/bounty2-tick.log
+```
+
+**Bounty win condition** (per max_risk.md §8): cause
+`engine.insurance_fund.balance` to decrease below its current value via
+any sequence of public calls. Pyth manipulation and Solana validator
+attacks are out of scope; everything else (admission bypass, K overflow,
+ADL math, conservation violation, fee-credits sign flip, etc.) is in.
+
+---
+
 ## Deprecated: v12.20 Mainnet (sunset)
 
 > **Status (2026-04-22):** the v12.20 mainnet test market below is being

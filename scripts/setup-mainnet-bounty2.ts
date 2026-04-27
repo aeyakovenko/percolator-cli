@@ -304,39 +304,28 @@ async function main() {
     console.log(`    ✓ deposit cap active: c_tot ≤ 20 × ${(Number(INSURANCE_FUND_AMOUNT) / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
   }
 
-  // ── Step 9: Burn 3 market authorities (ADMIN last) ──
-  // NON-Hyperp markets initialize hyperp_authority = Pubkey::default()
-  // automatically (line 4791 in wrapper), so it's already burned.
-  console.log("\n[8] Burning 3 market authorities (hyperp_mark already zero for non-Hyperp)...");
-  const ZERO = PublicKey.default;
-  for (const [name, kind] of [
-    ["INSURANCE_OPERATOR", AUTHORITY_KIND.INSURANCE_OPERATOR],
-    ["INSURANCE",          AUTHORITY_KIND.INSURANCE],
-    ["ADMIN",              AUTHORITY_KIND.ADMIN], // must be last
-  ] as const) {
-    const t = new Transaction()
-      .add(...withPriority(60_000))
-      .add(buildIx({
-        programId: PROGRAM_ID,
-        keys: buildAccountMetas(ACCOUNTS_UPDATE_ADMIN, [payer.publicKey, ZERO, slab.publicKey]),
-        data: encodeUpdateAuthority({ kind, newPubkey: ZERO }),
-      }));
-    await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed" });
-    console.log(`    ✓ ${name} burned`);
-  }
+  // ── Step 9: AUTHORITIES ARE NOT BURNED HERE ──
+  // Per the deploy plan: verify market state + crank loop first, burn LAST.
+  // The four authorities (admin, hyperp_mark already zero for non-Hyperp,
+  // insurance, insurance_operator) remain set to the payer until the
+  // operator runs `scripts/burn-mainnet-bounty2-authorities.ts`.
+  console.log("\n[8] (Authorities NOT burned yet — run burn script after verifying cranks)");
 
-  // ── Step 10: verify final state ──
-  console.log("\n[9] Verifying final market state...");
+  // ── Step 10: verify state ──
+  console.log("\n[9] Verifying market state...");
   const buf = await fetchSlab(conn, slab.publicKey);
   const h = parseHeader(buf);
   const c = parseConfig(buf);
   const e = parseEngine(buf);
 
-  const burned = (pk: PublicKey) => pk.equals(PublicKey.default) ? "🔥 BURNED" : pk.toBase58();
-  console.log(`    admin:              ${burned(h.admin)}`);
-  console.log(`    hyperp_authority:   ${burned(c.hyperpAuthority)}`);
-  console.log(`    insurance_auth:     ${burned(h.insuranceAuthority)}`);
-  console.log(`    insurance_operator: ${burned(h.insuranceOperator)}`);
+  const burnState = (pk: PublicKey) =>
+    pk.equals(PublicKey.default) ? "🔥 BURNED"
+    : pk.equals(payer.publicKey) ? "payer (NOT YET BURNED)"
+    : pk.toBase58();
+  console.log(`    admin:              ${burnState(h.admin)}`);
+  console.log(`    hyperp_authority:   ${burnState(c.hyperpAuthority)}`);
+  console.log(`    insurance_auth:     ${burnState(h.insuranceAuthority)}`);
+  console.log(`    insurance_operator: ${burnState(h.insuranceOperator)}`);
   console.log(`    inverted:           ${c.invert ? "yes" : "no"}`);
   console.log(`    perm_resolve:       ${c.permissionlessResolveStaleSlots} slots (~${(Number(c.permissionlessResolveStaleSlots) * 0.4 / 3600).toFixed(2)}h)`);
   console.log(`    force_close delay:  ${c.forceCloseDelaySlots} slots (~${(Number(c.forceCloseDelaySlots) * 0.4 / 3600).toFixed(2)}h)`);
@@ -366,10 +355,10 @@ async function main() {
     insuranceFundSol: Number(e.insuranceFund.balance) / LAMPORTS_PER_SOL,
     tvlInsuranceCapMult: c.tvlInsuranceCapMult,
     matcher: "(none — third parties provision their own)",
-    admin: "🔥 BURNED",
-    insuranceAuthority: "🔥 BURNED",
-    insuranceOperator: "🔥 BURNED",
-    hyperpAuthority: "🔥 BURNED (auto for non-Hyperp at init)",
+    admin: h.admin.equals(PublicKey.default) ? "🔥 BURNED" : payer.publicKey.toBase58(),
+    insuranceAuthority: h.insuranceAuthority.equals(PublicKey.default) ? "🔥 BURNED" : payer.publicKey.toBase58(),
+    insuranceOperator: h.insuranceOperator.equals(PublicKey.default) ? "🔥 BURNED" : payer.publicKey.toBase58(),
+    hyperpAuthority: c.hyperpAuthority.equals(PublicKey.default) ? "🔥 BURNED (auto for non-Hyperp)" : c.hyperpAuthority.toBase58(),
     riskParams: {
       maintenance_margin_bps: 500,
       initial_margin_bps: 500,
@@ -387,10 +376,13 @@ async function main() {
     forceCloseDelaySlots: c.forceCloseDelaySlots.toString(),
     autoShutdown: "48h oracle stale → ResolvePermissionless; 48h post-resolve → ForceCloseResolved",
     nextSteps: [
-      "solana program set-upgrade-authority --url mainnet-beta " +
+      "1. Verify state matches expectations: cat mainnet-bounty2-market.json",
+      "2. Install cron: npx tsx scripts/mainnet-bounty2-cron-install.ts",
+      "3. Watch /var/log or ~/.cache/percolator/bounty2-tick.log for ≥3 successful ticks",
+      "4. Run burn: npx tsx scripts/burn-mainnet-bounty2-authorities.ts",
+      "5. Burn upgrade auth: solana program set-upgrade-authority --url mainnet-beta " +
         PROGRAM_ID.toBase58() + " --new-upgrade-authority null",
-      "Verify on-chain match: sha256sum target/deploy/percolator_prog.so against deployed program",
-      "Announce bounty (Twitter, Immunefi, etc.)",
+      "6. Announce bounty (Twitter, Immunefi, etc.)",
     ],
   };
 
