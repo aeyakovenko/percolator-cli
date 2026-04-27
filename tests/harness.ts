@@ -1001,8 +1001,8 @@ export class TestHarness {
    */
   async liquidateAtOracle(ctx: TestContext, targetIdx: number): Promise<TxResult> {
     const ixData = encodeLiquidateAtOracle({ targetIdx });
+    // v12.21+: LiquidateAtOracle is permissionless, 3 accounts.
     const keys = buildAccountMetas(ACCOUNTS_LIQUIDATE_AT_ORACLE, [
-      this.payer.publicKey, // unused but required
       ctx.slab.publicKey,
       WELL_KNOWN.clock,
       ctx.oracle,

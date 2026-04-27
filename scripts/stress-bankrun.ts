@@ -233,7 +233,7 @@ async function main() {
       const acc = parseAccount(buf, i);
       if (acc.positionBasisQ === 0n) { console.log(`  User ${i}: no position`); continue; }
       await tx([buildIx({ programId: PROG,
-        keys: buildAccountMetas(ACCOUNTS_LIQUIDATE_AT_ORACLE, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, payer.publicKey]),
+        keys: buildAccountMetas(ACCOUNTS_LIQUIDATE_AT_ORACLE, [slab.publicKey, WELL_KNOWN.clock, payer.publicKey]),
         data: encodeLiquidateAtOracle({ targetIdx: i }) })], [payer]);
       console.log(`  User ${i}: LIQUIDATED`);
     } catch (e: any) {
@@ -331,7 +331,7 @@ async function main() {
       await tx([buildIx({ programId: PROG,
         keys: buildAccountMetas(ACCOUNTS_ADMIN_FORCE_CLOSE, [
           payer.publicKey, slab.publicKey, vault, payerAta.address,
-          vaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, payer.publicKey,
+          vaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock,
         ]),
         data: encodeAdminForceCloseAccount({ userIdx: idx }) })], [payer]);
     } catch {}
@@ -355,7 +355,7 @@ async function main() {
       await tx([buildIx({ programId: PROG,
         keys: buildAccountMetas(ACCOUNTS_ADMIN_FORCE_CLOSE, [
           payer.publicKey, slab.publicKey, vault, payerAta.address,
-          vaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, payer.publicKey,
+          vaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock,
         ]),
         data: encodeAdminForceCloseAccount({ userIdx: idx }) })], [payer]);
     } catch {}

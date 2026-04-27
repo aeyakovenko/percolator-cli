@@ -114,8 +114,8 @@ export const ACCOUNTS_TRADE_NOCPI: readonly AccountSpec[] = [
  * LiquidateAtOracle: 4 accounts
  * Note: account[0] is unused but must be present
  */
+// v12.21+: LiquidateAtOracle is permissionless (no signer) and takes 3 accts.
 export const ACCOUNTS_LIQUIDATE_AT_ORACLE: readonly AccountSpec[] = [
-  { name: "unused", signer: false, writable: false },
   { name: "slab", signer: false, writable: true },
   { name: "clock", signer: false, writable: false },
   { name: "oracle", signer: false, writable: false },
@@ -264,6 +264,8 @@ export const ACCOUNTS_WITHDRAW_INSURANCE: readonly AccountSpec[] = [
  * AdminForceCloseAccount: 8 accounts
  * Force-close an abandoned account after resolution (admin only)
  */
+// v12.21+: AdminForceCloseAccount takes 7 accounts (oracle slot removed —
+// resolved markets read engine.resolved_price).
 export const ACCOUNTS_ADMIN_FORCE_CLOSE: readonly AccountSpec[] = [
   { name: "admin", signer: true, writable: false },
   { name: "slab", signer: false, writable: true },
@@ -272,7 +274,6 @@ export const ACCOUNTS_ADMIN_FORCE_CLOSE: readonly AccountSpec[] = [
   { name: "vaultPda", signer: false, writable: false },
   { name: "tokenProgram", signer: false, writable: false },
   { name: "clock", signer: false, writable: false },
-  { name: "oracle", signer: false, writable: false },
 ] as const;
 
 /**
@@ -348,6 +349,8 @@ export const ACCOUNTS_CONVERT_RELEASED_PNL: readonly AccountSpec[] = [
 /**
  * ForceCloseResolved: 7 accounts
  */
+// v12.21+: ForceCloseResolved (permissionless) takes 6 accounts; the
+// trailing `oracle` slot was removed (resolved markets read engine.resolved_price).
 export const ACCOUNTS_FORCE_CLOSE_RESOLVED: readonly AccountSpec[] = [
   { name: "slab", signer: false, writable: true },
   { name: "vault", signer: false, writable: true },
@@ -355,7 +358,6 @@ export const ACCOUNTS_FORCE_CLOSE_RESOLVED: readonly AccountSpec[] = [
   { name: "vaultPda", signer: false, writable: false },
   { name: "tokenProgram", signer: false, writable: false },
   { name: "clock", signer: false, writable: false },
-  { name: "oracle", signer: false, writable: false },
 ] as const;
 
 /**

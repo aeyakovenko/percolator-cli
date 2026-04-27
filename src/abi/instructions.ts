@@ -347,8 +347,20 @@ export function encodePushOraclePrice(args: PushOraclePriceArgs): Buffer {
 // SetOraclePriceCap (tag 18) was deleted in v12.21 — no replacement encoder.
 
 // ---------- Resolve ----------
-export function encodeResolveMarket(): Buffer {
-  return encU8(IX_TAG.ResolveMarket);
+/**
+ * ResolveMarket (tag 19, v12.21+).
+ *
+ * `mode` selects the resolve flavor:
+ *   - 0 = Ordinary  — normal resolution at current effective price
+ *   - 1 = Degenerate — flat-market shortcut (zero net OI / flat funding)
+ *
+ * Older builds accepted no payload; v12.21 strictly requires the byte.
+ */
+export function encodeResolveMarket(args: { mode?: number } = {}): Buffer {
+  return Buffer.concat([
+    encU8(IX_TAG.ResolveMarket),
+    encU8(args.mode ?? 0),
+  ]);
 }
 
 export function encodeResolvePermissionless(): Buffer {
