@@ -29,6 +29,7 @@ export function registerTradeCpi(program: Command): void {
     .requiredOption("--matcher-program <pubkey>", "Matcher program ID")
     .requiredOption("--matcher-context <pubkey>", "Matcher context account")
     .option("--limit-price-e6 <n>", "On-chain slippage limit (e6 units). For long trades, reject if fill price > limit; for short, reject if fill price < limit. 0 = disabled.")
+    .option("--oracle <pubkey>", "Oracle account (required for non-Hyperp markets; Hyperp markets use the slab itself)")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -61,13 +62,27 @@ export function registerTradeCpi(program: Command): void {
         limitPriceE6: opts.limitPriceE6 ?? "0",
       });
 
+      let oracle: PublicKey;
+      if (opts.oracle) {
+        oracle = validatePublicKey(opts.oracle, "--oracle");
+      } else {
+        const ZERO = new PublicKey(new Uint8Array(32));
+        if (mktConfig.indexFeedId.equals(ZERO)) {
+          oracle = slabPk;
+        } else {
+          throw new Error(
+            "Non-Hyperp market detected (indexFeedId ≠ 0). Pass --oracle <pubkey> with the Pyth/Chainlink account used at InitMarket."
+          );
+        }
+      }
+
       // Build account metas (order matches ACCOUNTS_TRADE_CPI)
       const keys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
         ctx.payer.publicKey, // user (signer)
         lpOwnerPk, // lpOwner (read from slab, not a signer)
         slabPk, // slab
         WELL_KNOWN.clock, // clock
-        mktConfig.indexFeedId, // oracle (use index feed ID from config)
+        oracle,
         matcherProgram, // matcherProg
         matcherContext, // matcherCtx
         lpPda, // lpPda
