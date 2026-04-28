@@ -56,11 +56,16 @@ export const AUTHORITY_KIND = {
   ADMIN: 0,                // header.admin
   HYPERP_MARK: 1,          // config.hyperp_authority (renamed from oracle_authority in v12.20)
   INSURANCE: 2,            // header.insurance_authority — tag 20 WithdrawInsurance (unbounded)
-  // kind=3 CLOSE was deleted; close authority merged into ADMIN in v12.20
+  // kind=3 CLOSE was deleted; close authority merged into ADMIN in v12.20.
+  // No alias here on purpose: AUTHORITY_KIND.CLOSE used to map to 0 (ADMIN),
+  // which silently turned a "burn close authority" call into a "rotate admin"
+  // call. Better to fail at import with `undefined` than to silently rotate
+  // the only authority that can still rotate every other authority.
   INSURANCE_OPERATOR: 4,   // header.insurance_operator — tag 23 WithdrawInsuranceLimited
-  ORACLE: 1,               // back-compat alias for HYPERP_MARK
-  CLOSE: 0,                // back-compat alias — CloseSlab now gated on ADMIN
+  ORACLE: 1,               // back-compat alias for HYPERP_MARK (same field, only renamed)
 } as const;
+
+const VALID_AUTHORITY_KINDS = new Set([0, 1, 2, 4]);
 
 /**
  * InitMarket wire layout (v12.20+):
@@ -400,10 +405,15 @@ export function encodeCatchupAccrue(): Buffer {
 
 // ---------- Authority management (replaces UpdateAdmin, SetOracleAuthority) ----------
 export interface UpdateAuthorityArgs {
-  kind: number; // AUTHORITY_KIND.ADMIN | ORACLE | INSURANCE | CLOSE
+  kind: number; // AUTHORITY_KIND.ADMIN | HYPERP_MARK (=ORACLE) | INSURANCE | INSURANCE_OPERATOR
   newPubkey: PublicKey | string;
 }
 export function encodeUpdateAuthority(args: UpdateAuthorityArgs): Buffer {
+  if (!VALID_AUTHORITY_KINDS.has(args.kind)) {
+    throw new Error(
+      `encodeUpdateAuthority: invalid kind ${args.kind} (expected 0=ADMIN, 1=HYPERP_MARK/ORACLE, 2=INSURANCE, 4=INSURANCE_OPERATOR; kind=3 was removed in v12.20)`
+    );
+  }
   return Buffer.concat([
     encU8(IX_TAG.UpdateAuthority),
     encU8(args.kind),
