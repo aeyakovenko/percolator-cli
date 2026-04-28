@@ -97,10 +97,19 @@ function computeQuote(
   };
 }
 
-async function getChainlinkPrice(connection: Connection, oracle: PublicKey): Promise<{ price: bigint; decimals: number }> {
+async function getChainlinkPrice(connection: Connection, oracle: PublicKey) {
   const info = await connection.getAccountInfo(oracle);
   if (!info) throw new Error("Oracle account not found: " + oracle.toBase58());
   return parseChainlinkPrice(info.data as Buffer);
+}
+
+const STALE_THRESHOLD_SECS = 120;
+
+function formatAge(secs: number): string {
+  if (secs < 60) return `${secs}s`;
+  if (secs < 3600) return `${(secs / 60).toFixed(1)}m`;
+  if (secs < 86400) return `${(secs / 3600).toFixed(1)}h`;
+  return `${(secs / 86400).toFixed(1)}d`;
 }
 
 export function registerBestPrice(program: Command): void {
@@ -125,6 +134,8 @@ export function registerBestPrice(program: Command): void {
 
       const oraclePrice = oracleData.price;
       const oraclePriceUsd = Number(oraclePrice) / Math.pow(10, oracleData.decimals);
+      const ageSecs = Math.max(0, Math.floor(Date.now() / 1000) - oracleData.timestamp);
+      const stale = ageSecs > STALE_THRESHOLD_SECS;
 
       // Find all LPs and collect matcher context addresses
       const usedIndices = parseUsedIndices(slabData);
@@ -198,6 +209,9 @@ export function registerBestPrice(program: Command): void {
             price: oraclePrice.toString(),
             priceUsd: oraclePriceUsd,
             decimals: oracleData.decimals,
+            timestamp: oracleData.timestamp,
+            ageSecs,
+            stale,
           },
           lps: quotes.map(q => ({
             index: q.lpIndex,
@@ -228,6 +242,7 @@ export function registerBestPrice(program: Command): void {
       } else {
         console.log("=== Best Price Scanner ===\n");
         console.log(`Oracle: $${oraclePriceUsd.toFixed(2)}`);
+        console.log(`Oracle age: ${formatAge(ageSecs)}${stale ? "  STALE (> " + STALE_THRESHOLD_SECS + "s)" : ""}`);
         console.log(`LPs found: ${quotes.length}\n`);
 
         console.log("--- LP Quotes ---");
