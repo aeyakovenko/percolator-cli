@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -25,6 +26,7 @@ export function registerWithdraw(program: Command): void {
     .requiredOption("--slab <pubkey>", "Slab account public key")
     .requiredOption("--user-idx <number>", "User account index")
     .requiredOption("--amount <string>", "Amount to withdraw (native units)")
+    .option("--oracle <pubkey>", "Oracle account (required for non-Hyperp markets; Hyperp markets use the slab itself)")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -49,6 +51,25 @@ export function registerWithdraw(program: Command): void {
       // Build instruction data
       const ixData = encodeWithdrawCollateral({ userIdx, amount });
 
+      // Pick oracle: explicit --oracle wins; otherwise Hyperp markets
+      // pass the slab itself (wrapper accepts any pubkey when feed_id is
+      // zero); non-Hyperp markets force the operator to be explicit
+      // because indexFeedId is the Pyth feed-id hash, not the
+      // PriceUpdateV2 account pubkey.
+      let oracle: PublicKey;
+      if (opts.oracle) {
+        oracle = validatePublicKey(opts.oracle, "--oracle");
+      } else {
+        const ZERO = new PublicKey(new Uint8Array(32));
+        if (mktConfig.indexFeedId.equals(ZERO)) {
+          oracle = slabPk;
+        } else {
+          throw new Error(
+            "Non-Hyperp market detected (indexFeedId ≠ 0). Pass --oracle <pubkey> with the Pyth/Chainlink account used at InitMarket."
+          );
+        }
+      }
+
       // Build account metas (order matches ACCOUNTS_WITHDRAW_COLLATERAL)
       const keys = buildAccountMetas(ACCOUNTS_WITHDRAW_COLLATERAL, [
         ctx.payer.publicKey, // user
@@ -58,7 +79,7 @@ export function registerWithdraw(program: Command): void {
         vaultPda, // vaultPda
         WELL_KNOWN.tokenProgram, // tokenProgram
         WELL_KNOWN.clock, // clock
-        mktConfig.indexFeedId, // oracle
+        oracle,
       ]);
 
       const ix = buildIx({

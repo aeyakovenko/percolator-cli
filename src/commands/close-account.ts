@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -20,6 +21,7 @@ export function registerCloseAccount(program: Command): void {
     .description("Close a user account and withdraw remaining collateral")
     .requiredOption("--slab <pubkey>", "Slab account public key")
     .requiredOption("--user-idx <number>", "User account index to close")
+    .option("--oracle <pubkey>", "Oracle account (required for non-Hyperp markets; Hyperp markets use the slab itself)")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -42,6 +44,20 @@ export function registerCloseAccount(program: Command): void {
       // Build instruction data
       const ixData = encodeCloseAccount({ userIdx });
 
+      let oracle: PublicKey;
+      if (opts.oracle) {
+        oracle = validatePublicKey(opts.oracle, "--oracle");
+      } else {
+        const ZERO = new PublicKey(new Uint8Array(32));
+        if (mktConfig.indexFeedId.equals(ZERO)) {
+          oracle = slabPk;
+        } else {
+          throw new Error(
+            "Non-Hyperp market detected (indexFeedId ≠ 0). Pass --oracle <pubkey> with the Pyth/Chainlink account used at InitMarket."
+          );
+        }
+      }
+
       // Build account metas (order matches ACCOUNTS_CLOSE_ACCOUNT)
       const keys = buildAccountMetas(ACCOUNTS_CLOSE_ACCOUNT, [
         ctx.payer.publicKey, // user
@@ -51,7 +67,7 @@ export function registerCloseAccount(program: Command): void {
         vaultPda, // vaultPda
         WELL_KNOWN.tokenProgram, // tokenProgram
         WELL_KNOWN.clock, // clock
-        mktConfig.indexFeedId, // oracle
+        oracle,
       ]);
 
       const ix = buildIx({
