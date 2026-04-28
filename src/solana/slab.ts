@@ -104,9 +104,37 @@ export interface MarketConfig {
   newAccountFee: bigint;               // u128
 }
 
-export async function fetchSlab(connection: Connection, slabPubkey: PublicKey): Promise<Buffer> {
+/**
+ * Fetch and minimally validate a slab account.
+ *
+ * If `expectedOwner` is supplied (the percolator program id), the account's
+ * `owner` field must match — otherwise we throw before any caller parses
+ * the data. Without this, a system-owned account containing crafted
+ * PERCOLAT magic + attacker-controlled vault/mint pubkeys would parse
+ * cleanly via parseConfig() and redirect a CLI-built transaction at
+ * those attacker-controlled accounts.
+ *
+ * The on-chain program performs the same owner check at instruction
+ * dispatch, so this is defense in depth — fail loudly in the CLI before
+ * the user signs, rather than silently building a tx that the program
+ * will reject.
+ *
+ * `expectedOwner` is optional so legacy callers (scripts/tests that read
+ * raw slab bytes for inspection) still work; in-tree command code paths
+ * pass `ctx.programId`.
+ */
+export async function fetchSlab(
+  connection: Connection,
+  slabPubkey: PublicKey,
+  expectedOwner?: PublicKey,
+): Promise<Buffer> {
   const info = await connection.getAccountInfo(slabPubkey);
   if (!info) throw new Error(`Slab account not found: ${slabPubkey.toBase58()}`);
+  if (expectedOwner && !info.owner.equals(expectedOwner)) {
+    throw new Error(
+      `Slab account ${slabPubkey.toBase58()} owner mismatch: expected ${expectedOwner.toBase58()}, got ${info.owner.toBase58()}`
+    );
+  }
   return Buffer.from(info.data);
 }
 

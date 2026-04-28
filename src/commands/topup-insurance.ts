@@ -29,7 +29,7 @@ export function registerTopupInsurance(program: Command): void {
       validateU128(opts.amount, "--amount");
 
       // Fetch slab config for vault
-      const data = await fetchSlab(ctx.connection, slabPk);
+      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const mktConfig = parseConfig(data);
 
       // Get user's ATA for the collateral mint

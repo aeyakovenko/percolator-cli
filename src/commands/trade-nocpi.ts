@@ -50,7 +50,7 @@ export function registerTradeNocpi(program: Command): void {
       // (modulo any oracle update that lands in the same slot — hence
       // TOCTOU). Cheaper than nothing for fat-finger guarding.
       if (opts.maxPriceE6 !== undefined || opts.minPriceE6 !== undefined) {
-        const slabBuf = await fetchSlab(ctx.connection, slabPk);
+        const slabBuf = await fetchSlab(ctx.connection, slabPk, ctx.programId);
         const cur = parseConfig(slabBuf).lastEffectivePriceE6;
         if (opts.maxPriceE6 !== undefined && cur > BigInt(opts.maxPriceE6)) {
           throw new Error(`pre-submit price ${cur} > --max-price-e6 ${opts.maxPriceE6}`);

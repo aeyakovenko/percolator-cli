@@ -128,7 +128,7 @@ export function registerBestPrice(program: Command): void {
 
       // Fetch slab and oracle in parallel
       const [slabData, oracleData] = await Promise.all([
-        fetchSlab(ctx.connection, slabPk),
+        fetchSlab(ctx.connection, slabPk, ctx.programId),
         getChainlinkPrice(ctx.connection, oraclePk),
       ]);
 
