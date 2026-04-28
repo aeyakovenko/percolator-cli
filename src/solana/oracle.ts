@@ -3,26 +3,22 @@
  *
  * Chainlink aggregator layout on Solana:
  *   offset 138: decimals (u8)
+ *   offset 208: latest timestamp (u64 LE, unix seconds)
  *   offset 216: latest answer (i64 LE)
  *
  * Minimum account size: 224 bytes (offset 216 + 8 bytes for i64).
  */
 
-/** Minimum buffer size to read Chainlink price data */
-const CHAINLINK_MIN_SIZE = 224; // 216 + 8
-
-/** Maximum reasonable decimals for a price feed */
+const CHAINLINK_MIN_SIZE = 224;
 const MAX_DECIMALS = 18;
-
-/** Offset of decimals field in Chainlink aggregator account */
 const CHAINLINK_DECIMALS_OFFSET = 138;
-
-/** Offset of latest answer in Chainlink aggregator account */
+const CHAINLINK_TIMESTAMP_OFFSET = 208;
 const CHAINLINK_ANSWER_OFFSET = 216;
 
 export interface OraclePrice {
   price: bigint;
   decimals: number;
+  timestamp: number;
 }
 
 /**
@@ -56,5 +52,7 @@ export function parseChainlinkPrice(data: Buffer): OraclePrice {
     );
   }
 
-  return { price, decimals };
+  const timestamp = Number(data.readBigUInt64LE(CHAINLINK_TIMESTAMP_OFFSET));
+
+  return { price, decimals, timestamp };
 }
