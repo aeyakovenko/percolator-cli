@@ -97,9 +97,20 @@ function computeQuote(
   };
 }
 
+// Chainlink OCR2 program — the only owner whose account-data layout
+// matches the offsets parseChainlinkPrice expects. Without this check
+// best-price will happily read decimals/price from arbitrary bytes of
+// an unrelated account and display confident-looking garbage quotes.
+const CHAINLINK_OCR2_PROGRAM = new PublicKey("HEvSKofvBgfaexv23kMabbYqxasxU3mQ4ibBMEmJWHny");
+
 async function getChainlinkPrice(connection: Connection, oracle: PublicKey) {
   const info = await connection.getAccountInfo(oracle);
   if (!info) throw new Error("Oracle account not found: " + oracle.toBase58());
+  if (!info.owner.equals(CHAINLINK_OCR2_PROGRAM)) {
+    throw new Error(
+      `Oracle ${oracle.toBase58()} is not owned by the Chainlink OCR2 program (${CHAINLINK_OCR2_PROGRAM.toBase58()}); got ${info.owner.toBase58()}. best-price only supports Chainlink feeds.`
+    );
+  }
   return parseChainlinkPrice(info.data as Buffer);
 }
 
