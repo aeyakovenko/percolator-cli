@@ -28,6 +28,7 @@ export function registerTradeCpi(program: Command): void {
     .requiredOption("--size <string>", "Trade size (i128, positive=long, negative=short)")
     .requiredOption("--matcher-program <pubkey>", "Matcher program ID")
     .requiredOption("--matcher-context <pubkey>", "Matcher context account")
+    .option("--limit-price-e6 <n>", "On-chain slippage limit (e6 units). For long trades, reject if fill price > limit; for short, reject if fill price < limit. 0 = disabled.")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -57,6 +58,7 @@ export function registerTradeCpi(program: Command): void {
         lpIdx,
         userIdx,
         size: opts.size,
+        limitPriceE6: opts.limitPriceE6 ?? "0",
       });
 
       // Build account metas (order matches ACCOUNTS_TRADE_CPI)
