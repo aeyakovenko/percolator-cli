@@ -173,18 +173,21 @@ Vault ATA:   AcJsfpbuUKHHdoqPuLccRsK794nHecM1XKySE6Umefvr  (wrapped SOL, PDA-sig
 Matcher:     (none — third parties provision their own)
 ```
 
-**Build provenance** (reproducible from source + `cargo build-sbf` with default features):
+**On-chain provenance** (the bytes anyone can dump and hash today):
 
 ```
-BPF binary SHA-256:  3f78e2f279dc29aa373fca57cfc56a56d70b8a5e85a16e5a090a2f2d5d9efbcc
-BPF binary size:     394,832 bytes ELF
+On-chain SHA-256:    502088e9cf5e1b38cccd31bbab2df18d4958712fb9456d48669241aaddf4cc93
+On-chain size:       395,368 bytes (output of `solana program dump`)
 percolator-prog:     06f86fb125525af81c0bfd19a295095dda102c07
 percolator (engine): 3f55f871a3aa29d7b582fc2641d2106cbac0c32e
 percolator-cli:      74e902f165dcac98c87eb80406a2a92a40cf8dc7
 MAX_ACCOUNTS:        4096
+Upgrade authority:   BURNED (--final at deploy time)
 ```
 
-Verify locally: `solana program dump -u m BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw /tmp/mainnet.so` then `head -c 394832 /tmp/mainnet.so | sha256sum` — must output the SHA above.
+Verify locally: `solana program dump -u m BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw /tmp/mainnet.so && sha256sum /tmp/mainnet.so` — must output the SHA above.
+
+To prove the deployed bytes correspond to the named commits, clone the repos at those commits and run `cargo build-sbf`, then compare the resulting `target/deploy/percolator_prog.so` against the on-chain dump (see "Reproducing the binary from source" below). The build is not a deterministic Docker reproducible build — the on-chain SHA is the authoritative artifact.
 
 ### Reproducing the binary from source
 
@@ -203,18 +206,21 @@ git clone https://github.com/aeyakovenko/percolator-prog.git
 cd percolator-prog
 cargo build-sbf
 
-# 3. Hash the ELF.
+# 3. Hash the locally built ELF.
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 3f78e2f279dc29aa373fca57cfc56a56d70b8a5e85a16e5a090a2f2d5d9efbcc
+#   Record this hash.
 
-# 4. Hash the on-chain bytes (strip trailing ProgramData zero padding to
-#    the ELF size) and compare.
+# 4. Hash the on-chain bytes and compare.
 solana program dump -u m BCGNFw6vDinWTF9AybAbi8vr69gx5nk5w8o2vEWgpsiw /tmp/deployed.so
-head -c 394832 /tmp/deployed.so | sha256sum
-#   Must match the `cargo build-sbf` hash exactly.
+sha256sum /tmp/deployed.so
+#   Expected (on-chain): 502088e9cf5e1b38cccd31bbab2df18d4958712fb9456d48669241aaddf4cc93
+#   The local-build hash from step 3 must equal this for byte-identical
+#   provenance. `solana program dump` returns the raw on-chain ELF
+#   (no padding stripping needed); if the local build differs in size,
+#   the toolchain version drifted from the original deploy.
 ```
 
-The two hashes matching proves the deployed program is byte-identical to the commits named above.
+The two hashes matching proves the deployed program is byte-identical to the commits named above. If they don't match, the most common cause is a different `solana-cli` / `cargo build-sbf` toolchain version than was used at deploy time — try matching the build environment of the original deployer.
 
 > Future deploys that want the automated OtterSec badge should vendor the engine crate into `percolator-prog/engine/` as a git submodule (or via a crates.io release) so the build is self-contained from one repo clone.
 

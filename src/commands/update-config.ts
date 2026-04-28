@@ -10,6 +10,8 @@ import {
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
+import { fetchSlab, parseConfig } from "../solana/slab.js";
+import { PublicKey } from "@solana/web3.js";
 
 // Default values (from percolator-prog constants)
 const DEFAULTS = {
@@ -49,6 +51,7 @@ export function registerUpdateConfig(program: Command): void {
     .option("--thresh-max <n>", "Maximum threshold (default: 10000000000000000000)")
     .option("--thresh-min-step <n>", "Minimum threshold step (default: 1)")
     .option("--tvl-insurance-cap-mult <n>", "Deposit cap: c_tot ≤ k × insurance (0=disabled, 20=20× coverage)", "0")
+    .option("--oracle <pubkey>", "Oracle account (required for non-Hyperp markets; Hyperp markets accept any pubkey, default: slab)")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -76,11 +79,39 @@ export function registerUpdateConfig(program: Command): void {
 
       const ixData = encodeUpdateConfig(configArgs);
 
+      // Pick the oracle key. Priority: explicit --oracle flag > on-chain
+      // config.indexFeedId (cast to PublicKey for non-Hyperp) > slab itself
+      // (Hyperp default — wrapper accepts any pubkey when feed is all-zero).
+      // Passing slabPk for a non-Hyperp market is the v1 bug fixed here:
+      // the wrapper's accrue path reads the oracle, fails IllegalOwner, and
+      // the config update silently aborts.
+      let oracle: PublicKey;
+      if (opts.oracle) {
+        oracle = validatePublicKey(opts.oracle, "--oracle");
+      } else {
+        const buf = await fetchSlab(ctx.connection, slabPk);
+        const c = parseConfig(buf);
+        const ZERO = new PublicKey(new Uint8Array(32));
+        const isHyperp = c.indexFeedId.equals(ZERO);
+        if (isHyperp) {
+          oracle = slabPk;
+        } else {
+          // For non-Hyperp markets the oracle pubkey is what the deployer
+          // passed at InitMarket as accounts[5]; we don't have that on the
+          // slab as a Pubkey (only the Pyth feed_id is stored, which is
+          // NOT the same as the PriceUpdateV2 account pubkey). Force the
+          // operator to be explicit rather than guessing.
+          throw new Error(
+            "Non-Hyperp market detected (indexFeedId ≠ 0). Pass --oracle <pubkey> with the Pyth/Chainlink account used at InitMarket."
+          );
+        }
+      }
+
       const keys = buildAccountMetas(ACCOUNTS_UPDATE_CONFIG, [
         ctx.payer.publicKey, // admin
         slabPk,              // slab
         WELL_KNOWN.clock,    // clock
-        slabPk,              // oracle (Hyperp: slab itself; non-Hyperp: Pyth account)
+        oracle,              // Hyperp: slab; non-Hyperp: Pyth/Chainlink account
       ]);
 
       const ix = buildIx({
