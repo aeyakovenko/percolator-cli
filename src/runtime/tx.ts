@@ -156,8 +156,15 @@ export async function simulateOrSend(
 
 /**
  * Format transaction result for output.
+ *
+ * Side effect: sets `process.exitCode = 1` when the result is an error,
+ * so the CLI fails the shell exit code without aborting mid-print.
+ * Keeper bots and CI scripts rely on a non-zero exit on failure.
  */
 export function formatResult(result: TxResult, jsonMode: boolean): string {
+  if (result.err) {
+    process.exitCode = 1;
+  }
   if (jsonMode) {
     return JSON.stringify(result, null, 2);
   }
