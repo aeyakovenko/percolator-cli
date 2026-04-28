@@ -470,11 +470,18 @@ function computeLayout(maxAccounts: number): SlabLayout {
 }
 
 export function layoutForDataLength(dataLen: number): SlabLayout {
-  for (const cap of [64, 256, 1024, 4096]) {
-    const l = computeLayout(cap);
+  const candidates = [64, 256, 1024, 4096].map(computeLayout);
+  for (const l of candidates) {
     if (l.slabLen === dataLen) return l;
   }
-  return computeLayout(4096);
+  // Silent fallback to 4096 used to mask layout drift: every downstream
+  // parser would read from wrong offsets and return plausible-looking
+  // garbage (the v1 mainnet slab → v12.21 wrapper break is the canonical
+  // example). Fail loud instead.
+  const expected = candidates.map(l => `${l.maxAccounts}=>${l.slabLen}`).join(", ");
+  throw new Error(
+    `slab data length ${dataLen} matches no known capacity (expected one of ${expected})`
+  );
 }
 
 // =============================================================================
