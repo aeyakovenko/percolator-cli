@@ -28,7 +28,7 @@ export function registerCloseSlab(program: Command): void {
       const slabPk = validatePublicKey(opts.slab, "--slab");
 
       // Fetch slab config for vault, mint
-      const data = await fetchSlab(ctx.connection, slabPk);
+      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const mktConfig = parseConfig(data);
 
       // Derive vault authority PDA

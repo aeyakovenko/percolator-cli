@@ -34,7 +34,7 @@ export function registerUpdateConfig(program: Command): void {
       // Always fetch current on-chain config; we use it both as the
       // baseline for omitted parameters and to detect Hyperp vs non-Hyperp
       // for oracle-account selection.
-      const buf = await fetchSlab(ctx.connection, slabPk);
+      const buf = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const onChain = parseConfig(buf);
 
       const configArgs = {

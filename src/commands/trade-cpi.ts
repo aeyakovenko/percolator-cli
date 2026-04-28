@@ -43,7 +43,7 @@ export function registerTradeCpi(program: Command): void {
       validateI128(opts.size, "--size");
 
       // Fetch slab config for oracle
-      const data = await fetchSlab(ctx.connection, slabPk);
+      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const mktConfig = parseConfig(data);
 
       // Derive LP PDA
