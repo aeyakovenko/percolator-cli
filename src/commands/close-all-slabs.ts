@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { PublicKey, Transaction, ComputeBudgetProgram, sendAndConfirmTransaction } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -12,7 +11,7 @@ import {
   buildAccountMetas,
   WELL_KNOWN,
 } from "../abi/accounts.js";
-import { buildIx } from "../runtime/tx.js";
+import { buildIx, simulateOrSend } from "../runtime/tx.js";
 
 // PERCOLAT magic bytes for filtering
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
@@ -76,13 +75,16 @@ export function registerCloseAllSlabs(program: Command): void {
         return;
       }
 
-      // Close slabs
-      let closed = 0;
+      // Close slabs (or simulate). CloseSlab is terminal — without --simulate
+      // each iteration is irreversible.
+      let succeeded = 0;
       let failed = 0;
       let totalRecovered = 0;
+      const simulate = flags.simulate ?? false;
+      const verb = simulate ? "Would close" : "Closed";
 
       const toClose = slabs.slice(0, limit);
-      console.log(`\nClosing ${toClose.length} slab(s)...`);
+      console.log(`\n${simulate ? "Simulating" : "Closing"} ${toClose.length} slab(s)...`);
 
       for (const { pubkey, account } of toClose) {
         try {
@@ -92,12 +94,12 @@ export function registerCloseAllSlabs(program: Command): void {
 
           const ixData = encodeCloseSlab();
           const keys = buildAccountMetas(ACCOUNTS_CLOSE_SLAB, [
-            ctx.payer.publicKey, // dest (signer, writable)
-            pubkey, // slab (writable)
-            mktConfig.vaultPubkey, // vault (writable)
-            vaultAuth, // vaultAuth
-            destAta, // destAta (writable)
-            WELL_KNOWN.tokenProgram, // tokenProgram
+            ctx.payer.publicKey,
+            pubkey,
+            mktConfig.vaultPubkey,
+            vaultAuth,
+            destAta,
+            WELL_KNOWN.tokenProgram,
           ]);
 
           const ix = buildIx({
@@ -106,27 +108,33 @@ export function registerCloseAllSlabs(program: Command): void {
             data: ixData,
           });
 
-          const tx = new Transaction();
-          tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }));
-          tx.add(ix);
-
-          const sig = await sendAndConfirmTransaction(ctx.connection, tx, [ctx.payer], {
+          const result = await simulateOrSend({
+            connection: ctx.connection,
+            ix,
+            signers: [ctx.payer],
+            simulate,
             commitment: ctx.commitment,
+            computeUnitLimit: 1_400_000,
           });
 
-          const solRecovered = account.lamports / 1e9;
-          totalRecovered += solRecovered;
-          closed++;
-          console.log(`  Closed ${pubkey.toBase58().slice(0, 8)}... (+${solRecovered.toFixed(4)} SOL)`);
+          if (result.err) {
+            failed++;
+            console.log(`  Failed ${pubkey.toBase58().slice(0, 8)}...: ${result.err.slice(0, 80)}`);
+          } else {
+            const solRecovered = account.lamports / 1e9;
+            totalRecovered += solRecovered;
+            succeeded++;
+            console.log(`  ${verb} ${pubkey.toBase58().slice(0, 8)}... (+${solRecovered.toFixed(4)} SOL)`);
+          }
         } catch (e: any) {
           failed++;
-          console.log(`  Failed ${pubkey.toBase58().slice(0, 8)}...: ${e.message?.slice(0, 50)}`);
+          console.log(`  Failed ${pubkey.toBase58().slice(0, 8)}...: ${e.message?.slice(0, 80)}`);
         }
       }
 
       console.log(`\nSummary:`);
-      console.log(`  Closed: ${closed}`);
+      console.log(`  ${simulate ? "Would close" : "Closed"}: ${succeeded}`);
       console.log(`  Failed: ${failed}`);
-      console.log(`  SOL recovered: ${totalRecovered.toFixed(4)}`);
+      console.log(`  SOL ${simulate ? "recoverable" : "recovered"}: ${totalRecovered.toFixed(4)}`);
     });
 }
