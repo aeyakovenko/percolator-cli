@@ -34,7 +34,7 @@ export const ACCOUNTS_INIT_MARKET: readonly AccountSpec[] = [
   { name: "admin", signer: true, writable: false },
   { name: "slab", signer: false, writable: true },
   { name: "mint", signer: false, writable: false },
-  { name: "vault", signer: false, writable: false },
+  { name: "vault", signer: false, writable: true },
   { name: "clock", signer: false, writable: false },
   { name: "oracle", signer: false, writable: false },
 ] as const;
@@ -86,7 +86,7 @@ export const ACCOUNTS_WITHDRAW_COLLATERAL: readonly AccountSpec[] = [
   { name: "vaultPda", signer: false, writable: false },
   { name: "tokenProgram", signer: false, writable: false },
   { name: "clock", signer: false, writable: false },
-  { name: "oracleIdx", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
 ] as const;
 
 /**

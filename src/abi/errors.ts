@@ -156,6 +156,7 @@ export function parseErrorFromLogs(logs: string[]): {
     const match = log.match(/custom program error: 0x([0-9a-fA-F]+)/);
     if (match) {
       const code = parseInt(match[1], 16);
+      if (isNaN(code)) return null;
       const info = decodeError(code);
       return {
         code,

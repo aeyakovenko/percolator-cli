@@ -132,7 +132,7 @@ async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: n
   t4.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
   t4.add(buildIx({ programId: PROGRAM_ID,
     keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-    data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }),
+    data: encodeKeeperCrank({ callerIdx: 65535 }),
   }));
   await send(t4, [payer]);
 
