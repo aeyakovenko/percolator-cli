@@ -31,7 +31,7 @@ export function registerSetOracleAuthority(program: Command): void {
 
       // UpdateAuthority: [current_authority, new_authority, slab].
       // When new == current (self-update) it still must be passed twice
-      // so the decode sees two signer-capable keys.
+      // current_authority (ctx.payer) must sign; new_authority is just a pubkey being set.
       const keys = buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [
         ctx.payer.publicKey,
         authority,
