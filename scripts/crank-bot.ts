@@ -70,7 +70,7 @@ async function runCrank(): Promise<{ sig: string; candidates: number }> {
   const engine = parseEngine(slabData);
   const candidates = computeCandidates(slabData, engine);
 
-  const crankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false, candidates });
+  const crankData = encodeKeeperCrank({ callerIdx: 65535, candidates });
   const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, SLAB, SYSVAR_CLOCK_PUBKEY, ORACLE]);
   const tx = new Transaction();
   tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
