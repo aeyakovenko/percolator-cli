@@ -23,6 +23,9 @@ export function deriveLpPda(
   slab: PublicKey,
   lpIdx: number
 ): [PublicKey, number] {
+  if (!Number.isInteger(lpIdx) || lpIdx < 0 || lpIdx > 0xFFFF) {
+    throw new RangeError(`lpIdx must be an integer in [0, 65535], got ${lpIdx}`);
+  }
   const idxBuf = Buffer.alloc(2);
   idxBuf.writeUInt16LE(lpIdx, 0);
   return PublicKey.findProgramAddressSync(
