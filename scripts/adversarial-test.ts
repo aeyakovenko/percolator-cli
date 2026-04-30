@@ -37,7 +37,7 @@ import {
   parseParams, AccountKind,
 } from "../src/solana/slab.js";
 
-const m = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+const m = JSON.parse(fs.readFileSync("devnet-market.json", "utf8"));
 const PROG = new PublicKey(m.programId);
 const MATCHER = new PublicKey(m.matcherProgramId);
 const SLAB = new PublicKey(m.slab);
@@ -45,7 +45,7 @@ const VAULT = new PublicKey(m.vault);
 const ORACLE = new PublicKey(m.oracle);
 
 const payer = Keypair.fromSecretKey(
-  new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
+  new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf8")))
 );
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
 

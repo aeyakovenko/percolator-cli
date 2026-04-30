@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { fetchSlab, parseUsedIndices, parseEngine } from "../solana/slab.js";
+import { fetchSlab, parseUsedIndices, parseEngine, parseParams } from "../solana/slab.js";
 import { validatePublicKey } from "../validation.js";
 
 export function registerSlabBitmap(program: Command): void {
@@ -19,13 +19,14 @@ export function registerSlabBitmap(program: Command): void {
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const indices = parseUsedIndices(data);
       const engine = parseEngine(data);
+      const params = parseParams(data);
 
       if (flags.json) {
         console.log(
           JSON.stringify(
             {
               numUsed: engine.numUsedAccounts,
-              maxAccounts: 4096,
+              maxAccounts: Number(params.maxAccounts),
               usedIndices: indices,
             },
             null,

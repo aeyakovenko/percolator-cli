@@ -42,7 +42,8 @@ export function registerSlabAccounts(program: Command): void {
 
         for (const { idx, account } of accounts) {
           const kindStr = account.kind === AccountKind.LP ? "LP  " : "User";
-          const ownerShort = account.owner.toBase58();
+          const ownerFull = account.owner.toBase58();
+          const ownerShort = ownerFull.length > 42 ? ownerFull.slice(0, 39) + "..." : ownerFull.padEnd(42);
           const capitalStr = account.capital.toString().padStart(19);
           const posStr = account.positionBasisQ.toString().padStart(20);
           console.log(
