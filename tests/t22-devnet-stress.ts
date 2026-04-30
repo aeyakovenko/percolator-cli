@@ -73,7 +73,7 @@ function encodePushOraclePrice(priceE6: bigint, timestamp: bigint): Buffer {
 
 function loadKeypair(): Keypair {
   const keypairPath = `${process.env.HOME}/.config/solana/id.json`;
-  const keypairBytes = JSON.parse(fs.readFileSync(keypairPath, "utf-8"));
+  const keypairBytes = JSON.parse(fs.readFileSync(keypairPath, "utf8"));
   return Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
 }
 
