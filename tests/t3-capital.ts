@@ -226,7 +226,8 @@ async function runT3Tests(): Promise<void> {
     await harness.deposit(ctx, user, largeAmount.toString());
 
     const snapshot = await harness.snapshot(ctx);
-    const balance = snapshot.accounts[0].account.capital;
+    const userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
+    const balance = userAcct?.account.capital ?? 0n;
 
     TestHarness.assertBigIntEqual(
       balance,
