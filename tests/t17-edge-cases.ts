@@ -120,23 +120,10 @@ async function runT17Tests(): Promise<void> {
   await harness.runTest("T17.3: Account fee verification", async () => {
     ctx = await harness.createFreshMarket({ maxAccounts: 64 });
 
-    // Get params to check new account fee
-    const snapshot = await harness.snapshot(ctx);
-    console.log(`    New account fee: ${snapshot.params.newAccountFee}`);
+  // v12.21+: newAccountFee removed from RiskParams - account creation is free
 
-    // Create user
-    user = await harness.createUser(ctx, "user3", 50_000_000n);
-
-    // Before init, user has no account
-    await harness.initUser(ctx, user, snapshot.params.newAccountFee.toString());
-
-    // User should have been charged the fee
-    const afterSnapshot = await harness.snapshot(ctx);
-    const userAcct = afterSnapshot.accounts.find(a => a.idx === user.accountIndex);
-    console.log(`    User capital after init: ${userAcct?.account.capital}`);
-
-    // Capital should be 0 after paying only the fee
-    TestHarness.assertBigIntEqual(
+    // v12.21+: newAccountFee removed - just init user without fee
+    await harness.initUser(ctx, user, "0");
       userAcct?.account.capital ?? 1n,
       0n,
       "Capital should be 0 after paying exact fee"
@@ -272,7 +259,7 @@ async function runT17Tests(): Promise<void> {
     const snapshot = await harness.snapshot(ctx);
     const params = snapshot.params;
 
-    console.log(`    Warmup period: ${params.warmupPeriodSlots} slots`);
+    console.log(`    Warmup period: N/A (removed in v12.21+)`);
     console.log(`    Maintenance margin: ${params.maintenanceMarginBps} bps`);
     console.log(`    Initial margin: ${params.initialMarginBps} bps`);
     console.log(`    Trading fee: ${params.tradingFeeBps} bps`);
