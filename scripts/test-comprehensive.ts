@@ -46,7 +46,7 @@ import { deriveVaultAuthority } from "../src/solana/pda.js";
 import * as fs from "fs";
 
 // ---------------------------------------------------------------------------
-const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf8"));
 const SLAB = new PublicKey(marketInfo.slab);
 const ORACLE = new PublicKey(marketInfo.oracle);
 const PROGRAM_ID = new PublicKey(marketInfo.programId);
@@ -58,7 +58,7 @@ const LP_IDX = marketInfo.lp.index;
 
 const conn = new Connection("https://api.devnet.solana.com", "confirmed");
 const payer = Keypair.fromSecretKey(
-  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
+  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf8")))
 );
 
 const fmt = (n: bigint | number) => (Number(n) / 1e9).toFixed(6);

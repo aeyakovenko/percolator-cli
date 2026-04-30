@@ -16,7 +16,7 @@ import { buildAccountMetas, ACCOUNTS_KEEPER_CRANK, ACCOUNTS_TRADE_CPI } from "..
 import { buildIx } from "../src/runtime/tx.js";
 import * as fs from "fs";
 
-const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf8"));
 const SLAB = new PublicKey(marketInfo.slab);
 const ORACLE = new PublicKey(marketInfo.oracle);
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
@@ -24,7 +24,7 @@ const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Y
 
 const conn = new Connection("https://api.devnet.solana.com", "confirmed");
 const payer = Keypair.fromSecretKey(
-  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
+  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf8")))
 );
 
 // State tracking
@@ -61,7 +61,7 @@ async function runCrank(): Promise<boolean> {
     const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
       payer.publicKey,
       SLAB,
-      new PublicKey(config.vault),
+      new PublicKey(config.vaultPubkey),
       new PublicKey(config.collateralMint),
       ORACLE,
       TOKEN_PROGRAM_ID,
@@ -71,7 +71,7 @@ async function runCrank(): Promise<boolean> {
     const ix = buildIx({
       programId: PROGRAM_ID,
       keys,
-      data: encodeKeeperCrank(),
+      data: encodeKeeperCrank({ callerIdx: 0 }),  // callerIdx=0 for admin-free test
     });
 
     const tx = new Transaction().add(
@@ -96,7 +96,7 @@ async function executeTrade(lpIdx: number, userIdx: number, size: bigint): Promi
     const keys = buildAccountMetas(ACCOUNTS_TRADE_CPI, [
       payer.publicKey,
       SLAB,
-      new PublicKey(config.vault),
+      new PublicKey(config.vaultPubkey),
       new PublicKey(config.collateralMint),
       ORACLE,
       userAta.address,
@@ -138,7 +138,8 @@ async function printStatus() {
   const { engine, params } = await getState();
 
   const insurance = BigInt(engine.insuranceFund?.balance || 0);
-  const threshold = BigInt(params.insuranceFloor || 0);
+  // v12.21+ removed: insuranceFloor no longer in RiskParams
+  const threshold = BigInt(0); // Placeholder - insuranceFloor was removed
   // lpSumAbs removed from engine state
 
   const insuranceChange = insurance - startInsurance;

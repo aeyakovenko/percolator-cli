@@ -5,7 +5,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { fetchSlab, parseAccount, parseUsedIndices } from '../src/solana/slab.js';
 import * as fs from 'fs';
 
-const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf8"));
 const SLAB = new PublicKey(process.argv[2] || marketInfo.slab);
 const OWNER = process.argv[3] ? new PublicKey(process.argv[3]) : null;
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');

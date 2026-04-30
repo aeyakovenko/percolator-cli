@@ -42,7 +42,7 @@ const SLAB_SIZE = 1525624;
 const MATCHER_CTX_SIZE = 320;
 
 const payer = Keypair.fromSecretKey(
-  new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
+  new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf8")))
 );
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
 

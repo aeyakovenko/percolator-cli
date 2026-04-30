@@ -25,7 +25,7 @@ function arg(name: string, fallback?: string): string | undefined {
 
 function loadDefaults(): { slab?: string; oracle?: string } {
   try {
-    return JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+    return JSON.parse(fs.readFileSync("devnet-market.json", "utf8"));
   } catch {
     return {};
   }

@@ -13,7 +13,7 @@ import { buildAccountMetas, ACCOUNTS_KEEPER_CRANK, ACCOUNTS_TRADE_CPI, ACCOUNTS_
 import { buildIx } from "../src/runtime/tx.js";
 import * as fs from "fs";
 
-const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf8"));
 const SLAB = new PublicKey(marketInfo.slab);
 const ORACLE = new PublicKey(marketInfo.oracle);
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
@@ -21,7 +21,7 @@ const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Y
 
 const conn = new Connection("https://api.devnet.solana.com", "confirmed");
 const payer = Keypair.fromSecretKey(
-  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
+  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf8")))
 );
 
 interface AccountState {

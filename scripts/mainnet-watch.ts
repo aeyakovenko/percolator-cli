@@ -101,7 +101,7 @@ function checkAnomalies(s: Snapshot, permResolveWindow: bigint): string[] {
 }
 
 async function main() {
-  const m = JSON.parse(fs.readFileSync("mainnet-market.json", "utf-8"));
+  const m = JSON.parse(fs.readFileSync("mainnet-market.json", "utf8"));
   const slab = new PublicKey(m.slab);
   const oracle = new PublicKey(m.oracle);
   const vault = new PublicKey(m.vault);

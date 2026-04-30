@@ -31,7 +31,7 @@ import { fetchSlab, parseHeader, parseConfig } from "../src/solana/slab.js";
 import { buildIx } from "../src/runtime/tx.js";
 
 async function main() {
-  const m = JSON.parse(fs.readFileSync("mainnet-bounty2-market.json", "utf-8"));
+  const m = JSON.parse(fs.readFileSync("mainnet-bounty2-market.json", "utf8"));
   const programId = new PublicKey(m.programId);
   const slab = new PublicKey(m.slab);
 
