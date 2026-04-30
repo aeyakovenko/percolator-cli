@@ -125,8 +125,11 @@ async function runT4Tests(): Promise<void> {
     const result = await harness.tradeNoCpi(ctx, user, lp, "100000000");
 
     // Should fail due to insufficient margin
-    const failed = !!result.err;
-    console.log(`    Large trade with small margin: ${failed ? "blocked" : "allowed"}`);
+    TestHarness.assert(
+      !!result.err,
+      `Large trade with small margin should fail: ${result.err}`
+    );
+    console.log(`    Large trade with small margin: ${!!result.err ? "blocked" : "allowed"}`);
     console.log(`    Result: ${result.err?.slice(0, 80) || "success"}`);
   });
 

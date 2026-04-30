@@ -70,9 +70,10 @@ async function runT14Tests(): Promise<void> {
 
     // Take a small position (well within margin)
     const tradeResult = await harness.tradeCpi(ctx, user, lp, "100"); // Small 100 unit position
-    if (tradeResult.err) {
-      console.log(`    Trade error: ${tradeResult.err.slice(0, 60)}`);
-    }
+    TestHarness.assert(
+      !tradeResult.err,
+      `Trade should succeed for healthy account: ${tradeResult.err}`
+    );
 
     // Check position BEFORE liquidation attempt
     let snapshot = await harness.snapshot(ctx);
@@ -84,6 +85,12 @@ async function runT14Tests(): Promise<void> {
     // Try to liquidate the healthy account
     const liqResult = await harness.liquidateAtOracle(ctx, user.accountIndex);
     console.log(`    Liquidation result: ${liqResult.err ? liqResult.err.slice(0, 60) : "success (no error)"}`);
+
+    // For a healthy account, liquidation should fail
+    TestHarness.assert(
+      !!liqResult.err,
+      `Liquidation should fail for healthy account: ${liqResult.err}`
+    );
 
     // Check position AFTER liquidation attempt
     snapshot = await harness.snapshot(ctx);
@@ -134,6 +141,12 @@ async function runT14Tests(): Promise<void> {
     // Try to liquidate
     const liqResult = await harness.liquidateAtOracle(ctx, user.accountIndex);
     console.log(`    Liquidation result: ${liqResult.err ? liqResult.err.slice(0, 60) : "success (no error)"}`);
+
+    // For a healthy account, liquidation should fail
+    TestHarness.assert(
+      !!liqResult.err,
+      `Liquidation should fail for healthy account: ${liqResult.err}`
+    );
 
     // Get state after
     snapshot = await harness.snapshot(ctx);
