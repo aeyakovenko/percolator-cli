@@ -143,7 +143,8 @@ async function runT10Tests(): Promise<void> {
 
     if (!result.err) {
       const snapshot = await harness.snapshot(ctx);
-      const balance = snapshot.accounts[0]?.account.capital ?? 0n;
+      const userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
+      const balance = userAcct?.account.capital ?? 0n;
       console.log(`    User balance: ${balance}`);
     }
   });
