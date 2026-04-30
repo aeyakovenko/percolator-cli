@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -10,6 +9,7 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validatePublicKey, validateU128, validateU64, validateBps, validateU16 } from "../validation.js";
 
 export function registerInitMarket(program: Command): void {
   program
@@ -89,7 +89,7 @@ export function registerInitMarket(program: Command): void {
       const resolvePriceDeviationBps = validateBps(opts.resolvePriceDeviationBps, "--resolve-price-deviation-bps");
       const minLiquidationAbs = validateU128(opts.minLiquidationAbs, "--min-liquidation-abs");
       const minNonzeroMmReq = validateU128(opts.minNonzeroMmReq, "--min-nonzero-mm-req");
-      const minNonzeroImReq = validateU128(opts.minNonzeroImReq, "--min-nzero-im-req");
+      const minNonzeroImReq = validateU128(opts.minNonzeroImReq, "--min-nonzero-im-req");
       const maxPriceMoveBpsPerSlot = validateBps(opts.maxPriceMoveBpsPerSlot, "--max-price-move-bps-per-slot");
       const insuranceWithdrawMaxBps = validateBps(opts.insuranceWithdrawMaxBps, "--insurance-withdraw-max-bps");
       const insuranceWithdrawCooldownSlots = validateU64(opts.insuranceWithdrawCooldown, "--insurance-withdraw-cooldown");
