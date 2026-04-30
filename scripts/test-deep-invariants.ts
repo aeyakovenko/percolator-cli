@@ -332,7 +332,7 @@ async function main() {
     const vaultBalance = BigInt(vaultInfo.value.amount);
 
     if (vaultBalance >= engine.vault) {
-      pass("Insurance exhaustion", `vault consistent after crash with no insurance (liq=${engine.lifetimeLiquidations})`);
+      pass("Insurance exhaustion", `vault consistent after crash with no insurance (liq=N/A - lifetimeLiquidations removed in v12.21+)`);
     } else {
       fail("Insurance exhaustion", `vault inconsistent: token=${Number(vaultBalance)/1e9} vs engine=${Number(engine.vault)/1e9}`);
     }

@@ -256,7 +256,7 @@ async function runT2Tests(): Promise<void> {
 
     TestHarness.assert(!withdrawResult.err, `Withdraw should succeed: ${withdrawResult.err}`);
     snapshot = await harness.snapshot(ctx);
-    const updatedAccount = snapshot.accounts[0].account;
+    const updatedAccount = snapshot.accounts.find(a => a.idx === user.accountIndex)?.account;
     console.log(`    After withdraw: ${updatedAccount.capital}`);
 
     // Run invariant check

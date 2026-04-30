@@ -79,7 +79,8 @@ async function runT3Tests(): Promise<void> {
     }
 
     const snapshot = await harness.snapshot(ctx);
-    const actualBalance = snapshot.accounts[0].account.capital;
+    const userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
+    const actualBalance = userAcct?.account.capital ?? 0n;
 
     TestHarness.assertBigIntEqual(
       actualBalance,
@@ -111,7 +112,8 @@ async function runT3Tests(): Promise<void> {
       console.log(`    (May fail due to oracle state - this is expected behavior)`);
     } else {
       const snapshot = await harness.snapshot(ctx);
-      const balance = snapshot.accounts[0].account.capital;
+      const userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
+      const balance = userAcct?.account.capital ?? 0n;
 
       TestHarness.assertBigIntEqual(
         balance,
