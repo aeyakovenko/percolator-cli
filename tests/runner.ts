@@ -2,7 +2,7 @@
 /**
  * Percolator Test Suite Runner
  *
- * Executes all test suites (T1-T10) and generates summary report.
+ * Executes all test suites (T1-T22) and generates summary report.
  *
  * Usage:
  *   npx tsx tests/runner.ts           # Run all tests
@@ -21,6 +21,17 @@ import { runT8Tests } from "./t8-crank.js";
 import { runT9Tests } from "./t9-determinism.js";
 import { runT10Tests } from "./t10-adversarial.js";
 import { runT11Tests } from "./t11-inverted-markets.js";
+import { runT12Tests } from "./t12-trade-cpi.js";
+import { runT13Tests } from "./t13-withdrawal-after-trade.js";
+import { runT14Tests } from "./t14-liquidation.js";
+import { runT15Tests } from "./t15-funding.js";
+import { runT16Tests } from "./t16-risk-reduction.js";
+import { runT17Tests } from "./t17-edge-cases.js";
+import { runT18Tests } from "./t18-inverted-market-e2e.js";
+import { runT19Tests } from "./t19-pyth-live-prices.js";
+import { runT20Tests } from "./t20-chainlink-oracle.js";
+import { runT21Tests } from "./t21-live-trading.js";
+import { runT22Tests } from "./t22-devnet-stress.js";
 
 interface SuiteInfo {
   name: string;
@@ -41,6 +52,17 @@ const ALL_SUITES: SuiteInfo[] = [
   { name: "t9", description: "Determinism & Replay", run: runT9Tests, quick: true },
   { name: "t10", description: "Adversarial", run: runT10Tests },
   { name: "t11", description: "Inverted Markets", run: runT11Tests },
+  { name: "t12", description: "Trade CPI", run: runT12Tests },
+  { name: "t13", description: "Withdrawal After Trade", run: runT13Tests },
+  { name: "t14", description: "Liquidation", run: runT14Tests },
+  { name: "t15", description: "Funding", run: runT15Tests },
+  { name: "t16", description: "Risk Reduction", run: runT16Tests },
+  { name: "t17", description: "Edge Cases", run: runT17Tests },
+  { name: "t18", description: "Inverted Market E2E", run: runT18Tests },
+  { name: "t19", description: "Pyth Live Prices", run: runT19Tests },
+  { name: "t20", description: "Chainlink Oracle", run: runT20Tests },
+  { name: "t21", description: "Live Trading", run: runT21Tests },
+  { name: "t22", description: "Devnet Stress", run: runT22Tests },
 ];
 
 async function main() {
