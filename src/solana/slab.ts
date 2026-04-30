@@ -48,8 +48,7 @@ export interface SlabHeader {
   flags: number;
   admin: PublicKey;
   nonce: bigint;
-  matCounter: bigint;
-  lastThrUpdateSlot: bigint;  // alias for matCounter
+  lastThrUpdateSlot: bigint;
   insuranceAuthority: PublicKey;   // bytes 72..104
   insuranceOperator: PublicKey;    // bytes 104..136 (close_authority field removed)
 }
@@ -147,7 +146,7 @@ export function parseHeader(data: Buffer): SlabHeader {
   if (magic !== MAGIC) {
     throw new Error(`Invalid slab magic: expected ${MAGIC.toString(16)}, got ${magic.toString(16)}`);
   }
-  const matCounter = data.readBigUInt64LE(RESERVED_OFF + 8);
+  const lastThrUpdateSlot = data.readBigUInt64LE(RESERVED_OFF + 8);
   return {
     magic,
     version: data.readUInt32LE(8),
@@ -155,18 +154,28 @@ export function parseHeader(data: Buffer): SlabHeader {
     flags: data.readUInt8(13),
     admin: new PublicKey(data.subarray(16, 48)),
     nonce: data.readBigUInt64LE(RESERVED_OFF),
-    matCounter,
-    lastThrUpdateSlot: matCounter,
+    lastThrUpdateSlot,
     insuranceAuthority: new PublicKey(data.subarray(72, 104)),
     insuranceOperator: new PublicKey(data.subarray(104, 136)),
   };
 }
 
 export function parseConfig(data: Buffer): MarketConfig {
-  const minLen = CONFIG_OFFSET + CONFIG_LEN;
-  if (data.length < minLen) throw new Error(`Slab data too short for config: ${data.length} < ${minLen}`);
+  // Backward-compat: detect header size (v12.20 vs v12.21+)
+  const newHeaderMinLen = HEADER_LEN + CONFIG_LEN;
+  const oldHeaderMinLen = 72 + CONFIG_LEN;
+  let off: number;
 
-  let off = CONFIG_OFFSET;
+  if (data.length >= newHeaderMinLen) {
+    off = HEADER_LEN; // 136 (v12.21+)
+  } else if (data.length >= oldHeaderMinLen) {
+    off = 72; // old header (v12.20)
+  } else {
+    throw new Error(`Slab data too short for config: ${data.length}`);
+  }
+
+  const minLen = off + CONFIG_LEN;
+  if (data.length < minLen) throw new Error(`Slab data too short for config: ${data.length} < ${minLen}`);
 
   const collateralMint = new PublicKey(data.subarray(off, off + 32));        off += 32;
   const vaultPubkey = new PublicKey(data.subarray(off, off + 32));            off += 32;
@@ -192,7 +201,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   const oracleTargetPriceE6 = data.readBigUInt64LE(off);                      off += 8;
   const oracleTargetPublishTime = data.readBigInt64LE(off);                   off += 8;
   const lastHyperpIndexSlot = data.readBigUInt64LE(off);                      off += 8;
-  const lastMarkPushSlot = readU128LE(data, off);                             off += 16;
+  const lastMarkPushSlot = data.readBigUInt64LE(off);                      off += 8;
   const lastInsuranceWithdrawSlot = data.readBigUInt64LE(off);                off += 8;
   const insuranceWithdrawDepositRemaining = data.readBigUInt64LE(off);        off += 8;
   const markEwmaE6 = data.readBigUInt64LE(off);                               off += 8;
@@ -206,7 +215,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   const feeSweepCursorBit = data.readBigUInt64LE(off);                        off += 8;
   const markMinFee = data.readBigUInt64LE(off);                               off += 8;
   const forceCloseDelaySlots = data.readBigUInt64LE(off);                     off += 8;
-  const newAccountFee = readU128LE(data, off);                                // off += 16;
+  const newAccountFee = readU128LE(data, off);                                off += 16;
 
   return {
     collateralMint, vaultPubkey, indexFeedId,
@@ -232,13 +241,14 @@ export function readNonce(data: Buffer): bigint {
 }
 
 export function readMatCounter(data: Buffer): bigint {
-  if (data.length < RESERVED_OFF + 16) throw new Error("Slab data too short for matCounter");
-  return data.readBigUInt64LE(RESERVED_OFF + 8);
+  if (data.length < RESERVED_OFF + 24) throw new Error("Slab data too short for matCounter");
+  return data.readBigUInt64LE(RESERVED_OFF + 16);
 }
 
 /** @deprecated Use readMatCounter instead. */
 export function readLastThrUpdateSlot(data: Buffer): bigint {
-  return readMatCounter(data);
+  if (data.length < RESERVED_OFF + 16) throw new Error("Slab data too short for lastThrUpdateSlot");
+  return data.readBigUInt64LE(RESERVED_OFF + 8);
 }
 
 // =============================================================================
