@@ -6,6 +6,7 @@ import {
   Keypair,
   SendOptions,
   Commitment,
+  Finality,
   AccountMeta,
   ComputeBudgetProgram,
 } from "@solana/web3.js";
@@ -75,7 +76,7 @@ export async function simulateOrSend(
 
   if (simulate) {
     tx.sign(...signers);
-    const result = await connection.simulateTransaction(tx, { signers });
+    const result = await connection.simulateTransaction(tx, signers);
     const logs = result.value.logs ?? [];
     let err: string | null = null;
     let hint: string | undefined;
@@ -120,7 +121,7 @@ export async function simulateOrSend(
 
     // Fetch logs
     const txInfo = await connection.getTransaction(signature, {
-      commitment,
+      commitment: commitment as Finality,
       maxSupportedTransactionVersion: 0,
     });
 
