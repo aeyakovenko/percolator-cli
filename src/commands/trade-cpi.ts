@@ -16,6 +16,7 @@ import {
   validatePublicKey,
   validateIndex,
   validateI128,
+  validateU64,
 } from "../validation.js";
 
 export function registerTradeCpi(program: Command): void {
@@ -41,7 +42,11 @@ export function registerTradeCpi(program: Command): void {
       const matcherContext = validatePublicKey(opts.matcherContext, "--matcher-context");
       const lpIdx = validateIndex(opts.lpIdx, "--lp-idx");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
-      validateI128(opts.size, "--size");
+      const size = validateI128(opts.size, "--size");
+      const limitPriceE6 =
+        opts.limitPriceE6 !== undefined
+          ? validateU64(opts.limitPriceE6, "--limit-price-e6")
+          : undefined;
 
       // Fetch slab config for oracle
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
@@ -58,8 +63,8 @@ export function registerTradeCpi(program: Command): void {
       const ixData = encodeTradeCpi({
         lpIdx,
         userIdx,
-        size: opts.size,
-        limitPriceE6: opts.limitPriceE6 ?? "0",
+        size,
+        limitPriceE6: limitPriceE6 ?? "0",
       });
 
       let oracle: PublicKey;
