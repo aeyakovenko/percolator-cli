@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { fetchSlab, readNonce } from "../solana/slab.js";
+import { fetchSlab, parseHeader, readNonce } from "../solana/slab.js";
 import { validatePublicKey } from "../validation.js";
 
 export function registerSlabNonce(program: Command): void {

@@ -29,7 +29,7 @@ export function registerSlabGet(program: Command): void {
           bump: header.bump,
           admin: header.admin.toBase58(),
           nonce: header.nonce.toString(),
-          matCounter: header.matCounter.toString(),
+          lastThrUpdateSlot: header.lastThrUpdateSlot.toString(),
           insuranceAuthority: header.insuranceAuthority.toBase58(),
           insuranceOperator: header.insuranceOperator.toBase58(),
         },
@@ -56,7 +56,7 @@ export function registerSlabGet(program: Command): void {
         console.log(`Bump:               ${output.header.bump}`);
         console.log(`Admin:              ${output.header.admin}`);
         console.log(`Nonce:              ${output.header.nonce}`);
-        console.log(`Mat Counter:        ${output.header.matCounter}`);
+        console.log(`Last Thr Update Slot: ${output.header.lastThrUpdateSlot}`);
         console.log(`Insurance Auth:     ${output.header.insuranceAuthority}`);
         console.log(`Insurance Operator: ${output.header.insuranceOperator}`);
         console.log("\n--- Config ---");
