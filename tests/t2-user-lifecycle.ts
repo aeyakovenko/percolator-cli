@@ -233,7 +233,7 @@ async function runT2Tests(): Promise<void> {
     await harness.deposit(ctx, user, depositAmount.toString());
 
     snapshot = await harness.snapshot(ctx);
-    const userAccount = snapshot.accounts[0].account;
+    const userAccount = snapshot.accounts.find(a => a.idx === user.accountIndex)?.account;
 
     // Note: Init fee goes to insurance fund, not user capital
     TestHarness.assertBigIntEqual(

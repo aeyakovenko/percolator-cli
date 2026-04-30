@@ -61,7 +61,7 @@ async function runT12Tests(): Promise<void> {
 
     // Verify setup
     const snapshot = await harness.snapshot(ctx);
-    TestHarness.assertEqual(snapshot.engine.numUsedAccounts, 2, "Should have 2 accounts");
+    TestHarness.assertEqual(snapshot.engine.numUsedAccounts, 2n, "Should have 2 accounts");
 
     const lpAcct = snapshot.accounts.find(a => a.idx === lp.accountIndex);
     const userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
