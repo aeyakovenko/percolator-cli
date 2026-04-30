@@ -109,7 +109,7 @@ export const TEST_MAX_STALENESS_SECS = "100000000"; // ~3 years
 // Default test parameters
 export const DEFAULT_MAX_ACCOUNTS = 256;
 export const DEFAULT_DECIMALS = 6;
-export const DEFAULT_FEE_PAYMENT = "2000000"; // 2 USDC (must be > newAccountFee to leave capital)
+export const DEFAULT_FEE_PAYMENT = "2000000"; // 2 USDC (must be > 0n // v12.21+ removed to leave capital)
 
 // Matcher program (50 bps passive LP matcher deployed on devnet)
 export const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
@@ -445,7 +445,7 @@ export class TestHarness {
       initialMarginBps: "1000",
       tradingFeeBps: "10",
       maxAccounts: maxAccounts.toString(),
-      newAccountFee: "0",
+      0n // v12.21+ removed: "0",
       hMax: "200",
       maxCrankStalenessSlots: "0",
       liquidationFeeBps: "100",

@@ -10,7 +10,7 @@ import type { InitMarketArgs } from "../src/abi/instructions.js";
 //     with a large value to make the sweep readable in one crank, e.g.
 //     check-maint-fees.ts uses 1_000_000 = ~$216k/day/account).
 //   - hMin=4, hMax=200: warmup 1.6–80 s so tests don't wait hours.
-//   - newAccountFee=0: tests can spawn accounts for free.
+//   - 0n // v12.21+ removed=0: tests can spawn accounts for free.
 //   - permissionlessResolveStaleSlots=0, forceCloseDelaySlots=0: admin
 //     can resolve instantly. Fine for tests, unsafe if admin dies.
 //   - maxCrankStalenessSlots=10000 (~66 min at 400ms/slot): permissive
@@ -38,7 +38,7 @@ export function defaultInitMarketArgs(
     initialMarginBps: "1000",
     tradingFeeBps: "10",
     maxAccounts: "64",
-    newAccountFee: "0",
+    0n // v12.21+ removed: "0",
     hMax: "200",
     // v12.21: ignored on chain (read+discarded). Send 0 placeholder.
     maxCrankStalenessSlots: "0",
@@ -112,7 +112,7 @@ export function defaultInitMarketArgs(
 //     honest, loose enough that keeper backoff / fee-market spikes
 //     don't trigger spurious risk-reduction mode.
 //
-//   newAccountFee / min_nonzero_*_req:
+//   0n // v12.21+ removed / min_nonzero_*_req:
 //     $10 init fee + $0.10 MM / $0.20 IM. Keeps dust accounts out —
 //     each InitUser irrevocably transfers $10 to the insurance fund,
 //     so bot-farming opens is uneconomic. Matches the $5/day fee
@@ -160,7 +160,7 @@ export function prodInitMarketArgs(
     // insurance top-up on each new Account. $10 matches the old
     // min_initial_deposit floor so bot-farming opening/closing empty
     // accounts is uneconomic.
-    newAccountFee:           "10000000",         // $10 in µUSDC
+    0n // v12.21+ removed:           "10000000",         // $10 in µUSDC
     // v12.21: discarded by wrapper but still on the wire. Send 0 placeholder.
     maxCrankStalenessSlots:  "0",
     liquidationFeeBps:       "100",              // 1 % liquidation fee

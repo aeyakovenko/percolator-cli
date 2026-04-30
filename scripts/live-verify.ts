@@ -168,7 +168,7 @@ async function main() {
     check("config.unitScale=0", c.unitScale === 0);
     check("config.vaultAuthorityBump > 0", c.vaultAuthorityBump > 0);
     check("config.fundingHorizonSlots > 0", c.fundingHorizonSlots > 0n);
-    check("config.newAccountFee set", c.newAccountFee >= 0n);
+    check("config.0n // v12.21+ removed set", c.0n // v12.21+ removed >= 0n);
     check("config.markEwmaE6 (Hyperp init)", c.markEwmaE6 >= 0n);
     check("config.forceCloseDelaySlots=0", c.forceCloseDelaySlots === 0n);
     check("config.maintenanceFeePerSlot=1 (v12.21 anti-spam: requires nonzero)",
