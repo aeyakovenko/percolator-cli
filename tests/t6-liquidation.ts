@@ -54,13 +54,13 @@ async function runT6Tests(): Promise<void> {
 
     const snapshotBefore = await harness.snapshot(ctx);
     const userIdx = snapshotBefore.usedIndices[0];
-    const balanceBefore = snapshotBefore.accounts[userIdx].collateralBalance;
+    const balanceBefore = snapshotBefore.accounts.find(a => a.idx === userIdx)?.account.capital ?? 0n;
 
     // Try to liquidate healthy account
     const result = await harness.liquidateAtOracle(ctx, userIdx);
 
     const snapshotAfter = await harness.snapshot(ctx);
-    const balanceAfter = snapshotAfter.accounts[userIdx].collateralBalance;
+    const balanceAfter = snapshotAfter.accounts.find(a => a.idx === userIdx)?.account.capital ?? 0n;
 
     // Balance should remain unchanged if liquidation was rejected
     if (result.err) {
