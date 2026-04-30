@@ -144,14 +144,19 @@ export function getErrorHint(code: number): string | undefined {
 }
 
 /**
- * Parse error from transaction logs.
- * Looks for "Program ... failed: custom program error: 0x..."
+ * Result from parsing transaction logs.
  */
-export function parseErrorFromLogs(logs: string[]): {
+interface ParseErrorResult {
   code: number;
   name: string;
   hint?: string;
-} | null {
+}
+
+/**
+ * Parse error from transaction logs.
+ * Looks for "Program ... failed: custom program error: 0x..."
+ */
+export function parseErrorFromLogs(logs: string[]): ParseErrorResult | null {
   for (const log of logs) {
     const match = log.match(/custom program error: 0x([0-9a-fA-F]+)/);
     if (match) {
