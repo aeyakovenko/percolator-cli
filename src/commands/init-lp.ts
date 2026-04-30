@@ -30,7 +30,7 @@ export function registerInitLp(program: Command): void {
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const matcherProgram = validatePublicKey(opts.matcherProgram, "--matcher-program");
       const matcherContext = validatePublicKey(opts.matcherContext, "--matcher-context");
-      validateU128(opts.fee, "--fee");
+      const feePayment = validateU128(opts.fee, "--fee");
 
       // Fetch slab config for mint, vault, oracle
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
@@ -43,7 +43,7 @@ export function registerInitLp(program: Command): void {
       const ixData = encodeInitLP({
         matcherProgram,
         matcherContext,
-        feePayment: opts.fee,
+        feePayment,
       });
 
       // Build account metas (order matches ACCOUNTS_INIT_LP: 6 accounts)
