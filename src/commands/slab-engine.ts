@@ -63,17 +63,17 @@ export function registerSlabEngine(program: Command): void {
         );
       } else {
         console.log("--- Vault & Insurance ---");
-        console.log(`Vault Balance:           ${engine.vault}`);
+        console.log(`Vault Balance:           ${engine.vault.toString()}`);
         console.log(`Insurance Balance:       ${engine.insuranceFund.balance}`);
         console.log("");
         console.log("--- Market ---");
         console.log(`Market Mode:             ${engine.marketMode === 0 ? "Live" : "Resolved"}`);
-        console.log(`Resolved Price:          ${engine.resolvedPrice}`);
+        console.log(`Resolved Price:          ${engine.resolvedPrice.toString()}`);
         console.log(`Resolved Slot:           ${engine.resolvedSlot}`);
-        console.log(`Current Slot:            ${engine.currentSlot}`);
+        console.log(`Current Slot:            ${engine.currentSlot.toString()}`);
         console.log("");
         console.log("--- Aggregates ---");
-        console.log(`C_tot (total capital):   ${engine.cTot}`);
+        console.log(`C_tot (total capital):   ${engine.cTot.toString()}`);
         console.log(`PnL_pos_tot:             ${engine.pnlPosTot}`);
         console.log(`PnL_matured_pos_tot:     ${engine.pnlMaturedPosTot}`);
         console.log(`OI Eff Long Q:           ${engine.oiEffLongQ}`);

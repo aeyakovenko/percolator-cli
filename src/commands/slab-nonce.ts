@@ -22,7 +22,7 @@ export function registerSlabNonce(program: Command): void {
       if (flags.json) {
         console.log(JSON.stringify({ nonce: nonce.toString() }, null, 2));
       } else {
-        console.log(`Nonce: ${nonce}`);
+        console.log(`Nonce: ${nonce.toString()}`);
       }
     });
 }

@@ -43,8 +43,8 @@ export function registerSlabHeader(program: Command): void {
         console.log(`Admin:               ${header.admin.toBase58()}`);
         console.log(`Insurance Authority: ${header.insuranceAuthority.toBase58()}`);
         console.log(`Insurance Operator:  ${header.insuranceOperator.toBase58()}`);
-        console.log(`Nonce:               ${header.nonce}`);
-        console.log(`Mat Counter:         ${header.matCounter}`);
+        console.log(`Nonce:               ${header.nonce.toString()}`);
+        console.log(`Mat Counter:         ${header.matCounter.toString()}`);
       }
     });
 }
