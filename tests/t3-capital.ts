@@ -31,7 +31,7 @@ async function runT3Tests(): Promise<void> {
 
     // Get balance after init - should be 0 (fee goes to insurance, not capital)
     let snapshot = await harness.snapshot(ctx);
-    const balanceAfterInit = snapshot.accounts[0].account.capital;
+    const balanceAfterInit = snapshot.accounts.find(a => a.idx === user.accountIndex)?.account.capital ?? 0n;
 
     TestHarness.assertBigIntEqual(
       balanceAfterInit,
@@ -45,7 +45,7 @@ async function runT3Tests(): Promise<void> {
     TestHarness.assert(!result.err, `Deposit should succeed: ${result.err}`);
 
     snapshot = await harness.snapshot(ctx);
-    const balanceAfterDeposit = snapshot.accounts[0].account.capital;
+    const balanceAfterDeposit = snapshot.accounts.find(a => a.idx === user.accountIndex)?.account.capital ?? 0n;
 
     TestHarness.assertBigIntEqual(
       balanceAfterDeposit,
@@ -79,8 +79,7 @@ async function runT3Tests(): Promise<void> {
     }
 
     const snapshot = await harness.snapshot(ctx);
-    const userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-    const actualBalance = userAcct?.account.capital ?? 0n;
+    const actualBalance = snapshot.accounts.find(a => a.idx === user.accountIndex)?.account.capital ?? 0n;
 
     TestHarness.assertBigIntEqual(
       actualBalance,
@@ -112,8 +111,7 @@ async function runT3Tests(): Promise<void> {
       console.log(`    (May fail due to oracle state - this is expected behavior)`);
     } else {
       const snapshot = await harness.snapshot(ctx);
-      const userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
-      const balance = userAcct?.account.capital ?? 0n;
+      const balance = snapshot.accounts.find(a => a.idx === user.accountIndex)?.account.capital ?? 0n;
 
       TestHarness.assertBigIntEqual(
         balance,
@@ -228,7 +226,7 @@ async function runT3Tests(): Promise<void> {
     await harness.deposit(ctx, user, largeAmount.toString());
 
     const snapshot = await harness.snapshot(ctx);
-    const balance = snapshot.accounts[0].account.capital;
+    const balance = snapshot.accounts.find(a => a.idx === user.accountIndex)?.account.capital ?? 0n;
 
     TestHarness.assertBigIntEqual(
       balance,
