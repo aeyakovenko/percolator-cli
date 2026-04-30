@@ -17,6 +17,7 @@ export function registerSlabNonce(program: Command): void {
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
+      parseHeader(data); // validate magic
       const nonce = readNonce(data);
 
       if (flags.json) {
