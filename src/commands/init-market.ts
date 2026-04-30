@@ -10,6 +10,7 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validatePublicKey } from "../validation.js";
 
 import { validatePublicKey } from "../validation.js";
 export function registerInitMarket(program: Command): void {

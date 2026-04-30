@@ -32,16 +32,18 @@ export function registerListMarkets(program: Command): void {
           filters: [{ dataSize: SLAB_SIZE }],
         });
       } catch {
-        // Fallback with memcmp filter
+        // Fallback with memcmp filter and dataSize
         accounts = await ctx.connection.getProgramAccounts(ctx.programId, {
           filters: [
+            { dataSize: SLAB_SIZE },
             { memcmp: { offset: 0, bytes: PERCOLAT_MAGIC.toString("base64") } },
           ],
         });
       }
 
-      // Filter to valid slabs
+      // Filter to valid slabs by size and magic bytes
       const markets = accounts.filter(({ account }) => {
+        if (account.data.length != SLAB_SIZE) return false;
         if (account.data.length < 8) return false;
         return account.data.subarray(0, 8).equals(PERCOLAT_MAGIC);
       });
