@@ -34,11 +34,11 @@ async function runT2Tests(): Promise<void> {
 
     const afterSnap = await harness.snapshot(ctx);
 
-    // nextAccountId should have incremented (in engine state)
+    // numUsedAccounts should have incremented (in engine state)
     TestHarness.assertBigIntEqual(
-      afterSnap.engine.nextAccountId,
-      beforeSnap.engine.nextAccountId + 1n,
-      "nextAccountId should increment"
+      afterSnap.engine.numUsedAccounts,
+      beforeSnap.engine.numUsedAccounts + 1n,
+      "numUsedAccounts should increment"
     );
 
     // numUsedAccounts should have incremented (in engine state)
@@ -48,8 +48,8 @@ async function runT2Tests(): Promise<void> {
       "numUsedAccounts should increment"
     );
 
-    console.log(`    Before nextId: ${beforeSnap.engine.nextAccountId}`);
-    console.log(`    After nextId: ${afterSnap.engine.nextAccountId}`);
+    console.log(`    Before nextId: ${beforeSnap.engine.numUsedAccounts}`);
+    console.log(`    After nextId: ${afterSnap.engine.numUsedAccounts}`);
     console.log(`    CU used: ${result.unitsConsumed}`);
   });
 
@@ -167,15 +167,15 @@ async function runT2Tests(): Promise<void> {
       "All account indices should be unique"
     );
 
-    // nextAccountId should track total accounts created
+    // numUsedAccounts should track total accounts created
     TestHarness.assertBigIntEqual(
-      snapshot.engine.nextAccountId,
+      snapshot.engine.numUsedAccounts,
       BigInt(numUsers),
-      "nextAccountId should equal number of users"
+      "numUsedAccounts should equal number of users"
     );
 
     console.log(`    Account indices: [${indices.join(", ")}]`);
-    console.log(`    nextAccountId: ${snapshot.engine.nextAccountId}`);
+    console.log(`    numUsedAccounts: ${snapshot.engine.numUsedAccounts}`);
   });
 
   // -------------------------------------------------------------------------
@@ -284,17 +284,17 @@ async function runT2Tests(): Promise<void> {
   // -------------------------------------------------------------------------
   // T2.7: Conservation check after multiple users
   // Note: Use default fee (1M) for init, then deposit additional amounts.
-  // The program transfers feePayment to vault but only tracks newAccountFee
-  // in insurance, so using feePayment > newAccountFee breaks conservation.
+  // The program transfers feePayment to vault but only tracks 0n // v12.21+ removed
+  // in insurance, so using feePayment > 0n // v12.21+ removed breaks conservation.
   // -------------------------------------------------------------------------
   await harness.runTest("T2.7: Conservation after multiple users", async () => {
     ctx = await harness.createFreshMarket({ maxAccounts: 64 });
 
-    // Create multiple users with explicit 1M init fee (= params.newAccountFee), then deposit different amounts
-    // IMPORTANT: feePayment must equal newAccountFee for conservation to hold.
-    // The program transfers feePayment to vault but only credits newAccountFee to insurance.
+    // Create multiple users with explicit 1M init fee (= params.0n // v12.21+ removed), then deposit different amounts
+    // IMPORTANT: feePayment must equal 0n // v12.21+ removed for conservation to hold.
+    // The program transfers feePayment to vault but only credits 0n // v12.21+ removed to insurance.
     const depositAmounts = [1_000_000n, 5_000_000n, 10_000_000n, 2_500_000n];
-    const feePerUser = 1_000_000n; // Must match params.newAccountFee
+    const feePerUser = 1_000_000n; // Must match params.0n // v12.21+ removed
     let totalInVault = 0n;
 
     for (let i = 0; i < depositAmounts.length; i++) {

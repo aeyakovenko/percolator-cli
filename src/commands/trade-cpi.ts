@@ -41,10 +41,10 @@ export function registerTradeCpi(program: Command): void {
       const matcherContext = validatePublicKey(opts.matcherContext, "--matcher-context");
       const lpIdx = validateIndex(opts.lpIdx, "--lp-idx");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
-      validateI128(opts.size, "--size");
+      const size = validateI128(opts.size, "--size");
 
       // Fetch slab config for oracle
-      const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
+      const data = await fetchSlab(ctx.connection, slabPk);
       const mktConfig = parseConfig(data);
 
       // Derive LP PDA
@@ -55,10 +55,13 @@ export function registerTradeCpi(program: Command): void {
       const lpOwnerPk = lpAccount.owner;
 
       // Build instruction data
+      if (opts.limitPriceE6 !== undefined) {
+        validateI128(opts.limitPriceE6, "--limit-price-e6");
+      }
       const ixData = encodeTradeCpi({
         lpIdx,
         userIdx,
-        size: opts.size,
+        size,
         limitPriceE6: opts.limitPriceE6 ?? "0",
       });
 
