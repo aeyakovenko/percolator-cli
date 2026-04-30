@@ -443,7 +443,7 @@ async function initTraders(): Promise<void> {
 const CRANK_NO_CALLER = 65535; // u16::MAX for permissionless crank
 
 async function runCrank(): Promise<void> {
-  const crankData = encodeKeeperCrank({ callerIdx: CRANK_NO_CALLER, allowPanic: false });
+  const crankData = encodeKeeperCrank({ callerIdx: CRANK_NO_CALLER });
   const crankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
     payer.publicKey,       // caller
     SLAB,                  // slab

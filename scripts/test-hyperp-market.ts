@@ -175,7 +175,7 @@ async function main() {
   console.log("  Hyperp market initialized");
 
   // Run initial crank (use slab pubkey as dummy oracle in Hyperp mode)
-  const crankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+  const crankData = encodeKeeperCrank({ callerIdx: 65535 });
   const crankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
     payer.publicKey,
     slab.publicKey,
@@ -339,7 +339,7 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
 
   // Crank before trading (ensures crank is fresh)
   {
-    const preCrankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+    const preCrankData = encodeKeeperCrank({ callerIdx: 65535 });
     const preCrankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab, SYSVAR_CLOCK_PUBKEY, slab]);
     const preCrankTx = new Transaction();
     preCrankTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
@@ -386,7 +386,7 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
 
   // Wait a bit and crank to update index
   await delay(2000);
-  const crankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+  const crankData = encodeKeeperCrank({ callerIdx: 65535 });
   const crankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab, SYSVAR_CLOCK_PUBKEY, slab]);
   const crankTx = new Transaction();
   crankTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
@@ -465,7 +465,7 @@ async function runTests(slab: PublicKey, vault: PublicKey, vaultPda: PublicKey, 
   const maxAttempts = 10;
 
   while (attempts < maxAttempts) {
-    const fcCrankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+    const fcCrankData = encodeKeeperCrank({ callerIdx: 65535 });
     const fcCrankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab, SYSVAR_CLOCK_PUBKEY, slab]);
     const fcCrankTx = new Transaction();
     fcCrankTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));

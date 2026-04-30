@@ -56,11 +56,11 @@ async function runT1Tests(): Promise<void> {
       "Fresh market should have 0 used accounts"
     );
 
-    // nextAccountId should be 0 for a fresh market (first account will get ID 0)
+    // numUsedAccounts should be 0 for a fresh market (first account will get ID 0)
     TestHarness.assertBigIntEqual(
-      snapshot.engine.nextAccountId,
+      snapshot.engine.numUsedAccounts,
       0n,
-      "Fresh market nextAccountId should be 0"
+      "Fresh market numUsedAccounts should be 0"
     );
 
     // maxAccounts should match what we requested (in params)
@@ -85,7 +85,7 @@ async function runT1Tests(): Promise<void> {
     );
 
     console.log(`    numUsedAccounts: ${snapshot.engine.numUsedAccounts}`);
-    console.log(`    nextAccountId: ${snapshot.engine.nextAccountId}`);
+    console.log(`    numUsedAccounts: ${snapshot.engine.numUsedAccounts}`);
     console.log(`    maxAccounts: ${snapshot.params.maxAccounts}`);
     console.log(`    insuranceFund: ${snapshot.engine.insuranceFund.balance}`);
   });

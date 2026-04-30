@@ -454,6 +454,8 @@ export class TestHarness {
       minLiquidationAbs: "100000",
       minNonzeroMmReq: "100000",
       minNonzeroImReq: "200000",
+      maxPriceMoveBpsPerSlot: "100",
+
       // Extended tail
       insuranceWithdrawMaxBps: 0,
       insuranceWithdrawCooldownSlots: "0",

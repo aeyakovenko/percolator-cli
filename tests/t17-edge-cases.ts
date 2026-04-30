@@ -122,13 +122,13 @@ async function runT17Tests(): Promise<void> {
 
     // Get params to check new account fee
     const snapshot = await harness.snapshot(ctx);
-    console.log(`    New account fee: ${snapshot.params.newAccountFee}`);
+    console.log(`    New account fee: ${snapshot.params.0n // v12.21+}`);
 
     // Create user
     user = await harness.createUser(ctx, "user3", 50_000_000n);
 
     // Before init, user has no account
-    await harness.initUser(ctx, user, snapshot.params.newAccountFee.toString());
+    await harness.initUser(ctx, user, snapshot.params.0n // v12.21+.toString());
 
     // User should have been charged the fee
     const afterSnapshot = await harness.snapshot(ctx);
@@ -272,7 +272,7 @@ async function runT17Tests(): Promise<void> {
     const snapshot = await harness.snapshot(ctx);
     const params = snapshot.params;
 
-    console.log(`    Warmup period: ${params.warmupPeriodSlots} slots`);
+    console.log(`    Warmup period: ${params.N/A (v12.21+)} slots`);
     console.log(`    Maintenance margin: ${params.maintenanceMarginBps} bps`);
     console.log(`    Initial margin: ${params.initialMarginBps} bps`);
     console.log(`    Trading fee: ${params.tradingFeeBps} bps`);
