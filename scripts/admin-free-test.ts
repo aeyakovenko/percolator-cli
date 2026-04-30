@@ -138,7 +138,8 @@ async function printStatus() {
   const { engine, params } = await getState();
 
   const insurance = BigInt(engine.insuranceFund?.balance || 0);
-  const threshold = BigInt(params.insuranceFloor || 0);
+  // v12.21+ removed: insuranceFloor no longer in RiskParams
+  const threshold = BigInt(0); // Placeholder - insuranceFloor was removed
   // lpSumAbs removed from engine state
 
   const insuranceChange = insurance - startInsurance;
@@ -179,7 +180,8 @@ async function main() {
   // Get initial state
   const initial = await getState();
   startInsurance = BigInt(initial.engine.insuranceFund?.balance || 0);
-  startThreshold = BigInt(initial.params.insuranceFloor || 0);
+  // v12.21+ removed: insuranceFloor no longer in RiskParams
+  startThreshold = BigInt(0); // Placeholder - insuranceFloor was removed
 
   console.log(`Initial insurance: ${(Number(startInsurance) / 1e9).toFixed(6)} SOL`);
   console.log(`Initial threshold: ${(Number(startThreshold) / 1e9).toFixed(6)} SOL`);
