@@ -15,6 +15,7 @@ import {
   parseAccount,
   parseEngine,
   parseParams,
+  parseConfig,
 } from "../solana/slab.js";
 import {
   validatePublicKey,
