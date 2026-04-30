@@ -15,6 +15,7 @@ import {
   validatePublicKey,
   validateIndex,
   validateI128,
+  validateU64,
 } from "../validation.js";
 import { fetchSlab, parseConfig } from "../solana/slab.js";
 
@@ -41,6 +42,14 @@ export function registerTradeNocpi(program: Command): void {
       const lpIdx = validateIndex(opts.lpIdx, "--lp-idx");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
       const size = validateI128(opts.size, "--size");
+      const maxPriceE6 =
+        opts.maxPriceE6 !== undefined
+          ? validateU64(opts.maxPriceE6, "--max-price-e6")
+          : undefined;
+      const minPriceE6 =
+        opts.minPriceE6 !== undefined
+          ? validateU64(opts.minPriceE6, "--min-price-e6")
+          : undefined;
 
       // Load LP keypair if provided, otherwise use payer
       const lpKeypair = opts.lpWallet ? loadKeypair(opts.lpWallet) : ctx.payer;
@@ -49,14 +58,14 @@ export function registerTradeNocpi(program: Command): void {
       // dt-capped staircase the engine will read for this trade
       // (modulo any oracle update that lands in the same slot — hence
       // TOCTOU). Cheaper than nothing for fat-finger guarding.
-      if (opts.maxPriceE6 !== undefined || opts.minPriceE6 !== undefined) {
+      if (maxPriceE6 !== undefined || minPriceE6 !== undefined) {
         const slabBuf = await fetchSlab(ctx.connection, slabPk, ctx.programId);
         const cur = parseConfig(slabBuf).lastEffectivePriceE6;
-        if (opts.maxPriceE6 !== undefined && cur > BigInt(opts.maxPriceE6)) {
-          throw new Error(`pre-submit price ${cur} > --max-price-e6 ${opts.maxPriceE6}`);
+        if (maxPriceE6 !== undefined && cur > maxPriceE6) {
+          throw new Error(`pre-submit price ${cur} > --max-price-e6 ${maxPriceE6}`);
         }
-        if (opts.minPriceE6 !== undefined && cur < BigInt(opts.minPriceE6)) {
-          throw new Error(`pre-submit price ${cur} < --min-price-e6 ${opts.minPriceE6}`);
+        if (minPriceE6 !== undefined && cur < minPriceE6) {
+          throw new Error(`pre-submit price ${cur} < --min-price-e6 ${minPriceE6}`);
         }
       }
 
