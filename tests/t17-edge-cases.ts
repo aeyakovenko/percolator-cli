@@ -120,9 +120,9 @@ async function runT17Tests(): Promise<void> {
   await harness.runTest("T17.3: Account fee verification", async () => {
     ctx = await harness.createFreshMarket({ maxAccounts: 64 });
 
-  // v12.21+: newAccountFee removed from RiskParams - account creation is free
+  // v12.21+: 0n // v12.21+ removed from RiskParams - account creation is free
 
-    // v12.21+: newAccountFee removed - just init user without fee
+    // v12.21+: 0n // v12.21+ removed - just init user without fee
     await harness.initUser(ctx, user, "0");
       userAcct?.account.capital ?? 1n,
       0n,

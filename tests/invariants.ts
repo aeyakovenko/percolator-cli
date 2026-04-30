@@ -320,7 +320,7 @@ export class InvariantChecker {
 
   /**
    * I7: Account count consistency.
-   * numUsedAccounts <= maxAccounts, nextAccountId > all used IDs.
+   * numUsedAccounts <= maxAccounts, numUsedAccounts > all used IDs.
    */
   private checkAccountCountConsistency(
     engine: EngineState,
@@ -361,7 +361,7 @@ export class InvariantChecker {
       actual: b.rawHash.slice(0, 16) + "...",
     });
 
-    // Engine state comparison (numUsedAccounts is in engine, nextAccountId removed in v12.21+)
+    // Engine state comparison (numUsedAccounts is in engine, numUsedAccounts removed in v12.21+)
     results.push({
       name: "D2: Engine accounts match",
       passed: a.engine.numUsedAccounts === b.engine.numUsedAccounts,
