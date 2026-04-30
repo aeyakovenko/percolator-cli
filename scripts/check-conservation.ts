@@ -46,7 +46,7 @@ async function main() {
   console.log(`  Long basis sum:  ${longPos}`);
   console.log(`  Short basis sum: ${shortPos}`);
   console.log(`  Net basis:       ${longPos + shortPos}`);
-  console.log(`  Lifetime liqs:   ${engine.lifetimeLiquidations}`);
+  // lifetimeLiquidations field not present in v12.21+ EngineState
   console.log(`  ADL mult long:   ${engine.adlMultLong}`);
   console.log(`  ADL mult short:  ${engine.adlMultShort}`);
   console.log(`  OI eff long:     ${engine.oiEffLongQ}`);

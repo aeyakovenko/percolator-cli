@@ -55,10 +55,18 @@ export async function simulateOrSend(
 ): Promise<TxResult> {
   const { connection, ix, signers, simulate, commitment = "confirmed", computeUnitLimit } = params;
 
+  // Validate signers
+  if (signers.length === 0) {
+    throw new Error("At least one signer is required");
+  }
+
   const tx = new Transaction();
 
   // Add compute budget instruction if custom limit is specified
   if (computeUnitLimit !== undefined) {
+    if (computeUnitLimit < 1 || computeUnitLimit > 1_400_000) {
+      throw new Error(`computeUnitLimit must be between 1 and 1,400,000, got ${computeUnitLimit}`);
+    }
     tx.add(
       ComputeBudgetProgram.setComputeUnitLimit({
         units: computeUnitLimit,
@@ -72,7 +80,6 @@ export async function simulateOrSend(
   tx.feePayer = signers[0].publicKey;
 
   if (simulate) {
-    tx.sign(...signers);
     const result = await connection.simulateTransaction(tx, signers);
     const logs = result.value.logs ?? [];
     let err: string | null = null;
@@ -118,7 +125,7 @@ export async function simulateOrSend(
 
     // Fetch logs
     const txInfo = await connection.getTransaction(signature, {
-      commitment: "confirmed",
+      commitment,
       maxSupportedTransactionVersion: 0,
     });
 
