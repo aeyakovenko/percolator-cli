@@ -46,9 +46,9 @@ export function parseChainlinkPrice(data: Buffer): OraclePrice {
   }
 
   const price = data.readBigInt64LE(CHAINLINK_ANSWER_OFFSET);
-  if (price <= 0n) {
+  if (price < 0n) {
     throw new Error(
-      `Oracle price is non-positive: ${price}`
+      `Oracle price is negative: ${price}`
     );
   }
 
