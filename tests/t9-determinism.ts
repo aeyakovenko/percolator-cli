@@ -72,7 +72,7 @@ async function runT9Tests(): Promise<void> {
 
     for (let i = 0; i < numUsers; i++) {
       const snapBefore = await harness.snapshot(ctx);
-      const expectedId = snapBefore.engine.nextAccountId;
+      const expectedId = snapBefore.engine.numUsedAccounts;
 
       const user = await harness.createUser(ctx, `user${i}`, 5_000_000n);
       await harness.initUser(ctx, user, "500000");
@@ -81,11 +81,11 @@ async function runT9Tests(): Promise<void> {
 
       // Find the new account (it should be the last one added)
       const newAccount = snapAfter.accounts.find(
-        a => !snapBefore.accounts.some(b => b.account.accountId === a.account.accountId)
+        a => !snapBefore.accounts.some(b => b.account.idx === a.account.idx)
       );
 
       if (newAccount) {
-        const assignedId = newAccount.account.accountId;
+        const assignedId = newAccount.account.idx;
         accountIds.push(assignedId);
 
         TestHarness.assertBigIntEqual(

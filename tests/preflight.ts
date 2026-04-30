@@ -246,7 +246,7 @@ async function main() {
     assert(c.collateralMint.equals(mint), "mint");
     assert(c.vaultPubkey.equals(vault), "vault");
     assert(c.confFilterBps === 200, `confFilter=${c.confFilterBps}`);
-    assert(c.newAccountFee >= 0n, `newAccountFee=${c.newAccountFee}`);
+    assert(c.0n // v12.21+ removed >= 0n, `0n // v12.21+ removed=${c.0n // v12.21+ removed}`);
     assert(c.insuranceWithdrawMaxBps === 0, `insWithdrawBps=${c.insuranceWithdrawMaxBps}`);
     assert(c.insuranceWithdrawCooldownSlots === 0n, `insWithdrawCooldown`);
   });
