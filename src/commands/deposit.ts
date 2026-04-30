@@ -32,8 +32,7 @@ export function registerDeposit(program: Command): void {
       // Validate inputs
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
-      validateAmount(opts.amount, "--amount");
-      const amount = opts.amount;
+      const amount = validateAmount(opts.amount, "--amount");
 
       // Fetch slab config for vault
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);

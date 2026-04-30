@@ -6,6 +6,7 @@ import { encodePushOraclePrice } from "../abi/instructions.js";
 import { ACCOUNTS_PUSH_ORACLE_PRICE, buildAccountMetas } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
+import { fetchSlab, parseHeader } from "../solana/slab.js";
 
 export function registerPushOraclePrice(program: Command): void {
   program
@@ -25,9 +26,14 @@ export function registerPushOraclePrice(program: Command): void {
         ? BigInt(opts.timestamp)
         : BigInt(Math.floor(Date.now() / 1000));
 
+      // Fetch slab header to get oracle authority
+      const slabData = await fetchSlab(ctx.connection, slabPk, ctx.programId);
+      const slabHeader = parseHeader(slabData);
+      const authority = slabHeader.insuranceAuthority;
+
       const ixData = encodePushOraclePrice({ priceE6, timestamp });
       const keys = buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [
-        ctx.payer.publicKey,
+        authority,
         slabPk,
       ]);
 

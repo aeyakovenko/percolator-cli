@@ -6,6 +6,7 @@ import { encodeUpdateAuthority, AUTHORITY_KIND } from "../abi/instructions.js";
 import { ACCOUNTS_SET_ORACLE_AUTHORITY, buildAccountMetas } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
+import { fetchSlab, parseHeader } from "../solana/slab.js";
 
 /**
  * Set/rotate oracle authority via UpdateAuthority { kind: ORACLE }.
@@ -22,19 +23,24 @@ export function registerSetOracleAuthority(program: Command): void {
       const ctx = createContext(config);
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
-      const authority = validatePublicKey(opts.authority, "--authority");
+      const newAuthority = validatePublicKey(opts.authority, "--authority");
+
+      // Fetch slab header to get current oracle authority
+      const slabData = await fetchSlab(ctx.connection, slabPk, ctx.programId);
+      const slabHeader = parseHeader(slabData);
+      const currentAuthority = slabHeader.insuranceAuthority;
 
       const ixData = encodeUpdateAuthority({
         kind: AUTHORITY_KIND.ORACLE,
-        newPubkey: authority,
+        newPubkey: newAuthority,
       });
 
       // UpdateAuthority: [current_authority, new_authority, slab].
       // When new == current (self-update) it still must be passed twice
       // so the decode sees two signer-capable keys.
       const keys = buildAccountMetas(ACCOUNTS_SET_ORACLE_AUTHORITY, [
-        ctx.payer.publicKey,
-        authority,
+        currentAuthority,
+        newAuthority,
         slabPk,
       ]);
 
