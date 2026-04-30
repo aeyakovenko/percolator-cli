@@ -10,6 +10,7 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validatePublicKey, validateBps, validateU16 } from "../validation.js";
 
 export function registerInitMarket(program: Command): void {
   program
@@ -26,7 +27,6 @@ export function registerInitMarket(program: Command): void {
     .option("--unit-scale <number>", "Lamports per unit scale (0=no scaling)", "0")
     .option("--initial-mark-price <string>", "Initial mark price e6 (required non-zero for Hyperp mode)", "0")
     .requiredOption("--maintenance-fee-per-slot <string>", "Periodic maintenance fee per slot per account (u128)")
-    // RiskParams
     .requiredOption("--h-min <string>", "Warmup horizon floor (slots)")
     .requiredOption("--maintenance-margin-bps <string>", "Maintenance margin (bps)")
     .requiredOption("--initial-margin-bps <string>", "Initial margin (bps)")
@@ -42,7 +42,6 @@ export function registerInitMarket(program: Command): void {
     .requiredOption("--min-nonzero-mm-req <string>", "Min nonzero maintenance margin requirement (u128)")
     .requiredOption("--min-nonzero-im-req <string>", "Min nonzero initial margin requirement (u128)")
     .requiredOption("--max-price-move-bps-per-slot <string>", "Per-slot price-move cap in bps (v12.21+, must be > 0)")
-    // Extended tail (required — partial tail rejected)
     .requiredOption("--insurance-withdraw-max-bps <number>", "Max bps withdrawable from insurance per tx (0=disabled)")
     .requiredOption("--insurance-withdraw-cooldown <string>", "Insurance withdrawal cooldown (slots)")
     .requiredOption("--permissionless-resolve-stale <string>", "Slots of oracle staleness for permissionless resolve (0=disabled)")
@@ -57,10 +56,10 @@ export function registerInitMarket(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
-      const mint = new PublicKey(opts.mint);
-      const vault = new PublicKey(opts.vault);
-      const oracle = new PublicKey(opts.oracle);
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      const mint = validatePublicKey(opts.mint, "--mint");
+      const vault = validatePublicKey(opts.vault, "--vault");
+      const oracle = validatePublicKey(opts.oracle, "--oracle");
 
       const feedIdHex = (opts.indexFeedId as string).startsWith("0x")
         ? (opts.indexFeedId as string).slice(2)
@@ -69,21 +68,39 @@ export function registerInitMarket(program: Command): void {
         throw new Error("Invalid feed ID: must be 64 hex characters");
       }
 
+      const confFilterBps = validateBps(opts.confFilterBps, "--conf-filter-bps");
+      const invert = validateU16(opts.invert, "--invert");
+      const unitScale = validateU16(opts.unitScale, "--unit-scale");
+      const insuranceWithdrawMaxBps = validateBps(opts.insuranceWithdrawMaxBps, "--insurance-withdraw-max-bps");
+
+      const maxAccountsNum = validateU16(opts.maxAccounts, "--max-accounts");
+      if (maxAccountsNum > 4096) {
+        throw new Error("--max-accounts must be <= 4096");
+      }
+      if ((maxAccountsNum & (maxAccountsNum - 1)) !== 0) {
+        throw new Error("--max-accounts must be a power of two");
+      }
+
+      const maxPriceMoveBpsPerSlot = validateU16(opts.maxPriceMoveBpsPerSlot, "--max-price-move-bps-per-slot");
+      if (maxPriceMoveBpsPerSlot === 0) {
+        throw new Error("--max-price-move-bps-per-slot must be > 0 (v12.21+)");
+      }
+
       const ixData = encodeInitMarket({
         admin: ctx.payer.publicKey,
         collateralMint: mint,
         indexFeedId: feedIdHex,
         maxStalenessSecs: opts.maxStalenessSecs,
-        confFilterBps: parseInt(opts.confFilterBps, 10),
-        invert: parseInt(opts.invert, 10),
-        unitScale: parseInt(opts.unitScale, 10),
+        confFilterBps: confFilterBps,
+        invert: invert,
+        unitScale: unitScale,
         initialMarkPriceE6: opts.initialMarkPrice,
         maintenanceFeePerSlot: opts.maintenanceFeePerSlot,
         hMin: opts.hMin,
         maintenanceMarginBps: opts.maintenanceMarginBps,
         initialMarginBps: opts.initialMarginBps,
         tradingFeeBps: opts.tradingFeeBps,
-        maxAccounts: opts.maxAccounts,
+        maxAccounts: maxAccountsNum,
         newAccountFee: opts.newAccountFee,
         hMax: opts.hMax,
         maxCrankStalenessSlots: opts.maxCrankStaleness,
@@ -93,8 +110,8 @@ export function registerInitMarket(program: Command): void {
         minLiquidationAbs: opts.minLiquidationAbs,
         minNonzeroMmReq: opts.minNonzeroMmReq,
         minNonzeroImReq: opts.minNonzeroImReq,
-        maxPriceMoveBpsPerSlot: opts.maxPriceMoveBpsPerSlot,
-        insuranceWithdrawMaxBps: parseInt(opts.insuranceWithdrawMaxBps, 10),
+        maxPriceMoveBpsPerSlot: maxPriceMoveBpsPerSlot,
+        insuranceWithdrawMaxBps: insuranceWithdrawMaxBps,
         insuranceWithdrawCooldownSlots: opts.insuranceWithdrawCooldown,
         permissionlessResolveStaleSlots: opts.permissionlessResolveStale,
         fundingHorizonSlots: opts.fundingHorizonSlots,
@@ -106,10 +123,10 @@ export function registerInitMarket(program: Command): void {
       });
 
       const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
-        ctx.payer.publicKey, // admin
-        slabPk,              // slab
-        mint,                // mint
-        vault,               // vault
+        ctx.payer.publicKey,
+        slabPk,
+        mint,
+        vault,
         WELL_KNOWN.clock,
         oracle,
       ]);
@@ -122,9 +139,6 @@ export function registerInitMarket(program: Command): void {
         signers: [ctx.payer],
         simulate: flags.simulate ?? false,
         commitment: ctx.commitment,
-        // Full MAX_ACCOUNTS=4096 init_in_place consumes ~235k CU zero-filling
-        // bitmap + next_free/prev_free + all 4096 account slots. Default
-        // 200k-per-ix budget is not enough; 300k covers + headroom.
         computeUnitLimit: 300_000,
       });
 

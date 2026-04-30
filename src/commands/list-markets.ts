@@ -3,13 +3,10 @@ import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { parseHeader, parseConfig, parseEngine, parseParams } from "../solana/slab.js";
+import { parseHeader, parseConfig, parseEngine, parseParams, SLAB_LEN } from "../solana/slab.js";
 
 // PERCOLAT magic bytes
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
-// Slab size after ADL refactor
-// = ENGINE_OFF(440) + ENGINE_ACCOUNTS_OFF(9336) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
-const SLAB_SIZE = 1525624;
 
 export function registerListMarkets(program: Command): void {
   program
@@ -25,14 +22,12 @@ export function registerListMarkets(program: Command): void {
 
       console.log(`Searching for markets owned by ${ctx.programId.toBase58()}...`);
 
-      // Find all program accounts with slab size
       let accounts;
       try {
         accounts = await ctx.connection.getProgramAccounts(ctx.programId, {
-          filters: [{ dataSize: SLAB_SIZE }],
+          filters: [{ dataSize: SLAB_LEN }],
         });
       } catch {
-        // Fallback with memcmp filter
         accounts = await ctx.connection.getProgramAccounts(ctx.programId, {
           filters: [
             { memcmp: { offset: 0, bytes: PERCOLAT_MAGIC.toString("base64") } },
@@ -40,73 +35,47 @@ export function registerListMarkets(program: Command): void {
         });
       }
 
-      // Filter to valid slabs
-      const markets = accounts.filter(({ account }) => {
-        if (account.data.length < 8) return false;
-        return account.data.subarray(0, 8).equals(PERCOLAT_MAGIC);
-      });
-
-      if (json) {
-        const result = markets.map(({ pubkey, account }) => {
-          const data = account.data;
-          const header = parseHeader(data);
-          const config = parseConfig(data);
-          const engine = parseEngine(data);
-          const params = parseParams(data);
-
-          return {
-            pubkey: pubkey.toBase58(),
-            lamports: account.lamports,
-            version: Number(header.version),
-            collateralMint: config.collateralMint.toBase58(),
-            invert: config.invert,
-            unitScale: config.unitScale,
-            numAccounts: engine.numUsedAccounts,
-            insuranceFund: engine.insuranceFund.balance.toString(),
-            oiEffLongQ: engine.oiEffLongQ.toString(),
-            oiEffShortQ: engine.oiEffShortQ.toString(),
-            cTot: engine.cTot.toString(),
-            initialMarginBps: Number(params.initialMarginBps),
-            maintenanceMarginBps: Number(params.maintenanceMarginBps),
-          };
-        });
-        console.log(JSON.stringify(result, null, 2));
+      if (accounts.length === 0) {
+        console.log("No markets found.");
         return;
       }
 
-      console.log(`\nFound ${markets.length} market(s):\n`);
+      console.log(`Found ${accounts.length} market(s):\n`);
 
-      for (const { pubkey, account } of markets) {
-        const data = account.data;
-        const header = parseHeader(data);
-        const config = parseConfig(data);
-        const engine = parseEngine(data);
-        const params = parseParams(data);
+      for (const { pubkey, account } of accounts) {
+        try {
+          const header = parseHeader(account.data);
+          const config_ = parseConfig(account.data);
+          const engine = parseEngine(account.data);
+          const params = parseParams(account.data);
 
-        console.log(`Market: ${pubkey.toBase58()}`);
-        console.log(`  Collateral: ${config.collateralMint.toBase58()}`);
-        console.log(`  Inverted: ${config.invert === 1 ? "Yes" : "No"}`);
-        console.log(`  Accounts: ${engine.numUsedAccounts}`);
-        console.log(`  Insurance: ${Number(engine.insuranceFund.balance) / 1e6} USDC`);
-        console.log(`  OI Eff Long Q: ${engine.oiEffLongQ}`);
-        console.log(`  OI Eff Short Q: ${engine.oiEffShortQ}`);
-
-        if (verbose) {
-          console.log(`  Version: ${header.version}`);
-          console.log(`  Unit Scale: ${config.unitScale}`);
-          console.log(`  Initial Margin: ${Number(params.initialMarginBps) / 100}%`);
-          console.log(`  Maintenance Margin: ${Number(params.maintenanceMarginBps) / 100}%`);
-          console.log(`  Liquidation Fee: ${Number(params.liquidationFeeBps) / 100}%`);
-          console.log(`  Trading Fee: ${Number(params.tradingFeeBps) / 100}%`);
-          console.log(`  C_tot: ${engine.cTot}`);
-          console.log(`  Market Mode: ${engine.marketMode === 0 ? "Live" : "Resolved"}`);
-          console.log(`  Rent: ${account.lamports / 1e9} SOL`);
+          if (verbose) {
+            console.log(`Market: ${pubkey.toBase58()}`);
+            console.log(`  Magic: ${header.magic.toString("hex")}`);
+            console.log(`  Version: ${header.version}`);
+            console.log(`  Slab size: ${header.slabSize}`);
+            console.log(`  Collateral mint: ${config_.collateralMint.toBase58()}`);
+            console.log(`  Vault: ${config_.vault.toBase58()}`);
+            console.log(`  Oracle: ${config_.oracle.toBase58()}`);
+            console.log(`  Mark price: ${engine.markE6} (e6)`);
+            console.log(`  Index price: ${engine.idxE6} (e6)`);
+            console.log(`  Total accounts: ${engine.totalAccounts}`);
+            if (params) {
+              console.log(`  Initial margin: ${params.initialMarginBps} bps`);
+              console.log(`  Maintenance margin: ${params.maintenanceMarginBps} bps`);
+              console.log(`  Trading fee: ${params.tradingFeeBps} bps`);
+            }
+            console.log();
+          } else {
+            console.log(`${pubkey.toBase58()} - mark: ${engine.markE6 / 1e6}, accounts: ${engine.totalAccounts}`);
+          }
+        } catch (e: any) {
+          console.error(`Failed to parse ${pubkey.toBase58()}: ${e.message}`);
         }
-        console.log();
       }
 
-      if (markets.length === 0) {
-        console.log("No markets found.");
+      if (json) {
+        console.log(JSON.stringify(accounts.map(a => a.pubkey.toBase58()), null, 2));
       }
     });
 }
