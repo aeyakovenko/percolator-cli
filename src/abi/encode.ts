@@ -1,5 +1,12 @@
 import { PublicKey } from "@solana/web3.js";
 
+const U64_MAX = 0xffff_ffff_ffff_ffffn;
+const I64_MIN = -(1n << 63n);
+const I64_MAX = (1n << 63n) - 1n;
+const U128_MAX = (1n << 128n) - 1n;
+const I128_MIN = -(1n << 127n);
+const I128_MAX = (1n << 127n) - 1n;
+
 /**
  * Encode u8 (1 byte)
  */
@@ -34,7 +41,7 @@ export function encU32(val: number): Buffer {
 export function encU64(val: bigint | string): Buffer {
   const n = typeof val === "string" ? BigInt(val) : val;
   if (n < 0n) throw new Error("encU64: value must be non-negative");
-  if (n > 0xffff_ffff_ffff_ffffn) throw new Error("encU64: value exceeds u64 max");
+  if (n > U64_MAX) throw new Error("encU64: value exceeds u64 max");
   const buf = Buffer.alloc(8);
   buf.writeBigUInt64LE(n, 0);
   return buf;
@@ -46,9 +53,7 @@ export function encU64(val: bigint | string): Buffer {
  */
 export function encI64(val: bigint | string): Buffer {
   const n = typeof val === "string" ? BigInt(val) : val;
-  const min = -(1n << 63n);
-  const max = (1n << 63n) - 1n;
-  if (n < min || n > max) throw new Error("encI64: value out of range");
+  if (n < I64_MIN || n > I64_MAX) throw new Error("encI64: value out of range");
   const buf = Buffer.alloc(8);
   buf.writeBigInt64LE(n, 0);
   return buf;
@@ -61,8 +66,7 @@ export function encI64(val: bigint | string): Buffer {
 export function encU128(val: bigint | string): Buffer {
   const n = typeof val === "string" ? BigInt(val) : val;
   if (n < 0n) throw new Error("encU128: value must be non-negative");
-  const max = (1n << 128n) - 1n;
-  if (n > max) throw new Error("encU128: value exceeds u128 max");
+  if (n > U128_MAX) throw new Error("encU128: value exceeds u128 max");
   const buf = Buffer.alloc(16);
   // Write as two u64 little-endian parts
   const lo = n & 0xffff_ffff_ffff_ffffn;
@@ -78,9 +82,7 @@ export function encU128(val: bigint | string): Buffer {
  */
 export function encI128(val: bigint | string): Buffer {
   const n = typeof val === "string" ? BigInt(val) : val;
-  const min = -(1n << 127n);
-  const max = (1n << 127n) - 1n;
-  if (n < min || n > max) throw new Error("encI128: value out of range");
+  if (n < I128_MIN || n > I128_MAX) throw new Error("encI128: value out of range");
 
   // Convert to unsigned representation (two's complement)
   let unsigned = n;

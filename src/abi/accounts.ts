@@ -86,7 +86,7 @@ export const ACCOUNTS_WITHDRAW_COLLATERAL: readonly AccountSpec[] = [
   { name: "vaultPda", signer: false, writable: false },
   { name: "tokenProgram", signer: false, writable: false },
   { name: "clock", signer: false, writable: false },
-  { name: "oracleIdx", signer: false, writable: false },
+  { name: "oracle", signer: false, writable: false },
 ] as const;
 
 /**
