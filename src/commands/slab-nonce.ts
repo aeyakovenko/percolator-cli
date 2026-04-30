@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { fetchSlab, readNonce } from "../solana/slab.js";
+import { fetchSlab, readNonce, parseHeader } from "../solana/slab.js";
 import { validatePublicKey } from "../validation.js";
 
 export function registerSlabNonce(program: Command): void {
@@ -17,6 +17,7 @@ export function registerSlabNonce(program: Command): void {
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
+      parseHeader(data); // validate magic
       const nonce = readNonce(data);
 
       if (flags.json) {

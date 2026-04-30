@@ -63,7 +63,7 @@ export function registerSlabGet(program: Command): void {
         console.log(`Collateral Mint:    ${output.config.collateralMint}`);
         console.log(`Vault:              ${output.config.vault}`);
         console.log(`Index Feed ID:      ${output.config.indexFeedId}`);
-        console.log(`Max Staleness:      ${output.config.maxStalenessSecs} slots`);
+        console.log(`Max Staleness:      ${output.config.maxStalenessSecs} seconds`);
         console.log(`Conf Filter:        ${output.config.confFilterBps} bps`);
         console.log(`Vault Auth Bump:    ${output.config.vaultAuthorityBump}`);
         console.log(`Invert:             ${output.config.invert}`);
