@@ -55,8 +55,9 @@ export function registerTradeCpi(program: Command): void {
       const lpOwnerPk = lpAccount.owner;
 
       // Build instruction data
+      let limitPriceE6: bigint | undefined;
       if (opts.limitPriceE6 !== undefined) {
-        try { BigInt(opts.limitPriceE6); } catch {
+        try { limitPriceE6 = BigInt(opts.limitPriceE6); } catch {
           throw new Error(`Invalid --limit-price-e6: ${opts.limitPriceE6}`);
         }
       }
@@ -64,7 +65,7 @@ export function registerTradeCpi(program: Command): void {
         lpIdx,
         userIdx,
         size,
-        limitPriceE6: opts.limitPriceE6 ?? "0",
+        limitPriceE6,
       });
 
       let oracle: PublicKey;

@@ -50,23 +50,21 @@ export function registerTradeNocpi(program: Command): void {
       // (modulo any oracle update that lands in the same slot — hence
       // TOCTOU). Cheaper than nothing for fat-finger guarding.
       if (opts.maxPriceE6 !== undefined || opts.minPriceE6 !== undefined) {
-        if (opts.maxPriceE6 !== undefined) {
-          try { BigInt(opts.maxPriceE6); } catch {
-            throw new Error(`Invalid --max-price-e6: ${opts.maxPriceE6}`);
-          }
-        }
-        if (opts.minPriceE6 !== undefined) {
-          try { BigInt(opts.minPriceE6); } catch {
-            throw new Error(`Invalid --min-price-e6: ${opts.minPriceE6}`);
-          }
+        let maxPriceE6: bigint | undefined;
+        let minPriceE6: bigint | undefined;
+        try {
+          if (opts.maxPriceE6 !== undefined) maxPriceE6 = BigInt(opts.maxPriceE6);
+          if (opts.minPriceE6 !== undefined) minPriceE6 = BigInt(opts.minPriceE6);
+        } catch {
+          throw new Error(`Invalid price bound: --max-price-e6=${opts.maxPriceE6} --min-price-e6=${opts.minPriceE6}`);
         }
         const slabBuf = await fetchSlab(ctx.connection, slabPk, ctx.programId);
         const cur = parseConfig(slabBuf).lastEffectivePriceE6;
-        if (opts.maxPriceE6 !== undefined && cur > BigInt(opts.maxPriceE6)) {
-          throw new Error(`pre-submit price ${cur} > --max-price-e6 ${opts.maxPriceE6}`);
+        if (maxPriceE6 !== undefined && cur > maxPriceE6) {
+          throw new Error(`pre-submit price ${cur} > --max-price-e6 ${maxPriceE6}`);
         }
-        if (opts.minPriceE6 !== undefined && cur < BigInt(opts.minPriceE6)) {
-          throw new Error(`pre-submit price ${cur} < --min-price-e6 ${opts.minPriceE6}`);
+        if (minPriceE6 !== undefined && cur < minPriceE6) {
+          throw new Error(`pre-submit price ${cur} < --min-price-e6 ${minPriceE6}`);
         }
       }
 
