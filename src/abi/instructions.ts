@@ -406,7 +406,7 @@ export function encodeCatchupAccrue(): Buffer {
 // ---------- Authority management (replaces UpdateAdmin, SetOracleAuthority) ----------
 export interface UpdateAuthorityArgs {
   kind: number; // AUTHORITY_KIND.ADMIN | HYPERP_MARK (=ORACLE) | INSURANCE | INSURANCE_OPERATOR
-  newPubkey: PublicKey | string;
+  newPubkey: PublicKey | string | null;
 }
 export function encodeUpdateAuthority(args: UpdateAuthorityArgs): Buffer {
   if (!VALID_AUTHORITY_KINDS.has(args.kind)) {
@@ -417,7 +417,7 @@ export function encodeUpdateAuthority(args: UpdateAuthorityArgs): Buffer {
   return Buffer.concat([
     encU8(IX_TAG.UpdateAuthority),
     encU8(args.kind),
-    encPubkey(args.newPubkey),
+    args.newPubkey === null ? Buffer.alloc(32) : encPubkey(args.newPubkey),
   ]);
 }
 

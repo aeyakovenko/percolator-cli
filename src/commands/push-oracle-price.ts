@@ -12,7 +12,7 @@ export function registerPushOraclePrice(program: Command): void {
     .command("push-oracle-price")
     .description("Push admin oracle price for binary market settlement (authority only)")
     .requiredOption("--slab <pubkey>", "Slab account public key")
-    .requiredOption("--price <number>", "Price in e6 format (YES=1000000, NO=1)")
+    .requiredOption("--price <number>", "Price in e6 format (YES=1000000, NO=0)")
     .option("--timestamp <number>", "Unix timestamp (default: current time)")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
