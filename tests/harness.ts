@@ -455,6 +455,8 @@ export class TestHarness {
       minNonzeroMmReq: "100000",
       minNonzeroImReq: "200000",
       // Extended tail
+      maxPriceMoveBpsPerSlot: "100",
+
       insuranceWithdrawMaxBps: 0,
       insuranceWithdrawCooldownSlots: "0",
       permissionlessResolveStaleSlots: "0",
