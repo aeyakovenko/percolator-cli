@@ -64,8 +64,6 @@ export function registerSlabParams(program: Command): void {
         console.log(`Max Accounts:            ${params.maxAccounts}`);
         console.log(`Max Active Per Side:     ${params.maxActivePositionsPerSide}`);
         console.log("");
-        console.log("--- Insurance ---");
-        console.log("");
         console.log("--- Warmup / Resolve ---");
         console.log(`h_min:                   ${params.hMin} slots`);
         console.log(`h_max:                   ${params.hMax} slots`);

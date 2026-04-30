@@ -42,6 +42,10 @@ export function registerSlabGet(program: Command): void {
           vaultAuthorityBump: mktConfig.vaultAuthorityBump,
           invert: mktConfig.invert,
           unitScale: mktConfig.unitScale,
+          maintenanceFeePerSlot: mktConfig.maintenanceFeePerSlot.toString(),
+          oracleTargetPriceE6: mktConfig.oracleTargetPriceE6.toString(),
+          oracleTargetPublishTime: mktConfig.oracleTargetPublishTime.toString(),
+          insuranceWithdrawDepositRemaining: mktConfig.insuranceWithdrawDepositRemaining.toString(),
         },
       };
 
@@ -68,6 +72,10 @@ export function registerSlabGet(program: Command): void {
         console.log(`Vault Auth Bump:    ${output.config.vaultAuthorityBump}`);
         console.log(`Invert:             ${output.config.invert}`);
         console.log(`Unit Scale:         ${output.config.unitScale}`);
+        console.log(`Maintenance Fee/slot: ${output.config.maintenanceFeePerSlot}`);
+        console.log(`Oracle Target Px E6: ${output.config.oracleTargetPriceE6}`);
+        console.log(`Oracle Target Time:  ${output.config.oracleTargetPublishTime}`);
+        console.log(`Ins Withdraw Remain: ${output.config.insuranceWithdrawDepositRemaining}`);
       }
     });
 }
