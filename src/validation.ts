@@ -43,6 +43,9 @@ export function validatePublicKey(value: string, field: string): PublicKey {
  * Validate a non-negative integer index (u16 range for accounts).
  */
 export function validateIndex(value: string, field: string): number {
+  if (!/^-?\d+$/.test(value)) {
+    throw new ValidationError(field, `"${value}" is not a valid number`);
+  }
   const num = parseInt(value, 10);
   if (isNaN(num)) {
     throw new ValidationError(field, `"${value}" is not a valid number`);
@@ -169,6 +172,9 @@ export function validateI128(value: string, field: string): bigint {
  * Validate a basis points value (0-10000).
  */
 export function validateBps(value: string, field: string): number {
+  if (!/^-?\d+$/.test(value)) {
+    throw new ValidationError(field, `"${value}" is not a valid number`);
+  }
   const num = parseInt(value, 10);
   if (isNaN(num)) {
     throw new ValidationError(field, `"${value}" is not a valid number`);
@@ -196,6 +202,9 @@ export function validateU64(value: string, field: string): bigint {
  * Validate a u16 value.
  */
 export function validateU16(value: string, field: string): number {
+  if (!/^-?\d+$/.test(value)) {
+    throw new ValidationError(field, `"${value}" is not a valid number`);
+  }
   const num = parseInt(value, 10);
   if (isNaN(num)) {
     throw new ValidationError(field, `"${value}" is not a valid number`);
