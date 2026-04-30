@@ -127,6 +127,9 @@ function encodeFeedId(feedId: string): Buffer {
   if (hex.length !== 64) {
     throw new Error(`Invalid feed ID length: expected 64 hex chars, got ${hex.length}`);
   }
+  if (!/^[0-9a-fA-F]+$/.test(hex)) {
+    throw new Error("Invalid feed ID: contains non-hex characters");
+  }
   return Buffer.from(hex, "hex");
 }
 
