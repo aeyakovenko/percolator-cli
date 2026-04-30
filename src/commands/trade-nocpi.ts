@@ -40,7 +40,7 @@ export function registerTradeNocpi(program: Command): void {
       const oracle = validatePublicKey(opts.oracle, "--oracle");
       const lpIdx = validateIndex(opts.lpIdx, "--lp-idx");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
-      validateI128(opts.size, "--size");
+      const size = validateI128(opts.size, "--size");
 
       // Load LP keypair if provided, otherwise use payer
       const lpKeypair = opts.lpWallet ? loadKeypair(opts.lpWallet) : ctx.payer;
@@ -64,7 +64,7 @@ export function registerTradeNocpi(program: Command): void {
       const ixData = encodeTradeNoCpi({
         lpIdx,
         userIdx,
-        size: opts.size,
+        size,
       });
 
       // Build account metas (order matches ACCOUNTS_TRADE_NOCPI)
