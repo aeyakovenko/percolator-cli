@@ -10,7 +10,9 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validatePublicKey } from "../validation.js";
 
+import { validatePublicKey } from "../validation.js";
 export function registerInitMarket(program: Command): void {
   program
     .command("init-market")
@@ -57,10 +59,10 @@ export function registerInitMarket(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
-      const mint = new PublicKey(opts.mint);
-      const vault = new PublicKey(opts.vault);
-      const oracle = new PublicKey(opts.oracle);
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      const mint = validatePublicKey(opts.mint, "--mint");
+      const vault = validatePublicKey(opts.vault, "--vault");
+      const oracle = validatePublicKey(opts.oracle, "--oracle");
 
       const feedIdHex = (opts.indexFeedId as string).startsWith("0x")
         ? (opts.indexFeedId as string).slice(2)

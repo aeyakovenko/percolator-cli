@@ -175,7 +175,7 @@ export const ACCOUNTS_SET_RISK_THRESHOLD: readonly AccountSpec[] = [
  */
 export const ACCOUNTS_UPDATE_ADMIN: readonly AccountSpec[] = [
   { name: "current_authority", signer: true, writable: false },
-  { name: "new_authority", signer: false, writable: false },
+  { name: "new_authority", signer: true, writable: false },
   { name: "slab", signer: false, writable: true },
 ] as const;
 
@@ -221,7 +221,7 @@ export const ACCOUNTS_SET_MAINTENANCE_FEE: readonly AccountSpec[] = [
  */
 export const ACCOUNTS_SET_ORACLE_AUTHORITY: readonly AccountSpec[] = [
   { name: "current_authority", signer: true, writable: false },
-  { name: "new_authority", signer: false, writable: false },
+  { name: "new_authority", signer: true, writable: false },
   { name: "slab", signer: false, writable: true },
 ] as const;
 
