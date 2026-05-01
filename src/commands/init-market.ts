@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
@@ -10,6 +9,7 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validatePublicKey, validateU128, validateU64, validateBps, validateU16 } from "../validation.js";
 
 export function registerInitMarket(program: Command): void {
   program
@@ -57,10 +57,10 @@ export function registerInitMarket(program: Command): void {
       const config = loadConfig(flags);
       const ctx = createContext(config);
 
-      const slabPk = new PublicKey(opts.slab);
-      const mint = new PublicKey(opts.mint);
-      const vault = new PublicKey(opts.vault);
-      const oracle = new PublicKey(opts.oracle);
+      const slabPk = validatePublicKey(opts.slab, "--slab");
+      const mint = validatePublicKey(opts.mint, "--mint");
+      const vault = validatePublicKey(opts.vault, "--vault");
+      const oracle = validatePublicKey(opts.oracle, "--oracle");
 
       const feedIdHex = (opts.indexFeedId as string).startsWith("0x")
         ? (opts.indexFeedId as string).slice(2)
@@ -69,40 +69,72 @@ export function registerInitMarket(program: Command): void {
         throw new Error("Invalid feed ID: must be 64 hex characters");
       }
 
+      // Validate numeric parameters
+      const maxStalenessSecs = validateU64(opts.maxStalenessSecs, "--max-staleness-secs");
+      const confFilterBps = validateBps(opts.confFilterBps, "--conf-filter-bps");
+      const invert = validateU16(opts.invert, "--invert");
+      const unitScale = validateU16(opts.unitScale, "--unit-scale");
+      const initialMarkPriceE6 = validateU64(opts.initialMarkPrice, "--initial-mark-price");
+      const maintenanceFeePerSlot = validateU128(opts.maintenanceFeePerSlot, "--maintenance-fee-per-slot");
+      const hMin = validateU64(opts.hMin, "--h-min");
+      const maintenanceMarginBps = validateBps(opts.maintenanceMarginBps, "--maintenance-margin-bps");
+      const initialMarginBps = validateBps(opts.initialMarginBps, "--initial-margin-bps");
+      const tradingFeeBps = validateBps(opts.tradingFeeBps, "--trading-fee-bps");
+      const maxAccounts = validateU64(opts.maxAccounts, "--max-accounts");
+      const newAccountFee = validateU128(opts.newAccountFee, "--new-account-fee");
+      const hMax = validateU64(opts.hMax, "--h-max");
+      const maxCrankStalenessSlots = validateU64(opts.maxCrankStaleness, "--max-crank-staleness");
+      const liquidationFeeBps = validateBps(opts.liquidationFeeBps, "--liquidation-fee-bps");
+      const liquidationFeeCap = validateU128(opts.liquidationFeeCap, "--liquidation-fee-cap");
+      const resolvePriceDeviationBps = validateBps(opts.resolvePriceDeviationBps, "--resolve-price-deviation-bps");
+      const minLiquidationAbs = validateU128(opts.minLiquidationAbs, "--min-liquidation-abs");
+      const minNonzeroMmReq = validateU128(opts.minNonzeroMmReq, "--min-nonzero-mm-req");
+      const minNonzeroImReq = validateU128(opts.minNonzeroImReq, "--min-nonzero-im-req");
+      const maxPriceMoveBpsPerSlot = validateBps(opts.maxPriceMoveBpsPerSlot, "--max-price-move-bps-per-slot");
+      const insuranceWithdrawMaxBps = validateBps(opts.insuranceWithdrawMaxBps, "--insurance-withdraw-max-bps");
+      const insuranceWithdrawCooldownSlots = validateU64(opts.insuranceWithdrawCooldown, "--insurance-withdraw-cooldown");
+      const permissionlessResolveStaleSlots = validateU64(opts.permissionlessResolveStale, "--permissionless-resolve-stale");
+      const fundingHorizonSlots = validateU64(opts.fundingHorizonSlots, "--funding-horizon-slots");
+      const fundingKBps = validateU64(opts.fundingKBps, "--funding-k-bps");
+      const fundingMaxPremiumBps = validateU64(opts.fundingMaxPremiumBps, "--funding-max-premium-bps");
+      const fundingMaxE9PerSlot = validateU64(opts.fundingMaxE9PerSlot, "--funding-max-e9-per-slot");
+      const markMinFee = validateU64(opts.markMinFee, "--mark-min-fee");
+      const forceCloseDelaySlots = validateU64(opts.forceCloseDelay, "--force-close-delay");
+
       const ixData = encodeInitMarket({
         admin: ctx.payer.publicKey,
         collateralMint: mint,
         indexFeedId: feedIdHex,
-        maxStalenessSecs: opts.maxStalenessSecs,
-        confFilterBps: parseInt(opts.confFilterBps, 10),
-        invert: parseInt(opts.invert, 10),
-        unitScale: parseInt(opts.unitScale, 10),
-        initialMarkPriceE6: opts.initialMarkPrice,
-        maintenanceFeePerSlot: opts.maintenanceFeePerSlot,
-        hMin: opts.hMin,
-        maintenanceMarginBps: opts.maintenanceMarginBps,
-        initialMarginBps: opts.initialMarginBps,
-        tradingFeeBps: opts.tradingFeeBps,
-        maxAccounts: opts.maxAccounts,
-        newAccountFee: opts.newAccountFee,
-        hMax: opts.hMax,
-        maxCrankStalenessSlots: opts.maxCrankStaleness,
-        liquidationFeeBps: opts.liquidationFeeBps,
-        liquidationFeeCap: opts.liquidationFeeCap,
-        resolvePriceDeviationBps: opts.resolvePriceDeviationBps,
-        minLiquidationAbs: opts.minLiquidationAbs,
-        minNonzeroMmReq: opts.minNonzeroMmReq,
-        minNonzeroImReq: opts.minNonzeroImReq,
-        maxPriceMoveBpsPerSlot: opts.maxPriceMoveBpsPerSlot,
-        insuranceWithdrawMaxBps: parseInt(opts.insuranceWithdrawMaxBps, 10),
-        insuranceWithdrawCooldownSlots: opts.insuranceWithdrawCooldown,
-        permissionlessResolveStaleSlots: opts.permissionlessResolveStale,
-        fundingHorizonSlots: opts.fundingHorizonSlots,
-        fundingKBps: opts.fundingKBps,
-        fundingMaxPremiumBps: opts.fundingMaxPremiumBps,
-        fundingMaxE9PerSlot: opts.fundingMaxE9PerSlot,
-        markMinFee: opts.markMinFee,
-        forceCloseDelaySlots: opts.forceCloseDelay,
+        maxStalenessSecs,
+        confFilterBps,
+        invert,
+        unitScale,
+        initialMarkPriceE6,
+        maintenanceFeePerSlot,
+        hMin,
+        maintenanceMarginBps,
+        initialMarginBps,
+        tradingFeeBps,
+        maxAccounts,
+        newAccountFee,
+        hMax,
+        maxCrankStalenessSlots,
+        liquidationFeeBps,
+        liquidationFeeCap,
+        resolvePriceDeviationBps,
+        minLiquidationAbs,
+        minNonzeroMmReq,
+        minNonzeroImReq,
+        maxPriceMoveBpsPerSlot,
+        insuranceWithdrawMaxBps,
+        insuranceWithdrawCooldownSlots,
+        permissionlessResolveStaleSlots,
+        fundingHorizonSlots,
+        fundingKBps,
+        fundingMaxPremiumBps,
+        fundingMaxE9PerSlot,
+        markMinFee,
+        forceCloseDelaySlots,
       });
 
       const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [

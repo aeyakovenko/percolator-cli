@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { fetchSlab, parseUsedIndices, parseEngine } from "../solana/slab.js";
+import { fetchSlab, parseUsedIndices, parseEngine, parseParams } from "../solana/slab.js";
 import { validatePublicKey } from "../validation.js";
 
 export function registerSlabBitmap(program: Command): void {
@@ -19,13 +19,14 @@ export function registerSlabBitmap(program: Command): void {
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const indices = parseUsedIndices(data);
       const engine = parseEngine(data);
+      const { maxAccounts } = parseParams(data);
 
       if (flags.json) {
         console.log(
           JSON.stringify(
             {
               numUsed: engine.numUsedAccounts,
-              maxAccounts: 4096,
+              maxAccounts: maxAccounts.toString(),
               usedIndices: indices,
             },
             null,
@@ -33,7 +34,7 @@ export function registerSlabBitmap(program: Command): void {
           )
         );
       } else {
-        console.log(`Used: ${engine.numUsedAccounts} / 4096 accounts\n`);
+        console.log(`Used: ${engine.numUsedAccounts} / ${maxAccounts} accounts\n`);
 
         if (indices.length === 0) {
           console.log("No accounts in use");

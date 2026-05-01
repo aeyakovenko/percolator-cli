@@ -26,7 +26,7 @@ export function registerInitUser(program: Command): void {
 
       // Validate inputs
       const slabPk = validatePublicKey(opts.slab, "--slab");
-      validateU128(opts.fee, "--fee");
+      const feePayment = validateU128(opts.fee, "--fee");
 
       // Fetch slab config for mint, vault, oracle
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
@@ -36,7 +36,7 @@ export function registerInitUser(program: Command): void {
       const userAta = await getAta(ctx.payer.publicKey, mktConfig.collateralMint);
 
       // Build instruction data
-      const ixData = encodeInitUser({ feePayment: opts.fee });
+      const ixData = encodeInitUser({ feePayment });
 
       // Build account metas (order matches ACCOUNTS_INIT_USER: 6 accounts)
       const keys = buildAccountMetas(ACCOUNTS_INIT_USER, [

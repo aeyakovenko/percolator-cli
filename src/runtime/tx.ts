@@ -58,10 +58,12 @@ export async function simulateOrSend(
   const tx = new Transaction();
 
   // Add compute budget instruction if custom limit is specified
+  // Max compute unit limit is 1,400,000 (Solana constraint)
   if (computeUnitLimit !== undefined) {
+    const cappedLimit = Math.min(computeUnitLimit, 1_400_000);
     tx.add(
       ComputeBudgetProgram.setComputeUnitLimit({
-        units: computeUnitLimit,
+        units: cappedLimit,
       })
     );
   }
@@ -73,7 +75,7 @@ export async function simulateOrSend(
 
   if (simulate) {
     tx.sign(...signers);
-    const result = await connection.simulateTransaction(tx, signers);
+    const result = await connection.simulateTransaction(tx, { signers });
     const logs = result.value.logs ?? [];
     let err: string | null = null;
     let hint: string | undefined;
@@ -118,7 +120,7 @@ export async function simulateOrSend(
 
     // Fetch logs
     const txInfo = await connection.getTransaction(signature, {
-      commitment: "confirmed",
+      commitment,
       maxSupportedTransactionVersion: 0,
     });
 
