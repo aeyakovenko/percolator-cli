@@ -48,7 +48,7 @@ export interface SlabHeader {
   flags: number;
   admin: PublicKey;
   nonce: bigint;
-  matCounter: bigint;
+  lastThrUpdateSlot: bigint;
   insuranceAuthority: PublicKey;   // bytes 72..104
   insuranceOperator: PublicKey;    // bytes 104..136 (close_authority field removed)
 }
@@ -146,6 +146,7 @@ export function parseHeader(data: Buffer): SlabHeader {
   if (magic !== MAGIC) {
     throw new Error(`Invalid slab magic: expected ${MAGIC.toString(16)}, got ${magic.toString(16)}`);
   }
+  const lastThrUpdateSlot = data.readBigUInt64LE(RESERVED_OFF + 8);
   return {
     magic,
     version: data.readUInt32LE(8),
@@ -153,17 +154,28 @@ export function parseHeader(data: Buffer): SlabHeader {
     flags: data.readUInt8(13),
     admin: new PublicKey(data.subarray(16, 48)),
     nonce: data.readBigUInt64LE(RESERVED_OFF),
-    matCounter: data.readBigUInt64LE(RESERVED_OFF + 8),
+    lastThrUpdateSlot,
     insuranceAuthority: new PublicKey(data.subarray(72, 104)),
     insuranceOperator: new PublicKey(data.subarray(104, 136)),
   };
 }
 
 export function parseConfig(data: Buffer): MarketConfig {
-  const minLen = CONFIG_OFFSET + CONFIG_LEN;
-  if (data.length < minLen) throw new Error(`Slab data too short for config: ${data.length} < ${minLen}`);
+  // Backward-compat: detect header size (v12.20 vs v12.21+)
+  const newHeaderMinLen = HEADER_LEN + CONFIG_LEN;
+  const oldHeaderMinLen = 72 + CONFIG_LEN;
+  let off: number;
 
-  let off = CONFIG_OFFSET;
+  if (data.length >= newHeaderMinLen) {
+    off = HEADER_LEN; // 136 (v12.21+)
+  } else if (data.length >= oldHeaderMinLen) {
+    off = 72; // old header (v12.20)
+  } else {
+    throw new Error(`Slab data too short for config: ${data.length}`);
+  }
+
+  const minLen = off + CONFIG_LEN;
+  if (data.length < minLen) throw new Error(`Slab data too short for config: ${data.length} < ${minLen}`);
 
   const collateralMint = new PublicKey(data.subarray(off, off + 32));        off += 32;
   const vaultPubkey = new PublicKey(data.subarray(off, off + 32));            off += 32;
@@ -189,7 +201,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   const oracleTargetPriceE6 = data.readBigUInt64LE(off);                      off += 8;
   const oracleTargetPublishTime = data.readBigInt64LE(off);                   off += 8;
   const lastHyperpIndexSlot = data.readBigUInt64LE(off);                      off += 8;
-  const lastMarkPushSlot = readU128LE(data, off);                             off += 16;
+  const lastMarkPushSlot = data.readBigUInt64LE(off);                      off += 8;
   const lastInsuranceWithdrawSlot = data.readBigUInt64LE(off);                off += 8;
   const insuranceWithdrawDepositRemaining = data.readBigUInt64LE(off);        off += 8;
   const markEwmaE6 = data.readBigUInt64LE(off);                               off += 8;
@@ -203,7 +215,7 @@ export function parseConfig(data: Buffer): MarketConfig {
   const feeSweepCursorBit = data.readBigUInt64LE(off);                        off += 8;
   const markMinFee = data.readBigUInt64LE(off);                               off += 8;
   const forceCloseDelaySlots = data.readBigUInt64LE(off);                     off += 8;
-  const newAccountFee = readU128LE(data, off);                                // off += 16;
+  const newAccountFee = readU128LE(data, off);                                off += 16;
 
   return {
     collateralMint, vaultPubkey, indexFeedId,
@@ -229,7 +241,13 @@ export function readNonce(data: Buffer): bigint {
 }
 
 export function readMatCounter(data: Buffer): bigint {
-  if (data.length < RESERVED_OFF + 16) throw new Error("Slab data too short for matCounter");
+  if (data.length < RESERVED_OFF + 24) throw new Error("Slab data too short for matCounter");
+  return data.readBigUInt64LE(RESERVED_OFF + 16);
+}
+
+/** @deprecated Use readMatCounter instead. */
+export function readLastThrUpdateSlot(data: Buffer): bigint {
+  if (data.length < RESERVED_OFF + 16) throw new Error("Slab data too short for lastThrUpdateSlot");
   return data.readBigUInt64LE(RESERVED_OFF + 8);
 }
 
@@ -263,32 +281,32 @@ const PARAMS_SIZE = 168;
 // =============================================================================
 // Account Layout (360 bytes, BPF) — unchanged
 // =============================================================================
-const ACCT_CAPITAL_OFF = 0;
-const ACCT_KIND_OFF = 16;
-const ACCT_PNL_OFF = 24;
-const ACCT_RESERVED_PNL_OFF = 40;
-const ACCT_POSITION_BASIS_Q_OFF = 56;
-const ACCT_ADL_A_BASIS_OFF = 72;
-const ACCT_ADL_K_SNAP_OFF = 88;
-const ACCT_F_SNAP_OFF = 104;
-const ACCT_ADL_EPOCH_SNAP_OFF = 120;
-const ACCT_MATCHER_PROGRAM_OFF = 128;
-const ACCT_MATCHER_CONTEXT_OFF = 160;
-const ACCT_OWNER_OFF = 192;
-const ACCT_FEE_CREDITS_OFF = 224;
-const ACCT_LAST_FEE_SLOT_OFF = 240;
-const ACCT_SCHED_PRESENT_OFF = 248;
-const ACCT_SCHED_REMAINING_Q_OFF = 256;
-const ACCT_SCHED_ANCHOR_Q_OFF = 272;
-const ACCT_SCHED_START_SLOT_OFF = 288;
-const ACCT_SCHED_HORIZON_OFF = 296;
-const ACCT_SCHED_RELEASE_Q_OFF = 304;
-const ACCT_PENDING_PRESENT_OFF = 320;
-const ACCT_PENDING_REMAINING_Q_OFF = 328;
-const ACCT_PENDING_HORIZON_OFF = 344;
-const ACCT_PENDING_CREATED_SLOT_OFF = 352;
+export const ACCT_CAPITAL_OFF = 0;
+export const ACCT_KIND_OFF = 16;
+export const ACCT_PNL_OFF = 24;
+export const ACCT_RESERVED_PNL_OFF = 40;
+export const ACCT_POSITION_BASIS_Q_OFF = 56;
+export const ACCT_ADL_A_BASIS_OFF = 72;
+export const ACCT_ADL_K_SNAP_OFF = 88;
+export const ACCT_F_SNAP_OFF = 104;
+export const ACCT_ADL_EPOCH_SNAP_OFF = 120;
+export const ACCT_MATCHER_PROGRAM_OFF = 128;
+export const ACCT_MATCHER_CONTEXT_OFF = 160;
+export const ACCT_OWNER_OFF = 192;
+export const ACCT_FEE_CREDITS_OFF = 224;
+export const ACCT_LAST_FEE_SLOT_OFF = 240;
+export const ACCT_SCHED_PRESENT_OFF = 248;
+export const ACCT_SCHED_REMAINING_Q_OFF = 256;
+export const ACCT_SCHED_ANCHOR_Q_OFF = 272;
+export const ACCT_SCHED_START_SLOT_OFF = 288;
+export const ACCT_SCHED_HORIZON_OFF = 296;
+export const ACCT_SCHED_RELEASE_Q_OFF = 304;
+export const ACCT_PENDING_PRESENT_OFF = 320;
+export const ACCT_PENDING_REMAINING_Q_OFF = 328;
+export const ACCT_PENDING_HORIZON_OFF = 344;
+export const ACCT_PENDING_CREATED_SLOT_OFF = 352;
 
-const ACCOUNT_SIZE = 360;
+export const ACCOUNT_SIZE = 360;
 
 // =============================================================================
 // RiskEngine Layout (BPF). ENGINE_OFF = 520 (v12.21+, was 536).
@@ -299,7 +317,7 @@ const ACCOUNT_SIZE = 360;
 //   - Net: +16 bytes after materialized_account_count, shifting all fields
 //     from last_oracle_price onward by +16.
 // =============================================================================
-const ENGINE_OFF = 520;
+export const ENGINE_OFF = 520;
 
 const ENGINE_VAULT_OFF = 0;
 const ENGINE_INSURANCE_OFF = 16;
@@ -349,7 +367,7 @@ const ENGINE_F_LONG_NUM_OFF = 648;
 const ENGINE_F_SHORT_NUM_OFF = 664;
 const ENGINE_F_EPOCH_START_LONG_NUM_OFF = 680;
 const ENGINE_F_EPOCH_START_SHORT_NUM_OFF = 696;
-const ENGINE_BITMAP_OFF = 712;                        // bitmap start (v12.21)
+export const ENGINE_BITMAP_OFF = 712;                        // bitmap start (v12.21)
 
 // =============================================================================
 // Interfaces
@@ -476,7 +494,7 @@ export interface SlabLayout {
   paramsSize: number;
 }
 
-function computeLayout(maxAccounts: number): SlabLayout {
+export function computeLayout(maxAccounts: number): SlabLayout {
   const bitmapWords = Math.ceil(maxAccounts / 64);
   const usedOff = ENGINE_BITMAP_OFF; // 696 (MA-independent)
   const bitmapBytes = bitmapWords * 8;
@@ -515,17 +533,26 @@ export function layoutForDataLength(dataLen: number): SlabLayout {
 // =============================================================================
 // Readers
 // =============================================================================
-function readI128LE(buf: Buffer, offset: number): bigint {
+export function readI128LE(buf: Buffer, offset: number): bigint {
   const lo = buf.readBigUInt64LE(offset);
   const hi = buf.readBigUInt64LE(offset + 8);
   const u = (hi << 64n) | lo;
   const SIGN = 1n << 127n;
   return u >= SIGN ? u - (1n << 128n) : u;
 }
-function readU128LE(buf: Buffer, offset: number): bigint {
+export function readU128LE(buf: Buffer, offset: number): bigint {
   const lo = buf.readBigUInt64LE(offset);
   const hi = buf.readBigUInt64LE(offset + 8);
   return (hi << 64n) | lo;
+}
+export function writeU128LE(buf: Buffer, offset: number, value: bigint): void {
+  buf.writeBigUInt64LE(BigInt(value & 0xffffffffffffffffn), offset);
+  buf.writeBigUInt64LE(BigInt((value >> 64n) & 0xffffffffffffffffn), offset + 8);
+}
+export function writeI128LE(buf: Buffer, offset: number, value: bigint): void {
+  buf.writeBigUInt64LE(BigInt(value & 0xffffffffffffffffn), offset);
+  const hi = value >> 64n;
+  buf.writeBigInt64LE(BigInt(hi), offset + 8);
 }
 
 export function parseParams(data: Buffer): RiskParams {

@@ -15,8 +15,8 @@ const DEFAULT_BUDGETS: Record<string, number> = {
   "keeper-crank": 80_000, // Benchmark: ~40k BPF for 4096 accounts
   "trade-nocpi": 50_000,
   "trade-cpi": 60_000,
-  "liquidate-at-oracle": 80_000, // Benchmark: ~51k BPF for full scan
-  "close-account": 80_000, // Similar to liquidation
+  "liquidate-at-oracle": 80_000, // Benchmark: ~51k BPF for full scan,
+  "close-account": 80_000, // Similar to liquidation,
   "topup-insurance": 30_000,
   "set-risk-threshold": 20_000,
   "update-admin": 20_000,

@@ -1,15 +1,14 @@
 import { Command } from "commander";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
 import { encodeWithdrawInsurance } from "../abi/instructions.js";
-import { ACCOUNTS_WITHDRAW_INSURANCE, buildAccountMetas } from "../abi/accounts.js";
+import { ACCOUNTS_WITHDRAW_INSURANCE, buildAccountMetas, WELL_KNOWN } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
 import { fetchSlab, parseConfig } from "../solana/slab.js";
 import { deriveVaultAuthority } from "../solana/pda.js";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { getAta } from "../solana/ata.js";
 
 export function registerWithdrawInsurance(program: Command): void {
   program
@@ -28,18 +27,14 @@ export function registerWithdrawInsurance(program: Command): void {
       const slabConfig = parseConfig(slabData);
 
       const [vaultPda] = deriveVaultAuthority(ctx.programId, slabPk);
-      const adminAta = await getAssociatedTokenAddress(
-        slabConfig.collateralMint,
-        ctx.payer.publicKey
-      );
+      const adminAta = await getAta(ctx.payer.publicKey, slabConfig.collateralMint);
 
       const ixData = encodeWithdrawInsurance();
       const keys = buildAccountMetas(ACCOUNTS_WITHDRAW_INSURANCE, [
         ctx.payer.publicKey,
         slabPk,
         adminAta,
-        slabConfig.vaultPubkey,
-        TOKEN_PROGRAM_ID,
+        slabConfig.vaultPubkey,        WELL_KNOWN.tokenProgram, // tokenProgram
         vaultPda,
       ]);
 

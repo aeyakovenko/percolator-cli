@@ -48,7 +48,7 @@ export function registerSlabConfig(program: Command): void {
         console.log(`Collateral Mint:    ${mktConfig.collateralMint.toBase58()}`);
         console.log(`Vault:              ${mktConfig.vaultPubkey.toBase58()}`);
         console.log(`Index Feed ID:      ${mktConfig.indexFeedId.toBase58()}`);
-        console.log(`Max Staleness:      ${mktConfig.maxStalenessSecs} slots`);
+        console.log(`Max Staleness:      ${mktConfig.maxStalenessSecs} seconds`);
         console.log(`Conf Filter:        ${mktConfig.confFilterBps} bps`);
         console.log(`Vault Auth Bump:    ${mktConfig.vaultAuthorityBump}`);
         console.log(`Invert:             ${mktConfig.invert}`);

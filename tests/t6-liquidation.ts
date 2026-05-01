@@ -62,16 +62,22 @@ async function runT6Tests(): Promise<void> {
     const snapshotAfter = await harness.snapshot(ctx);
     const balanceAfter = snapshotAfter.accounts[userIdx].collateralBalance;
 
-    // Balance should remain unchanged if liquidation was rejected
+    // For a healthy account, liquidation should fail or balance should not change
     if (result.err) {
       console.log(`    Liquidation blocked: ${result.err.slice(0, 60)}`);
       TestHarness.assertBigIntEqual(
         balanceAfter,
         balanceBefore,
-        "Balance should not change"
+        "Balance should not change when liquidation fails"
       );
     } else {
+      // If liquidation succeeded, verify this is expected (account was under-margined)
       console.log(`    Liquidation executed (account may have been under-margined)`);
+      TestHarness.assertBigIntEqual(
+        balanceAfter,
+        balanceBefore,
+        "Liquidation should not change balance for healthy account"
+      );
     }
   });
 

@@ -63,7 +63,7 @@ export function registerSlabBitmap(program: Command): void {
         let line = "  ";
         for (const range of ranges) {
           if (line.length + range.length + 2 > 70) {
-            console.log(line);
+            console.log(line.slice(0, -2));
             line = "  ";
           }
           line += range + ", ";

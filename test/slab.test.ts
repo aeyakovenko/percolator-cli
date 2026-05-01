@@ -10,7 +10,19 @@ import {
   parseUsedIndices,
   isAccountUsed,
   AccountKind,
-} from "../src/solana/slab.js";
+  ENGINE_OFF,
+  ENGINE_BITMAP_OFF,
+  ACCOUNT_SIZE,
+  ACCT_CAPITAL_OFF,
+  ACCT_KIND_OFF,
+  ACCT_PNL_OFF,
+  ACCT_POSITION_BASIS_Q_OFF,
+  ACCT_MATCHER_PROGRAM_OFF,
+  ACCT_OWNER_OFF,
+  computeLayout,
+  writeU128LE,
+  writeI128LE,
+} from "../src/solana/slab";
 
 function assert(cond: boolean, msg: string): void {
   if (!cond) throw new Error(`FAIL: ${msg}`);
@@ -20,50 +32,52 @@ console.log("Testing slab parsing...\n");
 
 // Create a mock slab buffer
 function createMockSlab(): Buffer {
-  const buf = Buffer.alloc(592);  // HEADER_LEN(72) + CONFIG_LEN(512) + 8 = 592 minimum
+  const buf = Buffer.alloc(592);  // HEADER_LEN(136) + CONFIG_LEN(384) + 72 = 592 minimum
 
-  // Header (72 bytes)
+  // Header (v12.21+: 136 bytes)
   // magic: "PERCOLAT" = 0x504552434f4c4154
   buf.writeBigUInt64LE(0x504552434f4c4154n, 0);
   // version: 1
   buf.writeUInt32LE(1, 8);
   // bump: 255
   buf.writeUInt8(255, 12);
-  // padding: 3 bytes (skip)
-  // admin: 32 bytes (use zeros, which is valid as a pubkey)
+  // flags: 0 (1 byte at offset 13), padding to 16
+  // admin: 32 bytes at [16..48]
   const adminBytes = Buffer.alloc(32);
   adminBytes[0] = 1; // Make it non-zero
   adminBytes.copy(buf, 16);
-  // reserved: nonce at [48..56], lastThrUpdateSlot at [56..64], then 8 more bytes padding to 72
+  // reserved: nonce at [48..56], lastThrUpdateSlot at [56..64], padding to [72]
   buf.writeBigUInt64LE(42n, 48); // nonce = 42
   buf.writeBigUInt64LE(12345n, 56); // lastThrUpdateSlot = 12345
+  // insurance_authority: 32 bytes at [72..104]
+  // insurance_operator: 32 bytes at [104..136]
 
-  // MarketConfig (starting at offset 72)
+  // MarketConfig (starting at offset 136 = HEADER_LEN)
   // Layout: collateral_mint(32) + vault_pubkey(32) + index_feed_id(32)
   //         + max_staleness_secs(8) + conf_filter_bps(2) + vault_authority_bump(1) + invert(1) + unit_scale(4)
 
-  // collateralMint: 32 bytes at offset 72
+  // collateralMint: 32 bytes at offset 136
   const mintBytes = Buffer.alloc(32);
   mintBytes[0] = 2;
-  mintBytes.copy(buf, 72);
-  // vaultPubkey: 32 bytes at offset 104
+  mintBytes.copy(buf, 136);
+  // vaultPubkey: 32 bytes at offset 168
   const vaultBytes = Buffer.alloc(32);
   vaultBytes[0] = 3;
-  vaultBytes.copy(buf, 104);
-  // index_feed_id: 32 bytes at offset 136
+  vaultBytes.copy(buf, 168);
+  // index_feed_id: 32 bytes at offset 200
   const feedIdBytes = Buffer.alloc(32);
   feedIdBytes[0] = 5;
-  feedIdBytes.copy(buf, 136);
-  // maxStalenessSecs: u64 at offset 168
-  buf.writeBigUInt64LE(100n, 168);
-  // confFilterBps: u16 at offset 176
-  buf.writeUInt16LE(50, 176);
-  // vaultAuthorityBump: u8 at offset 178
-  buf.writeUInt8(254, 178);
-  // invert: u8 at offset 179
-  buf.writeUInt8(1, 179);
-  // unitScale: u32 at offset 180
-  buf.writeUInt32LE(0, 180);
+  feedIdBytes.copy(buf, 200);
+  // maxStalenessSecs: u64 at offset 232
+  buf.writeBigUInt64LE(100n, 232);
+  // confFilterBps: u16 at offset 240
+  buf.writeUInt16LE(50, 240);
+  // vaultAuthorityBump: u8 at offset 242
+  buf.writeUInt8(254, 242);
+  // invert: u8 at offset 243
+  buf.writeUInt8(1, 243);
+  // unitScale: u32 at offset 244
+  buf.writeUInt32LE(0, 244);
 
   return buf;
 }
@@ -157,45 +171,22 @@ console.log("\n✅ All basic slab tests passed!");
 
 console.log("\nTesting account parsing...\n");
 
-// Constants from slab.ts for testing (keep in sync with slab.ts)
-const ENGINE_OFF = 472;
-const ENGINE_ACCOUNTS_OFF = 9376;
-const ACCOUNT_SIZE = 352;
-const ENGINE_BITMAP_OFF = 664;
+// Constants imported from slab.ts:
+// ENGINE_OFF, ENGINE_BITMAP_OFF, ENGINE_ACCOUNTS_OFF (via layout.engineAccountsOff),
+// ACCOUNT_SIZE, ACCT_*, writeU128LE, writeI128LE
 
-// Account field offsets (SBF layout, 8-byte alignment for u128/i128)
-;
-const ACCT_CAPITAL_OFF = 0;
-const ACCT_KIND_OFF = 16;
-const ACCT_PNL_OFF = 24;
-const ACCT_POSITION_BASIS_Q_OFF = 56;
-const ACCT_MATCHER_PROGRAM_OFF = 128;
-const ACCT_MATCHER_CONTEXT_OFF = 160;
-const ACCT_OWNER_OFF = 192;
-
-// Helper to write u128 as two u64s
-function writeU128LE(buf: Buffer, offset: number, value: bigint): void {
-  const lo = value & BigInt("0xFFFFFFFFFFFFFFFF");
-  const hi = (value >> 64n) & BigInt("0xFFFFFFFFFFFFFFFF");
-  buf.writeBigUInt64LE(lo, offset);
-  buf.writeBigUInt64LE(hi, offset + 8);
-}
-
-// Helper to write i128 as two u64s
-function writeI128LE(buf: Buffer, offset: number, value: bigint): void {
-  if (value < 0n) {
-    value = (1n << 128n) + value;  // Convert to unsigned
-  }
-  writeU128LE(buf, offset, value);
+// Helper – compute the engine-accounts offset for a given layout.
+function accountsOff(layout: { engineAccountsOff: number }): number {
+  return layout.engineAccountsOff;
 }
 
 // Create a full mock slab with accounts
 function createFullMockSlab(): Buffer {
-  // Need enough space for header + config + engine + bitmap + accounts
-  const minSize = ENGINE_OFF + ENGINE_ACCOUNTS_OFF + ACCOUNT_SIZE * 4;
-  const buf = Buffer.alloc(minSize);
+  // Use the 64-account layout (smallest valid layout)
+  const layout = computeLayout(64);
+  const buf = Buffer.alloc(layout.slabLen);
 
-  // Header (72 bytes)
+  // Header (v12.21+: 136 bytes)
   buf.writeBigUInt64LE(0x504552434f4c4154n, 0);  // magic
   buf.writeUInt32LE(1, 8);  // version
   buf.writeUInt8(255, 12);  // bump
@@ -204,18 +195,20 @@ function createFullMockSlab(): Buffer {
   adminBytes.copy(buf, 16);
   buf.writeBigUInt64LE(42n, 48);  // nonce
   buf.writeBigUInt64LE(12345n, 56);  // lastThrUpdateSlot
+  // insurance_authority: 32 bytes [72..104]
+  // insurance_operator: 32 bytes [104..136]
 
-  // MarketConfig - simplified (starts at offset 72)
+  // MarketConfig - simplified (starts at offset 136 = HEADER_LEN)
   const mintBytes = Buffer.alloc(32);
   mintBytes[0] = 2;
-  mintBytes.copy(buf, 72);
+  mintBytes.copy(buf, 136);
 
   // Set bitmap - mark accounts 0 and 1 as used
   const bitmapOffset = ENGINE_OFF + ENGINE_BITMAP_OFF;
   buf.writeBigUInt64LE(3n, bitmapOffset);  // bits 0 and 1 set
 
   // Create account at index 0 (LP)
-  const acc0Base = ENGINE_OFF + ENGINE_ACCOUNTS_OFF + 0 * ACCOUNT_SIZE;
+  const acc0Base = ENGINE_OFF + layout.engineAccountsOff + 0 * ACCOUNT_SIZE;
   writeU128LE(buf, acc0Base + ACCT_CAPITAL_OFF, 1000000000n);  // capital: 1 SOL
   buf.writeUInt8(1, acc0Base + ACCT_KIND_OFF);  // kind: LP (1)
   writeI128LE(buf, acc0Base + ACCT_PNL_OFF, 0n);  // pnl: 0
@@ -230,7 +223,7 @@ function createFullMockSlab(): Buffer {
   owner0.copy(buf, acc0Base + ACCT_OWNER_OFF);
 
   // Create account at index 1 (User)
-  const acc1Base = ENGINE_OFF + ENGINE_ACCOUNTS_OFF + 1 * ACCOUNT_SIZE;
+  const acc1Base = ENGINE_OFF + layout.engineAccountsOff + 1 * ACCOUNT_SIZE;
   writeU128LE(buf, acc1Base + ACCT_CAPITAL_OFF, 500000000n);  // capital: 0.5 SOL
   buf.writeUInt8(0, acc1Base + ACCT_KIND_OFF);  // kind: User (0)
   writeI128LE(buf, acc1Base + ACCT_PNL_OFF, -100000n);  // pnl: -0.0001 SOL
