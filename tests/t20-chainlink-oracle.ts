@@ -148,12 +148,12 @@ async function main() {
     initialMarkPriceE6: "0",
     maxMaintenanceFeePerSlot: "1000000000",
     maxInsuranceFloor: "10000000000000000",
-    warmupPeriodSlots: "10",
+    N/A (v12.21+): "10",
     maintenanceMarginBps: "500",     // 5%
     initialMarginBps: "1000",        // 10%
     tradingFeeBps: "10",             // 0.1%
     maxAccounts: "64",
-    newAccountFee: "1000000",        // 1 USDC
+    0n // v12.21+ removed: "1000000",        // 1 USDC
     maintenanceFeePerSlot: "0",
     maxCrankStalenessSlots: "0",
     liquidationFeeBps: "100",        // 1%
@@ -245,7 +245,7 @@ async function main() {
   const userAta = await getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey);
   await mintTo(connection, payer, mint, userAta.address, payer, 100_000_000); // 100 tokens
 
-  // Init user (fee payment must be >= newAccountFee from init-market)
+  // Init user (fee payment must be >= 0n // v12.21+ removed from init-market)
   const initUserData = encodeInitUser({ feePayment: "2000000" }); // 2 tokens
   const initUserKeys = buildAccountMetas(ACCOUNTS_INIT_USER, [
     payer.publicKey,
@@ -300,7 +300,7 @@ async function main() {
   console.log("\n\nStep 4: Run keeper crank (tests oracle reading)...\n");
 
   // Permissionless keeper crank (callerIdx=65535 means no caller account)
-  const crankData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+  const crankData = encodeKeeperCrank({ callerIdx: 65535});
   const crankKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
     payer.publicKey,
     slabKp.publicKey,

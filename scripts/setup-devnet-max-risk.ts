@@ -177,7 +177,7 @@ async function main() {
     maxPriceMoveBpsPerSlot:"49",        // 99.2% of §1.4 envelope ceiling
     minNonzeroMmReq:       "500",       // = mm, gives exact-N proof room
     minNonzeroImReq:       "600",
-    minLiquidationAbs:     "0",         // wrapper enforces dust gate via newAccountFee
+    minLiquidationAbs:     "0",         // wrapper enforces dust gate via 0n // v12.21+ removed
     liquidationFeeCap:     "50000000000",
 
     // h_min=0 fast-path, h_max=86_400, and perm_resolve decoupled from
@@ -190,7 +190,7 @@ async function main() {
 
     // Anti-spam (max_risk.md §4 inherits from config.md §4 with
     // SOL-denominated dollar conversions at SOL ≈ $85)
-    newAccountFee:         "5882000",   // 0.005882 SOL ≈ $0.50 → insurance
+    0n // v12.21+ removed:         "5882000",   // 0.005882 SOL ≈ $0.50 → insurance
     maintenanceFeePerSlot: "5",         // spec rate (USDC atomic/slot literal)
 
     // Insurance-operator path: keep live at init, burn afterward

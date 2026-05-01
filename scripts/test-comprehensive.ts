@@ -96,7 +96,7 @@ function checkConservation(state: any, label: string): boolean {
 // ---------------------------------------------------------------------------
 async function crank() {
   const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, SLAB, SYSVAR_CLOCK_PUBKEY, ORACLE]);
-  const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }) });
+  const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeKeeperCrank({ callerIdx: 65535 }) });
   const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }), ix);
   await sendAndConfirmTransaction(conn, tx, [payer], { commitment: "confirmed" });
 }

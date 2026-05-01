@@ -7,7 +7,7 @@
  * Defaults: --slab from devnet-market.json, --url devnet, --out market.json.
  *
  * Re-written for v12.21+ parser surface — older field names that no
- * longer exist (threshold pack, lifetimeLiquidations, warmupPeriodSlots,
+ * longer exist (threshold pack, N/A (v12.21+), N/A (v12.21+),
  * lastSweepStartSlot, etc.) are gone from the dump.
  */
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -172,7 +172,7 @@ async function main() {
 
       fees: {
         maintenanceFeePerSlot: config.maintenanceFeePerSlot.toString(),
-        newAccountFee: { raw: config.newAccountFee.toString(), sol: sol(config.newAccountFee) },
+        0n // v12.21+ removed: { raw: config.0n // v12.21+ removed.toString(), sol: sol(config.0n // v12.21+ removed) },
         feeSweepCursorWord: config.feeSweepCursorWord.toString(),
         feeSweepCursorBit: config.feeSweepCursorBit.toString(),
       },

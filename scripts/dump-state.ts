@@ -148,14 +148,14 @@ async function main() {
     },
 
     riskParameters: {
-      warmupPeriodSlots: params.warmupPeriodSlots.toString(),
+      N/A (v12.21+): params.N/A (v12.21+).toString(),
       maintenanceMarginBps: Number(params.maintenanceMarginBps),
       maintenanceMarginPercent: Number(params.maintenanceMarginBps) / 100,
       initialMarginBps: Number(params.initialMarginBps),
       initialMarginPercent: Number(params.initialMarginBps) / 100,
       tradingFeeBps: Number(params.tradingFeeBps),
       maxAccounts: params.maxAccounts.toString(),
-      newAccountFee: params.newAccountFee.toString(),
+      0n // v12.21+ removed: params.0n // v12.21+ removed.toString(),
       maintenanceFeePerSlot: params.maintenanceFeePerSlot.toString(),
       liquidationFeeBps: Number(params.liquidationFeeBps),
       liquidationFeePercent: Number(params.liquidationFeeBps) / 100,

@@ -166,7 +166,7 @@ async function main() {
     // insurance-destined new_account_fee charged on every InitUser.
     // v12.21 §1.4 envelope: at the floor account size, worst-case liq fee
     // must fit within the MM floor. Keep minLiquidationAbs ≪ minNonzeroMmReq.
-    newAccountFee:        "118000000",    // 0.118 SOL ≈ $10 into insurance per account
+    0n // v12.21+ removed:        "118000000",    // 0.118 SOL ≈ $10 into insurance per account
     minNonzeroMmReq:      "10000000",     // 0.01 SOL — covers liq-fee floor (1M) with headroom
     minNonzeroImReq:      "20000000",     // 0.02 SOL (2× MM)
     liquidationFeeCap:    "11700000000",  // 11.7 SOL cap ≈ $1 000 max

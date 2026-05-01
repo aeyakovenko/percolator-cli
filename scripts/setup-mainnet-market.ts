@@ -199,7 +199,7 @@ async function main() {
     maintenanceMarginBps:  "1000",
 
     // v12.20 dust gate. $5 at SOL=$87 ≈ 0.0575 SOL.
-    newAccountFee:        "57000000",
+    0n // v12.21+ removed:        "57000000",
     minNonzeroMmReq:      "1200000",      // 0.0012 SOL
     minNonzeroImReq:      "2400000",      // 0.0024 SOL
     liquidationFeeCap:    "11500000000",  // 11.5 SOL cap ≈ $1000
@@ -373,7 +373,7 @@ async function main() {
     tvlInsuranceCapMult: 20,
     maintenanceFeePerSlot: initArgs.maintenanceFeePerSlot,
     expectedDailyFee: `≈ 0.0572 SOL/account/day ≈ $${(5*0.0572/0.0575).toFixed(2)} at SOL=$${priceUsd.toFixed(2)}`,
-    newAccountFee: initArgs.newAccountFee,
+    0n // v12.21+ removed: initArgs.0n // v12.21+ removed,
     newAccountFeeUsd: `≈ $${(0.057 * priceUsd).toFixed(2)}`,
     permissionlessResolveStaleSlots: initArgs.permissionlessResolveStaleSlots,
     forceCloseDelaySlots: initArgs.forceCloseDelaySlots,

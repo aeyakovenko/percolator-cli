@@ -125,17 +125,17 @@ async function runT3Tests(): Promise<void> {
 
   // -------------------------------------------------------------------------
   // T3.4: Conservation after multiple deposits/withdrawals
-  // Note: Use default fee (params.newAccountFee) to ensure conservation
+  // Note: Use default fee (params.0n // v12.21+ removed) to ensure conservation
   // -------------------------------------------------------------------------
   await harness.runTest("T3.4: Conservation after operations", async () => {
     ctx = await harness.createFreshMarket({ maxAccounts: 64 });
 
-    // Create multiple users with explicit 1M fee (= params.newAccountFee)
-    // IMPORTANT: feePayment must equal newAccountFee for conservation to hold.
-    // The program transfers feePayment to vault but only credits newAccountFee to insurance.
+    // Create multiple users with explicit 1M fee (= params.0n // v12.21+ removed)
+    // IMPORTANT: feePayment must equal 0n // v12.21+ removed for conservation to hold.
+    // The program transfers feePayment to vault but only credits 0n // v12.21+ removed to insurance.
     const users: UserContext[] = [];
     const numUsers = 3;
-    const initFee = "1000000"; // Must match params.newAccountFee
+    const initFee = "1000000"; // Must match params.0n // v12.21+ removed
 
     for (let i = 0; i < numUsers; i++) {
       const user = await harness.createUser(ctx, `user${i}`, 50_000_000n);
