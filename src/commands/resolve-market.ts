@@ -5,7 +5,7 @@ import { createContext } from "../runtime/context.js";
 import { encodeResolveMarket } from "../abi/instructions.js";
 import { ACCOUNTS_RESOLVE_MARKET, buildAccountMetas, WELL_KNOWN } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
-import { validatePublicKey } from "../validation.js";
+import { validatePublicKey, validateU16 } from "../validation.js";
 
 export function registerResolveMarket(program: Command): void {
   program
@@ -13,6 +13,7 @@ export function registerResolveMarket(program: Command): void {
     .description("Resolve binary market (admin only, requires oracle price to be set)")
     .requiredOption("--slab <pubkey>", "Slab account public key")
     .requiredOption("--oracle <pubkey>", "Price oracle account")
+    .option("--mode <number>", "Resolution mode: 0=Ordinary (default), 1=Degenerate (v12.21+)", "0")
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
@@ -21,7 +22,13 @@ export function registerResolveMarket(program: Command): void {
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const oraclePk = validatePublicKey(opts.oracle, "--oracle");
 
-      const ixData = encodeResolveMarket();
+      // Validate mode: 0=Ordinary, 1=Degenerate (v12.21+)
+      const mode = validateU16(opts.mode, "--mode");
+      if (mode !== 0 && mode !== 1) {
+        throw new Error("--mode must be 0 (Ordinary) or 1 (Degenerate)");
+      }
+
+      const ixData = encodeResolveMarket({ mode });
       const keys = buildAccountMetas(ACCOUNTS_RESOLVE_MARKET, [
         ctx.payer.publicKey, // admin (signer)
         slabPk, // slab (writable)
