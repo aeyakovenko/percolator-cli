@@ -1,5 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, getAccount, Account } from "@solana/spl-token";
+import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
+import type { Account } from "@solana/spl-token";
 
 /**
  * Get the associated token address for an owner and mint.
