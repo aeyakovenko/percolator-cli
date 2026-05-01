@@ -31,7 +31,7 @@ const DEFAULT_CONFIG_NAME = "percolator-cli.json";
  */
 export function loadConfig(flags: GlobalFlags): Config {
   // Find config file
-  const configPath = flags.config ?? findConfig();
+  const configPath = flags.config ? expandPath(flags.config) : findConfig();
 
   let fileConfig: Partial<Config> = {};
   if (configPath && existsSync(configPath)) {
@@ -47,7 +47,7 @@ export function loadConfig(flags: GlobalFlags): Config {
   const merged = {
     rpcUrl: flags.rpc ?? fileConfig.rpcUrl ?? "https://api.mainnet-beta.solana.com",
     programId: flags.program ?? fileConfig.programId,
-    wallet: flags.wallet ?? fileConfig.wallet ?? "~/.config/solana/id.json",
+    wallet: expandPath(flags.wallet ?? fileConfig.wallet ?? "~/.config/solana/id.json"),
     commitment: flags.commitment ?? fileConfig.commitment ?? "confirmed",
   };
 

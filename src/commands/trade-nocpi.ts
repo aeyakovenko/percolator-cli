@@ -40,7 +40,7 @@ export function registerTradeNocpi(program: Command): void {
       const oracle = validatePublicKey(opts.oracle, "--oracle");
       const lpIdx = validateIndex(opts.lpIdx, "--lp-idx");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
-      validateI128(opts.size, "--size");
+      const size = validateI128(opts.size, "--size");
 
       // Load LP keypair if provided, otherwise use payer
       const lpKeypair = opts.lpWallet ? loadKeypair(opts.lpWallet) : ctx.payer;
@@ -50,13 +50,21 @@ export function registerTradeNocpi(program: Command): void {
       // (modulo any oracle update that lands in the same slot — hence
       // TOCTOU). Cheaper than nothing for fat-finger guarding.
       if (opts.maxPriceE6 !== undefined || opts.minPriceE6 !== undefined) {
+        let maxPriceE6: bigint | undefined;
+        let minPriceE6: bigint | undefined;
+        try {
+          if (opts.maxPriceE6 !== undefined) maxPriceE6 = BigInt(opts.maxPriceE6);
+          if (opts.minPriceE6 !== undefined) minPriceE6 = BigInt(opts.minPriceE6);
+        } catch {
+          throw new Error(`Invalid price bound: --max-price-e6=${opts.maxPriceE6} --min-price-e6=${opts.minPriceE6}`);
+        }
         const slabBuf = await fetchSlab(ctx.connection, slabPk, ctx.programId);
         const cur = parseConfig(slabBuf).lastEffectivePriceE6;
-        if (opts.maxPriceE6 !== undefined && cur > BigInt(opts.maxPriceE6)) {
-          throw new Error(`pre-submit price ${cur} > --max-price-e6 ${opts.maxPriceE6}`);
+        if (maxPriceE6 !== undefined && cur > maxPriceE6) {
+          throw new Error(`pre-submit price ${cur} > --max-price-e6 ${maxPriceE6}`);
         }
-        if (opts.minPriceE6 !== undefined && cur < BigInt(opts.minPriceE6)) {
-          throw new Error(`pre-submit price ${cur} < --min-price-e6 ${opts.minPriceE6}`);
+        if (minPriceE6 !== undefined && cur < minPriceE6) {
+          throw new Error(`pre-submit price ${cur} < --min-price-e6 ${minPriceE6}`);
         }
       }
 
@@ -64,7 +72,7 @@ export function registerTradeNocpi(program: Command): void {
       const ixData = encodeTradeNoCpi({
         lpIdx,
         userIdx,
-        size: opts.size,
+        size,
       });
 
       // Build account metas (order matches ACCOUNTS_TRADE_NOCPI)

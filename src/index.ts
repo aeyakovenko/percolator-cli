@@ -6,6 +6,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error(err.message ?? err);
+  if (err instanceof Error) {
+    console.error(err.message);
+  } else {
+    console.error(err);
+  }
   process.exit(1);
 });

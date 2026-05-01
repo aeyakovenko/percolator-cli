@@ -41,7 +41,7 @@ export function registerTradeCpi(program: Command): void {
       const matcherContext = validatePublicKey(opts.matcherContext, "--matcher-context");
       const lpIdx = validateIndex(opts.lpIdx, "--lp-idx");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
-      validateI128(opts.size, "--size");
+      const size = validateI128(opts.size, "--size");
 
       // Fetch slab config for oracle
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
@@ -55,11 +55,17 @@ export function registerTradeCpi(program: Command): void {
       const lpOwnerPk = lpAccount.owner;
 
       // Build instruction data
+      let limitPriceE6: bigint | undefined;
+      if (opts.limitPriceE6 !== undefined) {
+        try { limitPriceE6 = BigInt(opts.limitPriceE6); } catch {
+          throw new Error(`Invalid --limit-price-e6: ${opts.limitPriceE6}`);
+        }
+      }
       const ixData = encodeTradeCpi({
         lpIdx,
         userIdx,
-        size: opts.size,
-        limitPriceE6: opts.limitPriceE6 ?? "0",
+        size,
+        limitPriceE6,
       });
 
       let oracle: PublicKey;
