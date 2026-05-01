@@ -30,10 +30,12 @@ console.log("Testing oracle parsing...\n");
 
 // Helper: build a valid Chainlink aggregator buffer
 // Chainlink layout: decimals at offset 138 (u8), answer at offset 216 (i64 LE)
-function buildChainlinkBuffer(decimals: number, answer: bigint, size = 256): Buffer {
+function buildChainlinkBuffer(decimals: number, answer: bigint, size = 256, timestamp?: number): Buffer {
   const buf = Buffer.alloc(size);
   buf.writeUInt8(decimals, 138);
   buf.writeBigInt64LE(answer, 216);
+  const ts = timestamp !== undefined ? BigInt(timestamp) : BigInt(Math.floor(Date.now() / 1000));
+  buf.writeBigInt64LE(ts, 208);
   return buf;
 }
 
@@ -80,6 +82,7 @@ function buildChainlinkBuffer(decimals: number, answer: bigint, size = 256): Buf
   const minimal = Buffer.alloc(224);
   minimal.writeUInt8(8, 138);
   minimal.writeBigInt64LE(1000n, 216);
+  minimal.writeBigInt64LE(BigInt(Math.floor(Date.now() / 1000)), 208);
   const minResult = parseChainlinkPrice(minimal);
   assert(minResult.price === 1000n, "accepts minimal 224-byte buffer");
 

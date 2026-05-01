@@ -53,6 +53,18 @@ export function parseChainlinkPrice(data: Buffer): OraclePrice {
   }
 
   const timestamp = Number(data.readBigUInt64LE(CHAINLINK_TIMESTAMP_OFFSET));
+  const now = Math.floor(Date.now() / 1000);
+  const ONE_HOUR = 3600;
+  if (timestamp > now) {
+    throw new Error(
+      `Oracle timestamp is in the future: ${timestamp} (now: ${now})`
+    );
+  }
+  if (timestamp < now - ONE_HOUR) {
+    throw new Error(
+      `Oracle timestamp is stale: ${timestamp} (now: ${now}, max age: ${ONE_HOUR}s)`
+    );
+  }
 
   return { price, decimals, timestamp };
 }

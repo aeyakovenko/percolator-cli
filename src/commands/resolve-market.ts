@@ -6,6 +6,7 @@ import { encodeResolveMarket } from "../abi/instructions.js";
 import { ACCOUNTS_RESOLVE_MARKET, buildAccountMetas, WELL_KNOWN } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
+import { fetchSlab, parseHeader } from "../solana/slab.js";
 
 export function registerResolveMarket(program: Command): void {
   program
@@ -21,9 +22,14 @@ export function registerResolveMarket(program: Command): void {
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const oraclePk = validatePublicKey(opts.oracle, "--oracle");
 
+      // Fetch slab header to get admin
+      const slabData = await fetchSlab(ctx.connection, slabPk, ctx.programId);
+      const slabHeader = parseHeader(slabData);
+
+
       const ixData = encodeResolveMarket();
       const keys = buildAccountMetas(ACCOUNTS_RESOLVE_MARKET, [
-        ctx.payer.publicKey, // admin (signer)
+        slabHeader.admin, // admin (signer)
         slabPk, // slab (writable)
         WELL_KNOWN.clock, // clock
         oraclePk, // oracle

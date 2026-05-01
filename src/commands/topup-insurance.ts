@@ -26,7 +26,7 @@ export function registerTopupInsurance(program: Command): void {
 
       // Validate inputs
       const slabPk = validatePublicKey(opts.slab, "--slab");
-      validateU128(opts.amount, "--amount");
+      const amount = validateU128(opts.amount, "--amount");
 
       // Fetch slab config for vault
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
@@ -36,7 +36,7 @@ export function registerTopupInsurance(program: Command): void {
       const userAta = await getAta(ctx.payer.publicKey, mktConfig.collateralMint);
 
       // Build instruction data
-      const ixData = encodeTopUpInsurance({ amount: opts.amount });
+      const ixData = encodeTopUpInsurance({ amount });
 
       // Build account metas (order matches ACCOUNTS_TOPUP_INSURANCE: 6 accounts)
       const keys = buildAccountMetas(ACCOUNTS_TOPUP_INSURANCE, [

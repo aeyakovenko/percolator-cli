@@ -3,7 +3,7 @@ import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { fetchSlab, parseConfig } from "../solana/slab.js";
+import { fetchSlab, parseHeader, parseConfig } from "../solana/slab.js";
 import { getAta } from "../solana/ata.js";
 import { deriveVaultAuthority } from "../solana/pda.js";
 import { encodeCloseAccount } from "../abi/instructions.js";
@@ -31,12 +31,16 @@ export function registerCloseAccount(program: Command): void {
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const userIdx = validateIndex(opts.userIdx, "--user-idx");
 
-      // Fetch slab config for vault and oracle
+      // Fetch slab header for admin
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
+      const slabHeader = parseHeader(data);
+      const admin = slabHeader.admin;
+
+      // Fetch slab config for vault and oracle
       const mktConfig = parseConfig(data);
 
-      // Get user's ATA for the collateral mint
-      const userAta = await getAta(ctx.payer.publicKey, mktConfig.collateralMint);
+      // Get admin's ATA for the collateral mint (to receive funds)
+      const userAta = await getAta(admin, mktConfig.collateralMint);
 
       // Derive vault authority PDA
       const [vaultPda] = deriveVaultAuthority(ctx.programId, slabPk);
@@ -60,7 +64,7 @@ export function registerCloseAccount(program: Command): void {
 
       // Build account metas (order matches ACCOUNTS_CLOSE_ACCOUNT)
       const keys = buildAccountMetas(ACCOUNTS_CLOSE_ACCOUNT, [
-        ctx.payer.publicKey, // user
+        admin, // user (admin performing the close)
         slabPk, // slab
         mktConfig.vaultPubkey, // vault
         userAta, // userAta

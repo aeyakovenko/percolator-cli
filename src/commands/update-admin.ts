@@ -9,6 +9,7 @@ import {
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
+import { fetchSlab, parseHeader } from "../solana/slab.js";
 
 /**
  * Transfer the admin authority (header.admin) via UpdateAuthority { kind: ADMIN }.
@@ -29,14 +30,19 @@ export function registerUpdateAdmin(program: Command): void {
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const newAdmin = validatePublicKey(opts.newAdmin, "--new-admin");
 
+      // Fetch slab header to get current admin
+      const slabData = await fetchSlab(ctx.connection, slabPk, ctx.programId);
+      const slabHeader = parseHeader(slabData);
+      const currentAdmin = slabHeader.admin;
+
       const ixData = encodeUpdateAuthority({
         kind: AUTHORITY_KIND.ADMIN,
         newPubkey: newAdmin,
       });
 
       const keys = buildAccountMetas(ACCOUNTS_UPDATE_ADMIN, [
-        ctx.payer.publicKey, // current admin (signs)
-        newAdmin,            // new admin (must also sign unless burn)
+        currentAdmin, // current admin (signs)
+        newAdmin,    // new admin (must also sign unless burn)
         slabPk,
       ]);
 
