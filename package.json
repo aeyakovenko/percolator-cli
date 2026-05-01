@@ -20,6 +20,7 @@
     "@solana/spl-token": "^0.3.11",
     "@solana/web3.js": "^1.95.4",
     "commander": "^12.1.0",
+    "oh-my-opencode-darwin-arm64": "^3.17.12",
     "zod": "^3.23.8"
   },
   "devDependencies": {
