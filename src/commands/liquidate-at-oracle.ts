@@ -10,6 +10,10 @@ import {
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey, validateIndex } from "../validation.js";
+import {
+  fetchSlab,
+  isAccountUsed,
+} from "../solana/slab.js";
 
 export function registerLiquidateAtOracle(program: Command): void {
   program
@@ -27,6 +31,12 @@ export function registerLiquidateAtOracle(program: Command): void {
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const oracle = validatePublicKey(opts.oracle, "--oracle");
       const targetIdx = validateIndex(opts.targetIdx, "--target-idx");
+
+      // Verify the target account exists in the slab
+      const slabData = await fetchSlab(ctx.connection, slabPk, ctx.programId);
+      if (!isAccountUsed(slabData, targetIdx)) {
+        throw new Error(`Target account index ${targetIdx} is not in use`);
+      }
 
       // Build instruction data
       const ixData = encodeLiquidateAtOracle({ targetIdx });
