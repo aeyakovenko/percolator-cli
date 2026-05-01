@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
-import { fetchSlab, parseUsedIndices, parseEngine } from "../solana/slab.js";
+import { fetchSlab, parseUsedIndices, parseEngine, layoutForDataLength } from "../solana/slab.js";
 import { validatePublicKey } from "../validation.js";
 
 export function registerSlabBitmap(program: Command): void {
@@ -19,13 +19,14 @@ export function registerSlabBitmap(program: Command): void {
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);
       const indices = parseUsedIndices(data);
       const engine = parseEngine(data);
+      const layout = layoutForDataLength(data.length);
 
       if (flags.json) {
         console.log(
           JSON.stringify(
             {
               numUsed: engine.numUsedAccounts,
-              maxAccounts: 4096,
+              maxAccounts: layout.maxAccounts,
               usedIndices: indices,
             },
             null,
@@ -33,7 +34,7 @@ export function registerSlabBitmap(program: Command): void {
           )
         );
       } else {
-        console.log(`Used: ${engine.numUsedAccounts} / 4096 accounts\n`);
+        console.log(`Used: ${engine.numUsedAccounts} / ${layout.maxAccounts} accounts\n`);
 
         if (indices.length === 0) {
           console.log("No accounts in use");
@@ -63,7 +64,7 @@ export function registerSlabBitmap(program: Command): void {
         let line = "  ";
         for (const range of ranges) {
           if (line.length + range.length + 2 > 70) {
-            console.log(line);
+            console.log(line.slice(0, -2));
             line = "  ";
           }
           line += range + ", ";

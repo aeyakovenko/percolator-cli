@@ -55,6 +55,11 @@ export async function simulateOrSend(
 ): Promise<TxResult> {
   const { connection, ix, signers, simulate, commitment = "confirmed", computeUnitLimit } = params;
 
+  // Validate signers
+  if (signers.length === 0) {
+    throw new Error("At least one signer is required");
+  }
+
   const tx = new Transaction();
 
   // Add compute budget instruction if custom limit is specified
@@ -118,7 +123,7 @@ export async function simulateOrSend(
 
     // Fetch logs
     const txInfo = await connection.getTransaction(signature, {
-      commitment: "confirmed",
+      commitment,
       maxSupportedTransactionVersion: 0,
     });
 
@@ -126,13 +131,15 @@ export async function simulateOrSend(
     let err: string | null = null;
     let hint: string | undefined;
 
-    if (confirmation.value.err) {
+    // Check for errors in both confirmation and transaction metadata
+    const txErr = confirmation.value.err ?? txInfo?.meta?.err;
+    if (txErr) {
       const parsed = parseErrorFromLogs(logs);
       if (parsed) {
         err = `${parsed.name} (0x${parsed.code.toString(16)})`;
         hint = parsed.hint;
       } else {
-        err = JSON.stringify(confirmation.value.err);
+        err = JSON.stringify(txErr);
       }
     }
 
@@ -142,6 +149,7 @@ export async function simulateOrSend(
       err,
       hint,
       logs,
+      unitsConsumed: txInfo?.meta?.computeUnitsConsumed ?? undefined,
     };
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);

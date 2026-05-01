@@ -54,6 +54,8 @@ export function registerSlabEngine(program: Command): void {
               lastMarketSlot: engine.lastMarketSlot.toString(),
               fLongNum: engine.fLongNum.toString(),
               fShortNum: engine.fShortNum.toString(),
+              fEpochStartLongNum: engine.fEpochStartLongNum.toString(),
+              fEpochStartShortNum: engine.fEpochStartShortNum.toString(),
               numUsedAccounts: engine.numUsedAccounts,
               freeHead: engine.freeHead,
             },
@@ -93,6 +95,8 @@ export function registerSlabEngine(program: Command): void {
         console.log("--- Funding (F) ---");
         console.log(`F Long Num:              ${engine.fLongNum}`);
         console.log(`F Short Num:             ${engine.fShortNum}`);
+        console.log(`F Epoch Start Long:      ${engine.fEpochStartLongNum}`);
+        console.log(`F Epoch Start Short:     ${engine.fEpochStartShortNum}`);
         console.log(`Fund Px Last:            ${engine.fundPxLast}`);
         console.log("");
         console.log("--- Keeper ---");
