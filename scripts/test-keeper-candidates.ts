@@ -176,7 +176,7 @@ async function main() {
   crankTx.add(buildIx({
     programId: PROGRAM_ID,
     keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-    data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }),
+    data: encodeKeeperCrank({ callerIdx: 65535 }),
   }));
   await send(crankTx, [payer]);
 
@@ -273,7 +273,7 @@ async function main() {
     t.add(buildIx({
       programId: PROGRAM_ID,
       keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-      data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }),
+      data: encodeKeeperCrank({ callerIdx: 65535 }),
     }));
     return t;
   })(), [payer]);
@@ -391,7 +391,7 @@ async function main() {
     crankWithCandidates.add(buildIx({
       programId: PROGRAM_ID,
       keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-      data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false, candidates: candidateIndices }),
+      data: encodeKeeperCrank({ callerIdx: 65535, candidates: candidateIndices }),
     }));
     await send(crankWithCandidates, [payer]);
 

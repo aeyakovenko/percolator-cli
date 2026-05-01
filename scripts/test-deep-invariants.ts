@@ -132,7 +132,7 @@ async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: n
   t4.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
   t4.add(buildIx({ programId: PROGRAM_ID,
     keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-    data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }),
+    data: encodeKeeperCrank({ callerIdx: 65535 }),
   }));
   await send(t4, [payer]);
 
@@ -219,7 +219,7 @@ async function crank(slabPk: PublicKey, candidates?: number[]) {
   t.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
   t.add(buildIx({ programId: PROGRAM_ID,
     keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slabPk, WELL_KNOWN.clock, slabPk]),
-    data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false, candidates }),
+    data: encodeKeeperCrank({ callerIdx: 65535, candidates }),
   }));
   await send(t, [payer]);
 }
@@ -332,7 +332,7 @@ async function main() {
     const vaultBalance = BigInt(vaultInfo.value.amount);
 
     if (vaultBalance >= engine.vault) {
-      pass("Insurance exhaustion", `vault consistent after crash with no insurance (liq=${engine.lifetimeLiquidations})`);
+      pass("Insurance exhaustion", `vault consistent after crash with no insurance (liq=${0 // v12.21+})`);
     } else {
       fail("Insurance exhaustion", `vault inconsistent: token=${Number(vaultBalance)/1e9} vs engine=${Number(engine.vault)/1e9}`);
     }
