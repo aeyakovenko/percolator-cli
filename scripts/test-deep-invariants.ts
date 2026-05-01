@@ -94,8 +94,8 @@ async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: n
       indexFeedId: "0".repeat(64), maxStalenessSecs: "3600", confFilterBps: 500,
       invert: 0, unitScale: 0, initialMarkPriceE6: initialPrice,
       maxMaintenanceFeePerSlot: "1000000000", maxInsuranceFloor: "10000000000000000",
-      warmupPeriodSlots: "1", maintenanceMarginBps: "500", initialMarginBps: "1000",
-      tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "1000000",
+      N/A (v12.21+): "1", maintenanceMarginBps: "500", initialMarginBps: "1000",
+      tradingFeeBps: "10", maxAccounts: "64", 0n // v12.21+ removed: "1000000",
       maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "0",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "100000",
@@ -132,7 +132,7 @@ async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: n
   t4.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
   t4.add(buildIx({ programId: PROGRAM_ID,
     keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-    data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }),
+    data: encodeKeeperCrank({ callerIdx: 65535 }),
   }));
   await send(t4, [payer]);
 
@@ -219,7 +219,7 @@ async function crank(slabPk: PublicKey, candidates?: number[]) {
   t.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }));
   t.add(buildIx({ programId: PROGRAM_ID,
     keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slabPk, WELL_KNOWN.clock, slabPk]),
-    data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false, candidates }),
+    data: encodeKeeperCrank({ callerIdx: 65535, candidates }),
   }));
   await send(t, [payer]);
 }
@@ -332,7 +332,7 @@ async function main() {
     const vaultBalance = BigInt(vaultInfo.value.amount);
 
     if (vaultBalance >= engine.vault) {
-      pass("Insurance exhaustion", `vault consistent after crash with no insurance (liq=${engine.lifetimeLiquidations})`);
+      pass("Insurance exhaustion", `vault consistent after crash with no insurance (liq=${0 // v12.21+})`);
     } else {
       fail("Insurance exhaustion", `vault inconsistent: token=${Number(vaultBalance)/1e9} vs engine=${Number(engine.vault)/1e9}`);
     }

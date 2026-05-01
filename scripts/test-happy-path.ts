@@ -96,7 +96,7 @@ function checkConservation(state: any, label: string): boolean {
 // ---------------------------------------------------------------------------
 async function crank() {
   const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, SLAB, SYSVAR_CLOCK_PUBKEY, ORACLE]);
-  const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }) });
+  const ix = buildIx({ programId: PROGRAM_ID, keys, data: encodeKeeperCrank({ callerIdx: 65535 }) });
   const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }), ix);
   await sendAndConfirmTransaction(conn, tx, [payer], { commitment: "confirmed" });
 }
@@ -268,7 +268,7 @@ async function scenarioWinner(basePrice: bigint): Promise<TestResult> {
   }
 
   // Wait for warmup period to elapse.
-  // warmupPeriodSlots=10 on devnet (~4 seconds at ~2.5 slots/sec).
+  // N/A (v12.21+)=10 on devnet (~4 seconds at ~2.5 slots/sec).
   // keeper_crank does NOT call settle_warmup_to_capital — conversion only
   // triggers on user operations (withdraw, close_account, deposit) that call
   // touch_account_full. We just need enough slots to pass before that call.

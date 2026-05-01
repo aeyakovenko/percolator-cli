@@ -28,6 +28,7 @@ export interface OraclePrice {
  * - Buffer is large enough to contain the required fields
  * - Decimals are in a reasonable range (0-18)
  * - Price is positive (non-zero)
+ * - Price timestamp is not stale (within 1 hour)
  *
  * @throws if the buffer is invalid or contains unreasonable data
  */

@@ -59,7 +59,12 @@ function effectivePosQ(acc: ReturnType<typeof parseAccount>, engine: ReturnType<
  */
 function computeCandidates(data: Buffer, engine: ReturnType<typeof parseEngine>): number[] {
   const indices = parseUsedIndices(data);
-  const oraclePrice = engine.lastOraclePrice > 0n ? engine.lastOraclePrice : 1n;
+
+  // Validate oracle price - zero/negative price is a critical error
+  if (engine.lastOraclePrice <= 0n) {
+    throw new Error("Oracle price is zero or negative — cannot compute liquidation candidates");
+  }
+  const oraclePrice = engine.lastOraclePrice;
   const POS_SCALE = 1_000_000n;
 
   const scored: { idx: number; leverage: bigint }[] = [];
@@ -73,17 +78,25 @@ function computeCandidates(data: Buffer, engine: ReturnType<typeof parseEngine>)
 
     // Notional = |effective_pos| * oracle_price / POS_SCALE
     const notional = (absPos * oraclePrice) / POS_SCALE;
-    const capital = acc.capital > 0n ? acc.capital : 1n;
 
-    // leverage = notional / capital (higher = more at risk)
-    const leverage = (notional * 10_000n) / capital;
+    // Bankrupt accounts (capital <= 0) get maximum leverage priority for liquidation
+    let leverage: bigint;
+    if (acc.capital <= 0n) {
+      leverage = BigInt("0xffffffffffffffffffffffffffffffff"); // max u128 - highest priority
+    } else {
+      // leverage = notional / capital (higher = more at risk)
+      leverage = (notional * 10_000n) / acc.capital;
+    }
 
     scored.push({ idx, leverage });
   }
 
   // Sort by leverage descending (highest leverage = most at risk first)
   scored.sort((a, b) => (b.leverage > a.leverage ? 1 : b.leverage < a.leverage ? -1 : 0));
-  return scored.map(s => s.idx);
+
+  // Cap candidates at engine budget limit (LIQ_BUDGET_PER_CRANK = 64)
+  const capped = scored.slice(0, 64).map(s => s.idx);
+  return capped;
 }
 
 export function registerKeeperCrank(program: Command): void {

@@ -63,7 +63,7 @@ function fail(name: string, detail: string) {
 }
 
 async function crank() {
-  const data = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+  const data = encodeKeeperCrank({ callerIdx: 65535 });
   const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
     payer.publicKey, SLAB, SYSVAR_CLOCK_PUBKEY, ORACLE,
   ]);

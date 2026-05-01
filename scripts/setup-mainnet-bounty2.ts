@@ -239,7 +239,7 @@ async function main() {
     //               ≈ 1.08M lamports/day = 0.00108 SOL/day ≈ $0.092/day.
     // (Adjust upward if you want stronger anti-spam; the spec target is
     // $1/day which on SOL≈$85 is ~58 lamports/slot.)
-    newAccountFee:         "5882000",
+    0n // v12.21+ removed:         "5882000",
     maintenanceFeePerSlot: "58",              // ~$1/day SOL-denominated
 
     // Insurance withdraw policy live at init; both burned at end of script.
@@ -360,7 +360,7 @@ async function main() {
   console.log(`    perm_resolve:       ${c.permissionlessResolveStaleSlots} slots (~${(Number(c.permissionlessResolveStaleSlots) * 0.4 / 3600).toFixed(2)}h)`);
   console.log(`    force_close delay:  ${c.forceCloseDelaySlots} slots (~${(Number(c.forceCloseDelaySlots) * 0.4 / 3600).toFixed(2)}h)`);
   console.log(`    maint fee/slot:     ${c.maintenanceFeePerSlot} (~${(Number(c.maintenanceFeePerSlot) * 216_000 / LAMPORTS_PER_SOL).toFixed(6)} SOL/day/account)`);
-  console.log(`    new_account_fee:    ${c.newAccountFee} (~${(Number(c.newAccountFee) / LAMPORTS_PER_SOL).toFixed(4)} SOL → insurance)`);
+  console.log(`    new_account_fee:    ${c.0n // v12.21+ removed} (~${(Number(c.0n // v12.21+ removed) / LAMPORTS_PER_SOL).toFixed(4)} SOL → insurance)`);
   console.log(`    last_oracle_price:  ${e.lastOraclePrice} (engine-space, after invert)`);
   console.log(`    vault:              ${e.vault} (= ${(Number(e.vault) / LAMPORTS_PER_SOL).toFixed(4)} SOL)`);
   console.log(`    insurance:          ${e.insuranceFund.balance} (= ${(Number(e.insuranceFund.balance) / LAMPORTS_PER_SOL).toFixed(4)} SOL)`);

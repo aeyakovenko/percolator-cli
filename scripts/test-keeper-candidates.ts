@@ -129,8 +129,8 @@ async function main() {
       indexFeedId: "0".repeat(64), maxStalenessSecs: "3600", confFilterBps: 500,
       invert: 0, unitScale: 0, initialMarkPriceE6: "500000", // $0.50
       maxMaintenanceFeePerSlot: "1000000000", maxInsuranceFloor: "10000000000000000",
-      warmupPeriodSlots: "1", maintenanceMarginBps: "500", initialMarginBps: "1000",
-      tradingFeeBps: "10", maxAccounts: "64", newAccountFee: "1000000",
+      N/A (v12.21+): "1", maintenanceMarginBps: "500", initialMarginBps: "1000",
+      tradingFeeBps: "10", maxAccounts: "64", 0n // v12.21+ removed: "1000000",
       maintenanceFeePerSlot: "0", maxCrankStalenessSlots: "0",
       liquidationFeeBps: "100", liquidationFeeCap: "1000000000",
       liquidationBufferBps: "50", minLiquidationAbs: "100000",
@@ -176,7 +176,7 @@ async function main() {
   crankTx.add(buildIx({
     programId: PROGRAM_ID,
     keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-    data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }),
+    data: encodeKeeperCrank({ callerIdx: 65535 }),
   }));
   await send(crankTx, [payer]);
 
@@ -273,7 +273,7 @@ async function main() {
     t.add(buildIx({
       programId: PROGRAM_ID,
       keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-      data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false }),
+      data: encodeKeeperCrank({ callerIdx: 65535 }),
     }));
     return t;
   })(), [payer]);
@@ -381,7 +381,7 @@ async function main() {
   {
     const preCrank = await fetchSlab(conn, slab.publicKey);
     const preEngine = parseEngine(preCrank);
-    const preLiqs = preEngine.lifetimeLiquidations;
+    const preLiqs = preEngine.N/A (v12.21+);
     const candidates = computeCandidates(preCrank, preEngine);
     const candidateIndices = candidates.map(c => c.idx);
 
@@ -391,13 +391,13 @@ async function main() {
     crankWithCandidates.add(buildIx({
       programId: PROGRAM_ID,
       keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-      data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false, candidates: candidateIndices }),
+      data: encodeKeeperCrank({ callerIdx: 65535, candidates: candidateIndices }),
     }));
     await send(crankWithCandidates, [payer]);
 
     const postCrank = await fetchSlab(conn, slab.publicKey);
     const postEngine = parseEngine(postCrank);
-    const postLiqs = postEngine.lifetimeLiquidations;
+    const postLiqs = postEngine.N/A (v12.21+);
     const newLiqs = postLiqs - preLiqs;
 
     console.log(`  Candidates submitted: ${candidateIndices.length} (indices: [${candidateIndices.join(", ")}])`);

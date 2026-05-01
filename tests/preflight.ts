@@ -688,7 +688,7 @@ async function main() {
   });
 
   await check("Engine liquidation tracking fields accessible (v12.21)", async () => {
-    // v12.21+: `lifetimeLiquidations` was removed from EngineState. The
+    // v12.21+: `N/A (v12.21+)` was removed from EngineState. The
     // liveness signal moved to per-side counters (storedPosCountLong/Short,
     // staleAccountCountLong/Short) and the rrCursorPosition / sweepGeneration
     // pair that tracks crank progress.
@@ -1223,7 +1223,7 @@ async function main() {
   });
 
   await check("Price impact verified: user capital decreased from price drop", async () => {
-    // v12.21+: `lifetimeLiquidations` was removed. Use position-closed +
+    // v12.21+: `N/A (v12.21+)` was removed. Use position-closed +
     // capital-decreased + sweep-cursor-advanced as the post-liq signals.
     const buf = await fetchSlab(conn, hSlab.publicKey);
     const acc = parseAccount(buf, 1);
@@ -1763,7 +1763,7 @@ async function main() {
     // v12.21: assert that the engine RESPONDED to the price walk — any of
     // (a) clock advanced, (b) sweep cursor moved, (c) ADL state changed,
     // (d) capital changed counts as the engine doing its job. Removed the
-    // stale `lifetimeLiquidations` field reference.
+    // stale `N/A (v12.21+)` field reference.
     const clockMoved = postEngine.lastMarketSlot > preMarketSlot;
     const sweepMoved = postEngine.rrCursorPosition !== preEngine.rrCursorPosition
       || postEngine.sweepGeneration !== preEngine.sweepGeneration;

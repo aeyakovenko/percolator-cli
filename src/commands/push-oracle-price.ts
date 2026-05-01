@@ -20,7 +20,7 @@ export function registerPushOraclePrice(program: Command): void {
       const ctx = createContext(config);
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
-      const priceE6 = BigInt(opts.price);
+      const priceE6 = BigInt(Math.floor(Number(opts.price)));
       const timestamp = opts.timestamp
         ? BigInt(opts.timestamp)
         : BigInt(Math.floor(Date.now() / 1000));

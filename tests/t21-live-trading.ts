@@ -232,12 +232,12 @@ async function setupMarket(
     initialMarkPriceE6: "0",
     maxMaintenanceFeePerSlot: "1000000000",
     maxInsuranceFloor: "10000000000000000",
-    warmupPeriodSlots: "10",
+    N/A (v12.21+): "10",
     maintenanceMarginBps: "500",
     initialMarginBps: "1000",
     tradingFeeBps: "10",
     maxAccounts: "256",
-    newAccountFee: "1000000",
+    0n // v12.21+ removed: "1000000",
     maintenanceFeePerSlot: "0",
     maxCrankStalenessSlots: "0",
     liquidationFeeBps: "100",
@@ -687,7 +687,7 @@ async function runKeeperCrank(
   payer: Keypair,
   market: MarketState
 ): Promise<boolean> {
-  const ixData = encodeKeeperCrank({ callerIdx: 65535, allowPanic: false });
+  const ixData = encodeKeeperCrank({ callerIdx: 65535});
   const keys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
     payer.publicKey,
     market.slab.publicKey,
