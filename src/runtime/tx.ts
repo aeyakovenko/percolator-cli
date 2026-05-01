@@ -6,6 +6,7 @@ import {
   Keypair,
   SendOptions,
   Commitment,
+  Finality,
   AccountMeta,
   ComputeBudgetProgram,
 } from "@solana/web3.js";
@@ -58,10 +59,12 @@ export async function simulateOrSend(
   const tx = new Transaction();
 
   // Add compute budget instruction if custom limit is specified
+  // Max compute unit limit is 1,400,000 (Solana constraint)
   if (computeUnitLimit !== undefined) {
+    const cappedLimit = Math.min(computeUnitLimit, 1_400_000);
     tx.add(
       ComputeBudgetProgram.setComputeUnitLimit({
-        units: computeUnitLimit,
+        units: cappedLimit,
       })
     );
   }
@@ -118,7 +121,7 @@ export async function simulateOrSend(
 
     // Fetch logs
     const txInfo = await connection.getTransaction(signature, {
-      commitment: "confirmed",
+      commitment: commitment as Finality,
       maxSupportedTransactionVersion: 0,
     });
 
