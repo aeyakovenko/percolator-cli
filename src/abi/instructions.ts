@@ -8,7 +8,7 @@ import {
   encU128,
   encI128,
   encPubkey,
-} from "./encode.js";
+} from "./encode";
 
 /**
  * Instruction tags — exact match to Rust ix::Instruction::decode.
