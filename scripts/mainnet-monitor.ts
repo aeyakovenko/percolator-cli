@@ -12,7 +12,7 @@ function u128LE(b: Buffer, off: number): bigint {
 }
 
 async function main() {
-  const m = JSON.parse(fs.readFileSync("mainnet-market.json", "utf-8"));
+  const m = JSON.parse(fs.readFileSync("mainnet-market.json", "utf8"));
   const slab = new PublicKey(m.slab);
   const oracle = new PublicKey(m.oracle);
   const vault = new PublicKey(m.vault);
@@ -111,7 +111,7 @@ async function main() {
   console.log(`  next:  ${nextCron.toISOString()}  (T-${minsToCron} min)`);
   const logFile = "/home/anatoly/percolator-cli/mainnet-crank.log";
   if (fs.existsSync(logFile)) {
-    const lines = fs.readFileSync(logFile, "utf-8").trim().split("\n").slice(-3);
+    const lines = fs.readFileSync(logFile, "utf8").trim().split("\n").slice(-3);
     console.log("  last log lines:");
     lines.forEach(l => console.log(`    ${l}`));
   } else {

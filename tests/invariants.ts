@@ -173,7 +173,7 @@ export class InvariantChecker {
       const acc = accountMap.get(idx);
       if (!acc) continue;
 
-      const idStr = acc.accountId.toString();
+      const idStr = acc.idx.toString(); // v12.21+: use idx instead of removed accountId
       if (seenIds.has(idStr)) {
         return {
           name: "I3: Account ID uniqueness",
@@ -320,7 +320,7 @@ export class InvariantChecker {
 
   /**
    * I7: Account count consistency.
-   * numUsedAccounts <= maxAccounts, nextAccountId > all used IDs.
+   * numUsedAccounts <= maxAccounts, numUsedAccounts > all used IDs.
    */
   private checkAccountCountConsistency(
     engine: EngineState,
@@ -361,13 +361,12 @@ export class InvariantChecker {
       actual: b.rawHash.slice(0, 16) + "...",
     });
 
-    // Engine state comparison (numUsedAccounts, nextAccountId are in engine)
+    // Engine state comparison (numUsedAccounts is in engine, numUsedAccounts removed in v12.21+)
     results.push({
       name: "D2: Engine accounts match",
-      passed: a.engine.numUsedAccounts === b.engine.numUsedAccounts &&
-              a.engine.nextAccountId === b.engine.nextAccountId,
-      expected: `numUsed=${a.engine.numUsedAccounts}, nextId=${a.engine.nextAccountId}`,
-      actual: `numUsed=${b.engine.numUsedAccounts}, nextId=${b.engine.nextAccountId}`,
+      passed: a.engine.numUsedAccounts === b.engine.numUsedAccounts,
+      expected: `numUsed=${a.engine.numUsedAccounts}`,
+      actual: `numUsed=${b.engine.numUsedAccounts}`,
     });
 
     // Engine state comparison

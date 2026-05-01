@@ -29,13 +29,13 @@ import { parseEngine, fetchSlab } from "../src/solana/slab.js";
 async function main() {
   const manifestPath = process.env.MARKET_MANIFEST
     || path.join(path.dirname(new URL(import.meta.url).pathname), "..", "mainnet-market.json");
-  const m = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+  const m = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   const slab = new PublicKey(m.slab);
   const oracle = new PublicKey(m.oracle);
   const program = new PublicKey(m.programId);
 
   const walletPath = process.env.WALLET_PATH || `${process.env.HOME}/.config/solana/id.json`;
-  const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8"))));
+  const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf8"))));
   const rpc = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
   const conn = new Connection(rpc, "confirmed");
 

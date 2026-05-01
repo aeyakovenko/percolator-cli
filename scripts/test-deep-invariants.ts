@@ -47,7 +47,7 @@ const SLAB_SIZE = 1525624;
 const MATCHER_CTX_SIZE = 320;
 
 const payer = Keypair.fromSecretKey(
-  new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
+  new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf8")))
 );
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
 
@@ -332,7 +332,7 @@ async function main() {
     const vaultBalance = BigInt(vaultInfo.value.amount);
 
     if (vaultBalance >= engine.vault) {
-      pass("Insurance exhaustion", `vault consistent after crash with no insurance (liq=${engine.lifetimeLiquidations})`);
+      pass("Insurance exhaustion", `vault consistent after crash with no insurance (liq=N/A - lifetimeLiquidations removed in v12.21+)`);
     } else {
       fail("Insurance exhaustion", `vault inconsistent: token=${Number(vaultBalance)/1e9} vs engine=${Number(engine.vault)/1e9}`);
     }

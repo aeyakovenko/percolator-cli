@@ -54,24 +54,30 @@ async function runT6Tests(): Promise<void> {
 
     const snapshotBefore = await harness.snapshot(ctx);
     const userIdx = snapshotBefore.usedIndices[0];
-    const balanceBefore = snapshotBefore.accounts[userIdx].collateralBalance;
+    const balanceBefore = snapshotBefore.accounts.find(a => a.idx === userIdx)?.account.capital ?? 0n;
 
     // Try to liquidate healthy account
     const result = await harness.liquidateAtOracle(ctx, userIdx);
 
     const snapshotAfter = await harness.snapshot(ctx);
-    const balanceAfter = snapshotAfter.accounts[userIdx].collateralBalance;
+    const balanceAfter = snapshotAfter.accounts.find(a => a.idx === userIdx)?.account.capital ?? 0n;
 
-    // Balance should remain unchanged if liquidation was rejected
+    // For a healthy account, liquidation should fail or balance should not change
     if (result.err) {
       console.log(`    Liquidation blocked: ${result.err.slice(0, 60)}`);
       TestHarness.assertBigIntEqual(
         balanceAfter,
         balanceBefore,
-        "Balance should not change"
+        "Balance should not change when liquidation fails"
       );
     } else {
+      // If liquidation succeeded, verify this is expected (account was under-margined)
       console.log(`    Liquidation executed (account may have been under-margined)`);
+      TestHarness.assertBigIntEqual(
+        balanceAfter,
+        balanceBefore,
+        "Liquidation should not change balance for healthy account"
+      );
     }
   });
 

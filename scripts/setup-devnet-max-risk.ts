@@ -116,7 +116,7 @@ async function main() {
   console.log("═".repeat(70));
 
   const walletPath = process.env.WALLET_PATH || `${process.env.HOME}/.config/solana/id.json`;
-  const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8"))));
+  const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf8"))));
   const rpc = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
   const conn = new Connection(rpc, "confirmed");
 

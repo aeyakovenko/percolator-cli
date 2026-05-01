@@ -157,7 +157,7 @@ function pickRpc(): { rpc: string; label: string }[] {
 async function main() {
   const cwd = process.env.PERCOLATOR_DIR ?? path.dirname(new URL(import.meta.url).pathname);
   process.chdir(cwd);
-  const m = JSON.parse(fs.readFileSync("mainnet-bounty2-market.json", "utf-8"));
+  const m = JSON.parse(fs.readFileSync("mainnet-bounty2-market.json", "utf8"));
   const programId = new PublicKey(m.programId);
   const slab = new PublicKey(m.slab);
   const vault = new PublicKey(m.vault);

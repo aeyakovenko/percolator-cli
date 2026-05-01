@@ -86,9 +86,7 @@ async function runT16Tests(): Promise<void> {
 
     // Take a position
     const tradeResult = await harness.tradeCpi(ctx, user, lp, "300");
-    if (tradeResult.err) {
-      console.log(`    Trade error: ${tradeResult.err.slice(0, 60)}`);
-    }
+    TestHarness.assert(!tradeResult.err, `Trade should succeed: ${tradeResult.err}`);
 
     // Check loss accumulator after trade (should still be 0 for healthy trades)
     let snapshot = await harness.snapshot(ctx);
@@ -174,10 +172,7 @@ async function runT16Tests(): Promise<void> {
 
     // Open position
     const openResult = await harness.tradeCpi(ctx, user, lp, "400");
-    if (openResult.err) {
-      console.log(`    Open error: ${openResult.err.slice(0, 60)}`);
-      return;
-    }
+    TestHarness.assert(!openResult.err, `Open position should succeed: ${openResult.err}`);
 
     let snapshot = await harness.snapshot(ctx);
     let userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);

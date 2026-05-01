@@ -127,6 +127,9 @@ function encodeFeedId(feedId: string): Buffer {
   if (hex.length !== 64) {
     throw new Error(`Invalid feed ID length: expected 64 hex chars, got ${hex.length}`);
   }
+  if (!/^[0-9a-fA-F]+$/.test(hex)) {
+    throw new Error("Invalid feed ID: contains non-hex characters");
+  }
   return Buffer.from(hex, "hex");
 }
 
@@ -406,7 +409,7 @@ export function encodeCatchupAccrue(): Buffer {
 // ---------- Authority management (replaces UpdateAdmin, SetOracleAuthority) ----------
 export interface UpdateAuthorityArgs {
   kind: number; // AUTHORITY_KIND.ADMIN | HYPERP_MARK (=ORACLE) | INSURANCE | INSURANCE_OPERATOR
-  newPubkey: PublicKey | string;
+  newPubkey: PublicKey | string | null;
 }
 export function encodeUpdateAuthority(args: UpdateAuthorityArgs): Buffer {
   if (!VALID_AUTHORITY_KINDS.has(args.kind)) {
@@ -417,7 +420,7 @@ export function encodeUpdateAuthority(args: UpdateAuthorityArgs): Buffer {
   return Buffer.concat([
     encU8(IX_TAG.UpdateAuthority),
     encU8(args.kind),
-    encPubkey(args.newPubkey),
+    args.newPubkey === null ? Buffer.alloc(32) : encPubkey(args.newPubkey),
   ]);
 }
 

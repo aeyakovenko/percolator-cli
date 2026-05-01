@@ -61,7 +61,7 @@ async function runT12Tests(): Promise<void> {
 
     // Verify setup
     const snapshot = await harness.snapshot(ctx);
-    TestHarness.assertEqual(snapshot.engine.numUsedAccounts, 2, "Should have 2 accounts");
+    TestHarness.assertEqual(snapshot.engine.numUsedAccounts, 2n, "Should have 2 accounts");
 
     const lpAcct = snapshot.accounts.find(a => a.idx === lp.accountIndex);
     const userAcct = snapshot.accounts.find(a => a.idx === user.accountIndex);
@@ -155,6 +155,7 @@ async function runT12Tests(): Promise<void> {
     if (result.err) {
       console.log(`    Trade error: ${result.err}`);
       console.log(`    (Trade may fail due to oracle/margin - logging for debug)`);
+      TestHarness.assert(false, `Trade should succeed but got error: ${result.err}`);
       return;
     }
 
@@ -202,6 +203,7 @@ async function runT12Tests(): Promise<void> {
     const longResult = await harness.tradeCpi(ctx, user, lp, "1000");
     if (longResult.err) {
       console.log(`    Long trade error: ${longResult.err}`);
+      TestHarness.assert(false, `Long trade should succeed but got error: ${longResult.err}`);
       return;
     }
 
@@ -213,6 +215,7 @@ async function runT12Tests(): Promise<void> {
     const shortResult = await harness.tradeCpi(ctx, user, lp, "-1000");
     if (shortResult.err) {
       console.log(`    Short trade error: ${shortResult.err}`);
+      TestHarness.assert(false, `Short trade should succeed but got error: ${shortResult.err}`);
       return;
     }
 

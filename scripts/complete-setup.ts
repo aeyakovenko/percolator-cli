@@ -36,7 +36,7 @@ function buildIx(p: { programId: PublicKey; keys: any[]; data: Buffer }): Transa
 async function main() {
   const conn = new Connection("https://api.devnet.solana.com", "confirmed");
   const payer = Keypair.fromSecretKey(
-    Uint8Array.from(JSON.parse(fs.readFileSync(os.homedir() + "/.config/solana/id.json", "utf-8")))
+    Uint8Array.from(JSON.parse(fs.readFileSync(os.homedir() + "/.config/solana/id.json", "utf8")))
   );
   console.log("Balance:", (await conn.getBalance(payer.publicKey)) / 1e9, "SOL");
 

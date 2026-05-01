@@ -81,7 +81,7 @@ const MATCHER_CTX_SIZE = 320;
 
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
 const payer = Keypair.fromSecretKey(
-  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
+  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf8")))
 );
 
 const fmt = (n: bigint) => (Number(n) / 1e9).toFixed(6);

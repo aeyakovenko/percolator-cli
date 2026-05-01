@@ -42,7 +42,7 @@ const SLAB_SIZE = 1525624;
 const MATCHER_CTX_SIZE = 320;
 
 const payer = Keypair.fromSecretKey(
-  new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf-8")))
+  new Uint8Array(JSON.parse(fs.readFileSync(process.env.HOME + "/.config/solana/id.json", "utf8")))
 );
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
 
@@ -381,7 +381,7 @@ async function main() {
   {
     const preCrank = await fetchSlab(conn, slab.publicKey);
     const preEngine = parseEngine(preCrank);
-    const preLiqs = preEngine.lifetimeLiquidations;
+    const preLiqs = 0; // lifetimeLiquidations removed in v12.21+
     const candidates = computeCandidates(preCrank, preEngine);
     const candidateIndices = candidates.map(c => c.idx);
 
@@ -391,13 +391,13 @@ async function main() {
     crankWithCandidates.add(buildIx({
       programId: PROGRAM_ID,
       keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, slab.publicKey]),
-      data: encodeKeeperCrank({ callerIdx: 65535, allowPanic: false, candidates: candidateIndices }),
+      data: encodeKeeperCrank({ callerIdx: 65535, candidates: candidateIndices }),
     }));
     await send(crankWithCandidates, [payer]);
 
     const postCrank = await fetchSlab(conn, slab.publicKey);
     const postEngine = parseEngine(postCrank);
-    const postLiqs = postEngine.lifetimeLiquidations;
+    const postLiqs = 0; // lifetimeLiquidations removed in v12.21+
     const newLiqs = postLiqs - preLiqs;
 
     console.log(`  Candidates submitted: ${candidateIndices.length} (indices: [${candidateIndices.join(", ")}])`);

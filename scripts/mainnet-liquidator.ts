@@ -35,12 +35,12 @@ function abs(x: bigint): bigint { return x < 0n ? -x : x; }
 
 async function main() {
   const manifest = process.env.MARKET_MANIFEST || "mainnet-market.json";
-  const m = JSON.parse(fs.readFileSync(manifest, "utf-8"));
+  const m = JSON.parse(fs.readFileSync(manifest, "utf8"));
   const slab = new PublicKey(m.slab);
   const oracle = new PublicKey(m.oracle);
   const program = new PublicKey(m.programId);
   const walletPath = process.env.WALLET_PATH || `${process.env.HOME}/.config/solana/id.json`;
-  const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8"))));
+  const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf8"))));
   const rpc = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
   const conn = new Connection(rpc, "confirmed");
   const iso = new Date().toISOString();

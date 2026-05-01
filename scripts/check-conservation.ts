@@ -6,7 +6,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import * as fs from "fs";
 import { fetchSlab, parseEngine, parseAccount, parseUsedIndices } from "../src/solana/slab.js";
 
-const m = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
+const m = JSON.parse(fs.readFileSync("devnet-market.json", "utf8"));
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
 
 async function main() {
@@ -86,4 +86,4 @@ async function main() {
   }
 }
 
-main().catch(e => console.error(e.message));
+main().catch(e => { console.error(e.message); process.exit(1); });

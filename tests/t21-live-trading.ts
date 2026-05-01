@@ -831,9 +831,12 @@ async function runLiveTradingTest(config: TestConfig): Promise<void> {
   // Setup
   const walletPath = process.env.WALLET_PATH || `${process.env.HOME}/.config/solana/id.json`;
   const payer = Keypair.fromSecretKey(
-    new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8")))
+    new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf8")))
   );
-  const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+  const connection = new Connection(
+    process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com",
+    "confirmed"
+  );
 
   console.log(`\nWallet: ${payer.publicKey.toBase58()}`);
   const balance = await connection.getBalance(payer.publicKey);
