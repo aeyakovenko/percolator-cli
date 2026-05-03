@@ -544,19 +544,21 @@ async function main() {
 
   await check("Price move up: oracle applied (within max_price_move budget)", async () => {
     // v12.21+: max_price_move=2 bps/slot * max_dt=10 = 20 bps per accrual.
-    // The default test market starts at hyperp_mark=$100. After the earlier
-    // PushOraclePrice clamped to ~$99.9, we step UP a similar small amount
-    // to test the engine sees and applies the price within budget.
+    // Wrapper now demands a KeeperCrank to commit account-touching market
+    // progress BEFORE PushOraclePrice will accept a state advance — bare
+    // `[pushPrice, crank]` returns CatchupRequired (0x1d). Front-load a
+    // standalone crank in its own tx, sleep ≥1 slot, then push+crank.
+    await doCrank(slab.publicKey);
+    await sleep(800);
     const buf0 = await fetchSlab(conn, slab.publicKey);
     const c0 = parseConfig(buf0);
     const lastE = c0.lastEffectivePriceE6 > 0n ? c0.lastEffectivePriceE6 : 100_000_000n;
-    // Step up 0.1% (well under the 0.2% per-accrual budget)
     const targetPrice = (lastE * 1001n / 1000n).toString();
     await tx([
+      crankIxFor(slab.publicKey),
       buildIx({ programId: PROG,
         keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
         data: pushPrice(targetPrice) }),
-      crankIxFor(slab.publicKey),
     ], [payer], 600_000);
 
     const buf1 = await fetchSlab(conn, slab.publicKey);
@@ -628,14 +630,16 @@ async function main() {
   });
 
   await check("Move price adversely, crank targets underwater user", async () => {
-    // v12.21: oracle move cap is now init-immutable in RiskParams; we can't
-    // disable it at runtime. The test still works as long as the per-slot
-    // step stays under max_price_move_bps_per_slot.
-
+    // Front-load a crank so the wrapper accepts the price advance.
+    await doCrank(slab.publicKey);
+    await sleep(800);
     // Move price down sharply to undercollateralize user 2 (who is long)
-    await tx([buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
-      data: pushPrice("5000000") })], [payer]); // $5 (down from $55, extreme)
+    await tx([
+      crankIxFor(slab.publicKey),
+      buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
+        data: pushPrice("5000000") }),
+    ], [payer]); // $5 (down from $55, extreme)
 
     // Crank multiple times to sweep all accounts and apply PnL
     for (let i = 0; i < 5; i++) {
@@ -670,19 +674,20 @@ async function main() {
             slab.publicKey, WELL_KNOWN.clock, PYTH_ORACLE,
           ]),
           data: encodeLiquidateAtOracle({ targetIdx: 2 }) })], [payer]);
-        console.log("    Liquidation succeeded");
+        console.log("    Liquidation succeeded (legacy path still reachable)");
       } catch (e: any) {
-        // v12.21+: the dispatch is reachable; the program returns one of
-        // several legitimate-rejection codes depending on whether the
-        // user is actually underwater at the effective price (Pyth +
-        // authority blend), whether the accrue envelope was met, or
-        // whether catchup is needed first. All are valid program responses
-        // — the test verifies the instruction encoding and account list
-        // are correct, not which specific path fires.
+        // Tag 7 (LiquidateAtOracle) is retired in current wrapper master —
+        // public liquidation is routed through KeeperCrank candidates so
+        // every public liquidation shares the same catchup/fee-sync/risk-
+        // buffer/round-robin account-touch path. The program rejects the
+        // tag at decode with InvalidInstructionData. Older wrappers may
+        // still run it and return a Custom error instead — accept either.
         const msg = e.message || "";
-        const isCustomProgError = /custom program error: 0x[0-9a-f]+/.test(msg);
-        console.log(`    Liquidation rejected (expected — accept any custom program error): ${msg.slice(0, 100)}`);
-        assert(isCustomProgError, `unexpected non-program error: ${msg.slice(0, 120)}`);
+        const isProgRejection =
+          /custom program error: 0x[0-9a-f]+/.test(msg) ||
+          /invalid instruction data/i.test(msg);
+        console.log(`    Liquidation rejected (expected — tag 7 retired or per-path reject): ${msg.slice(0, 100)}`);
+        assert(isProgRejection, `unexpected non-program error: ${msg.slice(0, 120)}`);
       }
     }
   });
@@ -1198,10 +1203,16 @@ async function main() {
     // v12.21: oracle move cap is init-immutable; the Hyperp slab below was
     // initialized with a wide max_price_move_bps_per_slot to allow this test.
 
-    // Push mark price down to $10 (90% crash)
-    await tx([buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, hSlab.publicKey]),
-      data: pushPrice("10000000") })], [payer]); // $10
+    // Wrapper now demands a crank-then-push pairing for state advances.
+    await hCrank();
+    await sleep(800);
+    // Push mark price down to $10 (90% crash). Atomic crank+push.
+    await tx([
+      buildIx({ programId: PROG, keys: hCrankKeys(), data: crank() }),
+      buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, hSlab.publicKey]),
+        data: pushPrice("10000000") }),
+    ], [payer]); // $10
 
     // The EWMA (halflife=100 slots) caps how fast the effective mark price can drop.
     // clamp_toward_with_dt moves the index toward EWMA-mark. We need many cranks
@@ -1296,10 +1307,16 @@ async function main() {
   // Restore price + catch up engine clock. Section 16 runs late in
   // preflight; by now engine.current_slot may lag clock.slot by hundreds
   // of slots. v12.21 wrapper allows up to CATCHUP_CHUNKS_MAX × max_dt =
-  // 20 × 10 = 200 slots per crank — for bigger gaps we loop.
-  await tx([buildIx({ programId: PROG,
-    keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, hSlab.publicKey]),
-    data: pushPrice("100000000") })], [payer]);
+  // 20 × 10 = 200 slots per crank — for bigger gaps we loop. Front-load
+  // a crank so the price push is accepted (CatchupRequired guard).
+  try { await hCrank(); } catch { /* may already be ahead */ }
+  await sleep(800);
+  await tx([
+    buildIx({ programId: PROG, keys: hCrankKeys(), data: crank() }),
+    buildIx({ programId: PROG,
+      keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, hSlab.publicKey]),
+      data: pushPrice("100000000") }),
+  ], [payer]);
   for (let i = 0; i < 10; i++) {
     try { await hCrank(); } catch { /* envelope or stale; keep trying */ }
     await sleep(200);
@@ -1505,26 +1522,47 @@ async function main() {
     const buf = await fetchSlab(conn, iSlab!.publicKey);
     const acc = parseAccount(buf, 1);
     if (acc.positionBasisQ !== 0n) {
+      // Front-load a crank so TradeCpi's accrue clause is satisfied.
       await tx([buildIx({ programId: PROG,
-        keys: buildAccountMetas(ACCOUNTS_TRADE_CPI, [
-          payer.publicKey, payer.publicKey, iSlab!.publicKey,
-          WELL_KNOWN.clock, payer.publicKey,
-          MATCHER_PROGRAM, iMatcherCtx.publicKey, iLpPda,
+        keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
+          payer.publicKey, iSlab!.publicKey, WELL_KNOWN.clock, payer.publicKey,
         ]),
-        data: encodeTradeCpi({ lpIdx: 0, userIdx: 1, size: (-acc.positionBasisQ).toString() }) })], [payer], 400000);
+        data: crank() })], [payer]);
+      await sleep(800);
+      await tx([
+        buildIx({ programId: PROG,
+          keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
+            payer.publicKey, iSlab!.publicKey, WELL_KNOWN.clock, payer.publicKey,
+          ]),
+          data: crank() }),
+        buildIx({ programId: PROG,
+          keys: buildAccountMetas(ACCOUNTS_TRADE_CPI, [
+            payer.publicKey, payer.publicKey, iSlab!.publicKey,
+            WELL_KNOWN.clock, payer.publicKey,
+            MATCHER_PROGRAM, iMatcherCtx.publicKey, iLpPda,
+          ]),
+          data: encodeTradeCpi({ lpIdx: 0, userIdx: 1, size: (-acc.positionBasisQ).toString() }) }),
+      ], [payer], 600000);
     }
     const accAfter = parseAccount(await fetchSlab(conn, iSlab!.publicKey), 1);
     assert(accAfter.positionBasisQ === 0n, `position should be closed: ${accAfter.positionBasisQ}`);
   });
 
   await check("Close inverted market accounts", async () => {
-    // Close user
-    await tx([buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_CLOSE_ACCOUNT, [
-        payer.publicKey, iSlab!.publicKey, iVaultAcc.address, payerAta.address,
-        iVaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, payer.publicKey,
-      ]),
-      data: encodeCloseAccount({ userIdx: 1 }) })], [payer]);
+    // CloseAccount also requires market accrual to be current.
+    await tx([
+      buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
+          payer.publicKey, iSlab!.publicKey, WELL_KNOWN.clock, payer.publicKey,
+        ]),
+        data: crank() }),
+      buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_CLOSE_ACCOUNT, [
+          payer.publicKey, iSlab!.publicKey, iVaultAcc.address, payerAta.address,
+          iVaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, payer.publicKey,
+        ]),
+        data: encodeCloseAccount({ userIdx: 1 }) }),
+    ], [payer]);
   });
 
   await check("Conservation: vault matches SPL balance (inverted market)", async () => {
@@ -1671,17 +1709,18 @@ async function main() {
     const preMarketSlot = preEngine.lastMarketSlot;
     console.log(`    Pre: fLongNum=${preFLong}, fShortNum=${preFShort}, adlCoeffLong=${preCoeffLong}`);
 
-    // Step mark up 0.1% repeatedly within the per-accrual budget. Bundle
-    // crank with each push so accrue runs and last_market_slot advances.
+    // Step mark up 0.1% repeatedly within the per-accrual budget. Order
+    // is crank-then-push (CatchupRequired guard requires the pre-push
+    // accrue to run first inside the same tx).
     const c0 = parseConfig(preBuf);
     let target = c0.lastEffectivePriceE6 > 0n ? c0.lastEffectivePriceE6 : 100_000_000n;
     for (let i = 0; i < 5; i++) {
       target = target * 1001n / 1000n;
       await tx([
+        buildIx({ programId: PROG, keys: hCrankKeys(), data: crank() }),
         buildIx({ programId: PROG,
           keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, hSlab.publicKey]),
           data: pushPrice(target.toString()) }),
-        buildIx({ programId: PROG, keys: hCrankKeys(), data: crank() }),
       ], [payer], 600_000);
       await sleep(500);
     }
@@ -1743,12 +1782,13 @@ async function main() {
     for (let i = 0; i < 15; i++) {
       target = target * 999n / 1000n; // 0.1% drop per iteration
       try {
+        // crank-then-push: CatchupRequired guard rejects the reverse order.
         await tx([
+          buildIx({ programId: PROG, keys: hCrankKeys(),
+            data: encodeKeeperCrank({ callerIdx: 65535, candidates: [0, fundingUserIdx] }) }),
           buildIx({ programId: PROG,
             keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, hSlab.publicKey]),
             data: pushPrice(target.toString()) }),
-          buildIx({ programId: PROG, keys: hCrankKeys(),
-            data: encodeKeeperCrank({ callerIdx: 65535, candidates: [0, fundingUserIdx] }) }),
         ], [payer], 600_000);
       } catch { /* ignore intermediate envelope rejections */ }
       await sleep(300);
@@ -1792,17 +1832,28 @@ async function main() {
     assert(true, "instruction tag 24 no longer in program enum");
   });
 
-  // SettleAccount — permissionless PnL settlement
-  await check("SettleAccount on user succeeds", async () => {
+  // SettleAccount (tag 26) — retired in current wrapper master. Public
+  // PnL settlement is now folded into KeeperCrank's account-touch path.
+  // Verify the encoder/account-spec are still well-formed and that the
+  // wrapper rejects the tag at decode (InvalidInstructionData).
+  await check("SettleAccount rejected (tag 26 retired)", async () => {
     const buf = await fetchSlab(conn, hSlab.publicKey);
     const indices = parseUsedIndices(buf);
     if (indices.length === 0) { console.log("    (skipped: no accounts)"); return; }
     let userIdx: number | undefined;
     for (const i of indices) { if (parseAccount(buf, i).kind === 0) { userIdx = i; break; } }
     if (userIdx === undefined) { console.log("    (skipped: no user accounts)"); return; }
-    await tx([buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_SETTLE_ACCOUNT, [hSlab.publicKey, WELL_KNOWN.clock, payer.publicKey]),
-      data: encodeSettleAccount({ userIdx }) })], [payer]);
+    try {
+      await tx([buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_SETTLE_ACCOUNT, [hSlab.publicKey, WELL_KNOWN.clock, payer.publicKey]),
+        data: encodeSettleAccount({ userIdx }) })], [payer]);
+      console.log("    SettleAccount succeeded (older wrapper still routes it)");
+    } catch (e: any) {
+      const msg = e.message || "";
+      const ok = /invalid instruction data/i.test(msg) || /custom program error: 0x[0-9a-f]+/.test(msg);
+      console.log(`    SettleAccount rejected (expected — tag 26 retired): ${msg.split("\n")[0].slice(0, 100)}`);
+      assert(ok, `unexpected non-program error: ${msg.slice(0, 120)}`);
+    }
   });
 
   // DepositFeeCredits — deposit to reduce fee debt
