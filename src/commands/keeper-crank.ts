@@ -19,6 +19,7 @@ import {
 import {
   validatePublicKey,
   validateIndex,
+  validateU32,
 } from "../validation.js";
 
 // Sentinel value for permissionless crank (no caller account required)
@@ -136,7 +137,7 @@ export function registerKeeperCrank(program: Command): void {
 
       // Parse compute unit limit if provided
       const computeUnitLimit = opts.computeUnits
-        ? parseInt(opts.computeUnits, 10)
+        ? validateU32(opts.computeUnits, "--compute-units")
         : undefined;
 
       const result = await simulateOrSend({

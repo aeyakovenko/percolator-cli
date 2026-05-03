@@ -64,9 +64,17 @@ console.log("Testing validation functions...\n");
   assert(validateIndex("123", "--idx") === 123, "accepts positive");
   assert(validateIndex("65535", "--idx") === 65535, "accepts u16 max");
 
-  assertThrows(() => validateIndex("-1", "--idx"), "non-negative", "rejects negative");
+  assertThrows(() => validateIndex("-1", "--idx"), "strict", "rejects negative");
   assertThrows(() => validateIndex("65536", "--idx"), "65535", "rejects above u16 max");
-  assertThrows(() => validateIndex("abc", "--idx"), "not a valid number", "rejects non-numeric");
+  assertThrows(() => validateIndex("abc", "--idx"), "strict", "rejects non-numeric");
+  // Regression for #66 — parseInt would silently truncate these
+  assertThrows(() => validateIndex("1e9", "--idx"), "strict", "rejects scientific notation");
+  assertThrows(() => validateIndex("3.7", "--idx"), "strict", "rejects fractional");
+  assertThrows(() => validateIndex("123abc", "--idx"), "strict", "rejects suffix garbage");
+  assertThrows(() => validateIndex("0x10", "--idx"), "strict", "rejects hex prefix");
+  assertThrows(() => validateIndex(" 5 ", "--idx"), "strict", "rejects whitespace");
+  assertThrows(() => validateIndex("", "--idx"), "strict", "rejects empty");
+  assertThrows(() => validateIndex("007", "--idx"), "strict", "rejects leading zeros");
 
   console.log("✓ validateIndex");
 }
@@ -134,8 +142,10 @@ console.log("Testing validation functions...\n");
   assert(validateBps("10000", "--bps") === 10000, "accepts 100%");
   assert(validateBps("5000", "--bps") === 5000, "accepts 50%");
 
-  assertThrows(() => validateBps("-1", "--bps"), "non-negative", "rejects negative");
+  assertThrows(() => validateBps("-1", "--bps"), "strict", "rejects negative");
   assertThrows(() => validateBps("10001", "--bps"), "10000", "rejects above 100%");
+  assertThrows(() => validateBps("1e2", "--bps"), "strict", "rejects scientific notation");
+  assertThrows(() => validateBps("50.5", "--bps"), "strict", "rejects fractional");
 
   console.log("✓ validateBps");
 }

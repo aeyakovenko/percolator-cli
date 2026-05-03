@@ -3,6 +3,7 @@ import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
 import { createContext } from "../runtime/context.js";
 import { TxResult } from "../runtime/tx.js";
+import { validateU32 } from "../validation.js";
 
 // Default CU budgets per instruction
 // Based on Rust benchmarks with MAX_ACCOUNTS=4096 (BPF multiplier ~5x applied)
@@ -218,7 +219,7 @@ export function registerAuditCu(program: Command): void {
       // For now, just display budget info for the instruction
       const instruction = opts.instruction;
       const budget = opts.budget
-        ? parseInt(opts.budget, 10)
+        ? validateU32(opts.budget, "--budget")
         : DEFAULT_BUDGETS[instruction];
 
       if (!budget) {

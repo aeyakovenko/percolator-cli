@@ -10,6 +10,7 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
+import { validateBps, validateU8, validateU32, validateU16 } from "../validation.js";
 
 export function registerInitMarket(program: Command): void {
   program
@@ -74,9 +75,9 @@ export function registerInitMarket(program: Command): void {
         collateralMint: mint,
         indexFeedId: feedIdHex,
         maxStalenessSecs: opts.maxStalenessSecs,
-        confFilterBps: parseInt(opts.confFilterBps, 10),
-        invert: parseInt(opts.invert, 10),
-        unitScale: parseInt(opts.unitScale, 10),
+        confFilterBps: validateBps(opts.confFilterBps, "--conf-filter-bps"),
+        invert: validateU8(opts.invert, "--invert"),
+        unitScale: validateU32(opts.unitScale, "--unit-scale"),
         initialMarkPriceE6: opts.initialMarkPrice,
         maintenanceFeePerSlot: opts.maintenanceFeePerSlot,
         hMin: opts.hMin,
@@ -94,7 +95,7 @@ export function registerInitMarket(program: Command): void {
         minNonzeroMmReq: opts.minNonzeroMmReq,
         minNonzeroImReq: opts.minNonzeroImReq,
         maxPriceMoveBpsPerSlot: opts.maxPriceMoveBpsPerSlot,
-        insuranceWithdrawMaxBps: parseInt(opts.insuranceWithdrawMaxBps, 10),
+        insuranceWithdrawMaxBps: validateU16(opts.insuranceWithdrawMaxBps, "--insurance-withdraw-max-bps"),
         insuranceWithdrawCooldownSlots: opts.insuranceWithdrawCooldown,
         permissionlessResolveStaleSlots: opts.permissionlessResolveStale,
         fundingHorizonSlots: opts.fundingHorizonSlots,

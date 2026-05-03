@@ -12,6 +12,7 @@ import { buildIx, simulateOrSend, formatResult } from "../runtime/tx.js";
 import { validatePublicKey } from "../validation.js";
 import { fetchSlab, parseConfig } from "../solana/slab.js";
 import { PublicKey } from "@solana/web3.js";
+import { validateU16 } from "../validation.js";
 
 export function registerUpdateConfig(program: Command): void {
   program
@@ -47,7 +48,8 @@ export function registerUpdateConfig(program: Command): void {
         fundingMaxE9PerSlot: opts.fundingMaxE9PerSlot !== undefined
           ? BigInt(opts.fundingMaxE9PerSlot) : onChain.fundingMaxE9PerSlot,
         tvlInsuranceCapMult: opts.tvlInsuranceCapMult !== undefined
-          ? parseInt(opts.tvlInsuranceCapMult, 10) : onChain.tvlInsuranceCapMult,
+          ? validateU16(opts.tvlInsuranceCapMult, "--tvl-insurance-cap-mult")
+          : onChain.tvlInsuranceCapMult,
       };
 
       const ixData = encodeUpdateConfig(configArgs);

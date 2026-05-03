@@ -12,6 +12,7 @@ import {
   WELL_KNOWN,
 } from "../abi/accounts.js";
 import { buildIx, simulateOrSend } from "../runtime/tx.js";
+import { validateU32 } from "../validation.js";
 
 // PERCOLAT magic bytes for filtering
 const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
@@ -29,7 +30,7 @@ export function registerCloseAllSlabs(program: Command): void {
       const ctx = createContext(config);
 
       const dryRun = opts.dryRun ?? false;
-      const limit = parseInt(opts.limit, 10);
+      const limit = validateU32(opts.limit, "--limit");
 
       console.log(`Searching for slab accounts owned by ${ctx.programId.toBase58()}...`);
 
