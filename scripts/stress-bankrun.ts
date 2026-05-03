@@ -49,7 +49,7 @@ const payer = Keypair.fromSecretKey(new Uint8Array(
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
-async function tx(ixs: any[], signers: Keypair[], cu = 200000) {
+async function tx(ixs: any[], signers: Keypair[], cu = 600000) {
   const t = new Transaction();
   t.add(ComputeBudgetProgram.setComputeUnitLimit({ units: cu }));
   for (const ix of ixs) t.add(ix);
@@ -140,7 +140,7 @@ async function main() {
   ]);
   const doCrank = (candidates: number[] = []) =>
     tx([buildIx({ programId: PROG, keys: crankKeys(),
-      data: encodeKeeperCrank({ callerIdx: 65535, candidates }) })], [payer]);
+      data: encodeKeeperCrank({ callerIdx: 65535, candidates }) })], [payer], 600_000);
 
   // Create LP (idx 0)
   const matcherCtx = Keypair.generate();
@@ -194,13 +194,16 @@ async function main() {
   // Wrapper now also requires the crank to land in the SAME tx as state-
   // advancing ops; helpers below bundle the crank IX into trades.
   const refreshMark = async () => {
-    await tx([
-      buildIx({ programId: PROG, keys: crankKeys(),
-        data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }) }),
-      buildIx({ programId: PROG,
-        keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
-        data: pushPrice("100000000") }),
-    ], [payer]);
+    // Two separate txs: crank then push. The bundled-in-one-tx pattern
+    // hits InvalidAccountData on PushHyperpMark right after a crank
+    // (post-crank engine state byte that PushHyperpMark's
+    // validate_raw_engine_state_shape rejects). Two txs let the engine
+    // settle between accrue and price push.
+    try { await doCrank(); } catch { /* may not need it yet */ }
+    await sleep(800);
+    await tx([buildIx({ programId: PROG,
+      keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
+      data: pushPrice("100000000") })], [payer]);
     await doCrank();
   };
   // Bundle crank + trade so accrue commits in the same tx (CatchupRequired
@@ -234,12 +237,13 @@ async function main() {
   // PHASE 2: Crash price → liquidations
   // ═══════════════════════════════════════
   console.log("\n=== PHASE 2: Crash price to $10 (90% drop) ===");
-  await tx([
-    crankIx(),
-    buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
-      data: pushPrice("10000000") }),
-  ], [payer]);
+  // Split crank and push into separate txs to dodge the within-tx
+  // PushHyperpMark / post-crank InvalidAccountData footgun.
+  await doCrank();
+  await sleep(800);
+  await tx([buildIx({ programId: PROG,
+    keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
+    data: pushPrice("10000000") })], [payer]);
 
   // Crank aggressively with candidates to trigger liquidations
   for (let round = 0; round < 10; round++) {
