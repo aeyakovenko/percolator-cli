@@ -68,7 +68,7 @@ const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
 const FEED_ID = "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43";
-const SLAB_SIZE = 1525624;
+const SLAB_SIZE = 1755376;
 const MATCHER_CTX_SIZE = 320;
 
 const conn = new Connection(RPC, "confirmed");
@@ -223,7 +223,7 @@ async function main() {
   // ═══════════════════════════════════════════════════
   section("2. Market Lifecycle");
 
-  await check("InitMarket succeeds (slab=1525624 bytes)", async () => {
+  await check("InitMarket succeeds (slab=1755376 bytes)", async () => {
     const data = encodeInitMarket(defaultInitMarketArgs(payer.publicKey, mint, { hMin: "4", maxCrankStalenessSlots: "0", maintenanceFeePerSlot: "100", initialMarkPriceE6: "100000000", indexFeedId: "0".repeat(64) }));
     const keys = buildAccountMetas(ACCOUNTS_INIT_MARKET, [
       payer.publicKey, slab.publicKey, mint, vault,

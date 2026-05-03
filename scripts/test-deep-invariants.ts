@@ -43,7 +43,7 @@ import {
 
 const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
-const SLAB_SIZE = 1525624;
+const SLAB_SIZE = 1755376;
 const MATCHER_CTX_SIZE = 320;
 
 const payer = Keypair.fromSecretKey(

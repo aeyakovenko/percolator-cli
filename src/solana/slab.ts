@@ -1,41 +1,40 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
 // =============================================================================
-// Constants — BPF layout (u128/i128 have 8-byte alignment, not 16)
-// v12.21+: MarketConfig shrank to 384 bytes
-//          - removed `oracle_price_cap_e2bps` and `min_oracle_price_cap_e2bps`
-//          - added `oracle_target_price_e6` + `oracle_target_publish_time`
-//          - replaced `_iw_padding[4]` with `insurance_withdraw_deposits_only:u8 + _iw_padding[3]`
-//          - replaced `_pad_obsolete_stale_slot:u64` with `insurance_withdraw_deposit_remaining:u64`
-//          → CONFIG_LEN: 400 → 384, ENGINE_OFF: 536 → 520
-//          v12.21 also grew ENGINE_LEN by +16 bytes (touched_count u8→u16, h_max_sticky_*
-//          rewritten as a 4096-bit bitmap, new admit_h_max_consumption_threshold field).
-//          Net: SLAB_LEN stays at 1_525_624 — config shrink and engine growth cancel.
-//          RiskParams: removed `max_crank_staleness_slots` (still on wire as 8 zero bytes for
-//          backward-compat read+discard), added `max_price_move_bps_per_slot` at the end.
-//          PARAMS_SIZE stays 168 (one u64 swap).
+// Constants — BPF layout (u128/i128 have 8-byte alignment, not 16-byte
+// alignment as on native x86_64).
+//
+// Layout authoritatively pinned via wrapper-side `offset_of!` /
+// `size_of` logging captured against the deployed devnet BPF binary
+// (engine f38ec2f, wrapper master). All offset constants below are
+// BPF ground truth — DO NOT hand-edit without re-deriving from the
+// wrapper. See `scripts/setup-devnet-market.ts` log capture for the
+// dump-and-diff procedure.
 //
 // Layout summary (MAX_ACCOUNTS=4096, BPF):
-//   SLAB_LEN      = 1_525_624     (UNCHANGED from v12.20)
-//   HEADER_LEN    = 136          (admin + insurance_auth + insurance_operator)
+//   SLAB_LEN      = 1_755_376
+//   HEADER_LEN    = 136
 //   CONFIG_LEN    = 384
-//   ENGINE_OFF    = 520          = align_up(136 + 384, 8)
+//   ENGINE_OFF    = 520        = align_up(136 + 384, 8)
 //   PARAMS_SIZE   = 168
-//   ENGINE_LEN    = 1_492_176    (grew by +16 vs v12.20)
+//   ENGINE_LEN    = 1_721_928
 //   RISK_BUF_LEN  = 160
-//   GEN_TABLE_LEN = 32_768       (MAX_ACCOUNTS * 8)
+//   GEN_TABLE_LEN = 32_768     (MAX_ACCOUNTS * 8)
+//   ACCOUNT_SIZE  = 416        (was 360 — added loss_weight + b_snap +
+//                               b_rem + b_epoch_snap = 56 bytes for
+//                               B-index account-local bankruptcy state)
 // =============================================================================
 const MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
 const HEADER_LEN = 136;
 const CONFIG_OFFSET = HEADER_LEN;
 const CONFIG_LEN = 384;
-const RESERVED_OFF = 48;             // nonce at [0..8], mat_counter at [8..16]
+const RESERVED_OFF = 48;             // nonce at [0..8], (8 bytes free), padding to 72
 
 // Flag bits in header._padding[0] at offset 13
 const FLAG_CPI_IN_PROGRESS = 1 << 2;
 const FLAG_ORACLE_INITIALIZED = 1 << 3;
 
-export const SLAB_LEN = 1_525_624;
+export const SLAB_LEN = 1_755_376;
 export { HEADER_LEN, CONFIG_LEN };
 
 /**
@@ -261,7 +260,9 @@ const PARAMS_MAX_PRICE_MOVE_OFF = 160;          // u64 (v12.21+)
 const PARAMS_SIZE = 168;
 
 // =============================================================================
-// Account Layout (360 bytes, BPF) — unchanged
+// Account Layout (416 bytes BPF). +56 bytes vs old layout: B-index
+// account-local bankruptcy state (loss_weight + b_snap + b_rem + b_epoch_snap)
+// inserted before matcher_program.
 // =============================================================================
 const ACCT_CAPITAL_OFF = 0;
 const ACCT_KIND_OFF = 16;
@@ -272,32 +273,41 @@ const ACCT_ADL_A_BASIS_OFF = 72;
 const ACCT_ADL_K_SNAP_OFF = 88;
 const ACCT_F_SNAP_OFF = 104;
 const ACCT_ADL_EPOCH_SNAP_OFF = 120;
-const ACCT_MATCHER_PROGRAM_OFF = 128;
-const ACCT_MATCHER_CONTEXT_OFF = 160;
-const ACCT_OWNER_OFF = 192;
-const ACCT_FEE_CREDITS_OFF = 224;
-const ACCT_LAST_FEE_SLOT_OFF = 240;
-const ACCT_SCHED_PRESENT_OFF = 248;
-const ACCT_SCHED_REMAINING_Q_OFF = 256;
-const ACCT_SCHED_ANCHOR_Q_OFF = 272;
-const ACCT_SCHED_START_SLOT_OFF = 288;
-const ACCT_SCHED_HORIZON_OFF = 296;
-const ACCT_SCHED_RELEASE_Q_OFF = 304;
-const ACCT_PENDING_PRESENT_OFF = 320;
-const ACCT_PENDING_REMAINING_Q_OFF = 328;
-const ACCT_PENDING_HORIZON_OFF = 344;
-const ACCT_PENDING_CREATED_SLOT_OFF = 352;
+const ACCT_LOSS_WEIGHT_OFF = 128;             // u128 (B-index)
+const ACCT_B_SNAP_OFF = 144;                  // u128
+const ACCT_B_REM_OFF = 160;                   // u128
+const ACCT_B_EPOCH_SNAP_OFF = 176;            // u64
+const ACCT_MATCHER_PROGRAM_OFF = 184;
+const ACCT_MATCHER_CONTEXT_OFF = 216;
+const ACCT_OWNER_OFF = 248;
+const ACCT_FEE_CREDITS_OFF = 280;             // I128
+const ACCT_LAST_FEE_SLOT_OFF = 296;
+const ACCT_SCHED_PRESENT_OFF = 304;
+const ACCT_SCHED_REMAINING_Q_OFF = 312;
+const ACCT_SCHED_ANCHOR_Q_OFF = 328;
+const ACCT_SCHED_START_SLOT_OFF = 344;
+const ACCT_SCHED_HORIZON_OFF = 352;
+const ACCT_SCHED_RELEASE_Q_OFF = 360;
+const ACCT_PENDING_PRESENT_OFF = 376;
+const ACCT_PENDING_REMAINING_Q_OFF = 384;
+const ACCT_PENDING_HORIZON_OFF = 400;
+const ACCT_PENDING_CREATED_SLOT_OFF = 408;
 
-const ACCOUNT_SIZE = 360;
+const ACCOUNT_SIZE = 416;
 
 // =============================================================================
-// RiskEngine Layout (BPF). ENGINE_OFF = 520 (v12.21+, was 536).
-// v12.21 engine struct changes (relative to v12.20):
-//   - REMOVED: last_crank_slot (u64), gc_cursor + dead fields (-16 bytes total)
-//   - ADDED:   rr_cursor_position (u64), sweep_generation (u64),
-//              price_move_consumed_bps_this_generation (u128) (+32 bytes total)
-//   - Net: +16 bytes after materialized_account_count, shifting all fields
-//     from last_oracle_price onward by +16.
+// RiskEngine Layout (BPF, ENGINE_LEN = 1_721_928).
+// New blocks compared to the prior CLI snapshot:
+//   - phantom_dust split into certified+potential (4 u128 instead of 2)
+//   - B-index residual state: b_*_num, loss_weight_sum_*, social_loss_*
+//     (+208 bytes block at offsets 608..816)
+//   - explicit_unallocated_loss_*, explicit_unallocated_protocol_loss,
+//     explicit_unallocated_loss_saturated
+//   - stress envelope: stress_consumed_bps_e9, stress_envelope_*
+//   - bankruptcy_hmax_lock_active (bool)
+//   - active_close_* continuation state (bounded full-close loop)
+// All offsets below were captured via `offset_of!` logging from the BPF
+// binary; do NOT recompute by hand.
 // =============================================================================
 const ENGINE_OFF = 520;
 
@@ -314,11 +324,9 @@ const ENGINE_RESOLVED_PAYOUT_READY_OFF = 264;
 const ENGINE_RESOLVED_K_LONG_TERMINAL_OFF = 272;
 const ENGINE_RESOLVED_K_SHORT_TERMINAL_OFF = 288;
 const ENGINE_RESOLVED_LIVE_PRICE_OFF = 304;
-// last_crank_slot REMOVED (was at 312)
 const ENGINE_C_TOT_OFF = 312;
 const ENGINE_PNL_POS_TOT_OFF = 328;
 const ENGINE_PNL_MATURED_POS_TOT_OFF = 344;
-// gc_cursor + 7 bytes pad REMOVED (was 368-376)
 const ENGINE_ADL_MULT_LONG_OFF = 360;
 const ENGINE_ADL_MULT_SHORT_OFF = 376;
 const ENGINE_ADL_COEFF_LONG_OFF = 392;
@@ -335,21 +343,53 @@ const ENGINE_STORED_POS_COUNT_LONG_OFF = 512;
 const ENGINE_STORED_POS_COUNT_SHORT_OFF = 520;
 const ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF = 528;
 const ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF = 536;
-const ENGINE_PHANTOM_DUST_LONG_OFF = 544;
-const ENGINE_PHANTOM_DUST_SHORT_OFF = 560;
-const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 576;
-const ENGINE_NEG_PNL_ACCOUNT_COUNT_OFF = 584;
-const ENGINE_RR_CURSOR_POSITION_OFF = 592;            // v12.21 new
-const ENGINE_SWEEP_GENERATION_OFF = 600;              // v12.21 new
-const ENGINE_PRICE_MOVE_CONSUMED_OFF = 608;           // v12.21 new (u128)
-const ENGINE_LAST_ORACLE_PRICE_OFF = 624;
-const ENGINE_FUND_PX_LAST_OFF = 632;
-const ENGINE_LAST_MARKET_SLOT_OFF = 640;
-const ENGINE_F_LONG_NUM_OFF = 648;
-const ENGINE_F_SHORT_NUM_OFF = 664;
-const ENGINE_F_EPOCH_START_LONG_NUM_OFF = 680;
-const ENGINE_F_EPOCH_START_SHORT_NUM_OFF = 696;
-const ENGINE_BITMAP_OFF = 712;                        // bitmap start (v12.21)
+const ENGINE_PHANTOM_DUST_CERT_LONG_OFF = 544;        // u128
+const ENGINE_PHANTOM_DUST_CERT_SHORT_OFF = 560;       // u128
+const ENGINE_PHANTOM_DUST_POT_LONG_OFF = 576;         // u128 (NEW: split from single field)
+const ENGINE_PHANTOM_DUST_POT_SHORT_OFF = 592;        // u128
+const ENGINE_B_LONG_NUM_OFF = 608;                    // u128 (B-index)
+const ENGINE_B_SHORT_NUM_OFF = 624;
+const ENGINE_B_EPOCH_START_LONG_NUM_OFF = 640;
+const ENGINE_B_EPOCH_START_SHORT_NUM_OFF = 656;
+const ENGINE_LOSS_WEIGHT_SUM_LONG_OFF = 672;
+const ENGINE_LOSS_WEIGHT_SUM_SHORT_OFF = 688;
+const ENGINE_SOCIAL_LOSS_REM_LONG_OFF = 704;
+const ENGINE_SOCIAL_LOSS_REM_SHORT_OFF = 720;
+const ENGINE_SOCIAL_LOSS_DUST_LONG_OFF = 736;
+const ENGINE_SOCIAL_LOSS_DUST_SHORT_OFF = 752;
+const ENGINE_EXPLICIT_UNALLOC_LONG_OFF = 768;         // U128
+const ENGINE_EXPLICIT_UNALLOC_SHORT_OFF = 784;
+const ENGINE_EXPLICIT_UNALLOC_PROTO_OFF = 800;
+const ENGINE_EXPLICIT_UNALLOC_SATURATED_OFF = 816;    // u8
+const ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF = 824;
+const ENGINE_NEG_PNL_ACCOUNT_COUNT_OFF = 832;
+const ENGINE_RR_CURSOR_POSITION_OFF = 840;
+const ENGINE_SWEEP_GENERATION_OFF = 848;
+const ENGINE_STRESS_CONSUMED_OFF = 856;               // u128
+const ENGINE_STRESS_REMAINING_INDICES_OFF = 872;
+const ENGINE_STRESS_ENV_START_SLOT_OFF = 880;
+const ENGINE_STRESS_ENV_START_GEN_OFF = 888;
+const ENGINE_LAST_SWEEP_GEN_ADVANCE_SLOT_OFF = 896;
+const ENGINE_BANKRUPTCY_HMAX_LOCK_OFF = 904;          // bool (u8)
+const ENGINE_ACTIVE_CLOSE_PRESENT_OFF = 905;
+const ENGINE_ACTIVE_CLOSE_PHASE_OFF = 906;
+const ENGINE_ACTIVE_CLOSE_ACCOUNT_IDX_OFF = 908;      // u16
+const ENGINE_ACTIVE_CLOSE_OPP_SIDE_OFF = 910;         // u8
+const ENGINE_ACTIVE_CLOSE_PRICE_OFF = 912;
+const ENGINE_ACTIVE_CLOSE_SLOT_OFF = 920;
+const ENGINE_ACTIVE_CLOSE_Q_OFF = 928;                // u128
+const ENGINE_ACTIVE_CLOSE_RES_REM_OFF = 944;
+const ENGINE_ACTIVE_CLOSE_RES_BOOKED_OFF = 960;
+const ENGINE_ACTIVE_CLOSE_RES_RECORDED_OFF = 976;
+const ENGINE_ACTIVE_CLOSE_B_CHUNKS_OFF = 992;
+const ENGINE_LAST_ORACLE_PRICE_OFF = 1000;
+const ENGINE_FUND_PX_LAST_OFF = 1008;
+const ENGINE_LAST_MARKET_SLOT_OFF = 1016;
+const ENGINE_F_LONG_NUM_OFF = 1024;
+const ENGINE_F_SHORT_NUM_OFF = 1040;
+const ENGINE_F_EPOCH_START_LONG_NUM_OFF = 1056;
+const ENGINE_F_EPOCH_START_SHORT_NUM_OFF = 1072;
+const ENGINE_BITMAP_OFF = 1088;                       // used: [u64; BITMAP_WORDS]
 
 // =============================================================================
 // Interfaces
@@ -414,13 +454,51 @@ export interface EngineState {
   storedPosCountShort: bigint;
   staleAccountCountLong: bigint;
   staleAccountCountShort: bigint;
-  phantomDustBoundLongQ: bigint;
-  phantomDustBoundShortQ: bigint;
+  // Phantom dust split into certified-can-clear-OI vs potential-only
+  phantomDustCertifiedLongQ: bigint;
+  phantomDustCertifiedShortQ: bigint;
+  phantomDustPotentialLongQ: bigint;
+  phantomDustPotentialShortQ: bigint;
+  // B-index residual state (account-local bankruptcy)
+  bLongNum: bigint;
+  bShortNum: bigint;
+  bEpochStartLongNum: bigint;
+  bEpochStartShortNum: bigint;
+  lossWeightSumLong: bigint;
+  lossWeightSumShort: bigint;
+  socialLossRemainderLongNum: bigint;
+  socialLossRemainderShortNum: bigint;
+  socialLossDustLongNum: bigint;
+  socialLossDustShortNum: bigint;
+  explicitUnallocatedLossLong: bigint;
+  explicitUnallocatedLossShort: bigint;
+  explicitUnallocatedProtocolLoss: bigint;
+  explicitUnallocatedLossSaturated: number;
+  // Counts (relocated post-B-index block)
   materializedAccountCount: bigint;
   negPnlAccountCount: bigint;
-  rrCursorPosition: bigint;             // v12.21
-  sweepGeneration: bigint;              // v12.21
-  priceMoveConsumedBpsThisGeneration: bigint;  // v12.21 (u128)
+  // Sweep cursor + stress envelope
+  rrCursorPosition: bigint;
+  sweepGeneration: bigint;
+  stressConsumedBpsE9SinceEnvelope: bigint;
+  stressEnvelopeRemainingIndices: bigint;
+  stressEnvelopeStartSlot: bigint;
+  stressEnvelopeStartGeneration: bigint;
+  lastSweepGenerationAdvanceSlot: bigint;
+  bankruptcyHmaxLockActive: number;
+  // Active full-close continuation
+  activeClosePresent: number;
+  activeClosePhase: number;
+  activeCloseAccountIdx: number;
+  activeCloseOppSide: number;
+  activeCloseClosePrice: bigint;
+  activeCloseCloseSlot: bigint;
+  activeCloseQCloseQ: bigint;
+  activeCloseResidualRemaining: bigint;
+  activeCloseResidualBooked: bigint;
+  activeCloseResidualRecorded: bigint;
+  activeCloseBChunksBooked: bigint;
+  // Oracle + funding
   lastOraclePrice: bigint;
   fundPxLast: bigint;
   lastMarketSlot: bigint;
@@ -428,6 +506,7 @@ export interface EngineState {
   fShortNum: bigint;
   fEpochStartLongNum: bigint;
   fEpochStartShortNum: bigint;
+  // Slab management
   numUsedAccounts: number;
   freeHead: number;
 }
@@ -444,6 +523,11 @@ export interface Account {
   adlKSnap: bigint;
   fSnap: bigint;
   adlEpochSnap: bigint;
+  // B-index account-local bankruptcy state (NEW)
+  lossWeight: bigint;
+  bSnap: bigint;
+  bRem: bigint;
+  bEpochSnap: bigint;
   matcherProgram: PublicKey;
   matcherContext: PublicKey;
   owner: PublicKey;
@@ -478,14 +562,17 @@ export interface SlabLayout {
 
 function computeLayout(maxAccounts: number): SlabLayout {
   const bitmapWords = Math.ceil(maxAccounts / 64);
-  const usedOff = ENGINE_BITMAP_OFF; // 696 (MA-independent)
+  const usedOff = ENGINE_BITMAP_OFF; // 1088 (MA-independent under v12.21+)
   const bitmapBytes = bitmapWords * 8;
   const numUsedOff = usedOff + bitmapBytes;
   const freeHeadOff = numUsedOff + 2;
   const nextFreeOff = freeHeadOff + 2;
   const prevFreeOff = nextFreeOff + maxAccounts * 2;
   const afterPrev = prevFreeOff + maxAccounts * 2;
-  const accountsOff = (afterPrev + 7) & ~7; // align to 8
+  // Align to 8 — Account's largest member is u128 which is 8-aligned on
+  // BPF. Confirmed by offset_of!(RiskEngine, accounts) = 17992 at
+  // MAX_ACCOUNTS=4096 (afterPrev = 17988 → +4 padding → 17992).
+  const accountsOff = (afterPrev + 7) & ~7;
   const engineLen = accountsOff + maxAccounts * ACCOUNT_SIZE;
   const riskBufLen = 160;
   const genTableLen = maxAccounts * 8;
@@ -588,13 +675,45 @@ export function parseEngine(data: Buffer): EngineState {
     storedPosCountShort: data.readBigUInt64LE(base + ENGINE_STORED_POS_COUNT_SHORT_OFF),
     staleAccountCountLong: data.readBigUInt64LE(base + ENGINE_STALE_ACCOUNT_COUNT_LONG_OFF),
     staleAccountCountShort: data.readBigUInt64LE(base + ENGINE_STALE_ACCOUNT_COUNT_SHORT_OFF),
-    phantomDustBoundLongQ: readU128LE(data, base + ENGINE_PHANTOM_DUST_LONG_OFF),
-    phantomDustBoundShortQ: readU128LE(data, base + ENGINE_PHANTOM_DUST_SHORT_OFF),
+    phantomDustCertifiedLongQ: readU128LE(data, base + ENGINE_PHANTOM_DUST_CERT_LONG_OFF),
+    phantomDustCertifiedShortQ: readU128LE(data, base + ENGINE_PHANTOM_DUST_CERT_SHORT_OFF),
+    phantomDustPotentialLongQ: readU128LE(data, base + ENGINE_PHANTOM_DUST_POT_LONG_OFF),
+    phantomDustPotentialShortQ: readU128LE(data, base + ENGINE_PHANTOM_DUST_POT_SHORT_OFF),
+    bLongNum: readU128LE(data, base + ENGINE_B_LONG_NUM_OFF),
+    bShortNum: readU128LE(data, base + ENGINE_B_SHORT_NUM_OFF),
+    bEpochStartLongNum: readU128LE(data, base + ENGINE_B_EPOCH_START_LONG_NUM_OFF),
+    bEpochStartShortNum: readU128LE(data, base + ENGINE_B_EPOCH_START_SHORT_NUM_OFF),
+    lossWeightSumLong: readU128LE(data, base + ENGINE_LOSS_WEIGHT_SUM_LONG_OFF),
+    lossWeightSumShort: readU128LE(data, base + ENGINE_LOSS_WEIGHT_SUM_SHORT_OFF),
+    socialLossRemainderLongNum: readU128LE(data, base + ENGINE_SOCIAL_LOSS_REM_LONG_OFF),
+    socialLossRemainderShortNum: readU128LE(data, base + ENGINE_SOCIAL_LOSS_REM_SHORT_OFF),
+    socialLossDustLongNum: readU128LE(data, base + ENGINE_SOCIAL_LOSS_DUST_LONG_OFF),
+    socialLossDustShortNum: readU128LE(data, base + ENGINE_SOCIAL_LOSS_DUST_SHORT_OFF),
+    explicitUnallocatedLossLong: readU128LE(data, base + ENGINE_EXPLICIT_UNALLOC_LONG_OFF),
+    explicitUnallocatedLossShort: readU128LE(data, base + ENGINE_EXPLICIT_UNALLOC_SHORT_OFF),
+    explicitUnallocatedProtocolLoss: readU128LE(data, base + ENGINE_EXPLICIT_UNALLOC_PROTO_OFF),
+    explicitUnallocatedLossSaturated: data.readUInt8(base + ENGINE_EXPLICIT_UNALLOC_SATURATED_OFF),
     materializedAccountCount: data.readBigUInt64LE(base + ENGINE_MATERIALIZED_ACCOUNT_COUNT_OFF),
     negPnlAccountCount: data.readBigUInt64LE(base + ENGINE_NEG_PNL_ACCOUNT_COUNT_OFF),
     rrCursorPosition: data.readBigUInt64LE(base + ENGINE_RR_CURSOR_POSITION_OFF),
     sweepGeneration: data.readBigUInt64LE(base + ENGINE_SWEEP_GENERATION_OFF),
-    priceMoveConsumedBpsThisGeneration: readU128LE(data, base + ENGINE_PRICE_MOVE_CONSUMED_OFF),
+    stressConsumedBpsE9SinceEnvelope: readU128LE(data, base + ENGINE_STRESS_CONSUMED_OFF),
+    stressEnvelopeRemainingIndices: data.readBigUInt64LE(base + ENGINE_STRESS_REMAINING_INDICES_OFF),
+    stressEnvelopeStartSlot: data.readBigUInt64LE(base + ENGINE_STRESS_ENV_START_SLOT_OFF),
+    stressEnvelopeStartGeneration: data.readBigUInt64LE(base + ENGINE_STRESS_ENV_START_GEN_OFF),
+    lastSweepGenerationAdvanceSlot: data.readBigUInt64LE(base + ENGINE_LAST_SWEEP_GEN_ADVANCE_SLOT_OFF),
+    bankruptcyHmaxLockActive: data.readUInt8(base + ENGINE_BANKRUPTCY_HMAX_LOCK_OFF),
+    activeClosePresent: data.readUInt8(base + ENGINE_ACTIVE_CLOSE_PRESENT_OFF),
+    activeClosePhase: data.readUInt8(base + ENGINE_ACTIVE_CLOSE_PHASE_OFF),
+    activeCloseAccountIdx: data.readUInt16LE(base + ENGINE_ACTIVE_CLOSE_ACCOUNT_IDX_OFF),
+    activeCloseOppSide: data.readUInt8(base + ENGINE_ACTIVE_CLOSE_OPP_SIDE_OFF),
+    activeCloseClosePrice: data.readBigUInt64LE(base + ENGINE_ACTIVE_CLOSE_PRICE_OFF),
+    activeCloseCloseSlot: data.readBigUInt64LE(base + ENGINE_ACTIVE_CLOSE_SLOT_OFF),
+    activeCloseQCloseQ: readU128LE(data, base + ENGINE_ACTIVE_CLOSE_Q_OFF),
+    activeCloseResidualRemaining: readU128LE(data, base + ENGINE_ACTIVE_CLOSE_RES_REM_OFF),
+    activeCloseResidualBooked: readU128LE(data, base + ENGINE_ACTIVE_CLOSE_RES_BOOKED_OFF),
+    activeCloseResidualRecorded: readU128LE(data, base + ENGINE_ACTIVE_CLOSE_RES_RECORDED_OFF),
+    activeCloseBChunksBooked: data.readBigUInt64LE(base + ENGINE_ACTIVE_CLOSE_B_CHUNKS_OFF),
     lastOraclePrice: data.readBigUInt64LE(base + ENGINE_LAST_ORACLE_PRICE_OFF),
     fundPxLast: data.readBigUInt64LE(base + ENGINE_FUND_PX_LAST_OFF),
     lastMarketSlot: data.readBigUInt64LE(base + ENGINE_LAST_MARKET_SLOT_OFF),
@@ -653,6 +772,10 @@ export function parseAccount(data: Buffer, idx: number): Account {
     adlKSnap: readI128LE(data, base + ACCT_ADL_K_SNAP_OFF),
     fSnap: readI128LE(data, base + ACCT_F_SNAP_OFF),
     adlEpochSnap: data.readBigUInt64LE(base + ACCT_ADL_EPOCH_SNAP_OFF),
+    lossWeight: readU128LE(data, base + ACCT_LOSS_WEIGHT_OFF),
+    bSnap: readU128LE(data, base + ACCT_B_SNAP_OFF),
+    bRem: readU128LE(data, base + ACCT_B_REM_OFF),
+    bEpochSnap: data.readBigUInt64LE(base + ACCT_B_EPOCH_SNAP_OFF),
     matcherProgram: new PublicKey(data.subarray(base + ACCT_MATCHER_PROGRAM_OFF, base + ACCT_MATCHER_PROGRAM_OFF + 32)),
     matcherContext: new PublicKey(data.subarray(base + ACCT_MATCHER_CONTEXT_OFF, base + ACCT_MATCHER_CONTEXT_OFF + 32)),
     owner: new PublicKey(data.subarray(base + ACCT_OWNER_OFF, base + ACCT_OWNER_OFF + 32)),

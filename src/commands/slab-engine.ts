@@ -34,7 +34,7 @@ export function registerSlabEngine(program: Command): void {
               pnlMaturedPosTot: engine.pnlMaturedPosTot.toString(),
               rrCursorPosition: engine.rrCursorPosition.toString(),
               sweepGeneration: engine.sweepGeneration.toString(),
-              priceMoveConsumedBpsThisGeneration: engine.priceMoveConsumedBpsThisGeneration.toString(),
+              stressConsumedBpsE9SinceEnvelope: engine.stressConsumedBpsE9SinceEnvelope.toString(),
               adlMultLong: engine.adlMultLong.toString(),
               adlMultShort: engine.adlMultShort.toString(),
               adlCoeffLong: engine.adlCoeffLong.toString(),
@@ -100,7 +100,8 @@ export function registerSlabEngine(program: Command): void {
         console.log(`Last Market Slot:        ${engine.lastMarketSlot}`);
         console.log(`RR Cursor Position:      ${engine.rrCursorPosition}`);
         console.log(`Sweep Generation:        ${engine.sweepGeneration}`);
-        console.log(`PriceMoveConsumed bps:   ${engine.priceMoveConsumedBpsThisGeneration}`);
+        console.log(`Stress consumed (bps×1e9): ${engine.stressConsumedBpsE9SinceEnvelope}`);
+        console.log(`Stress envelope remaining: ${engine.stressEnvelopeRemainingIndices}`);
         console.log("");
         console.log("--- Accounts ---");
         console.log(`Num Used:                ${engine.numUsedAccounts}`);

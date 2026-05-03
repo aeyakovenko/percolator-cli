@@ -182,7 +182,7 @@ async function main() {
   });
 
   // Calculate rent
-  const slabSize = 1525624;
+  const slabSize = 1755376;
   const rentExempt = await connection.getMinimumBalanceForRentExemption(slabSize);
   console.log(`  Rent: ${(rentExempt / 1e9).toFixed(4)} SOL`);
 

@@ -42,7 +42,7 @@ import { defaultInitMarketArgs } from "./_default-market.js";
 const RPC = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
 const MATCHER = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
-const SLAB_SIZE = 1_525_624;
+const SLAB_SIZE = 1755376;
 const MAINT_FEE_PER_SLOT = "1000000"; // 1M engine units per slot per account
 
 const conn = new Connection(RPC, "confirmed");
