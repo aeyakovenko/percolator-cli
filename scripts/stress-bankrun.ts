@@ -53,7 +53,21 @@ async function tx(ixs: any[], signers: Keypair[], cu = 200000) {
   const t = new Transaction();
   t.add(ComputeBudgetProgram.setComputeUnitLimit({ units: cu }));
   for (const ix of ixs) t.add(ix);
-  return sendAndConfirmTransaction(conn, t, signers, { commitment: "confirmed" });
+  try {
+    return await sendAndConfirmTransaction(conn, t, signers, { commitment: "confirmed" });
+  } catch (e: any) {
+    // Surface the full simulation log so failures aren't truncated.
+    try {
+      t.feePayer = signers[0].publicKey;
+      t.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
+      t.sign(...signers);
+      const sim = await conn.simulateTransaction(t, signers);
+      console.log("--- full simulation logs ---");
+      for (const l of sim.value.logs ?? []) console.log(l);
+      console.log("--- err:", JSON.stringify(sim.value.err));
+    } catch {/* ignore */}
+    throw e;
+  }
 }
 
 async function getSpl(vault: PublicKey): Promise<bigint> {
@@ -175,14 +189,24 @@ async function main() {
 
   await dumpState(slab.publicKey, vault, "AFTER SETUP");
 
-  // v12.21: MAX_ACCRUAL_DT_SLOTS=100 — refresh price + crank before each
+  // v12.21: MAX_ACCRUAL_DT_SLOTS=10 — refresh price + crank before each
   // health-sensitive batch so the engine clock stays inside the envelope.
+  // Wrapper now also requires the crank to land in the SAME tx as state-
+  // advancing ops; helpers below bundle the crank IX into trades.
   const refreshMark = async () => {
-    await tx([buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
-      data: pushPrice("100000000") })], [payer]);
+    await tx([
+      buildIx({ programId: PROG, keys: crankKeys(),
+        data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }) }),
+      buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
+        data: pushPrice("100000000") }),
+    ], [payer]);
     await doCrank();
   };
+  // Bundle crank + trade so accrue commits in the same tx (CatchupRequired
+  // guard rejects the bare trade if last_market_slot lags clock.slot).
+  const crankIx = () => buildIx({ programId: PROG, keys: crankKeys(),
+    data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }) });
 
   // Wait warmup, crank
   await sleep(5000);
@@ -198,8 +222,11 @@ async function main() {
   ]);
   for (let i = 1; i <= 4; i++) {
     await refreshMark();
-    await tx([buildIx({ programId: PROG, keys: tradeKeys,
-      data: encodeTradeCpi({ userIdx: i, lpIdx: 0, size: "3000000" }) })], [payer], 400000);
+    await tx([
+      crankIx(),
+      buildIx({ programId: PROG, keys: tradeKeys,
+        data: encodeTradeCpi({ userIdx: i, lpIdx: 0, size: "3000000" }) }),
+    ], [payer], 600000);
   }
   await dumpState(slab.publicKey, vault, "POSITIONS OPEN");
 
@@ -207,17 +234,23 @@ async function main() {
   // PHASE 2: Crash price → liquidations
   // ═══════════════════════════════════════
   console.log("\n=== PHASE 2: Crash price to $10 (90% drop) ===");
-  await tx([buildIx({ programId: PROG,
-    keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
-    data: pushPrice("10000000") })], [payer]);
+  await tx([
+    crankIx(),
+    buildIx({ programId: PROG,
+      keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
+      data: pushPrice("10000000") }),
+  ], [payer]);
 
   // Crank aggressively with candidates to trigger liquidations
   for (let round = 0; round < 10; round++) {
     await doCrank([1, 2, 3, 4]);
     // Also trade small amounts to move the EWMA mark
     try {
-      await tx([buildIx({ programId: PROG, keys: tradeKeys,
-        data: encodeTradeCpi({ userIdx: 1, lpIdx: 0, size: "1" }) })], [payer], 400000);
+      await tx([
+        crankIx(),
+        buildIx({ programId: PROG, keys: tradeKeys,
+          data: encodeTradeCpi({ userIdx: 1, lpIdx: 0, size: "1" }) }),
+      ], [payer], 600000);
     } catch {}
     await sleep(300);
   }
@@ -261,10 +294,13 @@ async function main() {
   // ═══════════════════════════════════════
   console.log("\n=== PHASE 5: Bank run — close all positions + withdraw ===");
   {
-    // Restore price so users can close positions
-    await tx([buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
-      data: pushPrice("100000000") })], [payer]);
+    // Restore price so users can close positions (crank-then-push)
+    await tx([
+      crankIx(),
+      buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
+        data: pushPrice("100000000") }),
+    ], [payer]);
     for (let i = 0; i < 5; i++) { await doCrank(); await sleep(300); }
 
     const buf = await fetchSlab(conn, slab.publicKey);
@@ -277,20 +313,26 @@ async function main() {
       try {
         const acc = parseAccount(await fetchSlab(conn, slab.publicKey), idx);
         if (acc.positionBasisQ !== 0n) {
-          // Close position first
-          await tx([buildIx({ programId: PROG, keys: tradeKeys,
-            data: encodeTradeCpi({ userIdx: idx, lpIdx: 0, size: (-acc.positionBasisQ).toString() }) })], [payer], 400000);
+          // Close position first (crank-then-trade)
+          await tx([
+            crankIx(),
+            buildIx({ programId: PROG, keys: tradeKeys,
+              data: encodeTradeCpi({ userIdx: idx, lpIdx: 0, size: (-acc.positionBasisQ).toString() }) }),
+          ], [payer], 600000);
         }
         // Crank to mature PnL
         await sleep(3000);
         for (let i = 0; i < 3; i++) { await doCrank([idx]); await sleep(500); }
-        // Close account
-        await tx([buildIx({ programId: PROG,
-          keys: buildAccountMetas(ACCOUNTS_CLOSE_ACCOUNT, [
-            payer.publicKey, slab.publicKey, vault, payerAta.address,
-            vaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, payer.publicKey,
-          ]),
-          data: encodeCloseAccount({ idx }) })], [payer]);
+        // Close account (crank-then-close)
+        await tx([
+          crankIx(),
+          buildIx({ programId: PROG,
+            keys: buildAccountMetas(ACCOUNTS_CLOSE_ACCOUNT, [
+              payer.publicKey, slab.publicKey, vault, payerAta.address,
+              vaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, payer.publicKey,
+            ]),
+            data: encodeCloseAccount({ idx }) }),
+        ], [payer], 600000);
         console.log(`  User ${idx}: CLOSED`);
         closed++;
       } catch (e: any) {

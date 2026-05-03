@@ -439,27 +439,42 @@ async function main() {
   console.log("\n=== 7. Withdraw: verify exact capital + vault deltas ===");
   const WITHDRAW = 1_000_000n;
   {
-    // v12.21: MAX_ACCRUAL_DT_SLOTS=100 ⇒ ~40 s between accrues forces
-    // CatchupRequired. Refresh mark + run one crank to advance the market
-    // clock before the health-sensitive withdraw.
-    await tx([buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_PUSH_ORACLE_PRICE, [payer.publicKey, slab.publicKey]),
-      data: encodePushOraclePrice({ priceE6: "100000000", timestamp: Math.floor(Date.now()/1000).toString() }) })], [payer]);
-    await tx([buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, payer.publicKey]),
-      data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }) })], [payer]);
+    // v12.21+: withdraw checks `oracle_target_pending` — it rejects with
+    // CatchupRequired if the engine's `last_oracle_price` hasn't caught
+    // up to `mark_ewma_e6` (Hyperp) / `oracle_target_price_e6` (Pyth).
+    // The prior trade updated mark_ewma; multiple cranks must run to
+    // walk last_oracle_price to it (clamped per max_price_move/slot).
+    // Each crank moves the engine price toward the target; loop until
+    // converged or budget exhausted.
+    for (let i = 0; i < 8; i++) {
+      try {
+        await tx([buildIx({ programId: PROG,
+          keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, payer.publicKey]),
+          data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }) })], [payer]);
+      } catch { /* envelope rejection ok between accrues */ }
+      await new Promise(r => setTimeout(r, 500));
+    }
 
     const preBuf = await fetchSlab(conn, slab.publicKey);
     const preUser = parseAccount(preBuf, 1);
     const preE = parseEngine(preBuf);
     const preSpl = await getVaultSpl(vault);
 
-    await tx([buildIx({ programId: PROG,
-      keys: buildAccountMetas(ACCOUNTS_WITHDRAW_COLLATERAL, [
-        payer.publicKey, slab.publicKey, vault, payerAta.address,
-        vaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, payer.publicKey,
-      ]),
-      data: encodeWithdrawCollateral({ userIdx: 1, amount: WITHDRAW.toString() }) })], [payer]);
+    // CatchupRequired guard demands a crank to commit market progress
+    // ahead of the withdraw. With the convergence loop above, target_lag
+    // is cleared; just bundle one final crank + withdraw atomically with
+    // a generous CU limit (crank can consume ~130k CU when sweeping).
+    await tx([
+      buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [payer.publicKey, slab.publicKey, WELL_KNOWN.clock, payer.publicKey]),
+        data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }) }),
+      buildIx({ programId: PROG,
+        keys: buildAccountMetas(ACCOUNTS_WITHDRAW_COLLATERAL, [
+          payer.publicKey, slab.publicKey, vault, payerAta.address,
+          vaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, payer.publicKey,
+        ]),
+        data: encodeWithdrawCollateral({ userIdx: 1, amount: WITHDRAW.toString() }) }),
+    ], [payer], 600_000);
 
     const postBuf = await fetchSlab(conn, slab.publicKey);
     const postUser = parseAccount(postBuf, 1);
@@ -553,30 +568,31 @@ async function main() {
       payer.publicKey, slab.publicKey, vault, payerAta.address,
       vaultPda, WELL_KNOWN.tokenProgram, WELL_KNOWN.clock, payer.publicKey,
     ]);
+    let closed = false;
     try {
       await tx([buildIx({ programId: PROG, keys: closeKeys,
         data: encodeCloseAccount({ idx: 1 }) })], [payer]);
+      closed = true;
     } catch (e: any) {
       console.log(`    (close rejected — likely warmup not complete: ${(e.message || "").split("\n")[0].slice(0, 80)})`);
-      console.log("    (skipping post-close assertions; close-account flow tested separately in CloseAccount section)");
-      return;
+      console.log("    (skipping post-close assertions; CloseAccount tested in §9 resolve flow)");
     }
 
-    const postBuf = await fetchSlab(conn, slab.publicKey);
-    const postE = parseEngine(postBuf);
-    const postUsed = parseUsedIndices(postBuf);
+    if (closed) {
+      const postBuf = await fetchSlab(conn, slab.publicKey);
+      const postE = parseEngine(postBuf);
 
-    check("bank run: numUsed decremented", postE.numUsedAccounts === preE.numUsedAccounts - 1,
-      `${preE.numUsedAccounts} -> ${postE.numUsedAccounts}`);
-    // Bitmap may be cleared by GC during next crank, not immediately
-    check("bank run: account closed (numUsed check)", postE.numUsedAccounts < preE.numUsedAccounts);
-    check("bank run: vault decreased (capital returned)", postE.vault < preE.vault);
-    check("bank run: cTot decreased", postE.cTot < preE.cTot);
+      check("bank run: numUsed decremented", postE.numUsedAccounts === preE.numUsedAccounts - 1,
+        `${preE.numUsedAccounts} -> ${postE.numUsedAccounts}`);
+      check("bank run: account closed (numUsed check)", postE.numUsedAccounts < preE.numUsedAccounts);
+      check("bank run: vault decreased (capital returned)", postE.vault < preE.vault);
+      check("bank run: cTot decreased", postE.cTot < preE.cTot);
 
-    const postSpl = await getVaultSpl(vault);
-    check("conservation: engine.vault = SPL", postE.vault === postSpl);
-    check("accounting: vault >= cTot + insurance", postE.vault >= postE.cTot + postE.insuranceFund.balance,
-      `vault(${postE.vault}) < cTot(${postE.cTot}) + ins(${postE.insuranceFund.balance})`);
+      const postSpl = await getVaultSpl(vault);
+      check("conservation: engine.vault = SPL", postE.vault === postSpl);
+      check("accounting: vault >= cTot + insurance", postE.vault >= postE.cTot + postE.insuranceFund.balance,
+        `vault(${postE.vault}) < cTot(${postE.cTot}) + ins(${postE.insuranceFund.balance})`);
+    }
   }
 
   // ════════════════════════════════════════
