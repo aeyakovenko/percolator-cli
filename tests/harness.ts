@@ -82,7 +82,7 @@ import {
 // ============================================================================
 
 export const RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-export const PROGRAM_ID = new PublicKey("2b7EnjdG5sJmwMh7NecaVHu7FjmyCHJ9jmFnMAKrXF9R");
+export const PROGRAM_ID = new PublicKey("4PTXCZ4vLSK6aiUd3fx2dVVYSRNFnMSM4ijhDWkuFi2s");
 
 // Sentinel value for permissionless crank (no caller account required)
 export const CRANK_NO_CALLER = 65535; // u16::MAX

@@ -40,7 +40,7 @@ import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
 import { defaultInitMarketArgs } from "./_default-market.js";
 
 const RPC = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-const PROG = new PublicKey("2b7EnjdG5sJmwMh7NecaVHu7FjmyCHJ9jmFnMAKrXF9R");
+const PROG = new PublicKey("4PTXCZ4vLSK6aiUd3fx2dVVYSRNFnMSM4ijhDWkuFi2s");
 const MATCHER = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 const SLAB_SIZE = 1755376;
 const MAINT_FEE_PER_SLOT = "1000000"; // 1M engine units per slot per account

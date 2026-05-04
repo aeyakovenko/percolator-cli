@@ -19,7 +19,7 @@ import * as fs from "fs";
 const marketInfo = JSON.parse(fs.readFileSync("devnet-market.json", "utf-8"));
 const SLAB = new PublicKey(marketInfo.slab);
 const ORACLE = new PublicKey(marketInfo.oracle);
-const PROGRAM_ID = new PublicKey("2b7EnjdG5sJmwMh7NecaVHu7FjmyCHJ9jmFnMAKrXF9R");
+const PROGRAM_ID = new PublicKey("4PTXCZ4vLSK6aiUd3fx2dVVYSRNFnMSM4ijhDWkuFi2s");
 const MATCHER_PROGRAM = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 
 const conn = new Connection("https://api.devnet.solana.com", "confirmed");

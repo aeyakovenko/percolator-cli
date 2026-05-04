@@ -74,7 +74,7 @@ import { fetchSlab, parseHeader, parseConfig, parseEngine, parseUsedIndices, par
 import { buildIx } from "../src/runtime/tx.js";
 
 // Program IDs
-const PROGRAM_ID = new PublicKey("2b7EnjdG5sJmwMh7NecaVHu7FjmyCHJ9jmFnMAKrXF9R");
+const PROGRAM_ID = new PublicKey("4PTXCZ4vLSK6aiUd3fx2dVVYSRNFnMSM4ijhDWkuFi2s");
 const MATCHER_PROGRAM_ID = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 const SLAB_SIZE = 1525624;
 const MATCHER_CTX_SIZE = 320;
