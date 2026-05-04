@@ -458,8 +458,12 @@ async function main() {
     // (anti-spam invariant requires nonzero maintenance OR new_account fee).
     // Allow up to 1000 lamports of fee accrual between snapshots.
     const dCap = capitalBefore - capitalAfter;
-    assert(dCap >= 1000000n && dCap <= 1001000n,
-      `capital delta: expected 1_000_000 (+ ≤1k fee), got ${dCap}`);
+    // 1k tolerance is too tight under network jitter — at maintenance_fee
+    // = 270 atoms/slot, even a few extra slots between checkpoints exceeds
+    // 1k. Allow up to 5k atoms of fee accrual; the conservation invariant
+    // below catches any actual drift.
+    assert(dCap >= 1000000n && dCap <= 1005000n,
+      `capital delta: expected 1_000_000 (+ ≤5k fee), got ${dCap}`);
     // vault delta should be exactly the withdrawal amount (fee accrual
     // doesn't move tokens, only redistributes accounting).
     assert(vaultBefore - vaultAfter === 1000000n,
