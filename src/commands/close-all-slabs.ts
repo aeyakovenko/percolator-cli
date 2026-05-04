@@ -14,9 +14,11 @@ import {
 import { buildIx, simulateOrSend } from "../runtime/tx.js";
 import { validateU32 } from "../validation.js";
 
-// PERCOLAT magic bytes for filtering
-const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
-const SLAB_SIZE = 1525624; // Expected slab size (new engine layout)
+// PERCOLAT magic — stored on chain as LE bytes of 0x504552434f4c4154n.
+// The on-disk byte sequence is therefore "TALOCREP" (LE), not "PERCOLAT"
+// (BE). The previous BE constant matched zero accounts.
+const PERCOLAT_MAGIC = Buffer.from([0x54, 0x41, 0x4c, 0x4f, 0x43, 0x52, 0x45, 0x50]);
+const SLAB_SIZE = 1755376; // v12.21+ layout (old 1525624 markets long-closed)
 
 export function registerCloseAllSlabs(program: Command): void {
   program
