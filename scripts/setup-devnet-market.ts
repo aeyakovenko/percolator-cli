@@ -43,8 +43,8 @@ import { prodInitMarketArgs } from "./_default-market.js";
 // CONSTANTS
 // ============================================================================
 
-const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
-const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
+const PROGRAM_ID = new PublicKey("2b7EnjdG5sJmwMh7NecaVHu7FjmyCHJ9jmFnMAKrXF9R");
+const MATCHER_PROGRAM_ID = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 const CHAINLINK_SOL_USD = new PublicKey("99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR");
 const CHAINLINK_OWNER = "HEvSKofvBgfaexv23kMabbYqxasxU3mQ4ibBMEmJWHny";
 const MATCHER_CTX_SIZE = 320;

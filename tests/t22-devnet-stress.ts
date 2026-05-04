@@ -30,7 +30,7 @@ const RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 
 // Program IDs
 const PERCOLATOR_PROGRAM_ID = new PublicKey("46iB4ET4WpqfTXAqGSmyBczLBgVhd1sHre93KtU3sTg9");
-const VAMM_MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
+const VAMM_MATCHER_PROGRAM_ID = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 
 // Existing deployed market
 const MARKET_SLAB = new PublicKey("AcF3Q3UMHqx2xZR2Ty6pNvfCaogFmsLEqyMACQ2c4UPK");

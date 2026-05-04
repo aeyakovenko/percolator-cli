@@ -48,7 +48,7 @@ import {
 import { defaultInitMarketArgs } from "./_default-market.js";
 
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
-const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
+const PROG = new PublicKey("2b7EnjdG5sJmwMh7NecaVHu7FjmyCHJ9jmFnMAKrXF9R");
 const payer = Keypair.fromSecretKey(new Uint8Array(JSON.parse(
   fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))));
 const ZERO = PublicKey.default;

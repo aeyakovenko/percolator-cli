@@ -39,8 +39,8 @@ import {
 } from "../src/solana/slab.js";
 import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
 
-const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
-const MATCHER = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
+const PROG = new PublicKey("2b7EnjdG5sJmwMh7NecaVHu7FjmyCHJ9jmFnMAKrXF9R");
+const MATCHER = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 const SLAB_SIZE = 1755376;
 const conn = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
 const payer = Keypair.fromSecretKey(new Uint8Array(

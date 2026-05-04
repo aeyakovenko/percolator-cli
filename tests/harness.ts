@@ -82,7 +82,7 @@ import {
 // ============================================================================
 
 export const RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-export const PROGRAM_ID = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
+export const PROGRAM_ID = new PublicKey("2b7EnjdG5sJmwMh7NecaVHu7FjmyCHJ9jmFnMAKrXF9R");
 
 // Sentinel value for permissionless crank (no caller account required)
 export const CRANK_NO_CALLER = 65535; // u16::MAX
@@ -112,7 +112,7 @@ export const DEFAULT_DECIMALS = 6;
 export const DEFAULT_FEE_PAYMENT = "2000000"; // 2 USDC (must be > newAccountFee to leave capital)
 
 // Matcher program (50 bps passive LP matcher deployed on devnet)
-export const MATCHER_PROGRAM_ID = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
+export const MATCHER_PROGRAM_ID = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 export const MATCHER_CTX_SIZE = 320; // Recommended size per percolator spec
 
 // ============================================================================

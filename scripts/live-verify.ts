@@ -43,8 +43,8 @@ import {
 import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
 
 const RPC = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-const PROG = new PublicKey("2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp");
-const MATCHER_PROGRAM = new PublicKey("4HcGCsyjAqnFua5ccuXyt8KRRQzKFbGTJkVChpS7Yfzy");
+const PROG = new PublicKey("2b7EnjdG5sJmwMh7NecaVHu7FjmyCHJ9jmFnMAKrXF9R");
+const MATCHER_PROGRAM = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
 const SLAB_SIZE = 1755376;
 const conn = new Connection(RPC, "confirmed");
