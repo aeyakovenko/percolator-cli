@@ -1,15 +1,12 @@
 /**
  * Deploy ../percolator-stress/max_risk.md ("bounty_sol_20x_max") to devnet.
  *
- * The spec is for a USDC-collateral mainnet bounty market; the v12.21 devnet
- * wrapper has tighter cohort/leverage rules than the spec assumes, so this
- * script ADAPTS two values to the wrapper's hard limits and deploys
- * everything else verbatim:
+ * Current wrapper (post-bounty-2-cleanup) accepts every spec value
+ * verbatim — `h_min=0` is decoupled from the perm-resolve floor and
+ * `MAX_PROFIT_MATURITY_SLOTS=6_480_000` clears `h_max=86_400`. No
+ * spec adaptation required.
  *
- *   spec h_min  = 0      → wrapper rejects (`InvalidConfigParam`); set to 10
- *   spec h_max  = 86_400 → wrapper requires h_max ≤ perm_resolve ≤ 100; set to 100
- *
- * Spec-faithful values that DO deploy as-is (this is the actual test):
+ * Spec-faithful values that deploy as-is:
  *   maintenance_margin_bps       = 500   (= im, no opening buffer)
  *   initial_margin_bps           = 500   (1/L = 5%, 20x max nominal)
  *   trading_fee_bps              =   1
