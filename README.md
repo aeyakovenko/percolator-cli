@@ -44,38 +44,39 @@ Or use command-line flags:
 - `--json` - Output in JSON format
 - `--simulate` - Simulate transaction without sending
 
-## Mainnet Bounty 2 — `bounty_sol_20x_max`
+## Mainnet Bounty 3 — `bounty_sol_20x_max`
 
-> **Status (2026-04-27, LIVE):** all four market authorities + the program
-> upgrade authority are BURNED. The bounty pool is locked behind the
-> spec at [`percolator-stress/max_risk.md`](https://github.com/aeyakovenko/percolator-stress-test/blob/master/max_risk.md).
+> **Status (2026-05-05, LIVE):** market deployed and ticking. Market authorities
+> + program upgrade authority will be burned after the cron loop and
+> market state are verified over the next 24h. The bounty pool spec is
+> [`percolator-stress/max_risk.md`](https://github.com/aeyakovenko/percolator-stress-test/blob/master/max_risk.md).
 
 ```
-Program:        6qWZvUtfyShbxTQkwjCayk3LuGqTGJwBo2QfkePK5jdJ  (upgrade authority BURNED)
-Slab:           CJKBStEn5VXEF9VNTChKKb5YW84MV7LycqMMziVuxJSc  (inverted SOL/USD, all 4 market auths BURNED)
+Program:        2LfCFmDKwcnHunqdsCW9uV7KNgBgnFGASs8uM7MwHgHm
+Slab:           zExGagF9FeMTYGjvkBhknmNzLAP7toX6Aj6Pu1kuvmT  (inverted SOL/USD, non-Hyperp)
 Oracle:         7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE  (Pyth SOL/USD PriceUpdateV2, sponsored shard 0)
 Feed ID:        ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d
-Vault ATA:      DVTjorxLQvdtoTmDarSHGBox4VCUPb9QQkDjz8mSUxor  (wrapped SOL, PDA-signed)
-Vault PDA:      FLnTKmFAtD3z3tTZj2Nyx52DRVwEzGz5ERwnPdK4ewR9
+Vault ATA:      3Rgu8UqVKn71vbF91sk5bXZbrqJgpFfhZvJEpJtZgenA  (wrapped SOL, PDA-signed)
+Vault PDA:      9kVocvX1RfGstC1U2xhtSjrHLJWivnw7RPv3Vi8aPkKs
 Matcher:        (none — third parties provision their own)
-Insurance:      5 SOL seeded at deploy (≈$425 at SOL=$85)
+Insurance:      5 SOL seeded at deploy
 ```
 
 **Build provenance** (reproducible from `cargo build-sbf` on the pinned
 commits below):
 
 ```
-BPF binary SHA-256:  7c5b75aff1bd2a3f9ea145b63ee74a0c55d3af50922e802dac63388ef0639d1e
-BPF binary size:     447,504 bytes ELF
-percolator-prog:     c6e61e6ce0557163eb621a3329abc50d3952be8a   (head; binary == cc0650a — only test files differ)
-percolator (engine): 5940285737b514af4416cd8394773abc79e6366d   (pinned via Cargo.toml git rev)
-percolator-cli:      <commit at deploy> (set-upgrade-authority + cron + watcher)
+BPF binary SHA-256:  6e2bb5aee602aed1de0b2d80f72f97b6b115e0f536438f76d31e0de06d5b7002
+BPF binary size:     518,896 bytes ELF (data length on chain)
+percolator-prog:     04b854e (master) + Cargo.toml engine pin bump (uncommitted)
+percolator (engine): 5059332f8a6ce7e8dcff83315e90ac8e2ced7d42   (pinned via Cargo.toml git rev)
+percolator-cli:      <commit at deploy>
 MAX_ACCOUNTS:        4096
 ```
 
 The wrapper's only direct dependency that isn't a published crate is the
 engine — pulled by Cargo.toml as
-`percolator = { git = "https://github.com/aeyakovenko/percolator", rev = "5940285…" }`.
+`percolator = { git = "https://github.com/aeyakovenko/percolator", rev = "5059332f…" }`.
 The pinned `rev` makes `cargo build-sbf` deterministic across machines.
 
 Verify locally:
@@ -84,18 +85,18 @@ Verify locally:
 # 1. Clone the program at the deployed commit.
 git clone https://github.com/aeyakovenko/percolator-prog.git
 cd percolator-prog
-git checkout c6e61e6   # or any commit with src/percolator.rs identical to cc0650a
+git checkout 04b854e   # then bump Cargo.toml engine rev to 5059332f8a6ce7e8dcff83315e90ac8e2ced7d42
 
 # 2. Build (cargo will fetch the engine git dep at the pinned rev).
 cargo build-sbf
 
 # 3. Hash the ELF.
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 7c5b75aff1bd2a3f9ea145b63ee74a0c55d3af50922e802dac63388ef0639d1e
+#   Expected: 6e2bb5aee602aed1de0b2d80f72f97b6b115e0f536438f76d31e0de06d5b7002
 
 # 4. Hash the on-chain bytes.
-solana program dump -u m <PROGRAM_ID> /tmp/deployed.so
-head -c 447504 /tmp/deployed.so | sha256sum
+solana program dump -u m 2LfCFmDKwcnHunqdsCW9uV7KNgBgnFGASs8uM7MwHgHm /tmp/deployed.so
+head -c 518896 /tmp/deployed.so | sha256sum
 #   Must match the cargo build-sbf hash exactly.
 ```
 
@@ -122,13 +123,13 @@ repo because the engine dep is fetched by `rev`, not by sibling-dir path.
 | `force_close_delay_slots` | 432_000 (~48 h) | post-resolve grace |
 | `new_account_fee` | 5_882_000 lamports (~$0.50) | bounty pool top-up |
 | `maintenance_fee_per_slot` | 58 lamports | ~$1/day flat (SOL @ ~$85) |
-| `tvl_insurance_cap_mult` | 20 | deposit cap = 20× insurance |
-| Insurance seed | 5 SOL (~$425) | bounty target; grows with adoption |
+| `tvl_insurance_cap_mult` | 50 | deposit cap = 50× insurance |
+| Insurance seed | 5 SOL | bounty target; grows with adoption |
 
-**Operational keepalive** — cron runs `mainnet-bounty2-tick.ts` every
+**Operational keepalive** — cron runs `mainnet-bounty3-tick.ts` every
 minute. Each tick takes a slab snapshot, submits a permissionless
 `KeeperCrank`, takes a second snapshot, and writes one JSONL line to
-`~/.cache/percolator/bounty2-tick.log` with deltas and event flags.
+`~/.cache/percolator/bounty3-tick.log` with deltas and event flags.
 
 Watched flags (any appearing in the log = page on-call):
 
@@ -143,8 +144,8 @@ Watched flags (any appearing in the log = page on-call):
 Install/refresh cron after the setup script lands:
 
 ```bash
-SOLANA_RPC_URL=https://your.rpc/ npx tsx scripts/mainnet-bounty2-cron-install.ts
-tail -f ~/.cache/percolator/bounty2-tick.log
+SOLANA_RPC_URL=https://your.rpc/ npx tsx scripts/mainnet-bounty3-cron-install.ts
+tail -f ~/.cache/percolator/bounty3-tick.log
 ```
 
 **Bounty win condition** (per max_risk.md §8): cause
@@ -152,6 +153,29 @@ tail -f ~/.cache/percolator/bounty2-tick.log
 any sequence of public calls. Pyth manipulation and Solana validator
 attacks are out of scope; everything else (admission bypass, K overflow,
 ADL math, conservation violation, fee-credits sign flip, etc.) is in.
+
+---
+
+## Deprecated: Mainnet Bounty 2 (superseded by Bounty 3 above)
+
+> **Status (2026-05-05):** Bounty 2 has been superseded by Bounty 3 (above)
+> with the same `bounty_sol_20x_max` spec, refreshed engine pin, and
+> `tvl_insurance_cap_mult` raised from 20 to 50. The Bounty 2 market is
+> still live on chain with all four market authorities + program upgrade
+> authority BURNED. Withdraw paths and the bounty win condition still
+> hold against the deployed Bounty 2 binary, but new participants should
+> target Bounty 3.
+
+```
+Program:        6qWZvUtfyShbxTQkwjCayk3LuGqTGJwBo2QfkePK5jdJ  (upgrade authority BURNED)
+Slab:           CJKBStEn5VXEF9VNTChKKb5YW84MV7LycqMMziVuxJSc  (all 4 market auths BURNED)
+Oracle:         7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE
+Vault ATA:      DVTjorxLQvdtoTmDarSHGBox4VCUPb9QQkDjz8mSUxor
+Vault PDA:      FLnTKmFAtD3z3tTZj2Nyx52DRVwEzGz5ERwnPdK4ewR9
+BPF SHA-256:    7c5b75aff1bd2a3f9ea145b63ee74a0c55d3af50922e802dac63388ef0639d1e
+percolator-prog: c6e61e6ce0557163eb621a3329abc50d3952be8a
+engine pin:     5940285737b514af4416cd8394773abc79e6366d
+```
 
 ---
 

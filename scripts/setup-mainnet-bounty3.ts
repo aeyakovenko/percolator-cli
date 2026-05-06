@@ -328,11 +328,11 @@ async function main() {
     console.log(`    insurance += ${(Number(INSURANCE_FUND_AMOUNT) / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
   }
 
-  // ── Step 8: UpdateConfig — enable 20× deposit cap ──
-  console.log("\n[7] UpdateConfig: tvlInsuranceCapMult = 20...");
+  // ── Step 8: UpdateConfig — enable 50× deposit cap ──
+  console.log("\n[7] UpdateConfig: tvlInsuranceCapMult = 50...");
   {
     const t = new Transaction()
-      .add(...withPriority(60_000))
+      .add(...withPriority(400_000))
       .add(crankIx())
       .add(buildIx({
         programId: PROGRAM_ID,
@@ -344,15 +344,15 @@ async function main() {
           fundingKBps:          "100",
           fundingMaxPremiumBps: "500",
           fundingMaxE9PerSlot:  "1000",
-          tvlInsuranceCapMult:  20,
+          tvlInsuranceCapMult:  50,
         }),
       }));
     await sendAndConfirmTransaction(conn, t, [payer], { commitment: "confirmed" });
     const c = parseConfig(await fetchSlab(conn, slabPubkey));
-    if (c.tvlInsuranceCapMult !== 20) {
+    if (c.tvlInsuranceCapMult !== 50) {
       throw new Error(`tvl_cap_mult verification: got ${c.tvlInsuranceCapMult}`);
     }
-    console.log(`    ✓ deposit cap active: c_tot ≤ 20 × ${(Number(INSURANCE_FUND_AMOUNT) / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
+    console.log(`    ✓ deposit cap active: c_tot ≤ 50 × ${(Number(INSURANCE_FUND_AMOUNT) / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
   }
 
   // ── Step 9: AUTHORITIES ARE NOT BURNED HERE ──
