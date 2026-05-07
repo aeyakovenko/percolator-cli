@@ -199,25 +199,83 @@ async function main() {
     return; // RPC blip — next tick will retry
   }
 
-  // Submit crank. Permissionless caller (callerIdx = 65535).
+  // Multi-crank bundling. With OI > 0 the wrapper bounds each crank to
+  // MAX_ACCRUAL_DT_SLOTS=10 slots of advance, so a single-crank tick can't
+  // keep up with wall-clock advance (~150 slots/min). Bundle N cranks per
+  // tick where N = ceil(lag / 10), capped at 15 (CU budget at 1.4M / ~78K
+  // per crank ≈ 17 max; keep margin). A persistent N_max is shrunk on
+  // CU-OOM and grown back when ticks succeed with headroom.
+  const cuStatePath = path.join(os.homedir(), ".cache", "percolator", "bounty3-cu.json");
+  // Empirical CU cost is non-linear: first crank ~430K (sweep + accrue setup),
+  // second ~400K (second price-move chunk), subsequent ~78K each. With 1.4M
+  // CU limit, ~9 cranks fit before OOM. Hard-cap N=9, use a fixed 1.4M
+  // limit — priority fee at 50K microLamports/CU is ~0.00007 SOL/tx, trivial.
+  const N_HARD_CAP = 9;
+  const FIXED_CU_LIMIT = 1_400_000;
+  let nMax = N_HARD_CAP;
+  try {
+    nMax = JSON.parse(fs.readFileSync(cuStatePath, "utf8")).nMax ?? N_HARD_CAP;
+    nMax = Math.max(1, Math.min(N_HARD_CAP, nMax));
+  } catch { /* first run */ }
+
+  // Pick N for this tick: enough cranks to cover the current lag (in 10-slot
+  // segments), capped at nMax. lag<60 → still send 1 crank to update oracle.
+  const segmentsNeeded = Math.max(1, Math.ceil(pre.marketSlotLag / 10));
+  const nThisTick = Math.max(1, Math.min(nMax, segmentsNeeded));
+  const cuLimit = FIXED_CU_LIMIT;
+
   let crankSig: string | null = null;
   let crankErr: string | null = null;
+  let cuConsumed: number | null = null;
+  let oomDetected = false;
   try {
     const tx = new Transaction()
-      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }))
-      .add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 }))
-      .add(buildIx({
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: cuLimit }))
+      .add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 }));
+    for (let k = 0; k < nThisTick; k++) {
+      tx.add(buildIx({
         programId,
         keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
           payer.publicKey, slab, WELL_KNOWN.clock, oracle,
         ]),
         data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }),
       }));
+    }
     crankSig = await sendAndConfirmTransaction(conn, tx, [payer], {
       commitment: "confirmed", skipPreflight: true,
     });
+    try {
+      const txInfo = await conn.getTransaction(crankSig, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      });
+      cuConsumed = txInfo?.meta?.computeUnitsConsumed ?? null;
+    } catch { /* leave null */ }
   } catch (e: any) {
     crankErr = (e.message || String(e)).split("\n")[0].slice(0, 200);
+    // Try to detect CU OOM by inspecting the failed-tx logs
+    const sigMatch = crankErr.match(/Transaction (\w+) resulted/);
+    if (sigMatch?.[1]) {
+      try {
+        const info = await conn.getTransaction(sigMatch[1], {
+          commitment: "confirmed", maxSupportedTransactionVersion: 0,
+        });
+        const logs = info?.meta?.logMessages?.slice(-3).join("|") ?? "";
+        if (logs.includes("exceeded CUs")) oomDetected = true;
+      } catch { /* skip */ }
+    }
+  }
+
+  // Adapt nMax: shrink on OOM, slowly grow back when headroom appears.
+  let nextNMax = nMax;
+  if (oomDetected) {
+    nextNMax = Math.max(1, nMax - 3);
+  } else if (cuConsumed !== null && nMax < N_HARD_CAP) {
+    // Successfully ran nThisTick cranks; if headroom > 30%, allow nMax to grow
+    if (cuConsumed < cuLimit * 0.7) nextNMax = Math.min(N_HARD_CAP, nMax + 1);
+  }
+  if (nextNMax !== nMax) {
+    try { fs.writeFileSync(cuStatePath, JSON.stringify({ nMax: nextNMax, lastTickIso: new Date().toISOString() })); } catch {}
   }
 
   let post: Snapshot | undefined;
@@ -236,6 +294,10 @@ async function main() {
     marketSlotLag: post.marketSlotLag,
     crankSig: crankSig?.slice(0, 16) + "...",
     crankErr,
+    n: nThisTick,
+    cuLimit,
+    cuConsumed,
+    nMax: nextNMax,
     flags,
     deltas,
     state: {
