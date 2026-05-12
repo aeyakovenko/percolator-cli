@@ -199,40 +199,42 @@ async function main() {
     return; // RPC blip — next tick will retry
   }
 
-  // Multi-crank bundling. With OI > 0 the wrapper bounds each crank to
-  // MAX_ACCRUAL_DT_SLOTS=10 slots of advance, so a single-crank tick can't
-  // keep up with wall-clock advance (~150 slots/min). Bundle N cranks per
-  // tick where N = ceil(lag / 10), capped at 15 (CU budget at 1.4M / ~78K
-  // per crank ≈ 17 max; keep margin). A persistent N_max is shrunk on
-  // CU-OOM and grown back when ticks succeed with headroom.
-  const cuStatePath = path.join(os.homedir(), ".cache", "percolator", "bounty3-cu.json");
-  // Empirical CU cost is non-linear: first crank ~430K (sweep + accrue setup),
-  // second ~400K (second price-move chunk), subsequent ~78K each. With 1.4M
-  // CU limit, ~9 cranks fit before OOM. Hard-cap N=9, use a fixed 1.4M
-  // limit — priority fee at 50K microLamports/CU is ~0.00007 SOL/tx, trivial.
-  const N_HARD_CAP = 9;
+  // Inner loop. Cron triggers once per minute; the engine's
+  // MAX_ACCRUAL_DT_SLOTS=10 means a single crank only advances ~10 slots when
+  // OI>0, so a single-shot-per-minute crank cannot keep up with wall-clock
+  // (~150 slots/min). Solution: spend the cron minute firing one crank every
+  // ROUND_INTERVAL_MS (~4 s, matching 10 slots wall-clock). With backlog,
+  // bundle up to nMax cranks per tx to catch up faster.
+  const LOOP_DEADLINE_MS = 48_000;          // leave 2s slack inside cron's `timeout 50`
+  const ROUND_INTERVAL_MS = 4_000;          // ~10 slots wall-clock per round
+  const N_HARD_CAP = 9;                     // CU budget caps bundle size
   const FIXED_CU_LIMIT = 1_400_000;
+  const PRIORITY_MICROLAMPORTS = 50_000;
+
+  const cuStatePath = path.join(os.homedir(), ".cache", "percolator", "bounty3-cu.json");
   let nMax = N_HARD_CAP;
   try {
     nMax = JSON.parse(fs.readFileSync(cuStatePath, "utf8")).nMax ?? N_HARD_CAP;
     nMax = Math.max(1, Math.min(N_HARD_CAP, nMax));
   } catch { /* first run */ }
 
-  // Pick N for this tick: enough cranks to cover the current lag (in 10-slot
-  // segments), capped at nMax. lag<60 → still send 1 crank to update oracle.
-  const segmentsNeeded = Math.max(1, Math.ceil(pre.marketSlotLag / 10));
-  const nThisTick = Math.max(1, Math.min(nMax, segmentsNeeded));
-  const cuLimit = FIXED_CU_LIMIT;
+  // Per-cron-tick aggregates rolled up into one JSONL line at the end.
+  type RoundResult = {
+    iso: string;
+    lagBefore: number;
+    n: number;
+    sig: string | null;
+    err: string | null;
+    cuConsumed: number | null;
+    oom: boolean;
+  };
+  const rounds: RoundResult[] = [];
 
-  let crankSig: string | null = null;
-  let crankErr: string | null = null;
-  let cuConsumed: number | null = null;
-  let oomDetected = false;
-  try {
+  const buildCrankTx = (n: number) => {
     const tx = new Transaction()
-      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: cuLimit }))
-      .add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 }));
-    for (let k = 0; k < nThisTick; k++) {
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: FIXED_CU_LIMIT }))
+      .add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_MICROLAMPORTS }));
+    for (let k = 0; k < n; k++) {
       tx.add(buildIx({
         programId,
         keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
@@ -241,62 +243,124 @@ async function main() {
         data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }),
       }));
     }
-    crankSig = await sendAndConfirmTransaction(conn, tx, [payer], {
-      commitment: "confirmed", skipPreflight: true,
-    });
+    return tx;
+  };
+
+  const start = Date.now();
+  let firstLag = pre.marketSlotLag;
+  let lastLag = pre.marketSlotLag;
+
+  while (Date.now() - start < LOOP_DEADLINE_MS) {
+    const roundStart = Date.now();
+
+    // Read pre-state to size N. Use "processed" commitment to avoid wasting
+    // budget on confirmed-slot lag.
+    let lagNow = lastLag;
     try {
-      const txInfo = await conn.getTransaction(crankSig, {
-        commitment: "confirmed",
-        maxSupportedTransactionVersion: 0,
+      const slot = await conn.getSlot("processed");
+      const buf = await fetchSlab(conn, slab);
+      const eNow = parseEngine(buf);
+      lagNow = slot - Number(eNow.lastMarketSlot);
+      lastLag = lagNow;
+    } catch (_) { /* fall back to last known */ }
+
+    const segmentsNeeded = Math.max(1, Math.ceil(lagNow / 10));
+    const n = Math.max(1, Math.min(nMax, segmentsNeeded));
+
+    let sig: string | null = null;
+    let err: string | null = null;
+    let oom = false;  // detected only after end-of-tick from confirmed history
+
+    // Fire-and-forget: do NOT wait for confirmation, so we can keep our 4-sec
+    // pacing tight inside the cron's 50-sec window. Signed locally with a
+    // fresh blockhash; we read tx outcomes (CU, OOM) at end of tick via
+    // signature lookup if needed.
+    try {
+      const tx = buildCrankTx(n);
+      const { blockhash } = await conn.getLatestBlockhash("processed");
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = payer.publicKey;
+      tx.sign(payer);
+      sig = await conn.sendRawTransaction(tx.serialize(), {
+        skipPreflight: true, preflightCommitment: "processed",
       });
-      cuConsumed = txInfo?.meta?.computeUnitsConsumed ?? null;
-    } catch { /* leave null */ }
-  } catch (e: any) {
-    crankErr = (e.message || String(e)).split("\n")[0].slice(0, 200);
-    // Try to detect CU OOM by inspecting the failed-tx logs
-    const sigMatch = crankErr.match(/Transaction (\w+) resulted/);
-    if (sigMatch?.[1]) {
-      try {
-        const info = await conn.getTransaction(sigMatch[1], {
-          commitment: "confirmed", maxSupportedTransactionVersion: 0,
-        });
-        const logs = info?.meta?.logMessages?.slice(-3).join("|") ?? "";
-        if (logs.includes("exceeded CUs")) oomDetected = true;
-      } catch { /* skip */ }
+    } catch (e: any) {
+      err = (e.message || String(e)).split("\n")[0].slice(0, 200);
+    }
+
+    rounds.push({
+      iso: new Date().toISOString(),
+      lagBefore: lagNow,
+      n,
+      sig,  // full sig; truncated only at final summary log
+      err: err ? err.slice(0, 120) : null,
+      cuConsumed: null,  // not fetched in fire-and-forget mode
+      oom,
+    });
+
+    // Pace to ~4 s between rounds. If the tx itself took longer, skip the wait.
+    const elapsed = Date.now() - roundStart;
+    const sleepMs = ROUND_INTERVAL_MS - elapsed;
+    if (sleepMs > 0 && Date.now() - start + sleepMs < LOOP_DEADLINE_MS) {
+      await new Promise(r => setTimeout(r, sleepMs));
     }
   }
 
-  // Adapt nMax: shrink on OOM, slowly grow back when headroom appears.
+  // End-of-tick OOM check: fetch statuses for fired sigs, count OOMs in logs.
+  // Shrink nMax (persisted) when any tx hit "exceeded CUs". No growth path —
+  // a successful tick at current nMax is the implicit signal to keep it.
+  const sigsToCheck = rounds.filter(r => r.sig).map(r => r.sig!);
+  let oomCount = 0;
+  if (sigsToCheck.length > 0) {
+    try {
+      // Sample up to the last 4 sigs to keep RPC cheap.
+      const sample = sigsToCheck.slice(-4);
+      const full = await conn.getSignatureStatuses(sample, { searchTransactionHistory: false });
+      for (let i = 0; i < sample.length; i++) {
+        const s = full.value[i];
+        if (s?.err) {
+          // Pull the full tx to inspect logs.
+          try {
+            const info = await conn.getTransaction(sample[i], {
+              commitment: "confirmed", maxSupportedTransactionVersion: 0,
+            });
+            const logs = info?.meta?.logMessages?.slice(-3).join("|") ?? "";
+            if (logs.includes("exceeded CUs")) { oomCount++; rounds[rounds.length - sample.length + i]!.oom = true; }
+          } catch { /* skip */ }
+        }
+      }
+    } catch { /* skip */ }
+  }
   let nextNMax = nMax;
-  if (oomDetected) {
+  if (oomCount > 0) {
     nextNMax = Math.max(1, nMax - 3);
-  } else if (cuConsumed !== null && nMax < N_HARD_CAP) {
-    // Successfully ran nThisTick cranks; if headroom > 30%, allow nMax to grow
-    if (cuConsumed < cuLimit * 0.7) nextNMax = Math.min(N_HARD_CAP, nMax + 1);
   }
   if (nextNMax !== nMax) {
     try { fs.writeFileSync(cuStatePath, JSON.stringify({ nMax: nextNMax, lastTickIso: new Date().toISOString() })); } catch {}
   }
 
+  // Post-snapshot, then write one summary JSONL line.
   let post: Snapshot | undefined;
   try {
     post = await snap(conn, slab, vault);
   } catch (e: any) {
-    log({ iso: new Date().toISOString(), event: "POST_SNAP_ERR", crankSig, crankErr, err: String(e).slice(0, 200) });
+    log({ iso: new Date().toISOString(), event: "POST_SNAP_ERR", rounds: rounds.length, err: String(e).slice(0, 200) });
     return;
   }
 
   const { flags, deltas } = diff(pre, post);
+  const failed = rounds.filter(r => r.err).length;
   log({
     iso: post.iso,
     slot: post.slot,
     rpc: rpcLabel,
     marketSlotLag: post.marketSlotLag,
-    crankSig: crankSig?.slice(0, 16) + "...",
-    crankErr,
-    n: nThisTick,
-    cuLimit,
-    cuConsumed,
+    lagBefore: firstLag,
+    rounds: rounds.length,
+    crankOk: rounds.length - failed,
+    crankFail: failed,
+    lastCrank: rounds[rounds.length - 1]?.sig?.slice(0, 16) ?? null,
+    lastErr: rounds.findLast?.(r => r.err)?.err ?? null,
     nMax: nextNMax,
     flags,
     deltas,
