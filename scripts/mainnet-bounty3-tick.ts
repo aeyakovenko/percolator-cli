@@ -208,21 +208,81 @@ async function main() {
   const LOOP_DEADLINE_MS = 48_000;          // leave 2s slack inside cron's `timeout 50`
   const ROUND_INTERVAL_MS = 4_000;          // ~10 slots wall-clock per round
   const N_HARD_CAP = 9;                     // CU budget caps bundle size
-  const FIXED_CU_LIMIT = 1_400_000;
-  const PRIORITY_MICROLAMPORTS = 50_000;
+  const CU_CEILING = 1_400_000;             // Solana per-tx max
+  // Priority adapts via exponential backoff on lag growth across cron ticks:
+  //   - Start at 1 µLamport/CU (smallest valid >0; lowest possible Solana fee).
+  //   - If post-tick lag > start-of-tick lag (we lost ground), 2× priority.
+  //   - If lag stable/shrinking, 0.5× priority (floor 1).
+  //   - Hard ceiling at 100_000 µLamports/CU (above which the crank is rugged
+  //     into competitive territory; recheck cron health first).
+  const PRIORITY_FLOOR = 1;
+  const PRIORITY_CEIL = 100_000;
+
+  // Empirical per-crank CU cost depends on engine state. From on-chain logs:
+  //   - Resolved market:                     ~11K per crank (no-op)
+  //   - Live, OI=0:                          ~78K per crank (oracle + tiny accrue)
+  //   - Live, OI>0, lag<=MAX_DT (10 slots):  ~78K per crank (single segment)
+  //   - Live, OI>0, lag>MAX_DT, 1st crank:  ~430K (sweep + accrue init)
+  //   - Live, OI>0, lag>MAX_DT, 2nd crank:  ~400K (more sweep work)
+  //   - Live, OI>0, lag>MAX_DT, 3rd+:        ~78K each (steady-state catchup)
+  // We size CU at ~1.15× expected with a 60K fixed base for tx-level overhead.
+  function estimateCu(n: number, marketMode: number, oiAny: boolean, lag: number): number {
+    if (n < 1) n = 1;
+    const BASE = 60_000;
+    let perCrankCost: number[];
+    if (marketMode === 1) {
+      // Resolved: every crank is a no-op (~11K). Stay tight.
+      perCrankCost = Array(n).fill(15_000);
+    } else if (!oiAny || lag <= 10) {
+      // Live, no chunked catchup needed
+      perCrankCost = Array(n).fill(95_000);
+    } else {
+      // Live with chunked catchup. First two cranks pay sweep+accrue init.
+      perCrankCost = [];
+      for (let k = 0; k < n; k++) {
+        if (k === 0)      perCrankCost.push(460_000);
+        else if (k === 1) perCrankCost.push(420_000);
+        else              perCrankCost.push(95_000);
+      }
+    }
+    const sum = perCrankCost.reduce((a, b) => a + b, 0);
+    const limit = Math.ceil((BASE + sum) * 1.15);
+    return Math.min(CU_CEILING, Math.max(20_000, limit));
+  }
 
   const cuStatePath = path.join(os.homedir(), ".cache", "percolator", "bounty3-cu.json");
   let nMax = N_HARD_CAP;
+  let priorityMicroLamports = PRIORITY_FLOOR;
+  let lastTickLag = pre.marketSlotLag;  // for backoff comparison
   try {
-    nMax = JSON.parse(fs.readFileSync(cuStatePath, "utf8")).nMax ?? N_HARD_CAP;
-    nMax = Math.max(1, Math.min(N_HARD_CAP, nMax));
+    const s = JSON.parse(fs.readFileSync(cuStatePath, "utf8"));
+    if (typeof s.nMax === "number") {
+      nMax = Math.max(1, Math.min(N_HARD_CAP, s.nMax));
+    }
+    if (typeof s.priorityMicroLamports === "number") {
+      priorityMicroLamports = Math.max(PRIORITY_FLOOR,
+        Math.min(PRIORITY_CEIL, s.priorityMicroLamports));
+    }
+    if (typeof s.lastTickLag === "number") {
+      lastTickLag = s.lastTickLag;
+    }
   } catch { /* first run */ }
+
+  // Apply backoff up-front based on whether the PREVIOUS cron tick made
+  // progress (the persisted lastTickLag is its end-of-tick lag).
+  if (pre.marketSlotLag > lastTickLag + 50) {       // lost ≥50 slots → escalate
+    priorityMicroLamports = Math.min(PRIORITY_CEIL, priorityMicroLamports * 2);
+  } else if (pre.marketSlotLag <= lastTickLag) {    // held or improved → decay
+    priorityMicroLamports = Math.max(PRIORITY_FLOOR,
+      Math.floor(priorityMicroLamports / 2));
+  }
 
   // Per-cron-tick aggregates rolled up into one JSONL line at the end.
   type RoundResult = {
     iso: string;
     lagBefore: number;
     n: number;
+    cuLimit: number;
     sig: string | null;
     err: string | null;
     cuConsumed: number | null;
@@ -230,10 +290,10 @@ async function main() {
   };
   const rounds: RoundResult[] = [];
 
-  const buildCrankTx = (n: number) => {
+  const buildCrankTx = (n: number, cuLimit: number, priorityMicroLamports: number) => {
     const tx = new Transaction()
-      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: FIXED_CU_LIMIT }))
-      .add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_MICROLAMPORTS }));
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: cuLimit }))
+      .add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityMicroLamports }));
     for (let k = 0; k < n; k++) {
       tx.add(buildIx({
         programId,
@@ -253,19 +313,27 @@ async function main() {
   while (Date.now() - start < LOOP_DEADLINE_MS) {
     const roundStart = Date.now();
 
-    // Read pre-state to size N. Use "processed" commitment to avoid wasting
-    // budget on confirmed-slot lag.
+    // Read pre-state to size N AND the CU limit. Use "processed" commitment
+    // to avoid wasting budget on confirmed-slot lag.
     let lagNow = lastLag;
+    let marketMode = 0;  // Live
+    let oiAny = true;    // assume OI to be safe
     try {
       const slot = await conn.getSlot("processed");
       const buf = await fetchSlab(conn, slab);
       const eNow = parseEngine(buf);
       lagNow = slot - Number(eNow.lastMarketSlot);
       lastLag = lagNow;
+      marketMode = eNow.marketMode;
+      const oiL = (eNow as any).oiEffLongQ ?? 0n;
+      const oiS = (eNow as any).oiEffShortQ ?? 0n;
+      oiAny = (typeof oiL === "bigint" ? oiL : BigInt(oiL)) !== 0n
+           || (typeof oiS === "bigint" ? oiS : BigInt(oiS)) !== 0n;
     } catch (_) { /* fall back to last known */ }
 
     const segmentsNeeded = Math.max(1, Math.ceil(lagNow / 10));
     const n = Math.max(1, Math.min(nMax, segmentsNeeded));
+    const cuLimit = estimateCu(n, marketMode, oiAny, lagNow);
 
     let sig: string | null = null;
     let err: string | null = null;
@@ -276,7 +344,7 @@ async function main() {
     // fresh blockhash; we read tx outcomes (CU, OOM) at end of tick via
     // signature lookup if needed.
     try {
-      const tx = buildCrankTx(n);
+      const tx = buildCrankTx(n, cuLimit, priorityMicroLamports);
       const { blockhash } = await conn.getLatestBlockhash("processed");
       tx.recentBlockhash = blockhash;
       tx.feePayer = payer.publicKey;
@@ -292,6 +360,7 @@ async function main() {
       iso: new Date().toISOString(),
       lagBefore: lagNow,
       n,
+      cuLimit,
       sig,  // full sig; truncated only at final summary log
       err: err ? err.slice(0, 120) : null,
       cuConsumed: null,  // not fetched in fire-and-forget mode
@@ -335,9 +404,16 @@ async function main() {
   if (oomCount > 0) {
     nextNMax = Math.max(1, nMax - 3);
   }
-  if (nextNMax !== nMax) {
-    try { fs.writeFileSync(cuStatePath, JSON.stringify({ nMax: nextNMax, lastTickIso: new Date().toISOString() })); } catch {}
-  }
+  // Always persist (nMax + priority + final lag) so backoff decisions chain
+  // across cron ticks.
+  try {
+    fs.writeFileSync(cuStatePath, JSON.stringify({
+      nMax: nextNMax,
+      priorityMicroLamports,
+      lastTickLag: lastLag,
+      lastTickIso: new Date().toISOString(),
+    }));
+  } catch {}
 
   // Post-snapshot, then write one summary JSONL line.
   let post: Snapshot | undefined;
@@ -359,6 +435,9 @@ async function main() {
     rounds: rounds.length,
     crankOk: rounds.length - failed,
     crankFail: failed,
+    cuSpentLamports: rounds.reduce((s, r) =>
+      s + Math.ceil(r.cuLimit * priorityMicroLamports / 1_000_000) + 5_000, 0),
+    priorityMicroLamports,
     lastCrank: rounds[rounds.length - 1]?.sig?.slice(0, 16) ?? null,
     lastErr: rounds.findLast?.(r => r.err)?.err ?? null,
     nMax: nextNMax,
