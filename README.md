@@ -44,127 +44,177 @@ Or use command-line flags:
 - `--json` - Output in JSON format
 - `--simulate` - Simulate transaction without sending
 
-## Mainnet Bounty 3 — `bounty_sol_20x_max`
+## Mainnet Bounty 4 — `bounty_stoxx50_sol_20x_hybrid`
 
-> **Status (2026-05-05, LIVE):** market deployed and ticking. Market authorities
-> + program upgrade authority will be burned after the cron loop and
-> market state are verified over the next 24h. The bounty pool spec is
-> [`percolator-stress/max_risk.md`](https://github.com/aeyakovenko/percolator-stress-test/blob/master/max_risk.md).
+> **Status (2026-05-13, LIVE):** 3-leg composite STOXX 50 ETF / SOL perp at
+> 20× leverage in HYBRID_AFTER_HOURS fee mode. Market authorities and
+> program upgrade authority are **NOT burned** — operator can wind the
+> market down if needed.
 
-```
-Program:        2LfCFmDKwcnHunqdsCW9uV7KNgBgnFGASs8uM7MwHgHm
-Slab:           zExGagF9FeMTYGjvkBhknmNzLAP7toX6Aj6Pu1kuvmT  (inverted SOL/USD, non-Hyperp)
-Oracle:         7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE  (Pyth SOL/USD PriceUpdateV2, sponsored shard 0)
-Feed ID:        ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d
-Vault ATA:      3Rgu8UqVKn71vbF91sk5bXZbrqJgpFfhZvJEpJtZgenA  (wrapped SOL, PDA-signed)
-Vault PDA:      9kVocvX1RfGstC1U2xhtSjrHLJWivnw7RPv3Vi8aPkKs
-Matcher:        (none — third parties provision their own)
-Insurance:      5 SOL seeded at deploy
-```
-
-**Build provenance** (reproducible from `cargo build-sbf` on the pinned
-commits below):
+**On-chain addresses**
 
 ```
-BPF binary SHA-256:  6e2bb5aee602aed1de0b2d80f72f97b6b115e0f536438f76d31e0de06d5b7002
-BPF binary size:     518,896 bytes ELF (data length on chain)
-percolator-prog:     04b854e (master) + Cargo.toml engine pin bump (uncommitted)
-percolator (engine): 5059332f8a6ce7e8dcff83315e90ac8e2ced7d42   (pinned via Cargo.toml git rev)
-percolator-cli:      <commit at deploy>
-MAX_ACCOUNTS:        4096
+Program:    4ToDRrQW5j3oeQm8uTAwV9Rp6NhYfH5E5hMKcXkqfwfz
+Slab:       GSAT5fTCUgB9sMMTBsVzhvALbkSv6p9CifWmShHf92hj
+Vault PDA:  FeNLRuLLZ2agxj7gfLoY6G2Gww8WG8foQ5Ptd7FqU5Sb
+Vault ATA:  Bb7mjPkY7sfbSFRaxDFDQevWVZsLJEtLx7FgY4REwwtq   (wrapped SOL, PDA-signed)
+Matcher:    (none — third parties provision their own; passive LP via TradeNoCpi works)
+Insurance:  5 SOL seeded at deploy (grows with new_account_fee + liquidation skim)
 ```
 
-The wrapper's only direct dependency that isn't a published crate is the
-engine — pulled by Cargo.toml as
-`percolator = { git = "https://github.com/aeyakovenko/percolator", rev = "5059332f…" }`.
-The pinned `rev` makes `cargo build-sbf` deterministic across machines.
+**Composite mark** — `STOXX50_ETF/EUR × EUR/USD ÷ SOL/USD` = STOXX50/SOL.
+All 3 legs are Pyth-sponsored shard-0 PriceUpdateV2 accounts:
+
+| Leg | Symbol | Feed ID | Shard-0 account |
+|---|---|---|---|
+| 1 | Equity.IE.EUE/EUR | `dd08f0a40e21ce42178b25bdd9461a2beebccbaa2a781a6e02b323576c4072ab` | `C2Cf16vF6LX8GrWJwfZga5z5tjVsax5VWnL2T7Q8CF91` |
+| 2 | FX.EUR/USD | `a995d00bb36a63cef7fd2c287dc105fc8f3d93779f062f09551b0af3e81ec30b` | `Fu76ChamBDjE8UuGLV6GP2AcPPSU6gjhkNhAyuoPm7ny` |
+| 3 | Crypto.SOL/USD | `ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d` | `7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE` |
+
+`oracle_leg_count=3`, `oracle_leg_flags=DIVIDE_LEG3 (0x04)`. Schedule for
+leg 1 is Europe/Paris 09:00–17:30 (= 07:00–15:30 UTC during CEST); legs 2/3
+are 24/5 (FX) and 24/7 (crypto) respectively.
+
+**Build provenance**
+
+```
+BPF binary SHA-256:   cb6f9c96c6e98947876e43189f142d7ee5182015a0a173b5dd19d2d2bbe1c545
+BPF binary size:      538,992 bytes ELF
+percolator-prog:      04b854e (master)
+percolator (engine):  1dc4466e1a6c3532f2781bc242fa4e4033751fb6
+SLAB_LEN:             1,755,520 bytes (MAX_ACCOUNTS = 4096)
+```
 
 Verify locally:
 
 ```bash
-# 1. Clone the program at the deployed commit.
 git clone https://github.com/aeyakovenko/percolator-prog.git
 cd percolator-prog
-git checkout 04b854e   # then bump Cargo.toml engine rev to 5059332f8a6ce7e8dcff83315e90ac8e2ced7d42
-
-# 2. Build (cargo will fetch the engine git dep at the pinned rev).
-cargo build-sbf
-
-# 3. Hash the ELF.
+git checkout 04b854e        # then bump Cargo.toml engine rev to 1dc4466
+cargo build-sbf -- --no-default-features
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 6e2bb5aee602aed1de0b2d80f72f97b6b115e0f536438f76d31e0de06d5b7002
+#   Expected: cb6f9c96c6e98947876e43189f142d7ee5182015a0a173b5dd19d2d2bbe1c545
 
-# 4. Hash the on-chain bytes.
-solana program dump -u m 2LfCFmDKwcnHunqdsCW9uV7KNgBgnFGASs8uM7MwHgHm /tmp/deployed.so
-head -c 518896 /tmp/deployed.so | sha256sum
-#   Must match the cargo build-sbf hash exactly.
+solana program dump -u m 4ToDRrQW5j3oeQm8uTAwV9Rp6NhYfH5E5hMKcXkqfwfz /tmp/deployed.so
+head -c 538992 /tmp/deployed.so | sha256sum   # must match
 ```
 
-For an automated reproducibility check inside docker (OtterSec-style),
-`solana-verify build --library-name percolator_prog` works against this
-repo because the engine dep is fetched by `rev`, not by sibling-dir path.
-
-**Configuration (max_risk.md verbatim where the v12.21 wrapper accepts it):**
+**Configuration**
 
 | Param | Value | Notes |
 |---|---|---|
-| `mm` (maintenance margin) | 500 bps | = im, no opening buffer at max leverage |
-| `im` (initial margin) | 500 bps | 1/L = 5% → 20x nominal max leverage |
-| `max_price_move_bps_per_slot` | 49 | 99.2% of §1.4 envelope ceiling |
+| `mm` (maintenance margin) | 500 bps | = im → 20× nominal leverage |
+| `im` | 500 bps | no opening buffer |
+| `max_price_move_bps_per_slot` | 49 | §1.4 envelope ceiling at mm=500 + max_accrual_dt=10 |
 | `max_accrual_dt_slots` | 10 | wrapper-hardcoded |
-| `h_min` | 0 | spec fast-path admission |
-| `h_max` | 86_400 | ~9.6h profit maturity ceiling |
-| `trading_fee` | 1 bp | undercuts every CEX/DEX globally |
-| `liquidation_fee` | 5 bps | frees envelope budget for max_move |
-| `min_nonzero_mm_req` / `min_nonzero_im_req` | 500 / 600 | exact-N proof room |
+| `h_min` / `h_max` | 0 / 6_480_000 | up to ~30d profit maturity |
+| `max_trading_fee_bps` | 10_000 | hybrid mode cap (100%) |
+| `trade_fee_base_bps` | 1 | hybrid base; +EWMA movement bps in off-hours |
+| `trade_fee_mode` | `HYBRID_AFTER_HOURS` | fresh-oracle → static; stale leg → EWMA mark + dynamic fee |
+| `liquidation_fee_bps` | 5 | frees envelope budget |
+| `min_nonzero_mm_req` / `_im_req` | 500 / 600 | exact-N proof room |
 | `min_liquidation_abs` | 0 | no per-call dust floor |
-| `liquidation_fee_cap` | 50 × 10⁹ | $50K cap (atomic, pegged) |
-| `permissionless_resolve_stale_slots` | 432_000 (~48 h) | matches deprecated v1 mainnet |
-| `force_close_delay_slots` | 432_000 (~48 h) | post-resolve grace |
-| `new_account_fee` | 5_882_000 lamports (~$0.50) | bounty pool top-up |
-| `maintenance_fee_per_slot` | 58 lamports | ~$1/day flat (SOL @ ~$85) |
-| `tvl_insurance_cap_mult` | 50 | deposit cap = 50× insurance |
-| Insurance seed | 5 SOL | bounty target; grows with adoption |
+| `liquidation_fee_cap` | 50 × 10⁹ | $50K cap per liquidation |
+| `permissionless_resolve_stale_slots` | 6_480_000 (~30 d) | survives any multi-day market closure |
+| `force_close_delay_slots` | 216_000 (~24 h) | post-resolve grace |
+| `new_account_fee` | 5_882_000 lamports | ~$0.55 anti-dust → insurance |
+| `maintenance_fee_per_slot` | 58 lamports | flat ~$1/day per account |
+| `tvl_insurance_cap_mult` | 50 | total user capital ≤ 50 × insurance |
+| `max_staleness_secs` | 600 | wrapper max; matches the sponsored-shard cadence for the equity leg |
+| Insurance seed | 5 SOL | bounty target |
 
-**Operational keepalive** — cron runs `mainnet-bounty3-tick.ts` every
-minute. Each tick takes a slab snapshot, submits a permissionless
-`KeeperCrank`, takes a second snapshot, and writes one JSONL line to
-`~/.cache/percolator/bounty3-tick.log` with deltas and event flags.
+**Operational keepalive** — cron runs `mainnet-bounty4-tick.ts` every
+minute. Each invocation runs a 48-second inner loop that fires bundled
+permissionless `KeeperCrank` instructions (4-second cadence) across all 3
+oracle leg accounts. Adaptive priority fee (exponential backoff on observed
+lag growth), adaptive CU sizing per round. One JSONL line per cron tick at
+`~/.cache/percolator/bounty4-tick.log`.
 
 Watched flags (any appearing in the log = page on-call):
 
-- `INSURANCE_DROP` — bounty hit candidate, investigate immediately
-- `CONSERVATION_BROKEN` — vault SPL ≠ engine.vault, deeper bug
+- `INSURANCE_DROP` — bounty-hit candidate; investigate
+- `CONSERVATION_BROKEN` — vault SPL ≠ `engine.vault` (deeper bug)
 - `ACCOUNTING_BROKEN` — vault < cTot + insurance
-- `ACCRUE_LAG(>600 sl)` — cranker is broken; > 4 minute gap
+- `ACCRUE_LAG(>1000 sl)` — keeper struggling; >1 h gap is alarming
 - `SIDE_MODE_NON_NORMAL` — liquidation cascade in progress
 - `PRICE_MOVE_SAT(consumed=…)` — price-move-consumption threshold tripped
 - `ACCOUNT_OPENED` / `ACCOUNT_CLOSED` — informational
 
-Install/refresh cron after the setup script lands:
+Install/refresh cron:
 
 ```bash
-SOLANA_RPC_URL=https://your.rpc/ npx tsx scripts/mainnet-bounty3-cron-install.ts
-tail -f ~/.cache/percolator/bounty3-tick.log
+npx tsx scripts/mainnet-bounty4-cron-install.ts
+tail -f ~/.cache/percolator/bounty4-tick.log
 ```
 
-**Bounty win condition** (per max_risk.md §8): cause
-`engine.insurance_fund.balance` to decrease below its current value via
-any sequence of public calls. Pyth manipulation and Solana validator
-attacks are out of scope; everything else (admission bypass, K overflow,
-ADL math, conservation violation, fee-credits sign flip, etc.) is in.
+**Trading the market (any wallet, any time)**
+
+```
+InitUser (6 accts):           [user, slab, userAta, vault, tokenProgram, clock]
+DepositCollateral (6):        [user, slab, userAta, vault, tokenProgram, clock]
+WithdrawCollateral (10):      [user, slab, vault, userAta, vaultPda, tokenProgram, clock, leg1, leg2, leg3]
+TradeNoCpi (7):               [user, lp, slab, clock, leg1, leg2, leg3]
+CloseAccount (10):            [user, slab, vault, userAta, vaultPda, tokenProgram, clock, leg1, leg2, leg3]
+KeeperCrank (6):              [caller, slab, clock, leg1, leg2, leg3]
+```
+
+InitUser / DepositCollateral don't require fresh oracle. Withdraw / Close /
+Trade / Crank all read the 3-leg composite — during EU off-hours the equity
+leg is stale and the wrapper falls back to the EWMA mark + dynamic fee.
+
+**Known intentional surface** (these are the bug-hunting hooks, not bugs):
+
+- Equity leg's sponsored-shard cadence is irregular (5–60 min between
+  updates). With `max_staleness=600 s`, the wrapper often falls into the
+  EWMA-mark branch even during EU hours. A trader entering when the engine
+  has stale `last_oracle_price` carries that mark until the next composite
+  refresh propagates.
+- `MAX_ACCRUAL_DT_SLOTS=10` caps each crank's catch-up to ~4 s of wall
+  clock. With open interest and a long oracle outage, lag accumulates.
+- `tvl_insurance_cap_mult=50` — total user capital can reach 50 × the
+  insurance fund. Bigger than typical perp DEXs (~20×).
+- No matcher is provisioned. To trade via `TradeCpi`, hunters bring their
+  own matcher program. Passive LP (matcher pubkey = `Pubkey::default`) plus
+  `TradeNoCpi` works out of the box for binary-market exploration.
+
+**Bounty win condition**: cause `engine.insurance_fund.balance` to drop
+below its current value via any sequence of public-instruction calls.
+Pyth manipulation and Solana validator attacks are out of scope; admission
+bypass, K overflow, ADL math, conservation violation, fee-credits sign
+flip, stale-mark arb exceeding fee mechanics, mark-EWMA exploitation,
+multi-leg oracle composition flaws — all in scope.
 
 ---
 
-## Deprecated: Mainnet Bounty 2 (superseded by Bounty 3 above)
+## Deprecated: Mainnet Bounty 3 (wound down)
 
-> **Status (2026-05-05):** Bounty 2 has been superseded by Bounty 3 (above)
-> with the same `bounty_sol_20x_max` spec, refreshed engine pin, and
-> `tvl_insurance_cap_mult` raised from 20 to 50. The Bounty 2 market is
-> still live on chain with all four market authorities + program upgrade
-> authority BURNED. Withdraw paths and the bounty win condition still
-> hold against the deployed Bounty 2 binary, but new participants should
-> target Bounty 3.
+> **Status (2026-05-13):** Bounty 3 (`2LfCFmDKwcnHunqdsCW9uV7KNgBgnFGASs8uM7MwHgHm`)
+> went into a Resolved state on 2026-05-07 after maintenance fees consumed
+> a tester's capital faster than the cron tick (at the time, 1 crank/min)
+> could accrue. Conservation held — no insurance loss. The slab was force-
+> closed, insurance withdrawn, program retired via `solana program close`;
+> ~21 SOL recovered to the deployer. The program ID is permanently
+> retired. New participants target Bounty 4 above.
+
+```
+Program:        2LfCFmDKwcnHunqdsCW9uV7KNgBgnFGASs8uM7MwHgHm  (RETIRED via program close)
+Slab:           zExGagF9FeMTYGjvkBhknmNzLAP7toX6Aj6Pu1kuvmT  (closed)
+BPF SHA-256:    6e2bb5aee602aed1de0b2d80f72f97b6b115e0f536438f76d31e0de06d5b7002
+percolator-prog: 04b854e
+engine pin:     5059332f8a6ce7e8dcff83315e90ac8e2ced7d42
+Lesson:         single-crank-per-minute cron can't keep up with
+                MAX_ACCRUAL_DT_SLOTS=10 when OI>0. Bounty 4 uses the
+                4-second inner-loop pattern instead.
+```
+
+---
+
+## Deprecated: Mainnet Bounty 2
+
+> **Status (2026-05-05):** Bounty 2 superseded by Bounty 3 (then 4). All
+> four market authorities + program upgrade authority BURNED. The market
+> remains tradable against the deployed binary; new participants should
+> target Bounty 4 above.
 
 ```
 Program:        6qWZvUtfyShbxTQkwjCayk3LuGqTGJwBo2QfkePK5jdJ  (upgrade authority BURNED)
