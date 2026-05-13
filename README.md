@@ -58,7 +58,7 @@ Program:    4ToDRrQW5j3oeQm8uTAwV9Rp6NhYfH5E5hMKcXkqfwfz
 Slab:       GSAT5fTCUgB9sMMTBsVzhvALbkSv6p9CifWmShHf92hj
 Vault PDA:  FeNLRuLLZ2agxj7gfLoY6G2Gww8WG8foQ5Ptd7FqU5Sb
 Vault ATA:  Bb7mjPkY7sfbSFRaxDFDQevWVZsLJEtLx7FgY4REwwtq   (wrapped SOL, PDA-signed)
-Matcher:    (none — third parties provision their own; passive LP via TradeNoCpi works)
+Matcher:    (none — third parties provision their own matcher program + context)
 Insurance:  5 SOL seeded at deploy (grows with new_account_fee + liquidation skim)
 ```
 
@@ -173,9 +173,12 @@ leg is stale and the wrapper falls back to the EWMA mark + dynamic fee.
   clock. With open interest and a long oracle outage, lag accumulates.
 - `tvl_insurance_cap_mult=50` — total user capital can reach 50 × the
   insurance fund. Bigger than typical perp DEXs (~20×).
-- No matcher is provisioned. To trade via `TradeCpi`, hunters bring their
-  own matcher program. Passive LP (matcher pubkey = `Pubkey::default`) plus
-  `TradeNoCpi` works out of the box for binary-market exploration.
+- No matcher is provisioned. To trade, hunters deploy their own matcher
+  program and call `InitLP` with its program-id + a 320-byte context
+  account they own. Passive LPs (matcher pubkey = `Pubkey::default()`)
+  are **explicitly rejected** by the wrapper's `InitLP` handler
+  (line 6585 in `percolator-prog/src/percolator.rs`). InitUser /
+  Deposit / Withdraw / CloseAccount work directly with no matcher.
 
 **Bounty win condition**: cause `engine.insurance_fund.balance` to drop
 below its current value via any sequence of public-instruction calls.
