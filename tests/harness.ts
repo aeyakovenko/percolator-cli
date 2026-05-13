@@ -516,11 +516,11 @@ export class TestHarness {
 
   /**
    * Calculate required slab size for given max accounts.
-   * v12.20: HEADER(136) + CONFIG(384) + ENGINE(1525088) = 1755376.
+   * hybrid build: HEADER(136) + CONFIG(528) + ENGINE/RISK/GENTBL = 1_755_520.
    * The program enforces data.len() == SLAB_LEN exactly.
    */
   private calculateSlabSize(_maxAccounts: number): number {
-    return 1755376;
+    return 1_755_520;
   }
 
   // ==========================================================================

@@ -41,7 +41,7 @@ import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
 
 const PROG = new PublicKey("4PTXCZ4vLSK6aiUd3fx2dVVYSRNFnMSM4ijhDWkuFi2s");
 const MATCHER = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
-const SLAB_SIZE = 1755376;
+const SLAB_SIZE = 1755520;
 const conn = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
 const payer = Keypair.fromSecretKey(new Uint8Array(
   JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))

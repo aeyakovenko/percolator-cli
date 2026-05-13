@@ -46,7 +46,7 @@ const RPC = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const PROG = new PublicKey("4PTXCZ4vLSK6aiUd3fx2dVVYSRNFnMSM4ijhDWkuFi2s");
 const MATCHER_PROGRAM = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 const PYTH_ORACLE = new PublicKey("A7s72ttVi1uvZfe49GRggPEkcc6auBNXWivGWhSL9TzJ");
-const SLAB_SIZE = 1755376;
+const SLAB_SIZE = 1755520;
 const conn = new Connection(RPC, "confirmed");
 const payer = Keypair.fromSecretKey(new Uint8Array(
   JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))

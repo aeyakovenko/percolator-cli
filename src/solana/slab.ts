@@ -6,29 +6,27 @@ import { Connection, PublicKey } from "@solana/web3.js";
 //
 // Layout authoritatively pinned via wrapper-side `offset_of!` /
 // `size_of` logging captured against the deployed devnet BPF binary
-// (engine f38ec2f, wrapper master). All offset constants below are
-// BPF ground truth — DO NOT hand-edit without re-deriving from the
-// wrapper. See `scripts/setup-devnet-market.ts` log capture for the
-// dump-and-diff procedure.
+// (engine pin 1dc4466e1a6c3532f2781bc242fa4e4033751fb6). All offset
+// constants below are BPF ground truth — DO NOT hand-edit without
+// re-deriving from the wrapper.
 //
-// Layout summary (MAX_ACCOUNTS=4096, BPF):
-//   SLAB_LEN      = 1_755_376
+// Layout summary (MAX_ACCOUNTS=4096, BPF, hybrid build):
+//   SLAB_LEN      = 1_755_520
 //   HEADER_LEN    = 136
-//   CONFIG_LEN    = 384
-//   ENGINE_OFF    = 520        = align_up(136 + 384, 8)
+//   CONFIG_LEN    = 528        (grew +144: oracle legs 2/3, leg snapshots,
+//                               trade_fee_base_bps, trade_fee_mode)
+//   ENGINE_OFF    = 664        = align_up(136 + 528, 8)
 //   PARAMS_SIZE   = 168
 //   ENGINE_LEN    = 1_721_928
 //   RISK_BUF_LEN  = 160
 //   GEN_TABLE_LEN = 32_768     (MAX_ACCOUNTS * 8)
-//   ACCOUNT_SIZE  = 416        (was 360 — added loss_weight + b_snap +
-//                               b_rem + b_epoch_snap = 56 bytes for
-//                               B-index account-local bankruptcy state)
+//   ACCOUNT_SIZE  = 416        (unchanged)
 // =============================================================================
 const MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
 const HEADER_LEN = 136;
 const CONFIG_OFFSET = HEADER_LEN;
-const CONFIG_LEN = 384;
-const RESERVED_OFF = 48;             // nonce at [0..8], (8 bytes free), padding to 72
+const CONFIG_LEN = 528;
+const RESERVED_OFF = 48;             // nonce at [0..8], matCounter at [8..16]
 
 // Flag bits in header._padding[0] at offset 13
 const FLAG_CPI_IN_PROGRESS = 1 << 2;
@@ -53,19 +51,27 @@ export interface SlabHeader {
 }
 
 /**
- * MarketConfig (384 bytes, v12.21+).
- * v12.21 changes:
- *   - removed `oracle_price_cap_e2bps` + `min_oracle_price_cap_e2bps` (16 bytes total)
- *   - added `oracle_target_price_e6` + `oracle_target_publish_time` (16 bytes total)
- *   - added `insurance_withdraw_deposits_only:u8` flag
- *   - repurposed obsolete pad slot as `insurance_withdraw_deposit_remaining:u64`
+ * MarketConfig (528 bytes, hybrid build).
+ * Changes from the v12.21 layout:
+ *   - Multi-leg oracle: added `oracle_leg2_feed_id`/`oracle_leg3_feed_id` (32+32),
+ *     `oracle_leg_count` (u8), `oracle_leg_flags` (u8), `_oracle_leg_padding[14]`.
+ *   - Per-leg accepted prices: `oracle_leg_prices_e6[3]` (3×u64),
+ *     `oracle_leg_publish_times[3]` (3×i64).
+ *   - Dynamic-fee tail: `trade_fee_base_bps` (u64) + `trade_fee_mode` (u64)
+ *     inserted between `mark_min_fee` and `force_close_delay_slots`.
  *
- * Net: same engine offsets minus 16 bytes for the removed oracle-cap fields.
+ * `oracle_leg_count == 1` and zero leg2/leg3 fields = legacy single-feed market.
  */
+export const ORACLE_LEG_CAP = 3;
+
 export interface MarketConfig {
   collateralMint: PublicKey;
   vaultPubkey: PublicKey;
   indexFeedId: PublicKey;
+  oracleLeg2FeedId: PublicKey;          // hybrid: zero when inactive
+  oracleLeg3FeedId: PublicKey;          // hybrid: zero when inactive
+  oracleLegCount: number;               // u8 (1, 2, or 3)
+  oracleLegFlags: number;               // u8 bitfield (DIVIDE_LEG2 | DIVIDE_LEG3)
   maxStalenessSecs: bigint;
   confFilterBps: number;
   vaultAuthorityBump: number;
@@ -79,16 +85,18 @@ export interface MarketConfig {
   hyperpMarkE6: bigint;
   lastOraclePublishTime: bigint;       // i64
   lastEffectivePriceE6: bigint;        // dt-capped staircase
-  insuranceWithdrawMaxBps: number;     // u16 — top bit (0x8000) is the deposits-only flag (v12.21+)
+  insuranceWithdrawMaxBps: number;     // u16 — top bit (0x8000) is the deposits-only flag
   tvlInsuranceCapMult: number;
-  insuranceWithdrawDepositsOnly: number; // u8 (v12.21)
+  insuranceWithdrawDepositsOnly: number; // u8
   insuranceWithdrawCooldownSlots: bigint;
-  oracleTargetPriceE6: bigint;         // u64 (v12.21) — raw external oracle target in engine-space e6
-  oracleTargetPublishTime: bigint;     // i64 (v12.21)
+  oracleTargetPriceE6: bigint;         // u64 — raw external oracle target in engine-space e6
+  oracleTargetPublishTime: bigint;     // i64
+  oracleLegPricesE6: bigint[];          // [u64; 3] — per-leg accepted prices
+  oracleLegPublishTimes: bigint[];      // [i64; 3]
   lastHyperpIndexSlot: bigint;
   lastMarkPushSlot: bigint;
   lastInsuranceWithdrawSlot: bigint;
-  insuranceWithdrawDepositRemaining: bigint; // u64 (v12.21) — repurposed obsolete pad
+  insuranceWithdrawDepositRemaining: bigint;
   markEwmaE6: bigint;
   markEwmaLastSlot: bigint;
   markEwmaHalflifeSlots: bigint;
@@ -99,6 +107,8 @@ export interface MarketConfig {
   feeSweepCursorWord: bigint;
   feeSweepCursorBit: bigint;
   markMinFee: bigint;
+  tradeFeeBaseBps: bigint;              // hybrid: wrapper base fee (≤ max_trading_fee_bps)
+  tradeFeeMode: bigint;                  // hybrid: 0 = static, 1 = HYBRID_AFTER_HOURS
   forceCloseDelaySlots: bigint;
   newAccountFee: bigint;               // u128
 }
@@ -167,6 +177,11 @@ export function parseConfig(data: Buffer): MarketConfig {
   const collateralMint = new PublicKey(data.subarray(off, off + 32));        off += 32;
   const vaultPubkey = new PublicKey(data.subarray(off, off + 32));            off += 32;
   const indexFeedId = new PublicKey(data.subarray(off, off + 32));            off += 32;
+  const oracleLeg2FeedId = new PublicKey(data.subarray(off, off + 32));       off += 32;
+  const oracleLeg3FeedId = new PublicKey(data.subarray(off, off + 32));       off += 32;
+  const oracleLegCount = data.readUInt8(off);                                 off += 1;
+  const oracleLegFlags = data.readUInt8(off);                                 off += 1;
+  off += 14; // _oracle_leg_padding[14]
   const maxStalenessSecs = data.readBigUInt64LE(off);                        off += 8;
   const confFilterBps = data.readUInt16LE(off);                               off += 2;
   const vaultAuthorityBump = data.readUInt8(off);                             off += 1;
@@ -187,6 +202,16 @@ export function parseConfig(data: Buffer): MarketConfig {
   const insuranceWithdrawCooldownSlots = data.readBigUInt64LE(off);           off += 8;
   const oracleTargetPriceE6 = data.readBigUInt64LE(off);                      off += 8;
   const oracleTargetPublishTime = data.readBigInt64LE(off);                   off += 8;
+  const oracleLegPricesE6: bigint[] = [];
+  for (let i = 0; i < ORACLE_LEG_CAP; i++) {
+    oracleLegPricesE6.push(data.readBigUInt64LE(off));
+    off += 8;
+  }
+  const oracleLegPublishTimes: bigint[] = [];
+  for (let i = 0; i < ORACLE_LEG_CAP; i++) {
+    oracleLegPublishTimes.push(data.readBigInt64LE(off));
+    off += 8;
+  }
   const lastHyperpIndexSlot = data.readBigUInt64LE(off);                      off += 8;
   const lastMarkPushSlot = readU128LE(data, off);                             off += 16;
   const lastInsuranceWithdrawSlot = data.readBigUInt64LE(off);                off += 8;
@@ -201,11 +226,14 @@ export function parseConfig(data: Buffer): MarketConfig {
   const feeSweepCursorWord = data.readBigUInt64LE(off);                       off += 8;
   const feeSweepCursorBit = data.readBigUInt64LE(off);                        off += 8;
   const markMinFee = data.readBigUInt64LE(off);                               off += 8;
+  const tradeFeeBaseBps = data.readBigUInt64LE(off);                          off += 8;
+  const tradeFeeMode = data.readBigUInt64LE(off);                             off += 8;
   const forceCloseDelaySlots = data.readBigUInt64LE(off);                     off += 8;
   const newAccountFee = readU128LE(data, off);                                // off += 16;
 
   return {
     collateralMint, vaultPubkey, indexFeedId,
+    oracleLeg2FeedId, oracleLeg3FeedId, oracleLegCount, oracleLegFlags,
     maxStalenessSecs, confFilterBps, vaultAuthorityBump, invert, unitScale,
     fundingHorizonSlots, fundingKBps, fundingMaxPremiumBps, fundingMaxE9PerSlot,
     hyperpAuthority, hyperpMarkE6, lastOraclePublishTime,
@@ -213,12 +241,14 @@ export function parseConfig(data: Buffer): MarketConfig {
     insuranceWithdrawMaxBps, tvlInsuranceCapMult, insuranceWithdrawDepositsOnly,
     insuranceWithdrawCooldownSlots,
     oracleTargetPriceE6, oracleTargetPublishTime,
+    oracleLegPricesE6, oracleLegPublishTimes,
     lastHyperpIndexSlot, lastMarkPushSlot, lastInsuranceWithdrawSlot,
     insuranceWithdrawDepositRemaining,
     markEwmaE6, markEwmaLastSlot, markEwmaHalflifeSlots, initRestartSlot,
     permissionlessResolveStaleSlots, lastGoodOracleSlot,
     maintenanceFeePerSlot, feeSweepCursorWord, feeSweepCursorBit,
-    markMinFee, forceCloseDelaySlots, newAccountFee,
+    markMinFee, tradeFeeBaseBps, tradeFeeMode,
+    forceCloseDelaySlots, newAccountFee,
   };
 }
 
@@ -308,8 +338,10 @@ const ACCOUNT_SIZE = 416;
 //   - active_close_* continuation state (bounded full-close loop)
 // All offsets below were captured via `offset_of!` logging from the BPF
 // binary; do NOT recompute by hand.
+// ENGINE_OFF moved 520 → 664 in the hybrid build because MarketConfig grew
+// from 384 to 528 bytes. All offsets relative to ENGINE_OFF are unchanged.
 // =============================================================================
-const ENGINE_OFF = 520;
+const ENGINE_OFF = 664;
 
 const ENGINE_VAULT_OFF = 0;
 const ENGINE_INSURANCE_OFF = 16;
@@ -402,6 +434,9 @@ export interface InsuranceFund {
 export interface RiskParams {
   maintenanceMarginBps: bigint;
   initialMarginBps: bigint;
+  /** Engine-level hard cap on trading fee. In the hybrid build the
+   *  wrapper-actual fee is `MarketConfig.tradeFeeBaseBps` (≤ this);
+   *  the field is named for backward compat with v12.21 tooling. */
   tradingFeeBps: bigint;
   maxAccounts: bigint;
   liquidationFeeBps: bigint;
