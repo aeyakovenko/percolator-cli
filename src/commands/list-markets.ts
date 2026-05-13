@@ -2,15 +2,8 @@ import { Command } from "commander";
 import { PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
-import { createContext } from "../runtime/context.js";
-import { parseHeader, parseConfig, parseEngine, parseParams } from "../solana/slab.js";
-
-// PERCOLAT magic bytes
-const PERCOLAT_MAGIC = Buffer.from([0x50, 0x45, 0x52, 0x43, 0x4f, 0x4c, 0x41, 0x54]);
-// Slab size after ADL refactor
-// = ENGINE_OFF(440) + ENGINE_ACCOUNTS_OFF(9336) + MAX_ACCOUNTS(4096) * ACCOUNT_SIZE(280)
-const SLAB_SIZE = 1525624;
-
+import { createReadOnlyContext } from "../runtime/context.js";
+import { hasSlabMagic, parseHeader, parseConfig, parseEngine, parseParams, slabMagicMemcmpFilter, SLAB_LEN } from "../solana/slab.js";
 export function registerListMarkets(program: Command): void {
   program
     .command("list-markets")
@@ -19,7 +12,7 @@ export function registerListMarkets(program: Command): void {
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
-      const ctx = createContext(config);
+      const ctx = createReadOnlyContext(config);
       const verbose = opts.verbose ?? false;
       const json = flags.json ?? false;
 
@@ -29,21 +22,18 @@ export function registerListMarkets(program: Command): void {
       let accounts;
       try {
         accounts = await ctx.connection.getProgramAccounts(ctx.programId, {
-          filters: [{ dataSize: SLAB_SIZE }],
+          filters: [{ dataSize: SLAB_LEN }],
         });
       } catch {
         // Fallback with memcmp filter
         accounts = await ctx.connection.getProgramAccounts(ctx.programId, {
-          filters: [
-            { memcmp: { offset: 0, bytes: PERCOLAT_MAGIC.toString("base64") } },
-          ],
+          filters: [slabMagicMemcmpFilter()],
         });
       }
 
       // Filter to valid slabs
       const markets = accounts.filter(({ account }) => {
-        if (account.data.length < 8) return false;
-        return account.data.subarray(0, 8).equals(PERCOLAT_MAGIC);
+        return hasSlabMagic(account.data);
       });
 
       if (json) {

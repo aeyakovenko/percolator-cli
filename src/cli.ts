@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { GlobalFlags } from "./config.js";
+import { resolveTxMode } from "./runtime/tx.js";
 
 // Import commands
 import { registerInitMarket } from "./commands/init-market.js";
@@ -53,7 +54,9 @@ export function createCli(): Command {
       "Commitment level: processed, confirmed, finalized"
     )
     .option("--json", "Output in JSON format")
-    .option("--simulate", "Simulate transaction without sending");
+    .option("--simulate", "Simulate transaction without sending")
+    .option("--send", "Send transaction. Without this flag, transaction commands simulate by default.")
+    .option("--yes-mainnet", "Allow --send when the RPC URL appears to target mainnet");
 
   // Register all commands
   registerInitMarket(program);
@@ -98,6 +101,11 @@ export function createCli(): Command {
  */
 export function getGlobalFlags(cmd: Command): GlobalFlags {
   const opts = cmd.optsWithGlobals();
+  const txMode = resolveTxMode({
+    simulate: opts.simulate ?? false,
+    send: opts.send ?? false,
+  });
+
   return {
     config: opts.config,
     rpc: opts.rpc,
@@ -105,6 +113,8 @@ export function getGlobalFlags(cmd: Command): GlobalFlags {
     wallet: opts.wallet,
     commitment: opts.commitment,
     json: opts.json ?? false,
-    simulate: opts.simulate ?? false,
+    simulate: txMode.simulate,
+    send: opts.send ?? false,
+    yesMainnet: opts.yesMainnet ?? false,
   };
 }

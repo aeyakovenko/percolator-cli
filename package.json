@@ -2,6 +2,7 @@
   "name": "percolator-cli",
   "version": "0.1.0",
   "license": "Apache-2.0",
+  "packageManager": "pnpm@10.31.0",
   "type": "module",
   "bin": {
     "percolator-cli": "./dist/index.js"
@@ -12,7 +13,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "pnpm build && node dist/index.js",
-    "test": "tsx test/abi.test.ts && tsx test/pda.test.ts && tsx test/slab.test.ts && tsx test/validation.test.ts && tsx test/oracle.test.ts"
+    "test": "tsx test/abi.test.ts && tsx test/pda.test.ts && tsx test/slab.test.ts && tsx test/slab-discovery.test.ts && tsx test/validation.test.ts && tsx test/oracle.test.ts && tsx test/config.test.ts && tsx test/context.test.ts && tsx test/tx.test.ts && tsx test/mainnet-bounty3-tick.test.ts"
   },
   "dependencies": {
     "@pythnetwork/hermes-client": "^2.1.0",

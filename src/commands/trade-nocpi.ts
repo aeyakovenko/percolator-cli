@@ -94,6 +94,8 @@ export function registerTradeNocpi(program: Command): void {
         signers,
         simulate: flags.simulate ?? false,
         commitment: ctx.commitment,
+        rpcUrl: config.rpcUrl,
+        allowMainnet: flags.yesMainnet ?? false,
       });
 
       console.log(formatResult(result, flags.json ?? false));

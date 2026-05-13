@@ -68,6 +68,8 @@ export function registerInitLp(program: Command): void {
         signers: [ctx.payer],
         simulate: flags.simulate ?? false,
         commitment: ctx.commitment,
+        rpcUrl: config.rpcUrl,
+        allowMainnet: flags.yesMainnet ?? false,
       });
 
       console.log(formatResult(result, flags.json ?? false));

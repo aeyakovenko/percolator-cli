@@ -14,6 +14,16 @@ const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>;
 
+const FileConfigSchema = z
+  .object({
+    rpcUrl: z.string().url().optional(),
+    programId: z.string().optional(),
+    wallet: z.string().optional(),
+    walletPath: z.string().optional(),
+    commitment: CommitmentSchema.optional(),
+  })
+  .passthrough();
+
 export interface GlobalFlags {
   config?: string;
   rpc?: string;
@@ -22,6 +32,8 @@ export interface GlobalFlags {
   commitment?: Commitment;
   json?: boolean;
   simulate?: boolean;
+  send?: boolean;
+  yesMainnet?: boolean;
 }
 
 const DEFAULT_CONFIG_NAME = "percolator-cli.json";
@@ -31,13 +43,13 @@ const DEFAULT_CONFIG_NAME = "percolator-cli.json";
  */
 export function loadConfig(flags: GlobalFlags): Config {
   // Find config file
-  const configPath = flags.config ?? findConfig();
+  const configPath = flags.config ? expandPath(flags.config) : findConfig();
 
   let fileConfig: Partial<Config> = {};
   if (configPath && existsSync(configPath)) {
     try {
       const raw = readFileSync(configPath, "utf-8");
-      fileConfig = JSON.parse(raw);
+      fileConfig = normalizeFileConfig(JSON.parse(raw), configPath);
     } catch (e) {
       throw new Error(`Failed to parse config file ${configPath}: ${e}`);
     }
@@ -65,8 +77,29 @@ export function loadConfig(flags: GlobalFlags): Config {
  * Find config file in cwd.
  */
 function findConfig(): string | undefined {
-  const path = resolve(process.cwd(), DEFAULT_CONFIG_NAME);
-  return existsSync(path) ? path : undefined;
+  const cwdPath = resolve(process.cwd(), DEFAULT_CONFIG_NAME);
+  if (existsSync(cwdPath)) return cwdPath;
+
+  const home = process.env.HOME ?? process.env.USERPROFILE;
+  if (!home) return undefined;
+  const homePath = resolve(home, ".config", DEFAULT_CONFIG_NAME);
+  return existsSync(homePath) ? homePath : undefined;
+}
+
+function normalizeFileConfig(raw: unknown, configPath: string): Partial<Config> {
+  const result = FileConfigSchema.safeParse(raw);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+    throw new Error(`Invalid config file ${configPath}:\n${issues.join("\n")}`);
+  }
+
+  const parsed = result.data;
+  return {
+    rpcUrl: parsed.rpcUrl,
+    programId: parsed.programId,
+    wallet: parsed.wallet ?? parsed.walletPath,
+    commitment: parsed.commitment,
+  };
 }
 
 /**

@@ -44,6 +44,33 @@ export interface SimulateOrSendParams {
   simulate: boolean;
   commitment?: Commitment;
   computeUnitLimit?: number; // Custom compute unit limit (default: 200,000, max: 1,400,000)
+  rpcUrl?: string;
+  allowMainnet?: boolean;
+}
+
+export interface TxModeFlags {
+  simulate?: boolean;
+  send?: boolean;
+}
+
+/**
+ * Mainnet RPC detection for safety gates. This intentionally matches common
+ * endpoint naming, not a formal cluster registry.
+ */
+export function isMainnetRpc(rpcUrl: string): boolean {
+  const lower = rpcUrl.toLowerCase();
+  return lower.includes("mainnet") || lower.includes("api.mainnet-beta.solana.com");
+}
+
+/**
+ * Resolve transaction mode. The safe default is simulation; sending must be
+ * requested explicitly with --send.
+ */
+export function resolveTxMode(flags: TxModeFlags): { simulate: boolean } {
+  if (flags.simulate && flags.send) {
+    throw new Error("Choose either --simulate or --send, not both");
+  }
+  return { simulate: flags.send ? false : true };
 }
 
 /**
@@ -53,7 +80,25 @@ export interface SimulateOrSendParams {
 export async function simulateOrSend(
   params: SimulateOrSendParams
 ): Promise<TxResult> {
-  const { connection, ix, signers, simulate, commitment = "confirmed", computeUnitLimit } = params;
+  const {
+    connection,
+    ix,
+    signers,
+    simulate,
+    commitment = "confirmed",
+    computeUnitLimit,
+    rpcUrl,
+    allowMainnet = false,
+  } = params;
+
+  if (!simulate && rpcUrl && isMainnetRpc(rpcUrl) && !allowMainnet) {
+    return {
+      signature: "",
+      slot: 0,
+      err: "Refusing to send to a mainnet RPC without --yes-mainnet",
+      logs: [],
+    };
+  }
 
   const tx = new Transaction();
 

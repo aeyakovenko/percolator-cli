@@ -1,4 +1,4 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, type GetProgramAccountsFilter } from "@solana/web3.js";
 
 // =============================================================================
 // Constants — BPF layout (u128/i128 have 8-byte alignment, not 16-byte
@@ -24,7 +24,9 @@ import { Connection, PublicKey } from "@solana/web3.js";
 //                               b_rem + b_epoch_snap = 56 bytes for
 //                               B-index account-local bankruptcy state)
 // =============================================================================
-const MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
+export const SLAB_MAGIC: bigint = 0x504552434f4c4154n; // "PERCOLAT"
+// The u64 magic is stored little-endian on chain, so the account bytes are "TALOCREP".
+export const SLAB_MAGIC_BYTES = [0x54, 0x41, 0x4c, 0x4f, 0x43, 0x52, 0x45, 0x50] as const;
 const HEADER_LEN = 136;
 const CONFIG_OFFSET = HEADER_LEN;
 const CONFIG_LEN = 384;
@@ -36,6 +38,21 @@ const FLAG_ORACLE_INITIALIZED = 1 << 3;
 
 export const SLAB_LEN = 1_755_520;
 export { HEADER_LEN, CONFIG_LEN };
+
+export function hasSlabMagic(data: Buffer | Uint8Array): boolean {
+  if (data.length < SLAB_MAGIC_BYTES.length) return false;
+  return SLAB_MAGIC_BYTES.every((byte, i) => data[i] === byte);
+}
+
+export function slabMagicMemcmpFilter(): GetProgramAccountsFilter {
+  return {
+    memcmp: {
+      offset: 0,
+      encoding: "base64",
+      bytes: Buffer.from(SLAB_MAGIC_BYTES).toString("base64"),
+    },
+  };
+}
 
 /**
  * Slab header (136 bytes, v12.20+ — close_authority removed).
@@ -142,8 +159,8 @@ export function parseHeader(data: Buffer): SlabHeader {
     throw new Error(`Slab data too short for header: ${data.length} < ${HEADER_LEN}`);
   }
   const magic = data.readBigUInt64LE(0);
-  if (magic !== MAGIC) {
-    throw new Error(`Invalid slab magic: expected ${MAGIC.toString(16)}, got ${magic.toString(16)}`);
+  if (magic !== SLAB_MAGIC) {
+    throw new Error(`Invalid slab magic: expected ${SLAB_MAGIC.toString(16)}, got ${magic.toString(16)}`);
   }
   return {
     magic,

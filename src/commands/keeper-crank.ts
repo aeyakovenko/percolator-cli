@@ -146,6 +146,8 @@ export function registerKeeperCrank(program: Command): void {
         signers: [ctx.payer],
         simulate: flags.simulate ?? false,
         commitment: ctx.commitment,
+        rpcUrl: config.rpcUrl,
+        allowMainnet: flags.yesMainnet ?? false,
         computeUnitLimit,
       });
 

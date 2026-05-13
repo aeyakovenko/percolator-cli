@@ -38,12 +38,11 @@ import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
 import { buildIx } from "../src/runtime/tx.js";
 import {
   fetchSlab, parseEngine, parseAccount, parseUsedIndices, parseParams,
-  AccountKind,
+  AccountKind, SLAB_LEN,
 } from "../src/solana/slab.js";
 
 const PROGRAM_ID = new PublicKey("4PTXCZ4vLSK6aiUd3fx2dVVYSRNFnMSM4ijhDWkuFi2s");
 const MATCHER_PROGRAM_ID = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
-const SLAB_SIZE = 1755376;
 const MATCHER_CTX_SIZE = 320;
 
 const payer = Keypair.fromSecretKey(
@@ -67,12 +66,12 @@ async function sim(tx: Transaction, signers: Keypair[]): Promise<boolean> {
 // Create a fresh isolated Hyperp market for each test group
 async function createMarket(initialPrice: string, insuranceSOL: number, lpSOL: number) {
   const slab = Keypair.generate();
-  const rent = await conn.getMinimumBalanceForRentExemption(SLAB_SIZE);
+  const rent = await conn.getMinimumBalanceForRentExemption(SLAB_LEN);
   const t1 = new Transaction();
   t1.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
   t1.add(SystemProgram.createAccount({
     fromPubkey: payer.publicKey, newAccountPubkey: slab.publicKey,
-    lamports: rent, space: SLAB_SIZE, programId: PROGRAM_ID,
+    lamports: rent, space: SLAB_LEN, programId: PROGRAM_ID,
   }));
   await send(t1, [payer, slab]);
 

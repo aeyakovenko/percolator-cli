@@ -1,7 +1,5 @@
 import { Command } from "commander";
 import { getGlobalFlags } from "../cli.js";
-import { loadConfig } from "../config.js";
-import { createContext } from "../runtime/context.js";
 import { TxResult } from "../runtime/tx.js";
 import { validateU32 } from "../validation.js";
 

@@ -93,6 +93,8 @@ export function registerUpdateConfig(program: Command): void {
         signers: [ctx.payer],
         simulate: flags.simulate ?? false,
         commitment: ctx.commitment,
+        rpcUrl: config.rpcUrl,
+        allowMainnet: flags.yesMainnet ?? false,
       });
 
       if (!flags.json) {

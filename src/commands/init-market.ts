@@ -123,6 +123,8 @@ export function registerInitMarket(program: Command): void {
         signers: [ctx.payer],
         simulate: flags.simulate ?? false,
         commitment: ctx.commitment,
+        rpcUrl: config.rpcUrl,
+        allowMainnet: flags.yesMainnet ?? false,
         // Full MAX_ACCOUNTS=4096 init_in_place consumes ~235k CU zero-filling
         // bitmap + next_free/prev_free + all 4096 account slots. Default
         // 200k-per-ix budget is not enough; 300k covers + headroom.

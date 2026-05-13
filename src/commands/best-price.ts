@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
-import { createContext } from "../runtime/context.js";
+import { createReadOnlyContext } from "../runtime/context.js";
 import { fetchSlab, parseUsedIndices, parseAccount, AccountKind } from "../solana/slab.js";
 import { parseChainlinkPrice } from "../solana/oracle.js";
 import { validatePublicKey } from "../validation.js";
@@ -132,7 +132,7 @@ export function registerBestPrice(program: Command): void {
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
-      const ctx = createContext(config);
+      const ctx = createReadOnlyContext(config);
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const oraclePk = validatePublicKey(opts.oracle, "--oracle");

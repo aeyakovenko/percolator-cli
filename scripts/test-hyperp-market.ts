@@ -70,13 +70,12 @@ import {
   buildAccountMetas,
 } from "../src/abi/accounts.js";
 import { deriveVaultAuthority, deriveLpPda } from "../src/solana/pda.js";
-import { fetchSlab, parseHeader, parseConfig, parseEngine, parseUsedIndices, parseAccount, AccountKind } from "../src/solana/slab.js";
+import { fetchSlab, parseHeader, parseConfig, parseEngine, parseUsedIndices, parseAccount, AccountKind, SLAB_LEN } from "../src/solana/slab.js";
 import { buildIx } from "../src/runtime/tx.js";
 
 // Program IDs
 const PROGRAM_ID = new PublicKey("4PTXCZ4vLSK6aiUd3fx2dVVYSRNFnMSM4ijhDWkuFi2s");
 const MATCHER_PROGRAM_ID = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
-const SLAB_SIZE = 1525624;
 const MATCHER_CTX_SIZE = 320;
 
 const conn = new Connection(process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
@@ -104,7 +103,7 @@ async function main() {
 
   // Create slab account
   slab = Keypair.generate();
-  const rentExempt = await conn.getMinimumBalanceForRentExemption(SLAB_SIZE);
+  const rentExempt = await conn.getMinimumBalanceForRentExemption(SLAB_LEN);
   console.log(`  Creating slab account: ${slab.publicKey.toBase58()}`);
 
   const createSlabTx = new Transaction();
@@ -113,7 +112,7 @@ async function main() {
     fromPubkey: payer.publicKey,
     newAccountPubkey: slab.publicKey,
     lamports: rentExempt,
-    space: SLAB_SIZE,
+    space: SLAB_LEN,
     programId: PROGRAM_ID,
   }));
   await sendAndConfirmTransaction(conn, createSlabTx, [payer, slab], { commitment: "confirmed" });

@@ -1,8 +1,8 @@
 import { Command } from "commander";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
-import { createContext } from "../runtime/context.js";
-import { parseConfig } from "../solana/slab.js";
+import { createContext, createReadOnlyContext } from "../runtime/context.js";
+import { hasSlabMagic, parseConfig, slabMagicMemcmpFilter, SLAB_LEN } from "../solana/slab.js";
 import { getAta } from "../solana/ata.js";
 import { deriveVaultAuthority } from "../solana/pda.js";
 import { encodeCloseSlab } from "../abi/instructions.js";
@@ -14,12 +14,6 @@ import {
 import { buildIx, simulateOrSend } from "../runtime/tx.js";
 import { validateU32 } from "../validation.js";
 
-// PERCOLAT magic — stored on chain as LE bytes of 0x504552434f4c4154n.
-// The on-disk byte sequence is therefore "TALOCREP" (LE), not "PERCOLAT"
-// (BE). The previous BE constant matched zero accounts.
-const PERCOLAT_MAGIC = Buffer.from([0x54, 0x41, 0x4c, 0x4f, 0x43, 0x52, 0x45, 0x50]);
-const SLAB_SIZE = 1755376; // v12.21+ layout (old 1525624 markets long-closed)
-
 export function registerCloseAllSlabs(program: Command): void {
   program
     .command("close-all-slabs")
@@ -29,35 +23,32 @@ export function registerCloseAllSlabs(program: Command): void {
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
-      const ctx = createContext(config);
+      const readCtx = createReadOnlyContext(config);
 
       const dryRun = opts.dryRun ?? false;
       const limit = validateU32(opts.limit, "--limit");
 
-      console.log(`Searching for slab accounts owned by ${ctx.programId.toBase58()}...`);
+      console.log(`Searching for slab accounts owned by ${readCtx.programId.toBase58()}...`);
 
       // Find all program accounts with the correct size
       let accounts;
       try {
-        accounts = await ctx.connection.getProgramAccounts(ctx.programId, {
+        accounts = await readCtx.connection.getProgramAccounts(readCtx.programId, {
           filters: [
-            { dataSize: SLAB_SIZE },
+            { dataSize: SLAB_LEN },
           ],
         });
       } catch (e: any) {
         // Fallback for RPC providers that don't support getProgramAccounts well
         console.log("getProgramAccounts failed, trying memcmp filter...");
-        accounts = await ctx.connection.getProgramAccounts(ctx.programId, {
-          filters: [
-            { memcmp: { offset: 0, bytes: PERCOLAT_MAGIC.toString("base64") } },
-          ],
+        accounts = await readCtx.connection.getProgramAccounts(readCtx.programId, {
+          filters: [slabMagicMemcmpFilter()],
         });
       }
 
       // Filter to only include accounts with PERCOLAT magic
       const slabs = accounts.filter(({ account }) => {
-        if (account.data.length < 8) return false;
-        return account.data.subarray(0, 8).equals(PERCOLAT_MAGIC);
+        return hasSlabMagic(account.data);
       });
 
       console.log(`Found ${slabs.length} slab account(s)`);
@@ -78,8 +69,9 @@ export function registerCloseAllSlabs(program: Command): void {
         return;
       }
 
-      // Close slabs (or simulate). CloseSlab is terminal — without --simulate
-      // each iteration is irreversible.
+      // Close slabs (or simulate). CloseSlab is terminal; --send is required
+      // to perform it because transaction commands simulate by default.
+      const ctx = createContext(config);
       let succeeded = 0;
       let failed = 0;
       let totalRecovered = 0;
@@ -118,6 +110,8 @@ export function registerCloseAllSlabs(program: Command): void {
             simulate,
             commitment: ctx.commitment,
             computeUnitLimit: 1_400_000,
+            rpcUrl: config.rpcUrl,
+            allowMainnet: flags.yesMainnet ?? false,
           });
 
           if (result.err) {

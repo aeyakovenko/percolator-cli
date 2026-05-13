@@ -36,12 +36,13 @@ import { getAccount } from "@solana/spl-token";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { fileURLToPath } from "url";
 import { encodeKeeperCrank } from "../src/abi/instructions.js";
 import { ACCOUNTS_KEEPER_CRANK, buildAccountMetas, WELL_KNOWN } from "../src/abi/accounts.js";
 import { buildIx } from "../src/runtime/tx.js";
 import { fetchSlab, parseHeader, parseConfig, parseEngine, parseUsedIndices } from "../src/solana/slab.js";
 
-type Snapshot = {
+export type Snapshot = {
   iso: string;
   slot: number;
   marketSlot: bigint;
@@ -81,13 +82,13 @@ async function snap(conn: Connection, slab: PublicKey, vault: PublicKey): Promis
     sideModeShort: e.sideModeShort,
     rrCursor: e.rrCursorPosition,
     sweepGen: e.sweepGeneration,
-    priceMoveConsumed: e.priceMoveConsumedBpsThisGeneration,
+    priceMoveConsumed: e.stressConsumedBpsE9SinceEnvelope,
     conservationOk: e.vault === BigInt(splBal),
     accountingOk: e.vault >= e.cTot + e.insuranceFund.balance,
   };
 }
 
-function diff(a: Snapshot, b: Snapshot): { flags: string[]; deltas: Record<string, string> } {
+export function diff(a: Snapshot, b: Snapshot): { flags: string[]; deltas: Record<string, string> } {
   const flags: string[] = [];
   const deltas: Record<string, string> = {};
   if (b.insurance < a.insurance) {
@@ -469,13 +470,15 @@ async function main() {
   });
 }
 
-main().catch(e => {
-  // Last-ditch: write a single error line and exit 0 so cron doesn't retry.
-  const logDir = path.join(os.homedir(), ".cache", "percolator");
-  try { fs.mkdirSync(logDir, { recursive: true }); } catch {}
-  try {
-    fs.appendFileSync(path.join(logDir, "bounty3-tick.log"),
-      JSON.stringify({ iso: new Date().toISOString(), event: "FATAL", err: String(e).slice(0, 300) }) + "\n");
-  } catch {}
-  process.exit(0);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch(e => {
+    // Last-ditch: write a single error line and exit 0 so cron doesn't retry.
+    const logDir = path.join(os.homedir(), ".cache", "percolator");
+    try { fs.mkdirSync(logDir, { recursive: true }); } catch {}
+    try {
+      fs.appendFileSync(path.join(logDir, "bounty3-tick.log"),
+        JSON.stringify({ iso: new Date().toISOString(), event: "FATAL", err: String(e).slice(0, 300) }) + "\n");
+    } catch {}
+    process.exit(0);
+  });
+}

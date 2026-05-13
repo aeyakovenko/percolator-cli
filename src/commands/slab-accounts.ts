@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { getGlobalFlags } from "../cli.js";
 import { loadConfig } from "../config.js";
-import { createContext } from "../runtime/context.js";
+import { createReadOnlyContext } from "../runtime/context.js";
 import { fetchSlab, parseAllAccounts, AccountKind } from "../solana/slab.js";
 import { validatePublicKey } from "../validation.js";
 
@@ -13,7 +13,7 @@ export function registerSlabAccounts(program: Command): void {
     .action(async (opts, cmd) => {
       const flags = getGlobalFlags(cmd);
       const config = loadConfig(flags);
-      const ctx = createContext(config);
+      const ctx = createReadOnlyContext(config);
 
       const slabPk = validatePublicKey(opts.slab, "--slab");
       const data = await fetchSlab(ctx.connection, slabPk, ctx.programId);

@@ -222,7 +222,7 @@ async function main() {
       sweep: {
         rrCursorPosition: engine.rrCursorPosition.toString(),
         sweepGeneration: engine.sweepGeneration.toString(),
-        priceMoveConsumedBpsThisGeneration: engine.priceMoveConsumedBpsThisGeneration.toString(),
+        stressConsumedBpsE9SinceEnvelope: engine.stressConsumedBpsE9SinceEnvelope.toString(),
       },
       sides: {
         long: {

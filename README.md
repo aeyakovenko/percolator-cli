@@ -27,22 +27,29 @@ pnpm build
 
 ## Configuration
 
-Create a config file at `~/.config/percolator-cli.json`:
+Create a config file named `percolator-cli.json` in the directory where you run
+the CLI, or at `~/.config/percolator-cli.json`. You can also pass another path
+explicitly with `--config <path>`.
 
 ```json
 {
   "rpcUrl": "https://api.devnet.solana.com",
   "programId": "2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp",
-  "walletPath": "~/.config/solana/id.json"
+  "wallet": "~/.config/solana/id.json",
+  "commitment": "confirmed"
 }
 ```
 
 Or use command-line flags:
+- `--config <path>` - Path to config file
 - `--rpc <url>` - Solana RPC endpoint
 - `--program <pubkey>` - Percolator program ID
 - `--wallet <path>` - Path to keypair file
+- `--commitment <level>` - Commitment level: `processed`, `confirmed`, or `finalized`
 - `--json` - Output in JSON format
-- `--simulate` - Simulate transaction without sending
+- `--simulate` - Simulate transaction without sending. This is the default for transaction commands.
+- `--send` - Send a transaction instead of simulating it.
+- `--yes-mainnet` - Allow `--send` when the RPC URL appears to target mainnet.
 
 ## Mainnet Bounty 3 — `bounty_sol_20x_max`
 
@@ -519,7 +526,7 @@ percolator-cli trade-nocpi --slab <pubkey> --user-idx <n> --lp-idx <n> \
   --size <i128> --oracle <pubkey>
 
 # Close account
-percolator-cli close-account --slab <pubkey> --idx <n>
+percolator-cli close-account --slab <pubkey> --user-idx <n> --oracle <pubkey>
 ```
 
 ### LP Operations
@@ -530,14 +537,16 @@ percolator-cli init-lp --slab <pubkey>
 
 # Trade with CPI (matcher)
 percolator-cli trade-cpi --slab <pubkey> --user-idx <n> --lp-idx <n> \
-  --size <i128> --matcher-program <pubkey> --matcher-ctx <pubkey>
+  --size <i128> --matcher-program <pubkey> --matcher-context <pubkey> \
+  --limit-price-e6 <n> --oracle <pubkey>
 ```
 
 ### Keeper Operations
 
 ```bash
 # Crank the keeper (liquidations are processed automatically during crank)
-percolator-cli keeper-crank --slab <pubkey> --nonce <n> --oracle <pubkey>
+percolator-cli keeper-crank --slab <pubkey> --oracle <pubkey> \
+  --caller-idx <n> --compute-units <n>
 ```
 
 ### Admin Operations
@@ -549,21 +558,15 @@ percolator-cli update-admin --slab <pubkey> --new-admin <pubkey>
 # Top up insurance fund
 percolator-cli topup-insurance --slab <pubkey> --amount <lamports>
 
-# Update market configuration (funding and threshold params)
+# Update market configuration (funding and TVL cap params).
+# Omitted flags keep their current on-chain values.
 percolator-cli update-config --slab <pubkey> \
   --funding-horizon-slots <n> \
   --funding-k-bps <n> \
-  --funding-scale-notional-e6 <n> \
   --funding-max-premium-bps <n> \
-  --funding-max-bps-per-slot <n> \
-  --thresh-floor <n> \
-  --thresh-risk-bps <n> \
-  --thresh-update-interval-slots <n> \
-  --thresh-step-bps <n> \
-  --thresh-alpha-bps <n> \
-  --thresh-min <n> \
-  --thresh-max <n> \
-  --thresh-min-step <n>
+  --funding-max-e9-per-slot <n> \
+  --tvl-insurance-cap-mult <n> \
+  --oracle <pubkey>
 ```
 
 ### Oracle Authority (Admin Only)

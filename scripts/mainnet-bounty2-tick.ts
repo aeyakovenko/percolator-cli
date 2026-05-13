@@ -12,7 +12,7 @@
  *        - rrCursorPosition + sweepGeneration (sweep liveness)
  *        - lastOraclePrice change (oracle moved)
  *        - sideMode_long / sideMode_short (anything ≠ Normal = liquidation cascade)
- *        - price_move_consumed_bps_this_generation vs threshold
+ *        - stress_consumed_bps_e9_since_envelope vs threshold
  *        - last_market_slot vs current slot (accrue staleness)
  *   5. Conservation checks: vault SPL == engine.vault, vault >= cTot + insurance.
  *   6. Writes one JSON line to ~/.cache/percolator/bounty2-tick.log per tick.
@@ -81,7 +81,7 @@ async function snap(conn: Connection, slab: PublicKey, vault: PublicKey): Promis
     sideModeShort: e.sideModeShort,
     rrCursor: e.rrCursorPosition,
     sweepGen: e.sweepGeneration,
-    priceMoveConsumed: e.priceMoveConsumedBpsThisGeneration,
+    priceMoveConsumed: e.stressConsumedBpsE9SinceEnvelope,
     conservationOk: e.vault === BigInt(splBal),
     accountingOk: e.vault >= e.cTot + e.insuranceFund.balance,
   };
