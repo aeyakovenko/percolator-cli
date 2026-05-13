@@ -296,14 +296,23 @@ export function encodeKeeperCrank(args: KeeperCrankArgs): Buffer {
 }
 
 // ---------- Trade ----------
-export interface TradeNoCpiArgs { lpIdx: number; userIdx: number; size: bigint | string; }
+export interface TradeNoCpiArgs {
+  lpIdx: number; userIdx: number; size: bigint | string;
+  /** Optional execution price (engine-space e6). 0 / omitted → use the
+   *  wrapper-computed mark (oracle composite for fresh-leg path, EWMA for
+   *  stale-leg HYBRID_AFTER_HOURS path). Set non-zero to specify an
+   *  off-mark trade price — useful for hunters probing EWMA dynamics. */
+  execPriceE6?: bigint | string;
+}
 export function encodeTradeNoCpi(args: TradeNoCpiArgs): Buffer {
-  return Buffer.concat([
+  const parts: Buffer[] = [
     encU8(IX_TAG.TradeNoCpi),
     encU16(args.lpIdx),
     encU16(args.userIdx),
     encI128(args.size),
-  ]);
+  ];
+  if (args.execPriceE6 !== undefined) parts.push(encU64(args.execPriceE6));
+  return Buffer.concat(parts);
 }
 
 export interface TradeCpiArgs {
