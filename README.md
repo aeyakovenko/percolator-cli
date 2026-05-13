@@ -75,12 +75,12 @@ All 3 legs are Pyth-sponsored shard-0 PriceUpdateV2 accounts:
 leg 1 is Europe/Paris 09:00–17:30 (= 07:00–15:30 UTC during CEST); legs 2/3
 are 24/5 (FX) and 24/7 (crypto) respectively.
 
-**Build provenance**
+**Build provenance** (post 2026-05-13 upgrade)
 
 ```
-BPF binary SHA-256:   cb6f9c96c6e98947876e43189f142d7ee5182015a0a173b5dd19d2d2bbe1c545
-BPF binary size:      538,992 bytes ELF
-percolator-prog:      04b854e (master)
+BPF binary SHA-256:   408cbaa53403c54474c9b3e085f27571e7af293cfe12845316683bd6fdc5d7fc
+BPF binary size:      536,432 bytes ELF
+percolator-prog:      f626639 (origin/main)  — "Cover weird-state trade and exit paths"
 percolator (engine):  1dc4466e1a6c3532f2781bc242fa4e4033751fb6
 SLAB_LEN:             1,755,520 bytes (MAX_ACCOUNTS = 4096)
 ```
@@ -90,13 +90,13 @@ Verify locally:
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
 cd percolator-prog
-git checkout 04b854e        # then bump Cargo.toml engine rev to 1dc4466
+git checkout f626639
 cargo build-sbf -- --no-default-features
 sha256sum target/deploy/percolator_prog.so
-#   Expected: cb6f9c96c6e98947876e43189f142d7ee5182015a0a173b5dd19d2d2bbe1c545
+#   Expected: 408cbaa53403c54474c9b3e085f27571e7af293cfe12845316683bd6fdc5d7fc
 
 solana program dump -u m 4ToDRrQW5j3oeQm8uTAwV9Rp6NhYfH5E5hMKcXkqfwfz /tmp/deployed.so
-head -c 538992 /tmp/deployed.so | sha256sum   # must match
+head -c 536432 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
@@ -173,12 +173,17 @@ leg is stale and the wrapper falls back to the EWMA mark + dynamic fee.
   clock. With open interest and a long oracle outage, lag accumulates.
 - `tvl_insurance_cap_mult=50` — total user capital can reach 50 × the
   insurance fund. Bigger than typical perp DEXs (~20×).
-- No matcher is provisioned. To trade, hunters deploy their own matcher
-  program and call `InitLP` with its program-id + a 320-byte context
-  account they own. Passive LPs (matcher pubkey = `Pubkey::default()`)
-  are **explicitly rejected** by the wrapper's `InitLP` handler
-  (line 6585 in `percolator-prog/src/percolator.rs`). InitUser /
-  Deposit / Withdraw / CloseAccount work directly with no matcher.
+- No matcher is provisioned. **TradeNoCpi works with any LP regardless of
+  matcher** — the handler explicitly notes "no matcher check, both sides
+  are bilateral signers, no CPI invoked" (line 7795). `InitLP` still
+  requires `matcher_program != Pubkey::default()` (line 6687) — any
+  non-default pubkey suffices; the matcher fields are ignored by
+  TradeNoCpi. Use TradeCpi only if you want spread/impact pricing via a
+  deployed matcher program.
+- Smoke verified on mainnet (2026-05-13, ~5 h post EU close → STOXX leg
+  stale → exercising HYBRID_AFTER_HOURS EWMA fallback): InitUser → InitLP
+  (dummy matcher) → TradeNoCpi +1M → TradeNoCpi -1M → CloseAccount × 2
+  all landed; conservation held; insurance grew from new-account fees.
 
 **Bounty win condition**: cause `engine.insurance_fund.balance` to drop
 below its current value via any sequence of public-instruction calls.
