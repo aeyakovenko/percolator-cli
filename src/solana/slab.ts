@@ -34,7 +34,7 @@ const RESERVED_OFF = 48;             // nonce at [0..8], (8 bytes free), padding
 const FLAG_CPI_IN_PROGRESS = 1 << 2;
 const FLAG_ORACLE_INITIALIZED = 1 << 3;
 
-export const SLAB_LEN = 1_755_376;
+export const SLAB_LEN = 1_755_520;
 export { HEADER_LEN, CONFIG_LEN };
 
 /**

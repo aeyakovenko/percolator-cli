@@ -162,6 +162,14 @@ async function main() {
   const slab = new PublicKey(m.slab);
   const vault = new PublicKey(m.vault);
   const oracle = new PublicKey(m.oracle);
+  // Multi-leg composite oracle (bounty 4+): if the manifest lists additional
+  // leg accounts, pass them all to KeeperCrank. The wrapper expects exactly
+  // oracle_leg_count Pyth PriceUpdateV2 accounts starting at index 3 (after
+  // caller, slab, clock). Missing legs → the crank rejects with
+  // "insufficient account keys for instruction" and the market falls behind.
+  const oracleLegs: PublicKey[] = [oracle];
+  if (m.oracleLeg2) oracleLegs.push(new PublicKey(m.oracleLeg2));
+  if (m.oracleLeg3) oracleLegs.push(new PublicKey(m.oracleLeg3));
 
   const rpcs = pickRpc();
   // Try the first RPC; if it errors out building the connection / reading
@@ -294,12 +302,20 @@ async function main() {
     const tx = new Transaction()
       .add(ComputeBudgetProgram.setComputeUnitLimit({ units: cuLimit }))
       .add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityMicroLamports }));
+    // ACCOUNTS_KEEPER_CRANK spec covers the legacy 4-key layout. For multi-leg
+    // markets the wrapper expects oracle_leg_count Pyth accounts starting at
+    // index 3, so we append extra read-only metas for leg2/leg3.
+    const crankBaseKeys = buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
+      payer.publicKey, slab, WELL_KNOWN.clock, oracleLegs[0],
+    ]);
+    const extraLegMetas = oracleLegs.slice(1).map(pk => ({
+      pubkey: pk, isSigner: false, isWritable: false,
+    }));
+    const crankKeys = [...crankBaseKeys, ...extraLegMetas];
     for (let k = 0; k < n; k++) {
       tx.add(buildIx({
         programId,
-        keys: buildAccountMetas(ACCOUNTS_KEEPER_CRANK, [
-          payer.publicKey, slab, WELL_KNOWN.clock, oracle,
-        ]),
+        keys: crankKeys,
         data: encodeKeeperCrank({ callerIdx: 65535, candidates: [] }),
       }));
     }

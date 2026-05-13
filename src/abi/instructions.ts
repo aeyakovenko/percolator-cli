@@ -120,7 +120,25 @@ export interface InitMarketArgs {
   fundingMaxE9PerSlot: bigint | string;        // i64
   markMinFee: bigint | string;
   forceCloseDelaySlots: bigint | string;
+  /**
+   * Optional oracle-leg tail (66 bytes): set together when using a composite
+   * oracle (oracleLegCount ∈ {2,3}). Wrapper requires ALL four fields or NONE.
+   * Flags = bitwise-OR of ORACLE_LEG_FLAG_DIVIDE_LEG2 (0x02) and DIVIDE_LEG3
+   * (0x04) — set when the corresponding leg divides into the composite price.
+   */
+  oracleLegCount?: number;          // 1 (legacy, omits tail), 2, or 3
+  oracleLegFlags?: number;          // u8 bitfield
+  oracleLeg2FeedId?: string;        // 64-hex
+  oracleLeg3FeedId?: string;        // 64-hex
+  /**
+   * Optional dynamic-fee tail (8 bytes): base fee for HYBRID_AFTER_HOURS mode.
+   * If omitted, the wrapper defaults base = max_trading_fee_bps (static).
+   */
+  tradeFeeBaseBps?: bigint | string;  // u64
 }
+
+export const ORACLE_LEG_FLAG_DIVIDE_LEG2 = 0x02;
+export const ORACLE_LEG_FLAG_DIVIDE_LEG3 = 0x04;
 
 function encodeFeedId(feedId: string): Buffer {
   const hex = feedId.startsWith("0x") ? feedId.slice(2) : feedId;
@@ -157,7 +175,7 @@ function encodeRiskParamsWire(args: InitMarketArgs): Buffer {
 }
 
 export function encodeInitMarket(args: InitMarketArgs): Buffer {
-  return Buffer.concat([
+  const parts: Buffer[] = [
     encU8(IX_TAG.InitMarket),
     encPubkey(args.admin),
     encPubkey(args.collateralMint),
@@ -168,7 +186,6 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encU32(args.unitScale),
     encU64(args.initialMarkPriceE6),
     encU128(args.maintenanceFeePerSlot),
-    // v12.21: min_oracle_price_cap_e2bps removed from wire
     encodeRiskParamsWire(args),
     // Extended tail (66 bytes)
     encU16(args.insuranceWithdrawMaxBps),
@@ -180,7 +197,35 @@ export function encodeInitMarket(args: InitMarketArgs): Buffer {
     encI64(args.fundingMaxE9PerSlot),
     encU64(args.markMinFee),
     encU64(args.forceCloseDelaySlots),
-  ]);
+  ];
+
+  // Optional oracle-leg tail (66 bytes). Wrapper requires ALL four fields or
+  // NONE — partial tails are rejected. Either omit oracleLegCount entirely
+  // (= legacy single-feed) or supply all of count/flags/leg2/leg3.
+  const wantsOracleTail = args.oracleLegCount !== undefined
+    || args.oracleLegFlags !== undefined
+    || args.oracleLeg2FeedId !== undefined
+    || args.oracleLeg3FeedId !== undefined;
+  if (wantsOracleTail) {
+    if (args.oracleLegCount === undefined
+        || args.oracleLegFlags === undefined
+        || args.oracleLeg2FeedId === undefined
+        || args.oracleLeg3FeedId === undefined) {
+      throw new Error("oracle-leg tail requires all of oracleLegCount/Flags/Leg2FeedId/Leg3FeedId");
+    }
+    parts.push(
+      encU8(args.oracleLegCount),
+      encU8(args.oracleLegFlags),
+      encodeFeedId(args.oracleLeg2FeedId),
+      encodeFeedId(args.oracleLeg3FeedId),
+    );
+  }
+  // Optional dynamic-fee tail (8 bytes): trade_fee_base_bps. Wrapper
+  // accepts this either alongside the oracle-leg tail or by itself.
+  if (args.tradeFeeBaseBps !== undefined) {
+    parts.push(encU64(args.tradeFeeBaseBps));
+  }
+  return Buffer.concat(parts);
 }
 
 // ---------- InitUser / InitLP ----------
