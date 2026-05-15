@@ -138,12 +138,12 @@ async function main() {
   const PRIORITY_FLOOR = 1;
   const PRIORITY_CEIL = 100_000;
 
-  function estimateCu(n: number, marketMode: number, oiAny: boolean, lag: number): number {
+  function estimateCu(n: number, marketMode: number, oiAny: boolean, lag: number, oracleLegCount: number = 1): number {
     if (n < 1) n = 1;
     const BASE = 60_000;
     let perCrankCost: number[];
     if (marketMode === 1) perCrankCost = Array(n).fill(15_000);
-    else if (!oiAny || lag <= 10) perCrankCost = Array(n).fill(95_000);
+    else if (!oiAny || lag <= 10) perCrankCost = Array(n).fill(95_000 + 60_000 * (oracleLegCount - 1));
     else {
       perCrankCost = [];
       for (let k = 0; k < n; k++) {
@@ -220,7 +220,7 @@ async function main() {
 
     const segmentsNeeded = Math.max(1, Math.ceil(lagNow / 10));
     const n = Math.max(1, Math.min(nMax, segmentsNeeded));
-    const cuLimit = estimateCu(n, marketMode, oiAny, lagNow);
+    const cuLimit = estimateCu(n, marketMode, oiAny, lagNow, oracleLegs.length);
 
     let sig: string | null = null;
     let err: string | null = null;
