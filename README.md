@@ -137,14 +137,28 @@ head -c 819232 /tmp/deployed.so | sha256sum   # must match
 
 This market is run **dormant** to keep operating cost near zero. With no open
 positions the keeper does **not** crank, and the Pyth pull legs are **not**
-maintained — so the market sits stale on purpose. **To trade you must freshen the
-oracles yourself**: publish the relevant shard-0 Pyth legs (e.g. with
-`pyth-solana-receiver` against `hermes.pyth.network`) and crank the asset(s) you
-want to trade back up to date (each `PermissionlessCrank action:0` advances accrual
-by ≤ `max_accrual_dt`, so a long-idle asset takes several cranks to catch up), then
-`InitPortfolio` → `Deposit` → `TradeNoCpi`. Anyone can do this permissionlessly; the
-keeper only guarantees the market never **hard**-stales (see below), not that it is
-continuously fresh.
+maintained — so the market sits stale on purpose.
+
+**A stale market is LOCKED.** Once any asset's `slot_last` falls more than
+`max_accrual_dt` (20) slots behind, the market enters a stale state and rejects
+`InitPortfolio` / `Deposit` / `TradeNoCpi` with `EngineLockActive` (`0x15`) — the
+lock is **market-wide**, not per-asset, so *one* stale asset blocks all trading.
+
+**To trade you must catch the market up yourself first** (permissionless):
+1. Freshen **every** asset's Pyth pull legs — publish the shard-0 PriceUpdateV2
+   accounts (e.g. `pyth-solana-receiver` against `hermes.pyth.network`). All assets,
+   not just the one you want — the lock is global.
+2. **Catch-up crank each asset** with `PermissionlessCrank action:0` *repeatedly*:
+   each crank advances accrual by ≤ `max_accrual_dt` (20 slots), so a long-idle asset
+   needs many cranks (a day of drift ≈ thousands) until its `slot_last` is within
+   `max_accrual_dt` of the current slot. Once **all** assets are caught up the lock
+   clears.
+3. Then `InitPortfolio` → `Deposit` → `TradeNoCpi`.
+
+The keeper only guarantees the market never **hard**-stales (~30 d, see below); it
+does not keep it continuously trade-ready. Note liquidation (`action:1`) is **not**
+blocked by this lock, so the keeper can always liquidate even while idle drift locks
+new trades.
 
 **Operational keepalive — proximity-driven.** Cron runs `mainnet-bounty5-v16-tick.ts`
 every minute on a **dedicated keeper key** (`9WiMAQtd…`, NOT the admin/upgrade key).
