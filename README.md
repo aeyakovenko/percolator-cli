@@ -64,7 +64,7 @@ Vault PDA:  GhsdCHrSYHK6nHmESKvBDDNJJxuMPQntnmJ6d5tFimts
 Vault ATA:  GQLuAjosXmZKoAsrfhrFjyaurvVt1C5KbHSiZT2hFDKg   (wrapped SOL, PDA-signed)
 Matcher:    (none — third parties provision their own matcher program + context)
 Insurance:  0.5 SOL per market (domains 0/2/4) = 1.5 SOL seeded at deploy
-Keeper:     9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ   (dedicated; cranks every 6s, liquidates)
+Keeper:     9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ   (dedicated; proximity-driven liquidator)
 ```
 
 **Markets** (all inverted → priced in SOL)
@@ -115,7 +115,7 @@ head -c 819232 /tmp/deployed.so | sha256sum   # must match
 |---|---|---|
 | `mm` (maintenance margin) | 500 bps | = im → 20× nominal leverage |
 | `im` | 500 bps | no opening buffer |
-| `max_price_move_bps_per_slot` | 24 | §1.4 envelope at mm=500 + max_accrual_dt=20 (keeper cranks every ~6s) |
+| `max_price_move_bps_per_slot` | 24 | §1.4 envelope at mm=500 + max_accrual_dt=20; caps the mark walk to ≤480 bps/crank |
 | `max_accrual_dt_slots` | 20 | accrual catch-up step; a market past it is not dead — keeper cranks it back |
 | `h_min` / `h_max` | 0 / 6_480_000 | up to ~30d profit maturity |
 | `max_trading_fee_bps` | 10_000 | hybrid mode cap (100%) |
@@ -130,23 +130,43 @@ head -c 819232 /tmp/deployed.so | sha256sum   # must match
 | `maintenance_fee_per_slot` | ~27 lamports | ≈ **$0.50/day** account-hold spam deterrent (computed from live SOL/USD) |
 | `permissionless_market_init_fee` | ~5.8M lamports | ≈ **$0.50** to permissionlessly append a new market |
 | `fee_redirect_to_market_0_bps` | 2000 | **20%** of non-zero-market trade fees + backing yield → market 0 |
-| `max_staleness_secs` | 600 | crank accepts a leg up to 10 min old; keeper re-pushes a leg only when age > 450 s |
+| `max_staleness_secs` | 600 | crank accepts a leg up to 10 min old; freshen the leg (push) before cranking past this |
 | Insurance seed | 0.5 SOL × 3 = 1.5 SOL | isolated per market (domains 0/2/4) |
 
-**Operational keepalive** — cron runs `mainnet-bounty5-v16-tick.ts` every minute on
-a **dedicated keeper key** (`9WiMAQtd…`, NOT the admin/upgrade key). Each invocation:
-1. pushes any Pyth leg whose on-chain price age > ~450 s (skips fresh ones — a VAA
-   push costs ~0.016 SOL, so this keeps the bill near the old bounty's ~10 SOL/day);
-2. cranks immediately, then every 6 s, 10× (covers the full minute; 6 s ≈ 15 slots
-   < `max_accrual_dt=20`), refreshing/accruing all 3 assets — a market that drifted
-   past `max_accrual_dt` is **not dead**: the keeper catches it up over repeated cranks;
-3. scans every portfolio (`getProgramAccounts`) and permissionlessly liquidates
-   (`PermissionlessCrank action:1`) any underwater position (healthy → 0x16, ignored).
+### Trading is permissionless — but you push your own oracles
+
+This market is run **dormant** to keep operating cost near zero. With no open
+positions the keeper does **not** crank, and the Pyth pull legs are **not**
+maintained — so the market sits stale on purpose. **To trade you must freshen the
+oracles yourself**: publish the relevant shard-0 Pyth legs (e.g. with
+`pyth-solana-receiver` against `hermes.pyth.network`) and crank the asset(s) you
+want to trade back up to date (each `PermissionlessCrank action:0` advances accrual
+by ≤ `max_accrual_dt`, so a long-idle asset takes several cranks to catch up), then
+`InitPortfolio` → `Deposit` → `TradeNoCpi`. Anyone can do this permissionlessly; the
+keeper only guarantees the market never **hard**-stales (see below), not that it is
+continuously fresh.
+
+**Operational keepalive — proximity-driven.** Cron runs `mainnet-bounty5-v16-tick.ts`
+every minute on a **dedicated keeper key** (`9WiMAQtd…`, NOT the admin/upgrade key).
+A position can only become liquidatable on-chain when its stored mark moves, and the
+mark only moves when cranked — so the keeper cranks **only when needed**:
+1. it reads every portfolio + each asset's mark and computes each position's health
+   buffer **off-chain** (capital + pnl − fee_debt vs Σ maintenance_req) — no tx;
+2. **no positions →** the market is left to drift; the keeper cranks an asset only if
+   its oracle-staleness clock nears the ~30-day hard-stale (`HEARTBEAT_SLOTS`), one
+   crank resets it. Idle cost ≈ 0 (no VAA pushes);
+3. **position near its liq level →** a tight crank+liquidate **burst** on that asset:
+   it walks the stored mark toward the live price in small steps (≤ `max_price_move ·
+   max_accrual_dt` = 480 bps/crank) and fires `PermissionlessCrank action:1` as the
+   mark crosses, bounding bad debt. The engine is the source of truth — action:1
+   no-ops (`0x15`/`0x16`) on a healthy account, so an over-eager burst is harmless;
+4. **position present but comfortable →** a single refresh crank + liq probe per tick.
 
 `timeout 58 s` cron wrapper; log at `~/.cache/percolator/bounty5-v16-cron.log`.
-**Keep the keeper key funded** (~a few SOL/day). If the keeper is down long enough
-that the market hard-stales (`> permissionless_resolve_stale_slots`, ~30 d), re-run
-the installer's bootstrap (admin `ConfigureHybridOracle` re-freshen) before restarting.
+**Keep the keeper key funded.** Liquidation (`action:1`) is **not** gated by the
+market-wide stale lock, so the keeper can always liquidate even while the idle market
+is drifting. If the market ever hard-stales (`> permissionless_resolve_stale_slots`,
+~30 d), re-run the installer's bootstrap (admin `ConfigureHybridOracle` re-freshen).
 
 Install (the installer creates the keeper key + portfolio, bootstraps a stale market,
 and PRINTS the cron line — it does NOT modify the crontab itself):

@@ -67,6 +67,10 @@ export const TAG = {
   UpdateMarketInitFeePolicy: 59,
   UpdateBaseUnitMints: 60,
   SwapSecondaryForPrimary: 61,
+  // ConfigureHyperpMark(35)/PushHyperpMark(36) are RETIRED — the manual-mark
+  // path is now AUTH_MARK (oracle_mode 3): configure once, then push the mark.
+  ConfigureAuthMark: 62,
+  PushAuthMark: 63,
   ForceCloseAbandonedAsset: 64,
 } as const;
 
@@ -381,6 +385,31 @@ export interface PushHyperpMarkArgs { assetIndex: number; nowSlot: bigint; markE
 export function encPushHyperpMark(a: PushHyperpMarkArgs): Buffer {
   return Buffer.concat([
     u8(TAG.PushHyperpMark),
+    u16le(a.assetIndex),
+    u64le(a.nowSlot), u64le(a.markE6),
+  ]);
+}
+
+// 62 ConfigureAuthMark — set an asset to AUTH_MARK oracle mode with an initial
+// mark. Authority = market admin for asset 0, else the per-asset oracle_authority.
+// Accounts: [authority(signer), market(w)]. Wire: asset_index:u16, now_slot:u64,
+// initial_mark_e6:u64. (Replaces the retired ConfigureHyperpMark.)
+export interface ConfigureAuthMarkArgs { assetIndex: number; nowSlot: bigint; initialMarkE6: bigint; }
+export function encConfigureAuthMark(a: ConfigureAuthMarkArgs): Buffer {
+  return Buffer.concat([
+    u8(TAG.ConfigureAuthMark),
+    u16le(a.assetIndex),
+    u64le(a.nowSlot), u64le(a.initialMarkE6),
+  ]);
+}
+
+// 63 PushAuthMark — push a new mark to an AUTH_MARK asset (the oracle target the
+// engine walks effective_price toward, bounded by max_price_move_bps_per_slot).
+// Accounts: [authority(signer), market(w)]. Wire: asset_index:u16, now_slot:u64, mark_e6:u64.
+export interface PushAuthMarkArgs { assetIndex: number; nowSlot: bigint; markE6: bigint; }
+export function encPushAuthMark(a: PushAuthMarkArgs): Buffer {
+  return Buffer.concat([
+    u8(TAG.PushAuthMark),
     u16le(a.assetIndex),
     u64le(a.nowSlot), u64le(a.markE6),
   ]);

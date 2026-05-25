@@ -14,7 +14,12 @@ const PROGRAM = new PublicKey("4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi");
 const MARKET = new PublicKey("8oYjDr2Rt6BCuBvwaUGx7gLnzQbkuARTtrQr7DijAHn7");
 const KEEPER = new PublicKey("9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ");
 const INSURANCE_BASELINE = 1.5;   // SOL seeded; a drop = bounty hit
-const DT_ALERT = 200;             // slots; keeper should hold dt well under this
+// Idle strategy is DORMANT: with no positions the keeper lets the market drift
+// stale on purpose, so a large dt is EXPECTED, not a problem. Only alert when the
+// drift is nearing the ~30-day hard-stale, or when stale WHILE positions are open.
+const HARD_STALE = 6_480_000;     // permissionless_resolve_stale_slots
+const NEAR_HARD_STALE = 5_500_000;
+const POS_STALE_ALERT = 500;      // if positions exist, the keeper should keep dt low
 
 (async () => {
   const ts = new Date().toISOString().slice(11, 19);
@@ -43,9 +48,11 @@ const DT_ALERT = 200;             // slots; keeper should hold dt well under thi
   console.log(`[${ts}] mode=${mg.mode} ins=${ins.toFixed(4)}SOL cTot=${cTot.toFixed(4)} dt=[${dts.join(",")}]slots ports=${ports}(pos:${withPos}) keeper=${keeperSol.toFixed(3)}SOL cronLog=${cronAge} ago`);
 
   const alerts: string[] = [];
+  const maxDt = Math.max(...dts);
   if (ins < INSURANCE_BASELINE - 1e-6) alerts.push(`🚨 INSURANCE DROPPED ${INSURANCE_BASELINE}→${ins.toFixed(4)} SOL (BOUNTY HIT?)`);
   if (mg.mode !== 0) alerts.push(`🚨 market mode=${mg.mode} (not Live)`);
-  if (Math.max(...dts) > DT_ALERT) alerts.push(`⚠️  stale: max dt=${Math.max(...dts)} slots (keeper behind?)`);
+  if (maxDt > NEAR_HARD_STALE) alerts.push(`🚨 nearing hard-stale: max dt=${maxDt}/${HARD_STALE} — heartbeat must crank`);
+  if (withPos > 0 && maxDt > POS_STALE_ALERT) alerts.push(`⚠️  positions open but stale (dt=${maxDt}) — keeper should be cranking`);
   if (keeperSol < 1) alerts.push(`⚠️  keeper low: ${keeperSol.toFixed(3)} SOL — fund it`);
   if (withPos > 0) alerts.push(`ℹ️  ${withPos} portfolio(s) hold positions — watch for liquidations`);
   if (alerts.length) alerts.forEach((a) => console.log("   " + a));

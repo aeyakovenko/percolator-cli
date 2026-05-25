@@ -238,54 +238,53 @@ export const PORTFOLIO_STATE_LEN = 22363;
 export const PORTFOLIO_ACCOUNT_LEN = HEADER_LEN + PORTFOLIO_STATE_LEN; // 22379
 export const PORTFOLIO_STATE_OFF = HEADER_LEN; // 16
 
+// Verified empirically against the DEPLOYED program (devnet probe, 2026-05-25):
+// PortfolioAccountV16Account has the source-domain claims as a SEPARATE trailing
+// region (PortfolioSourceDomainV16Account[], 160 B stride), NOT inline — so legs
+// sit EARLY (@228), not at 19684. The old inline-array offsets silently read the
+// all-zero domain region => the keeper saw "no positions" for every account.
+// Offsets from `cargo run --example dump_layout` (percolator-prog @ c929fb0,
+// engine 23de295) and confirmed by decoding a real on-chain position.
 export const PA = {
   provenance_header: 0,                // 100 B
   owner: 100,                          // 32 B
   capital: 132,                        // u128
   pnl: 148,                            // i128
   reserved_pnl: 164,                   // u128
-  source_claim_market_id: 180,         // [u128; 64] = 1024 B
-  source_claim_bound_num: 1204,        // [u128; 128] = 2048 B
-  source_claim_liened_num: 3252,
-  source_claim_counterparty_liened_num: 5300,
-  source_claim_insurance_liened_num: 7348,
-  source_lien_effective_reserved: 9396,
-  source_lien_counterparty_backing_num: 11444,
-  source_lien_insurance_backing_num: 13492,
-  source_claim_impaired_num: 15540,
-  source_lien_impaired_effective_reserved: 17588,
-  fee_credits: 19636,                  // i128
-  cancel_deposit_escrow: 19652,
-  last_fee_slot: 19668,                // u64
-  active_bitmap: 19676,                // u64
-  legs: 19684,                         // [PortfolioLegV16Account; 16] = 144 B × 16 = 2304
-  health_cert: 21988,                  // 121 B
-  stale_state: 22109,
-  b_stale_state: 22110,
-  rebalance_lock: 22111,
-  liquidation_lock: 22112,
-  close_progress: 22113,               // 184 B
-  resolved_payout_receipt: 22297,      // 66 B
+  fee_credits: 180,                    // i128
+  cancel_deposit_escrow: 196,          // u128
+  last_fee_slot: 212,                  // u64
+  active_bitmap: 220,                  // [u64; 1]
+  legs: 228,                           // [PortfolioLegV16Account; 16] = 144 B × 16 = 2304
+  health_cert: 2532,                   // HealthCertV16Account (121 B)
+  stale_state: 2653,                   // u8
+  b_stale_state: 2654,                 // u8
+  rebalance_lock: 2655,                // u8
+  liquidation_lock: 2656,              // u8
+  close_progress: 2657,                // 184 B
+  resolved_payout_receipt: 2841,       // 66 B (PortfolioAccountV16Account size = 2907)
 } as const;
 
-// ---------- PortfolioLegV16Account (144 B, was 140) ----------
-// Includes 8-byte `market_id: u64` between `active` and `side`.
+// ---------- PortfolioLegV16Account (144 B) ----------
+// active(u8) · asset_index(u32) · market_id(u64) · side(u8) · basis_pos_q(i128) · …
+// asset_index was the missing 4-byte field that shifted every prior offset.
 export const LEG_LEN = 144;
 export const PL = {
   active: 0,                           // u8
-  market_id: 1,                        // NEW u64
-  side: 9,                             // u8 (0 = long, 1 = short)
-  basis_pos_q: 10,                     // i128
-  a_basis: 26,                         // u128
-  k_snap: 42,                          // i128
-  f_snap: 58,
-  epoch_snap: 74,                      // u64
-  loss_weight: 82,                     // u128
-  b_snap: 98,
-  b_rem: 114,
-  b_epoch_snap: 130,                   // u64
-  b_stale: 138,                        // u8
-  stale: 139,                          // u8
+  asset_index: 1,                      // u32
+  market_id: 5,                        // u64
+  side: 13,                            // u8 (0 = long, 1 = short)
+  basis_pos_q: 14,                     // i128
+  a_basis: 30,                         // u128
+  k_snap: 46,                          // i128
+  f_snap: 62,
+  epoch_snap: 78,                      // u64
+  loss_weight: 86,                     // u128
+  b_snap: 102,
+  b_rem: 118,
+  b_epoch_snap: 134,                   // u64
+  b_stale: 142,                        // u8
+  stale: 143,                          // u8
 } as const;
 
 // ---------- Provenance header (100 B; inside portfolio) ----------

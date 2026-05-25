@@ -367,6 +367,8 @@ export function parseMarketGroup(data: Buffer): MarketGroup {
 export interface Leg {
   index: number;
   active: number;
+  assetIndex: number;      // u32 — which market asset this leg trades
+  marketId: bigint;        // u64
   side: number;            // 0 long / 1 short
   basisPosQ: bigint;       // i128
   aBasis: bigint;
@@ -383,6 +385,8 @@ export function parseLeg(data: Buffer, baseOff: number, index: number): Leg {
   return {
     index,
     active: u8(data, b + PL.active),
+    assetIndex: u32(data, b + PL.asset_index),
+    marketId: u64(data, b + PL.market_id),
     side: u8(data, b + PL.side),
     basisPosQ: i128(data, b + PL.basis_pos_q),
     aBasis: u128(data, b + PL.a_basis),

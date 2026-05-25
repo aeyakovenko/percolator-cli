@@ -1,9 +1,9 @@
 {
   "network": "devnet",
   "programId": "Bu1J8eQQN2mNnUgisSEd5StBG6zDaRb7fwDjN34VzgLG",
-  "market": "CS7C1gaxtNkeGQxKkW9McNdrWyj9nRwxrJQVtJgZ9GT8",
-  "vault": "GNYtj99GrjBMrw6uERdRaXg5uvftr6yCz7gKeuwF8kV9",
-  "vaultPda": "4kFYwPAhXWuMSXuHc6kogPVNYPia9vMofAJKZXiKMn8S",
+  "market": "H8Vtnm9oVsjGHbqPtV7VK5eqhvEBumuJXwMtHte7G12Y",
+  "vault": "84545NN4Jw3WtXZ79JaXeBJ81uuFcdxXkxEMXtvByUHR",
+  "vaultPda": "GwfLWXVaSWW4QDpnSBgZoroAhPbfAS9whFaGtS1jpMQT",
   "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "collateralMint": "So11111111111111111111111111111111111111112",
   "unitScale": 0,
@@ -11,18 +11,18 @@
   "leverage": 20,
   "maintenanceMarginBps": 500,
   "forceCloseDelaySlots": 216000,
-  "permissionlessResolveStaleSlots": 100,
-  "solUsdPriceE6": "86167633",
+  "permissionlessResolveStaleSlots": 6480000,
+  "solUsdPriceE6": "86310000",
   "fees": {
     "newAccount": {
       "note": "see InitMarket; no per-account fee configured for bounty-5"
     },
     "maintenancePerSlot": {
       "lamports": "27",
-      "usdPerDay": "0.5025"
+      "usdPerDay": "0.5034"
     },
     "marketInit": {
-      "lamports": "5802643",
+      "lamports": "5793071",
       "usd": "0.5000"
     },
     "feeRedirectToMarket0Bps": 2000
@@ -76,8 +76,8 @@
         "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"
       ],
       "oracleAccounts": [
-        "C2Cf16vF6LX8GrWJwfZga5z5tjVsax5VWnL2T7Q8CF91",
-        "Fu76ChamBDjE8UuGLV6GP2AcPPSU6gjhkNhAyuoPm7ny",
+        "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE",
+        "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE",
         "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
       ],
       "validation": "PASS"
@@ -97,9 +97,7 @@
         "4cSM2e6rvbGQUFiJbqytoVMi5GgghSMr8LwVrT9VPSPo",
         "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
       ],
-      "validation": "FAIL"
+      "validation": "PASS"
     }
-  ],
-  "keeperPortfolio": "7wyXKfEkhpgVRGfUjqRFD3u5UG4yfph27g81d2fuNy44",
-  "keeper": "9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ"
+  ]
 }
