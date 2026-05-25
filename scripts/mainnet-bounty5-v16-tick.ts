@@ -94,7 +94,13 @@ const FEED_SOL_USD   = "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8
 const FEED_STOXX_EUR = "dd08f0a40e21ce42178b25bdd9461a2beebccbaa2a781a6e02b323576c4072ab";
 const FEED_EUR_USD   = "a995d00bb36a63cef7fd2c287dc105fc8f3d93779f062f09551b0af3e81ec30b";
 const FEED_BTC_USD   = "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43";
-const PYTH_FEEDS = [FEED_SOL_USD, FEED_STOXX_EUR, FEED_EUR_USD, FEED_BTC_USD];
+// Only self-push the legs nobody else maintains. SOL/USD and BTC/USD shard-0 are
+// kept fresh on mainnet by Pyth's sponsored cranks (verified: last 12 writes all
+// external, on-chain age single-digit seconds), so m0/m2 need NO push from us.
+// Only m1's equity (STOXX) + FX (EUR) legs are self-maintained, and only during
+// their market hours — out of hours m1 uses the HYBRID_AFTER_HOURS EWMA fallback,
+// so a push there is wasted (Hermes returns a stale, non-advancing price).
+const PYTH_FEEDS = [FEED_STOXX_EUR, FEED_EUR_USD];
 
 // Per-asset oracle accounts (mainnet == devnet PDAs — same as the smokes/deployer).
 const SOL = new PublicKey("7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE");
@@ -142,13 +148,18 @@ let cranksOk = 0, cranksFail = 0, liqDone = 0, liqAttempt = 0;
 const FEED_ACCT: Record<string, PublicKey> = {
   [FEED_SOL_USD]: SOL, [FEED_STOXX_EUR]: STOXX, [FEED_EUR_USD]: EUR, [FEED_BTC_USD]: BTC,
 };
-// A Pyth VAA push costs ~0.016 SOL, so DON'T push all 4 legs every minute (~100 SOL/day).
-// The crank accepts a price up to max_staleness_secs=600 s old, so only push a leg once it
-// nears that — re-push when age > 450 s (next push lands ≤ ~510 s < 600 s).
-const PUSH_IF_OLDER_SECS = 450;
+// A Pyth VAA push costs ~0.016 SOL — keep the market "barely alive" at minimal cost.
+// Push a leg only inside a narrow window: it's aging toward max_staleness_secs=600 s
+// (so a fresh leg is skipped — re-push only when age > 550 s, landing ≤ ~610 s) AND it's
+// not already deep after-hours. Past ~1700 s the leg's market is closed → Hermes returns a
+// stale, non-advancing price and m1 uses the EWMA fallback anyway, so pushing is wasted.
+const PUSH_IF_OLDER_SECS = 500;
+const SKIP_IF_OLDER_SECS = 750;   // just past max_staleness — once a leg is this stale its
+                                  // market is closed (Hermes won't advance it) → EWMA fallback,
+                                  // so stop pushing (only ~1 wasted push at each close).
 async function pushPythLegs() {
   const pusher = NETWORK === "mainnet" ? `${PUSHER_DIR}/push.js` : `${PUSHER_DIR}/push-devnet.js`;
-  console.log(`[push] ${NETWORK} legs via ${pusher} (fee-payer ${keeper.publicKey.toBase58()}) — only stale legs`);
+  console.log(`[push] ${NETWORK} self-maintained legs via ${pusher} (fee-payer ${keeper.publicKey.toBase58()})`);
   const nowTs = Math.floor(Date.now() / 1000);
   for (const feed of PYTH_FEEDS) {
     try {
@@ -157,6 +168,7 @@ async function pushPythLegs() {
       if (info && info.data.length >= 101) {
         const age = nowTs - Number(info.data.readBigInt64LE(93)); // PriceUpdateV2 publish_time @93
         if (age >= 0 && age < PUSH_IF_OLDER_SECS) { console.log(`  ·   fresh ${feed.slice(0, 12)}… (age ${age}s)`); continue; }
+        if (age > SKIP_IF_OLDER_SECS) { console.log(`  ·   after-hours ${feed.slice(0, 12)}… (age ${age}s → EWMA fallback)`); continue; }
       }
       const r = spawnSync("node", [pusher, feed, "0", KEEPER_KEYPAIR_PATH], {
         cwd: PUSHER_DIR,
