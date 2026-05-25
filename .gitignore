@@ -3,3 +3,9 @@ dist/
 *.log
 .DS_Store
 .env
+# secrets / keypairs — never commit
+.helius
+*program*.json
+*-keypair.json
+bounty5-v16-program.json
+*.so

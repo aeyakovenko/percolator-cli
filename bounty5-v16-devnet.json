@@ -1,0 +1,105 @@
+{
+  "network": "devnet",
+  "programId": "Bu1J8eQQN2mNnUgisSEd5StBG6zDaRb7fwDjN34VzgLG",
+  "market": "CS7C1gaxtNkeGQxKkW9McNdrWyj9nRwxrJQVtJgZ9GT8",
+  "vault": "GNYtj99GrjBMrw6uERdRaXg5uvftr6yCz7gKeuwF8kV9",
+  "vaultPda": "4kFYwPAhXWuMSXuHc6kogPVNYPia9vMofAJKZXiKMn8S",
+  "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+  "collateralMint": "So11111111111111111111111111111111111111112",
+  "unitScale": 0,
+  "inverted": true,
+  "leverage": 20,
+  "maintenanceMarginBps": 500,
+  "forceCloseDelaySlots": 216000,
+  "permissionlessResolveStaleSlots": 100,
+  "solUsdPriceE6": "86167633",
+  "fees": {
+    "newAccount": {
+      "note": "see InitMarket; no per-account fee configured for bounty-5"
+    },
+    "maintenancePerSlot": {
+      "lamports": "27",
+      "usdPerDay": "0.5025"
+    },
+    "marketInit": {
+      "lamports": "5802643",
+      "usd": "0.5000"
+    },
+    "feeRedirectToMarket0Bps": 2000
+  },
+  "insurancePerDomain": [
+    {
+      "market": "m0",
+      "domain": 0,
+      "lamports": "500000000",
+      "sol": 0.5
+    },
+    {
+      "market": "m1",
+      "domain": 2,
+      "lamports": "500000000",
+      "sol": 0.5
+    },
+    {
+      "market": "m2",
+      "domain": 4,
+      "lamports": "500000000",
+      "sol": 0.5
+    }
+  ],
+  "markets": [
+    {
+      "asset": "m0",
+      "label": "USD/SOL",
+      "assetIndex": 0,
+      "invert": 1,
+      "oracleLegCount": 1,
+      "oracleLegFlags": "0x0",
+      "legFeedIds": [
+        "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"
+      ],
+      "oracleAccounts": [
+        "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
+      ],
+      "validation": "PASS"
+    },
+    {
+      "asset": "m1",
+      "label": "STOXX/SOL",
+      "assetIndex": 1,
+      "invert": 1,
+      "oracleLegCount": 3,
+      "oracleLegFlags": "0x2",
+      "legFeedIds": [
+        "dd08f0a40e21ce42178b25bdd9461a2beebccbaa2a781a6e02b323576c4072ab",
+        "a995d00bb36a63cef7fd2c287dc105fc8f3d93779f062f09551b0af3e81ec30b",
+        "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"
+      ],
+      "oracleAccounts": [
+        "C2Cf16vF6LX8GrWJwfZga5z5tjVsax5VWnL2T7Q8CF91",
+        "Fu76ChamBDjE8UuGLV6GP2AcPPSU6gjhkNhAyuoPm7ny",
+        "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
+      ],
+      "validation": "PASS"
+    },
+    {
+      "asset": "m2",
+      "label": "BTC/SOL (Pyth÷Pyth)",
+      "assetIndex": 2,
+      "invert": 1,
+      "oracleLegCount": 2,
+      "oracleLegFlags": "0x1",
+      "legFeedIds": [
+        "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
+        "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"
+      ],
+      "oracleAccounts": [
+        "4cSM2e6rvbGQUFiJbqytoVMi5GgghSMr8LwVrT9VPSPo",
+        "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
+      ],
+      "validation": "FAIL"
+    }
+  ],
+  "keeperPortfolio": "7wyXKfEkhpgVRGfUjqRFD3u5UG4yfph27g81d2fuNy44",
+  "keeper": "9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ"
+}

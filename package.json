@@ -3,24 +3,22 @@
   "version": "0.1.0",
   "license": "Apache-2.0",
   "type": "module",
-  "bin": {
-    "percolator-cli": "./dist/index.js"
-  },
+  "main": "./dist/index.js",
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsup",
-    "dev": "pnpm build && node dist/index.js",
-    "test": "tsx test/abi.test.ts && tsx test/pda.test.ts && tsx test/slab.test.ts && tsx test/validation.test.ts && tsx test/oracle.test.ts"
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx scripts/smoke-v16-bounty5.ts"
   },
   "dependencies": {
     "@pythnetwork/hermes-client": "^2.1.0",
     "@pythnetwork/pyth-solana-receiver": "^0.13.0",
     "@solana/spl-token": "^0.3.11",
     "@solana/web3.js": "^1.95.4",
-    "commander": "^12.1.0",
-    "zod": "^3.23.8"
+    "@switchboard-xyz/on-demand": "^3.10.1",
+    "bs58": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.17.10",
@@ -31,5 +29,11 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "@pythnetwork/pyth-solana-receiver>rpc-websockets": "7.11.2",
+      "@coral-xyz/anchor>rpc-websockets": "7.11.2"
+    }
   }
 }
