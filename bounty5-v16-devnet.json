@@ -1,9 +1,9 @@
 {
   "network": "devnet",
   "programId": "Bu1J8eQQN2mNnUgisSEd5StBG6zDaRb7fwDjN34VzgLG",
-  "market": "H8Vtnm9oVsjGHbqPtV7VK5eqhvEBumuJXwMtHte7G12Y",
-  "vault": "84545NN4Jw3WtXZ79JaXeBJ81uuFcdxXkxEMXtvByUHR",
-  "vaultPda": "GwfLWXVaSWW4QDpnSBgZoroAhPbfAS9whFaGtS1jpMQT",
+  "market": "8XEinpmJSEHGZTAz1kaRmjuWjW1RMey2K7QVyjVZxhc2",
+  "vault": "8LWNn9VukrmamvFrHvFtFHd4FeARwX8SKzYwJNQtmMw6",
+  "vaultPda": "3cUFT9FDRqjAPonesWJyeqx4D3SVbuc4Jhp48Q4QTTa1",
   "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "collateralMint": "So11111111111111111111111111111111111111112",
   "unitScale": 0,
@@ -12,17 +12,17 @@
   "maintenanceMarginBps": 500,
   "forceCloseDelaySlots": 216000,
   "permissionlessResolveStaleSlots": 6480000,
-  "solUsdPriceE6": "86310000",
+  "solUsdPriceE6": "86046140",
   "fees": {
     "newAccount": {
       "note": "see InitMarket; no per-account fee configured for bounty-5"
     },
     "maintenancePerSlot": {
       "lamports": "27",
-      "usdPerDay": "0.5034"
+      "usdPerDay": "0.5018"
     },
     "marketInit": {
-      "lamports": "5793071",
+      "lamports": "5810836",
       "usd": "0.5000"
     },
     "feeRedirectToMarket0Bps": 2000

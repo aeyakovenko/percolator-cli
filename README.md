@@ -85,14 +85,17 @@ keeper self-publishes them from `hermes.pyth.network` via `pyth-solana-receiver`
 of hours it falls back to the EWMA mark (HYBRID_AFTER_HOURS), which the keeper's
 cranks keep advancing. FX (EUR) is 24/5, crypto (SOL/BTC) 24/7.
 
-**Build provenance** (2026-05-25 deploy)
+**Build provenance** (upgraded 2026-05-25 to the per-asset stale fix)
 
 ```
-BPF binary SHA-256:   f476f8fceda8512f03c70b1d4102ac066e55eb6f33271183c8811f0d377b11c0
-BPF binary size:      819,232 bytes ELF
-percolator-prog:      af8cf46 (origin/main)  — program code last changed at c929fb0
+BPF binary SHA-256:   473958eaa89e0c29671448871bb831eee132ab507e4642b09bbcedcf080c2516
+BPF binary size:      820,280 bytes ELF
+percolator-prog:      7f7cefc  "Allow unrelated trades with stale assets"
+                      (logic-only +63 lines over c929fb0; account layouts UNCHANGED,
+                       engine pin 23de295 unchanged — existing market/portfolios stay valid)
 MARKET_ACCOUNT_LEN:   116,286 bytes (capacity 64 asset slots; dynamic — realloc-growable)
-Deploy tx:            cbUFgdAFg3pr6ZPBsU1BQGWPngmq9hwAr49cP48ftZE9vWh3yRpUwcTP3Gf9bnpmaPE6ZoM2VC96JSorTxXYNXo
+Upgrade tx:           EhxpYK2CwzUf2UXQx34RRpMJyVSQrVP5QJL1qQnk2rKxJ6ifBee4FJVpPD9Ywa7VGp7rPzoFstNWL4ttp9Me2H1
+Prior build:          f476f8fc… (819,232 B, c929fb0) — superseded
 ```
 
 Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
@@ -100,13 +103,13 @@ Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout af8cf46
+cd percolator-prog && git checkout 7f7cefc
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: f476f8fceda8512f03c70b1d4102ac066e55eb6f33271183c8811f0d377b11c0
+#   Expected: 473958eaa89e0c29671448871bb831eee132ab507e4642b09bbcedcf080c2516
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 819232 /tmp/deployed.so | sha256sum   # must match
+head -c 820280 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
@@ -139,26 +142,26 @@ This market is run **dormant** to keep operating cost near zero. With no open
 positions the keeper does **not** crank, and the Pyth pull legs are **not**
 maintained — so the market sits stale on purpose.
 
-**A stale market is LOCKED.** Once any asset's `slot_last` falls more than
-`max_accrual_dt` (20) slots behind, the market enters a stale state and rejects
-`InitPortfolio` / `Deposit` / `TradeNoCpi` with `EngineLockActive` (`0x15`) — the
-lock is **market-wide**, not per-asset, so *one* stale asset blocks all trading.
+**Staleness gating is per-asset** (as of program `7f7cefc`). To trade asset *X* you
+only need *X* fresh — a stale *other* asset no longer blocks you (the engine's
+market-wide loss-stale bit is ignored for a trade when neither the traded asset nor
+either account's open legs touch a stale asset). `InitPortfolio` / `Deposit` aren't
+staleness-gated at all. (The group-wide lock still applies to **admin oracle
+reconfig** — `ConfigureAuthMark` / `ConfigureHybridOracle` — but not to trading.)
 
-**To trade you must catch the market up yourself first** (permissionless):
-1. Freshen **every** asset's Pyth pull legs — publish the shard-0 PriceUpdateV2
-   accounts (e.g. `pyth-solana-receiver` against `hermes.pyth.network`). All assets,
-   not just the one you want — the lock is global.
-2. **Catch-up crank each asset** with `PermissionlessCrank action:0` *repeatedly*:
+**To trade you catch up just the asset(s) you touch** (permissionless):
+1. Freshen that asset's Pyth pull legs — publish the shard-0 PriceUpdateV2 accounts
+   (e.g. `pyth-solana-receiver` against `hermes.pyth.network`).
+2. **Catch-up crank the asset** with `PermissionlessCrank action:0` *repeatedly*:
    each crank advances accrual by ≤ `max_accrual_dt` (20 slots), so a long-idle asset
    needs many cranks (a day of drift ≈ thousands) until its `slot_last` is within
-   `max_accrual_dt` of the current slot. Once **all** assets are caught up the lock
-   clears.
-3. Then `InitPortfolio` → `Deposit` → `TradeNoCpi`.
+   `max_accrual_dt` of the current slot.
+3. Then `InitPortfolio` → `Deposit` → `TradeNoCpi` (atomic-crank-then-trade in one tx
+   keeps the asset fresh at execution).
 
 The keeper only guarantees the market never **hard**-stales (~30 d, see below); it
-does not keep it continuously trade-ready. Note liquidation (`action:1`) is **not**
-blocked by this lock, so the keeper can always liquidate even while idle drift locks
-new trades.
+does not keep it continuously trade-ready. Liquidation (`action:1`) is also **not**
+blocked by staleness, so the keeper can always liquidate even while idle drift sits.
 
 **Operational keepalive — proximity-driven.** Cron runs `mainnet-bounty5-v16-tick.ts`
 every minute on a **dedicated keeper key** (`9WiMAQtd…`, NOT the admin/upgrade key).
