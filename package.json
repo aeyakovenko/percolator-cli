@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "smoke": "tsx scripts/smoke-v16-bounty5.ts"
+    "smoke": "tsx scripts/smoke-v16-bounty5.ts",
+    "test": "tsx scripts/verify-manifest.ts"
   },
   "dependencies": {
     "@pythnetwork/hermes-client": "^2.1.0",

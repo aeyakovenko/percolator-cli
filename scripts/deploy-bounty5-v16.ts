@@ -653,6 +653,19 @@ async function main() {
     : `${HOME}/percolator-cli/bounty5-v16-devnet.json`;
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
+  // CLI #72/#77 post-write guard: the just-written manifest MUST agree with the
+  // single source of truth on every safety-critical immutable, else fail loudly so
+  // a stale value (e.g. the legacy 100-slot perm-resolve cap) can never ship.
+  {
+    const { BOUNTY5_PARAMS, MANIFEST_SAFETY_FIELDS } = await import("./bounty5-params.js");
+    const written = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const drift = MANIFEST_SAFETY_FIELDS
+      .filter((f) => Number(written[f]) !== Number((BOUNTY5_PARAMS as any)[f]))
+      .map((f) => `${f}=${written[f]} (expected ${(BOUNTY5_PARAMS as any)[f]})`);
+    if (drift.length) throw new Error(`manifest safety-field drift — refusing to ship: ${drift.join(", ")}`);
+    console.log("  ✅  manifest matches bounty5-params (perm-resolve / force-close / mm / leverage)");
+  }
+
   console.log("\n=================================");
   console.log(`PASS: ${passed}  FAIL: ${failed}`);
   if (failures.length) {
