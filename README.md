@@ -87,6 +87,10 @@ Keeper pf:  5iWTBYod2C4RovvrWfqs45sTbqNPb9B1B7cSkN2atVNs
 | m1 | STOXX50/SOL | STOXX50·EUR `C2Cf16…` × EUR/USD `Fu76Cham…` ÷ SOL/USD `7UVimffx…`, 3-leg `DIVIDE_LEG3`, inverted |
 | m2 | BTC/SOL | BTC/USD `4cSM2e6…` ÷ SOL/USD `7UVimffx…`, 2-leg `DIVIDE_LEG2`, inverted |
 
+> A 4th asset slot (index 3) is an inert leftover from the on-chain exploit-fix
+> verification — **retired/ignored**, 0 insurance budget, cannot be drained. Only
+> m0/m1/m2 are the live bounty markets.
+
 **Oracles** — each market's Pyth pull legs are in the table above (m1's composite
 is `STOXX50·EUR × EUR/USD ÷ SOL/USD` = STOXX50/SOL via `DIVIDE_LEG3 = 0x02`;
 m2's is `BTC/USD ÷ SOL/USD` = BTC/SOL via `DIVIDE_LEG2 = 0x01`; m0 is SOL/USD
