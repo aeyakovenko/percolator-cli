@@ -104,13 +104,13 @@ cranks keep advancing. FX (EUR) is 24/5, crypto (SOL/BTC) 24/7.
 **Build provenance** (mainnet upgraded 2026-05-26 to the per-domain insurance-isolation fix)
 
 ```
-BPF binary SHA-256:   d06bea6e10c2d7a1112ea15e122151fdbfea56b46fd03d9ad446340dd57cc645
-BPF binary size:      826,760 bytes ELF
-percolator-prog:      ef3e1ca  (engine pin 9bcf002b "Fix v16 loss-stale + trade-fee
-                      reporting"; engine 8e0e3f8 added per-domain insurance isolation; layouts
+BPF binary SHA-256:   d6b384c8c47f442687ae179a123e064ea198ddd373e8ad462c7e63792e5f28fa
+BPF binary size:      837,256 bytes ELF
+percolator-prog:      0925ed4  (engine pin 9bcf002b; adds wrapper post-mutation validate_shape (closes #73/#76) + resolved-close
+                      accounting fix; engine 9bcf002b loss-stale/fee fix; 8e0e3f8 per-domain insurance isolation; layouts
                       UNCHANGED, existing market/portfolios stay valid)
 MARKET_ACCOUNT_LEN:   116,286 bytes (capacity 64 asset slots; dynamic — realloc-growable)
-Prior builds:         ea42aa49/6e7de51 (isolation), 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
+Prior builds:         d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
 ```
 
 Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
@@ -118,13 +118,13 @@ Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout ef3e1ca
+cd percolator-prog && git checkout 0925ed4
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: d06bea6e10c2d7a1112ea15e122151fdbfea56b46fd03d9ad446340dd57cc645
+#   Expected: d6b384c8c47f442687ae179a123e064ea198ddd373e8ad462c7e63792e5f28fa
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 826760 /tmp/deployed.so | sha256sum   # must match
+head -c 837256 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
