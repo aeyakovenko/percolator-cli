@@ -1,9 +1,9 @@
 {
   "network": "mainnet",
   "programId": "4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi",
-  "market": "8oYjDr2Rt6BCuBvwaUGx7gLnzQbkuARTtrQr7DijAHn7",
-  "vault": "GQLuAjosXmZKoAsrfhrFjyaurvVt1C5KbHSiZT2hFDKg",
-  "vaultPda": "GhsdCHrSYHK6nHmESKvBDDNJJxuMPQntnmJ6d5tFimts",
+  "market": "BhkMic5gHLjj5Uxkg6rBBXofUzeTZVwmV4uFzfhwtgQw",
+  "vault": "wRvSrR1ffEM4gSkVR48xWeaKvSyDp8z1aSaQTWoptXQ",
+  "vaultPda": "DmDYnHsLnDiAS8PtrxfKkNbzd6KpSyT1vmC8icGjgPhj",
   "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "collateralMint": "So11111111111111111111111111111111111111112",
   "unitScale": 0,
@@ -11,18 +11,18 @@
   "leverage": 20,
   "maintenanceMarginBps": 500,
   "forceCloseDelaySlots": 216000,
-  "permissionlessResolveStaleSlots": 100,
-  "solUsdPriceE6": "86206344",
+  "permissionlessResolveStaleSlots": 6480000,
+  "solUsdPriceE6": "85257239",
   "fees": {
     "newAccount": {
       "note": "see InitMarket; no per-account fee configured for bounty-5"
     },
     "maintenancePerSlot": {
       "lamports": "27",
-      "usdPerDay": "0.5028"
+      "usdPerDay": "0.4972"
     },
     "marketInit": {
-      "lamports": "5800037",
+      "lamports": "5864605",
       "usd": "0.5000"
     },
     "feeRedirectToMarket0Bps": 2000
@@ -100,6 +100,6 @@
       "validation": "FAIL"
     }
   ],
-  "keeperPortfolio": "38QSu57zCu2PKwJtzjiK3cK7qRnTWriXhx6Y2bKDb13H",
+  "keeperPortfolio": "5iWTBYod2C4RovvrWfqs45sTbqNPb9B1B7cSkN2atVNs",
   "keeper": "9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ"
 }

@@ -58,14 +58,23 @@ Or use command-line flags:
 **On-chain addresses**
 
 ```
-Program:    4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi   (new v16 program)
-Market:     8oYjDr2Rt6BCuBvwaUGx7gLnzQbkuARTtrQr7DijAHn7   (market group account)
-Vault PDA:  GhsdCHrSYHK6nHmESKvBDDNJJxuMPQntnmJ6d5tFimts
-Vault ATA:  GQLuAjosXmZKoAsrfhrFjyaurvVt1C5KbHSiZT2hFDKg   (wrapped SOL, PDA-signed)
+Program:    4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi   (v16 program)
+Market:     BhkMic5gHLjj5Uxkg6rBBXofUzeTZVwmV4uFzfhwtgQw   (market group; re-launched 2026-05-26)
+Vault PDA:  DmDYnHsLnDiAS8PtrxfKkNbzd6KpSyT1vmC8icGjgPhj
+Vault ATA:  wRvSrR1ffEM4gSkVR48xWeaKvSyDp8z1aSaQTWoptXQ   (wrapped SOL, PDA-signed)
 Matcher:    (none — third parties provision their own matcher program + context)
-Insurance:  0.5 SOL per market (domains 0/2/4) = 1.5 SOL seeded at deploy
+Insurance:  2.0 SOL seeded (domains 0/2/4)
 Keeper:     9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ   (dedicated; proximity-driven liquidator)
+Keeper pf:  5iWTBYod2C4RovvrWfqs45sTbqNPb9B1B7cSkN2atVNs
 ```
+
+> **Re-launched 2026-05-26 after a claimed bounty.** The original market
+> `8oYjDr2…` was drained (1.5 SOL) via an insurance-domain isolation flaw: a
+> caller could permissionlessly create their own market and `WithdrawInsuranceDomain`
+> from the *shared* vault through their own domain. Fixed by upgrading the program to
+> engine `8e0e3f8` (per-domain insurance isolation — a new domain starts at 0 budget
+> and cannot withdraw insurance funded into other domains; verified blocked on-chain).
+> The corrupted `8oYjDr2…` was wound down.
 
 **Markets** (all inverted → priced in SOL)
 
@@ -85,17 +94,16 @@ keeper self-publishes them from `hermes.pyth.network` via `pyth-solana-receiver`
 of hours it falls back to the EWMA mark (HYBRID_AFTER_HOURS), which the keeper's
 cranks keep advancing. FX (EUR) is 24/5, crypto (SOL/BTC) 24/7.
 
-**Build provenance** (upgraded 2026-05-25 to the per-asset stale fix)
+**Build provenance** (mainnet upgraded 2026-05-26 to the per-domain insurance-isolation fix)
 
 ```
-BPF binary SHA-256:   473958eaa89e0c29671448871bb831eee132ab507e4642b09bbcedcf080c2516
-BPF binary size:      820,280 bytes ELF
-percolator-prog:      7f7cefc  "Allow unrelated trades with stale assets"
-                      (logic-only +63 lines over c929fb0; account layouts UNCHANGED,
-                       engine pin 23de295 unchanged — existing market/portfolios stay valid)
+BPF binary SHA-256:   ea42aa492567909aba50f5ddd827473f539fb307ca0da5b36f650cc893ccab9b
+BPF binary size:      825,776 bytes ELF
+percolator-prog:      6e7de51  (engine pin 8e0e3f8 "Upgrade engine insurance domain
+                      isolation" — the per-domain insurance fix; account layouts
+                      UNCHANGED, existing market/portfolios stay valid)
 MARKET_ACCOUNT_LEN:   116,286 bytes (capacity 64 asset slots; dynamic — realloc-growable)
-Upgrade tx:           EhxpYK2CwzUf2UXQx34RRpMJyVSQrVP5QJL1qQnk2rKxJ6ifBee4FJVpPD9Ywa7VGp7rPzoFstNWL4ttp9Me2H1
-Prior build:          f476f8fc… (819,232 B, c929fb0) — superseded
+Prior builds:         473958ea…/7f7cefc (per-asset stale fix), f476f8fc/c929fb0 — superseded
 ```
 
 Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
@@ -103,13 +111,13 @@ Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 7f7cefc
+cd percolator-prog && git checkout 6e7de51
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 473958eaa89e0c29671448871bb831eee132ab507e4642b09bbcedcf080c2516
+#   Expected: ea42aa492567909aba50f5ddd827473f539fb307ca0da5b36f650cc893ccab9b
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 820280 /tmp/deployed.so | sha256sum   # must match
+head -c 825776 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
@@ -134,7 +142,7 @@ head -c 820280 /tmp/deployed.so | sha256sum   # must match
 | `permissionless_market_init_fee` | ~5.8M lamports | ≈ **$0.50** to permissionlessly append a new market |
 | `fee_redirect_to_market_0_bps` | 2000 | **20%** of non-zero-market trade fees + backing yield → market 0 |
 | `max_staleness_secs` | 600 | crank accepts a leg up to 10 min old; freshen the leg (push) before cranking past this |
-| Insurance seed | 0.5 SOL × 3 = 1.5 SOL | isolated per market (domains 0/2/4) |
+| Insurance seed | 2.0 SOL (domains 0/2/4) | per-domain isolated; re-seeded at 2026-05-26 re-launch |
 
 ### Trading is permissionless — but you push your own oracles
 
@@ -142,7 +150,7 @@ This market is run **dormant** to keep operating cost near zero. With no open
 positions the keeper does **not** crank, and the Pyth pull legs are **not**
 maintained — so the market sits stale on purpose.
 
-**Staleness gating is per-asset** (as of program `7f7cefc`). To trade asset *X* you
+**Staleness gating is per-asset** (as of program `7f7cefc`; insurance is per-domain isolated as of `6e7de51`). To trade asset *X* you
 only need *X* fresh — a stale *other* asset no longer blocks you (the engine's
 market-wide loss-stale bit is ignored for a trade when neither the traded asset nor
 either account's open legs touch a stale asset). `InitPortfolio` / `Deposit` aren't
