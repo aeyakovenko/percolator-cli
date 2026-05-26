@@ -63,7 +63,7 @@ Market:     BhkMic5gHLjj5Uxkg6rBBXofUzeTZVwmV4uFzfhwtgQw   (market group; re-lau
 Vault PDA:  DmDYnHsLnDiAS8PtrxfKkNbzd6KpSyT1vmC8icGjgPhj
 Vault ATA:  wRvSrR1ffEM4gSkVR48xWeaKvSyDp8z1aSaQTWoptXQ   (wrapped SOL, PDA-signed)
 Matcher:    (none — third parties provision their own matcher program + context)
-Insurance:  2.0 SOL seeded (domains 0/2/4)
+Insurance:  ~1.5 SOL (domains 0/2/4)
 Keeper:     9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ   (dedicated; proximity-driven liquidator)
 Keeper pf:  5iWTBYod2C4RovvrWfqs45sTbqNPb9B1B7cSkN2atVNs
 ```
@@ -74,7 +74,10 @@ Keeper pf:  5iWTBYod2C4RovvrWfqs45sTbqNPb9B1B7cSkN2atVNs
 > from the *shared* vault through their own domain. Fixed by upgrading the program to
 > engine `8e0e3f8` (per-domain insurance isolation — a new domain starts at 0 budget
 > and cannot withdraw insurance funded into other domains; verified blocked on-chain).
-> The corrupted `8oYjDr2…` was wound down.
+> The corrupted `8oYjDr2…` is **retired** — left as a dead husk (insurance 0): the
+> upgraded isolation-engine rejects reconfigure AND resolve of its inconsistent
+> post-exploit state (unbacked domain budgets → `0xe`), so it cannot be wound down
+> on-chain. Harmless (drained, exploit blocked); its rent is stranded.
 
 **Markets** (all inverted → priced in SOL)
 
@@ -142,7 +145,7 @@ head -c 825776 /tmp/deployed.so | sha256sum   # must match
 | `permissionless_market_init_fee` | ~5.8M lamports | ≈ **$0.50** to permissionlessly append a new market |
 | `fee_redirect_to_market_0_bps` | 2000 | **20%** of non-zero-market trade fees + backing yield → market 0 |
 | `max_staleness_secs` | 600 | crank accepts a leg up to 10 min old; freshen the leg (push) before cranking past this |
-| Insurance seed | 2.0 SOL (domains 0/2/4) | per-domain isolated; re-seeded at 2026-05-26 re-launch |
+| Insurance seed | ~1.5 SOL (domains 0/2/4) | per-domain isolated; re-seeded at 2026-05-26 re-launch |
 
 ### Trading is permissionless — but you push your own oracles
 
