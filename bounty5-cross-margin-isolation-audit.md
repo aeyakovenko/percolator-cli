@@ -166,7 +166,59 @@ spending limit.
 
 ---
 
-### Finding 8: EWMA Mark Manipulation Is Rate-Limited
+### Finding 8: Missing validate_shape() in TradeNoCpi Path
+
+**Severity**: Medium (invariant gap, no direct insurance drain)
+
+**Location**: `v16_program.rs:4927-5062` (`handle_trade_nocpi_zero_copy`)
+
+**Description**: The `TradeNoCpi` instruction handler (tag 6) does NOT call
+`group.validate_shape()` after `execute_trade_with_fee_in_place_not_atomic`.
+The engine's internal `validate_shape_audit_scan()` (line 9697) is compiled out
+in production (`#[cfg(feature = "audit-scan")]`).
+
+This means the global shape invariants (including `live_source_credit_insurance
+<= insurance` and domain budget consistency) are not checked post-trade. The
+trade itself only increases insurance (fees: capital → insurance), so this does
+not directly enable insurance drainage. However, it allows inconsistent state to
+persist if a previous operation (e.g., the no-cranker liquidation bug) already
+broke invariants.
+
+**Combined risk with v5h's no-cranker liquidation finding**: After a no-cranker
+liquidation creates inconsistent state (insurance < reservation), subsequent
+`TradeNoCpi` calls would succeed (no validate_shape to catch the broken state),
+allowing the market to continue operating with violated invariants. This extends
+the window of inconsistency.
+
+**Fix**: Add after line 5056 in `handle_trade_nocpi_zero_copy`:
+```rust
+group.validate_shape().map_err(map_v16_error)?;
+account_a.validate_with_market(&group.as_view()).map_err(map_v16_error)?;
+account_b.validate_with_market(&group.as_view()).map_err(map_v16_error)?;
+```
+
+---
+
+### Finding 9: validate_insurance_to_close_insurance_spent Is Vacuous
+
+**Severity**: Low (defense-in-depth gap)
+
+**Location**: `v16.rs:2695-2705` (`TokenValueFlowProofV16::validate_insurance_to_close_insurance_spent`)
+
+**Description**: This validation function accepts an `amount` parameter but
+discards it with `let _ = amount;`. It only checks `vault_before == vault_after`
+(which is trivially true since insurance consumption is internal accounting).
+The function provides no actual validation of how much insurance was consumed
+relative to domain budgets or reservations.
+
+The actual budget check occurs in `consume_domain_insurance_for_negative_pnl`
+via `available_domain_insurance()`, but this "proof" function is misleading —
+it suggests a defense layer that doesn't actually validate anything about the
+insurance spend amount.
+
+---
+
+### Finding 10: EWMA Mark Manipulation Is Rate-Limited (defense confirmed)
 
 **Severity**: N/A (defense confirmed working)
 
@@ -180,7 +232,7 @@ Walking the mark to an extreme value requires many trades over many slots.
 
 ---
 
-### Finding 9: Math Layer Is Bulletproof
+### Finding 11: Math Layer Is Bulletproof
 
 **Severity**: N/A (defense confirmed working)
 
@@ -257,12 +309,22 @@ overlapping defense layers:
 5. **Rate limiting** (EWMA clamping bounds mark manipulation speed)
 6. **Frozen prices** (force-close uses shutdown-time price, not stale mark)
 
-No confirmed exploit found that would satisfy the bounty win condition. The most
-interesting finding is the maintenance fee budget dilution (Finding 1), which
-doesn't drain insurance directly but degrades coverage ceilings for established
-markets over time.
+**Actionable code bugs found** (defense-in-depth gaps):
+- Missing `validate_shape()` in `handle_trade_nocpi_zero_copy` (Finding 8)
+- Vacuous `validate_insurance_to_close_insurance_spent` proof function (Finding 9)
+- Related: missing `validate_shape()` in no-cranker liquidation (see issue #73 by v5h)
 
-The system's defense-in-depth approach means that exploiting any single layer
-still leaves multiple other layers blocking insurance extraction. A successful
-exploit would need to simultaneously bypass: domain budgets, source credit
-haircuts, conservation invariants, and the recovery gate.
+These are real validation gaps that weaken defense-in-depth. The TradeNoCpi gap
+(Finding 8) is novel and distinct from v5h's liquidation path gap. Together they
+mean that both major mutation paths (trades AND liquidations) can leave the market
+in unvalidated state on the live bounty deployment.
+
+**No confirmed exploit satisfying the win condition.** The most promising attack
+chain (budget dilution + no-cranker liquidation + validate_shape bypass) requires
+building budget over time from maintenance fees (slow) or engineering a "real"
+bankruptcy on an established market (requires oracle manipulation, out of scope).
+
+The system's defense-in-depth approach means exploiting any single layer still
+leaves multiple other layers blocking insurance extraction. A successful exploit
+would need to simultaneously bypass: domain budgets, source credit haircuts,
+conservation invariants, and the recovery gate.
