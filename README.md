@@ -104,13 +104,13 @@ cranks keep advancing. FX (EUR) is 24/5, crypto (SOL/BTC) 24/7.
 **Build provenance** (mainnet upgraded 2026-05-26 to the per-domain insurance-isolation fix)
 
 ```
-BPF binary SHA-256:   ea42aa492567909aba50f5ddd827473f539fb307ca0da5b36f650cc893ccab9b
-BPF binary size:      825,776 bytes ELF
-percolator-prog:      6e7de51  (engine pin 8e0e3f8 "Upgrade engine insurance domain
-                      isolation" — the per-domain insurance fix; account layouts
+BPF binary SHA-256:   d06bea6e10c2d7a1112ea15e122151fdbfea56b46fd03d9ad446340dd57cc645
+BPF binary size:      826,760 bytes ELF
+percolator-prog:      ef3e1ca  (engine pin 9bcf002b "Fix v16 loss-stale + trade-fee
+                      reporting"; engine 8e0e3f8 added per-domain insurance isolation; layouts
                       UNCHANGED, existing market/portfolios stay valid)
 MARKET_ACCOUNT_LEN:   116,286 bytes (capacity 64 asset slots; dynamic — realloc-growable)
-Prior builds:         473958ea…/7f7cefc (per-asset stale fix), f476f8fc/c929fb0 — superseded
+Prior builds:         ea42aa49/6e7de51 (isolation), 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
 ```
 
 Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
@@ -118,13 +118,13 @@ Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 6e7de51
+cd percolator-prog && git checkout ef3e1ca
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: ea42aa492567909aba50f5ddd827473f539fb307ca0da5b36f650cc893ccab9b
+#   Expected: d06bea6e10c2d7a1112ea15e122151fdbfea56b46fd03d9ad446340dd57cc645
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 825776 /tmp/deployed.so | sha256sum   # must match
+head -c 826760 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
