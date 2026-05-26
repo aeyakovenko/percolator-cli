@@ -44,7 +44,7 @@ Or use command-line flags:
 - `--json` - Output in JSON format
 - `--simulate` - Simulate transaction without sending
 
-## Mainnet Bounty 5 — `bounty_v16_multimarket_sol_20x` (v16, LIVE)
+## Mainnet Bounty 6 — `bounty_v16_multimarket_sol_20x` (v16, LIVE)
 
 > **Status (2026-05-25, LIVE):** v16 multi-market group on a **new** program,
 > wSOL-collateralized, **3 inverted markets** at 20× in HYBRID_AFTER_HOURS fee
@@ -87,9 +87,13 @@ Keeper pf:  5iWTBYod2C4RovvrWfqs45sTbqNPb9B1B7cSkN2atVNs
 | m1 | STOXX50/SOL | STOXX50·EUR `C2Cf16…` × EUR/USD `Fu76Cham…` ÷ SOL/USD `7UVimffx…`, 3-leg `DIVIDE_LEG3`, inverted |
 | m2 | BTC/SOL | BTC/USD `4cSM2e6…` ÷ SOL/USD `7UVimffx…`, 2-leg `DIVIDE_LEG2`, inverted |
 
-> A 4th asset slot (index 3) is an inert leftover from the on-chain exploit-fix
-> verification — **retired/ignored**, 0 insurance budget, cannot be drained. Only
-> m0/m1/m2 are the live bounty markets.
+> A 4th asset slot (index 3) is an **empty leftover** from the on-chain exploit-fix
+> verification — **0 insurance budget, no positions**, so it cannot be drained and
+> does not affect the bounty's solvency (on-chain `Σ domain_budget == insurance`,
+> market healthy). It is **being wound down**: the admin has shut it down
+> (`Active → Recovery`, 2026-05-26), and it RETIREs after the ~24 h force-close
+> maturity, freeing the slot (its rent stays in the market account until the whole
+> market is closed). Only m0/m1/m2 are the live bounty markets.
 
 **Oracles** — each market's Pyth pull legs are in the table above (m1's composite
 is `STOXX50·EUR × EUR/USD ÷ SOL/USD` = STOXX50/SOL via `DIVIDE_LEG3 = 0x02`;
@@ -263,7 +267,7 @@ multi-leg oracle composition flaws — all in scope.
 > `4ToDRrQW5j3oeQm8uTAwV9Rp6NhYfH5E5hMKcXkqfwfz`) was resolved at the fair mark
 > `1.209466` and wound down — force-close the 3 accounts → `WithdrawInsurance` →
 > `CloseSlab` → unwrap, recovering **~17.85 SOL** to admin. The `4ToDRrQW…` program
-> is **retired**; bounty-5 now runs as the v16 multi-market group on the new program
+> is **retired**; the live bounty (now Bounty 6) runs as the v16 multi-market group on
 > `4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi` (see the LIVE section above).
 > `permissionless_resolve_stale_slots` on v1 was the full ~30 d, so the slab stayed
 > crankable until wind-down.
@@ -303,7 +307,7 @@ multi-leg oracle composition flaws — all in scope.
 > could accrue. Conservation held — no insurance loss. The slab was force-
 > closed, insurance withdrawn, program retired via `solana program close`;
 > ~21 SOL recovered to the deployer. The program ID is permanently
-> retired. New participants target Bounty 5 above.
+> retired. New participants target Bounty 6 above.
 
 ```
 Program:        2LfCFmDKwcnHunqdsCW9uV7KNgBgnFGASs8uM7MwHgHm  (RETIRED via program close)
@@ -323,7 +327,7 @@ Lesson:         single-crank-per-minute cron can't keep up with
 > **Status (2026-05-05):** Bounty 2 superseded by Bounty 3 (then 4). All
 > four market authorities + program upgrade authority BURNED. The market
 > remains tradable against the deployed binary; new participants should
-> target Bounty 5 above.
+> target Bounty 6 above.
 
 ```
 Program:        6qWZvUtfyShbxTQkwjCayk3LuGqTGJwBo2QfkePK5jdJ  (upgrade authority BURNED)
