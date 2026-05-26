@@ -50,6 +50,11 @@ import {
   PORTFOLIO_STATE_OFF, PA,
   ORACLE_LEG_FLAG_DIVIDE_LEG2, ORACLE_LEG_FLAG_DIVIDE_LEG3, OracleProvider,
 } from "../src/v16/index.js";
+import {
+  BOUNTY5_FORCE_CLOSE_DELAY_SLOTS,
+  BOUNTY5_FEE_REDIRECT_TO_MARKET_0_BPS,
+  BOUNTY5_PERM_RESOLVE_STALE_SLOTS,
+} from "../src/v16/bounty5-manifest-constants.js";
 
 // ============================================================================
 // Config / environment
@@ -127,12 +132,11 @@ const ORACLE_DEFAULTS = {
 };
 
 const SLOTS_PER_DAY = 216_000n;            // ~0.4 s/slot
-const FORCE_CLOSE_DELAY = 216_000n;        // ~24h auto-wind-down
-const PERM_RESOLVE_STALE = 6_480_000n;      // ~30d grace (MAX) — at 100 the market hard-freezes
-                                            // (0x1b OracleStale) after just ~40s un-cranked. The
-                                            // keeper keeps it fresh; this is the keeper-downtime cushion.
+const FORCE_CLOSE_DELAY = BigInt(BOUNTY5_FORCE_CLOSE_DELAY_SLOTS);
+const PERM_RESOLVE_STALE = BigInt(BOUNTY5_PERM_RESOLVE_STALE_SLOTS);
+// ~30d grace — must not use legacy v12.21 cap of 100 slots (~40s hard-freeze).
 const INSURANCE_PER_MARKET = 500_000_000n; // 0.5 SOL per domain (1.5 SOL total)
-const FEE_REDIRECT_TO_M0_BPS = 2000;       // 20% of non-zero-market trade fees + backing yield → market 0
+const FEE_REDIRECT_TO_M0_BPS = BOUNTY5_FEE_REDIRECT_TO_MARKET_0_BPS;
 const TRADE_SIZE = 1_000_000n;   // = POS_SCALE (1 unit), matching the litesvm reference test
 const VALIDATE_DEPOSIT = 300_000_000n;
 
@@ -635,23 +639,40 @@ async function main() {
       market: `m${m.assetIndex}`, domain: m.assetIndex * 2,
       lamports: INSURANCE_PER_MARKET.toString(), sol: Number(INSURANCE_PER_MARKET) / 1e9,
     })),
-    markets: markets.map((m) => ({
-      asset: `m${m.assetIndex}`,
-      label: m.label,
-      assetIndex: m.assetIndex,
-      invert: m.invert,
-      oracleLegCount: m.oracleLegCount,
-      oracleLegFlags: `0x${m.oracleLegFlags.toString(16)}`,
-      legFeedIds: m.legFeeds.slice(0, m.oracleLegCount),
-      oracleAccounts: m.accounts.map((a) => a.toBase58()),
-      validation: validation[`m${m.assetIndex}`] ?? "UNKNOWN",
-    })),
+    markets: markets.map((m) => {
+      const status = validation[`m${m.assetIndex}`] ?? "UNKNOWN";
+      return {
+        asset: `m${m.assetIndex}`,
+        label: m.label,
+        assetIndex: m.assetIndex,
+        invert: m.invert,
+        oracleLegCount: m.oracleLegCount,
+        oracleLegFlags: `0x${m.oracleLegFlags.toString(16)}`,
+        legFeedIds: m.legFeeds.slice(0, m.oracleLegCount),
+        oracleAccounts: m.accounts.map((a) => a.toBase58()),
+        validation: status,
+        ...(status === "FAIL"
+          ? {
+              validationNote:
+                "Deploy-time TradeNoCpi open/close probe failed; oracle accounts and feed IDs are still authoritative for ticks.",
+            }
+          : {}),
+      };
+    }),
   };
 
   const manifestPath = NETWORK === "mainnet"
     ? `${HOME}/percolator-cli/mainnet-bounty5-v16-market.json`
     : `${HOME}/percolator-cli/bounty5-v16-devnet.json`;
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  const written = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+    permissionlessResolveStaleSlots: number;
+  };
+  if (written.permissionlessResolveStaleSlots !== Number(PERM_RESOLVE_STALE)) {
+    throw new Error(
+      `manifest permissionlessResolveStaleSlots=${written.permissionlessResolveStaleSlots} !== deploy ${PERM_RESOLVE_STALE}`,
+    );
+  }
 
   console.log("\n=================================");
   console.log(`PASS: ${passed}  FAIL: ${failed}`);

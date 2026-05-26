@@ -11,7 +11,7 @@
   "leverage": 20,
   "maintenanceMarginBps": 500,
   "forceCloseDelaySlots": 216000,
-  "permissionlessResolveStaleSlots": 100,
+  "permissionlessResolveStaleSlots": 6480000,
   "solUsdPriceE6": "86206344",
   "fees": {
     "newAccount": {
@@ -61,7 +61,8 @@
       "oracleAccounts": [
         "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
       ],
-      "validation": "FAIL"
+      "validation": "FAIL",
+      "validationNote": "Deploy-time TradeNoCpi open/close probe failed on 2026-05-25; oracle accounts and feed IDs are still authoritative for ticks."
     },
     {
       "asset": "m1",
@@ -80,7 +81,8 @@
         "Fu76ChamBDjE8UuGLV6GP2AcPPSU6gjhkNhAyuoPm7ny",
         "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
       ],
-      "validation": "FAIL"
+      "validation": "FAIL",
+      "validationNote": "Deploy-time TradeNoCpi open/close probe failed on 2026-05-25; oracle accounts and feed IDs are still authoritative for ticks."
     },
     {
       "asset": "m2",
@@ -97,7 +99,8 @@
         "4cSM2e6rvbGQUFiJbqytoVMi5GgghSMr8LwVrT9VPSPo",
         "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
       ],
-      "validation": "FAIL"
+      "validation": "FAIL",
+      "validationNote": "Deploy-time TradeNoCpi open/close probe failed on 2026-05-25; oracle accounts and feed IDs are still authoritative for ticks."
     }
   ],
   "keeperPortfolio": "38QSu57zCu2PKwJtzjiK3cK7qRnTWriXhx6Y2bKDb13H",

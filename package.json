@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
+    "test": "tsx scripts/verify-bounty5-manifest.ts",
     "smoke": "tsx scripts/smoke-v16-bounty5.ts"
   },
   "dependencies": {
