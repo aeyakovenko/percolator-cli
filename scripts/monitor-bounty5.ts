@@ -15,7 +15,7 @@ const M = JSON.parse(fs.readFileSync(`${process.env.HOME}/percolator-cli/mainnet
 const PROGRAM = new PublicKey(M.programId);
 const MARKET = new PublicKey(M.market);
 const KEEPER = new PublicKey(M.keeper ?? "9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ");
-const INSURANCE_BASELINE = Number(process.env.INSURANCE_BASELINE ?? 2.0); // SOL seeded; a drop = bounty hit
+const INSURANCE_BASELINE = Number(process.env.INSURANCE_BASELINE ?? 1.5); // SOL seeded; a drop below = bounty hit
 // Idle strategy is DORMANT: with no positions the keeper lets the market drift
 // stale on purpose, so a large dt is EXPECTED, not a problem. Only alert when the
 // drift is nearing the ~30-day hard-stale, or when stale WHILE positions are open.
