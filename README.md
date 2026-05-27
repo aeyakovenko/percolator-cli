@@ -105,30 +105,37 @@ keeper self-publishes them from `hermes.pyth.network` via `pyth-solana-receiver`
 of hours it falls back to the EWMA mark (HYBRID_AFTER_HOURS), which the keeper's
 cranks keep advancing. FX (EUR) is 24/5, crypto (SOL/BTC) 24/7.
 
-**Build provenance** (mainnet upgraded 2026-05-26 to the per-domain insurance-isolation fix)
+**Build provenance** (mainnet upgraded 2026-05-27 — internal-funding cranks + flat-fee-anchor fix)
 
 ```
-BPF binary SHA-256:   d6b384c8c47f442687ae179a123e064ea198ddd373e8ad462c7e63792e5f28fa
-BPF binary size:      837,256 bytes ELF
-percolator-prog:      0925ed4  (engine pin 9bcf002b; adds wrapper post-mutation validate_shape (closes #73/#76) + resolved-close
-                      accounting fix; engine 9bcf002b loss-stale/fee fix; 8e0e3f8 per-domain insurance isolation; layouts
-                      UNCHANGED, existing market/portfolios stay valid)
+BPF binary SHA-256:   c55dbb32043b83581222b480d7f7d6dbe8c956add0737c39ad9d2a8cb23c47bd
+BPF binary size:      857,816 bytes ELF
+percolator-prog:      f01b77f  (engine pin 323c9f27; cranks now compute funding internally from the EWMA mark vs
+                      effective price; auth-mark lag fix; flat-fee sync anchor waiver fixed (closes #109); privileged
+                      lifecycle slots authenticated. Builds on 6512fa1 activation slot auth + 0925ed4 validate_shape
+                      (#73/#76) + per-domain insurance isolation (8e0e3f8). Account layouts UNCHANGED across the engine
+                      bump (struct defs byte-identical) — existing market/portfolios stay valid)
 MARKET_ACCOUNT_LEN:   116,286 bytes (capacity 64 asset slots; dynamic — realloc-growable)
-Prior builds:         d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
+Prior builds:         6512fa1/7bdbae6e, d6b384c8/0925ed4, d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
 ```
+
+> Note: under the internal-funding cranks (f01b77f+), `ClosePortfolio` — like trades —
+> requires the market cranked up to the current slot first, else it locks with `0x15`
+> (catch-up crank, then close). The keeper handles this; users closing manually must
+> catch-up crank too.
 
 Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
 `edition2024`, so use platform-tools `v1.52`+ which ships rustc 1.89):
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 0925ed4
+cd percolator-prog && git checkout f01b77f
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: d6b384c8c47f442687ae179a123e064ea198ddd373e8ad462c7e63792e5f28fa
+#   Expected: c55dbb32043b83581222b480d7f7d6dbe8c956add0737c39ad9d2a8cb23c47bd
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 837256 /tmp/deployed.so | sha256sum   # must match
+head -c 857816 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**

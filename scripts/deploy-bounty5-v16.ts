@@ -572,6 +572,25 @@ async function main() {
   }
 
   console.log("\n=== Stage 7: tear down test portfolios (withdraw + close) ===");
+  // ClosePortfolio accrues, and on the internal-funding build (f01b77f+) a stale
+  // market locks the close with 0x15 EngineLockActive — same catch-up rule as trades.
+  // Crank every asset up to the current slot first (Stage 6 does this per-trade).
+  for (const m of markets) {
+    for (let i = 0; i < 8; i++) {
+      const slot = BigInt(await conn.getSlot("confirmed"));
+      await sendAndConfirmTransaction(conn, new Transaction().add(...withCu())
+        .add(new TransactionInstruction({
+          programId: PROGRAM_ID,
+          keys: [
+            { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+            { pubkey: market.publicKey, isSigner: false, isWritable: true },
+            { pubkey: portA.publicKey, isSigner: false, isWritable: true },
+            ...m.accounts.map((a) => ({ pubkey: a, isSigner: false, isWritable: false })),
+          ],
+          data: encPermissionlessCrank({ action: 0, assetIndex: m.assetIndex, nowSlot: slot, fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }),
+        })), [admin], { commitment: "confirmed", skipPreflight: true });
+    }
+  }
   for (const [n, p] of [["A", portA], ["B", portB]] as const) {
     await step(`Withdraw all from ${n}`, async () => {
       const cap = await readCapital(p.publicKey);
