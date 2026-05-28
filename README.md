@@ -105,18 +105,19 @@ keeper self-publishes them from `hermes.pyth.network` via `pyth-solana-receiver`
 of hours it falls back to the EWMA mark (HYBRID_AFTER_HOURS), which the keeper's
 cranks keep advancing. FX (EUR) is 24/5, crypto (SOL/BTC) 24/7.
 
-**Build provenance** (mainnet upgraded 2026-05-27 — internal-funding cranks + flat-fee-anchor fix)
+**Build provenance** (mainnet upgraded 2026-05-28 — source-credit watermarks + source-backed risk + dust-rent sweep)
 
 ```
-BPF binary SHA-256:   c55dbb32043b83581222b480d7f7d6dbe8c956add0737c39ad9d2a8cb23c47bd
-BPF binary size:      857,816 bytes ELF
-percolator-prog:      f01b77f  (engine pin 323c9f27; cranks now compute funding internally from the EWMA mark vs
-                      effective price; auth-mark lag fix; flat-fee sync anchor waiver fixed (closes #109); privileged
-                      lifecycle slots authenticated. Builds on 6512fa1 activation slot auth + 0925ed4 validate_shape
-                      (#73/#76) + per-domain insurance isolation (8e0e3f8). Account layouts UNCHANGED across the engine
-                      bump (struct defs byte-identical) — existing market/portfolios stay valid)
+BPF binary SHA-256:   d54c9ee3bc24c0bcbf5268da1fb8d009f3799f8782273b8d3502e8577d1fb7da
+BPF binary size:      883,672 bytes ELF
+percolator-prog:      5ebd136  (engine pin f3aef4bd; enforces source-credit watermarks on trades, covers source-backed
+                      risk increases, sweeps dust portfolio rent to the market slab on ClosePortfolio. Builds on f01b77f
+                      internal-funding cranks + flat-fee anchor fix (#109) + 6512fa1 activation slot auth + 0925ed4
+                      validate_shape (#73/#76) + per-domain insurance isolation (8e0e3f8). Account layouts UNCHANGED
+                      across the engine bump — verified: portfolio/market length formulas + all *_LEN/*_SIZE/*_OFF consts
+                      byte-identical; existing market BhkMic5g + keeper portfolio parse + operate under the new build)
 MARKET_ACCOUNT_LEN:   116,286 bytes (capacity 64 asset slots; dynamic — realloc-growable)
-Prior builds:         6512fa1/7bdbae6e, d6b384c8/0925ed4, d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
+Prior builds:         f01b77f/c55dbb32, 6512fa1/7bdbae6e, d6b384c8/0925ed4, d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
 ```
 
 > Note: under the internal-funding cranks (f01b77f+), `ClosePortfolio` — like trades —
@@ -129,13 +130,13 @@ Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout f01b77f
+cd percolator-prog && git checkout 5ebd136
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: c55dbb32043b83581222b480d7f7d6dbe8c956add0737c39ad9d2a8cb23c47bd
+#   Expected: d54c9ee3bc24c0bcbf5268da1fb8d009f3799f8782273b8d3502e8577d1fb7da
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 857816 /tmp/deployed.so | sha256sum   # must match
+head -c 883672 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
