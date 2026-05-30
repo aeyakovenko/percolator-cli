@@ -764,22 +764,29 @@ percolator-cli set-oracle-authority --slab <pubkey> --authority 1111111111111111
 ## Testing
 
 ```bash
-# Unit tests (offline)
+# Offline test suite — no RPC, no validator, no keypair
 pnpm test
-
-# Preflight — 93 checks across 25 sections, 3 market types
-# Behavioral correctness + conservation invariants
-SOLANA_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_KEY npx tsx tests/preflight.ts
-
-# Live state verification — 100 checks, exhaustive before/after state diffs
-# Verifies exact field deltas on every instruction (deposit, trade, crank, etc.)
-npx tsx scripts/live-verify.ts
-
-# Integration tests (T1-T22, needs SOLANA_RPC_URL)
-npx tsx tests/runner.ts
 ```
 
-See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for full coverage details (198+ automated checks).
+`pnpm test` runs two offline steps (`tests/run-all.ts`):
+
+1. **Manifest integrity** (`scripts/verify-manifest.ts`) — asserts the Bounty-5
+   manifest agrees with the single source of truth (`scripts/bounty5-params.ts`).
+   Opt-in on-chain cross-check: `VERIFY_ONCHAIN=1 [SOLANA_RPC_URL=…] pnpm test`.
+2. **v16 risk-decode suite** (`tests/v16/`) — golden-vector parser tests against a
+   committed real mainnet market + portfolio account (captured via `getAccountInfo`),
+   the `asset_slot_capacity` drift guard, and the maintenance-margin / liquidation
+   math. See [tests/v16/README.md](tests/v16/README.md).
+
+```bash
+# Type-check src + the test/manifest surface (so the suite can't silently rot)
+pnpm typecheck
+
+# Inspect live on-chain state and re-verify conservation invariants
+SOLANA_RPC_URL=<rpc> V16_PROGRAM_ID=<program> npx tsx scripts/v16-inspect.ts
+```
+
+See [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for the deploy-time verification flow.
 
 ## Scripts
 

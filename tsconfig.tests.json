@@ -1,0 +1,26 @@
+{
+  // Type-check the test + script surface that the build tsconfig (rootDir: src,
+  // include: src/**) deliberately excludes. This is `--noEmit` only — it exists so
+  // the v16 test suite and the offline scripts can NEVER silently rot the way the
+  // pre-v16 tests/ suite did (it imported modules deleted in 2ddf8ca and nothing
+  // type-checked it). Run via `npm run typecheck:tests` (and from `npm run typecheck`).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  // src + the offline test suite + the scripts that back `npm test`. The broader
+  // scripts/ surface (live-RPC keeper/devnet tooling) carries pre-existing,
+  // out-of-scope type errors and optional peer deps (@coral-xyz/anchor-31,
+  // @switchboard-xyz/common) — it is intentionally NOT type-checked here so this
+  // guard stays green and honest about what it actually vouches for.
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "tests/run-all.ts",
+    "scripts/verify-manifest.ts",
+    "scripts/bounty5-params.ts",
+    "scripts/v16-inspect.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

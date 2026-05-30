@@ -13,10 +13,16 @@
  * Exits non-zero on any mismatch so CI / the deploy post-write guard fails loudly.
  */
 import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
 import { BOUNTY5_PARAMS, MANIFEST_SAFETY_FIELDS } from "./bounty5-params.js";
 
+// Resolve the manifest relative to the repo (this file lives in scripts/, the
+// manifest sits at the repo root) so `npm test` works from any checkout — not just
+// the author's ~/percolator-cli. Override with MANIFEST_PATH when needed.
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MANIFEST_PATH = process.env.MANIFEST_PATH
-  ?? `${process.env.HOME}/percolator-cli/mainnet-bounty5-v16-market.json`;
+  ?? path.join(REPO_ROOT, "mainnet-bounty5-v16-market.json");
 
 const fails: string[] = [];
 const ok: string[] = [];
