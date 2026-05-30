@@ -277,6 +277,7 @@ export function parseAssetOracleProfile(data: Buffer, slotOff: number, index: nu
 // ---------- MarketGroupV16 ----------
 export interface MarketGroup {
   marketGroupId: string;
+  assetSlotCapacity: number;   // authoritative on-chain slot count (MG.asset_slot_capacity, u32)
   vault: bigint;
   insurance: bigint;
   cTot: bigint;
@@ -313,11 +314,18 @@ export function parseMarketGroup(data: Buffer): MarketGroup {
   const assets: AssetState[] = [];
   // Asset-slot capacity is DYNAMIC, not a fixed 64: the asset_slots array is the
   // trailing field of the account, and permissionless append reallocs the account
-  // to grow it (asset_index+1). Derive capacity from the account data length, the
-  // same way the program does (market_slot_capacity), rather than hardcoding
-  // V16_MAX_MARKET_SLOTS — otherwise we'd read past a smaller account or miss the
-  // slots of a grown one.
-  const capacity = Math.max(0, Math.floor((data.length - b - MG.asset_slots) / ASSET_SLOT_LEN));
+  // to grow it (asset_index+1). The authoritative count is the program's own
+  // `asset_slot_capacity` (u32 @ MG.asset_slot_capacity) — read THAT, don't infer
+  // slot count from the account byte length. The two MUST agree for a well-formed
+  // account: capacity = (len - asset_slots) / ASSET_SLOT_LEN. They diverge only if
+  // the header/stride constants drift out of sync with the deployed program, in
+  // which case length-derivation would silently iterate the wrong slot count and
+  // decode misaligned bytes. We clamp the iteration to what the buffer can actually
+  // hold (never overrun) and surface `assetSlotCapacity` so callers can assert the
+  // invariant `assetSlotCapacity === (len - asset_slots) / ASSET_SLOT_LEN`.
+  const assetSlotCapacity = u32(data, b + MG.asset_slot_capacity);
+  const slotsThatFit = Math.max(0, Math.floor((data.length - b - MG.asset_slots) / ASSET_SLOT_LEN));
+  const capacity = Math.min(assetSlotCapacity, slotsThatFit);
   for (let i = 0; i < capacity; i++) {
     // Each slot is engine `Market<T> = { wrapper: T, engine }`:
     //   [slotOff .. +512)  oracle storage (AssetOracleProfileV16 at +0)
@@ -334,6 +342,7 @@ export function parseMarketGroup(data: Buffer): MarketGroup {
   }
   return {
     marketGroupId: hex(data, b + MG.market_group_id, 32),
+    assetSlotCapacity,
     vault: u128(data, b + MG.vault),
     insurance: u128(data, b + MG.insurance),
     cTot: u128(data, b + MG.c_tot),
