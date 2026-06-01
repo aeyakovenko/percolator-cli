@@ -105,21 +105,23 @@ keeper self-publishes them from `hermes.pyth.network` via `pyth-solana-receiver`
 of hours it falls back to the EWMA mark (HYBRID_AFTER_HOURS), which the keeper's
 cranks keep advancing. FX (EUR) is 24/5, crypto (SOL/BTC) 24/7.
 
-**Build provenance** (mainnet on 2026-05-29 — engine bumps atop the source-credit-watermark / source-backed-risk / dust-rent-sweep base)
+**Build provenance** (mainnet on 2026-05-31 — per-asset-dt clamp + BPF rollback regressions + resolved-mode fund-stuck fixes)
 
 ```
-BPF binary SHA-256:   9e26f8daa708d22d8cef6b40ff20a782adb75d8f83948e93ebbfad6851d7b9f3
-BPF binary size:      882,704 bytes ELF
-percolator-prog:      574c394  (engine pin 630c4f6d; latest of three consecutive engine bumps
-                      5ebd136(f3aef4bd) → 047fcc5(0afecb10) → 574c394(630c4f6d). 5ebd136 added source-credit watermarks
-                      on trades + source-backed risk coverage + dust-rent sweep to the market slab on ClosePortfolio;
-                      047fcc5 + 574c394 are pure engine bumps. Builds on f01b77f internal-funding cranks + flat-fee anchor
-                      fix (#109) + 6512fa1 activation slot auth + 0925ed4 validate_shape (#73/#76) + per-domain insurance
-                      isolation (8e0e3f8). Account layouts UNCHANGED across every engine bump — verified each time:
+BPF binary SHA-256:   66ea317980c6272951d0bbe02c65ab23816f8270aa0e6c70fa159cf086e9957b
+BPF binary size:      895,432 bytes ELF
+percolator-prog:      574a7a1  (engine pin 0bee8ef; engine bump for resolved-mode fund-stuck fixes. Prior bump 2b6c80e
+                      added the per-asset-dt clamp (the wrapper's crank price clamp now uses asset_segment_dt_view, not
+                      the wider group dt — matching the engine's per-asset accrual envelope; previously a fresh asset's
+                      crank could be silently bricked when a stale sibling asset dragged group dt out, until the stalest
+                      sibling was cranked). Built on the f413312/047fcc5/574c394 engine-bump chain atop 5ebd136 (source-
+                      credit watermarks + source-backed risk + dust-rent sweep), f01b77f internal-funding cranks + #109
+                      flat-fee fix, 6512fa1 activation slot auth, 0925ed4 validate_shape (#73/#76), 8e0e3f8 per-domain
+                      insurance isolation. Account layouts UNCHANGED across every engine bump — verified each time:
                       portfolio/market length formulas + all *_LEN/*_SIZE/*_OFF consts + POD struct defs byte-identical;
                       existing market BhkMic5g + keeper portfolio parse + operate under each new build)
 MARKET_ACCOUNT_LEN:   116,286 bytes (capacity 64 asset slots; dynamic — realloc-growable)
-Prior builds:         047fcc5/d0571b1d, 5ebd136/d54c9ee3, f01b77f/c55dbb32, 6512fa1/7bdbae6e, d6b384c8/0925ed4, d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
+Prior builds:         574c394/9e26f8da, 2b6c80e/e8e9527b, 047fcc5/d0571b1d, 5ebd136/d54c9ee3, f01b77f/c55dbb32, 6512fa1/7bdbae6e, d6b384c8/0925ed4, d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
 ```
 
 > Note: under the internal-funding cranks (f01b77f+), `ClosePortfolio` — like trades —
@@ -132,13 +134,13 @@ Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 574c394
+cd percolator-prog && git checkout 574a7a1
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 9e26f8daa708d22d8cef6b40ff20a782adb75d8f83948e93ebbfad6851d7b9f3
+#   Expected: 66ea317980c6272951d0bbe02c65ab23816f8270aa0e6c70fa159cf086e9957b
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 882704 /tmp/deployed.so | sha256sum   # must match
+head -c 895432 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**

@@ -59,6 +59,7 @@ import {
 const RPC = process.env.SOLANA_RPC_URL ?? "https://devnet.helius-rpc.com/?api-key=" +
   fs.readFileSync(`${process.env.HOME}/percolator-cli/.env`, "utf8").trim().split("=")[1].split("=")[1];
 const PROGRAM_ID = new PublicKey(process.env.V16_PROGRAM_ID ?? "Bu1J8eQQN2mNnUgisSEd5StBG6zDaRb7fwDjN34VzgLG");
+const IS_MAINNET = /mainnet/i.test(RPC) || process.env.SMOKE_NETWORK === "mainnet";
 const conn = new Connection(RPC, "confirmed");
 const admin = Keypair.fromSecretKey(new Uint8Array(JSON.parse(
   fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))));
@@ -158,10 +159,29 @@ async function findSwitchboardFeed(): Promise<PublicKey | null> {
     } catch { /* fall through */ }
   }
   const disc = Buffer.from([196, 27, 108, 196, 10, 215, 219, 40]);
+  const sbProg = IS_MAINNET ? OracleProvider.SWITCHBOARD_ONDEMAND_MAINNET : OracleProvider.SWITCHBOARD_ONDEMAND_DEVNET;
   try {
-    const accs = await conn.getProgramAccounts(new PublicKey(OracleProvider.SWITCHBOARD_ONDEMAND_DEVNET), {
+    const accs = await conn.getProgramAccounts(new PublicKey(sbProg), {
       commitment: "confirmed",
       filters: [{ dataSize: 3208 }, { memcmp: { offset: 0, bytes: bs58.encode(disc) } }],
+    });
+    return accs[0]?.pubkey ?? null;
+  } catch { return null; }
+}
+async function findChainlinkFeed(): Promise<PublicKey | null> {
+  const envFeed = process.env.SMOKE_CHAINLINK_FEED;
+  if (envFeed) {
+    try {
+      const info = await conn.getAccountInfo(new PublicKey(envFeed), "confirmed");
+      if (info) return new PublicKey(envFeed);
+    } catch { /* fall through */ }
+  }
+  // Chainlink Store (same program on devnet + mainnet); discovery yields whichever live feeds exist.
+  const disc = Buffer.from([96, 179, 69, 66, 128, 129, 73, 117]);
+  try {
+    const accs = await conn.getProgramAccounts(new PublicKey(OracleProvider.CHAINLINK_STORE), {
+      commitment: "confirmed",
+      filters: [{ memcmp: { offset: 0, bytes: bs58.encode(disc) } }],
     });
     return accs[0]?.pubkey ?? null;
   } catch { return null; }
@@ -174,10 +194,12 @@ async function main() {
   console.log("  rpc:    ", RPC.split("?")[0]);
 
   // -------- pre-discovery --------
-  console.log("\n[setup] discovering oracle feeds…");
+  console.log(`\n[setup] discovering oracle feeds (network=${IS_MAINNET ? "mainnet" : "devnet"})…`);
   const pyth = await findPythFeed();
   const sb   = await findSwitchboardFeed();
+  const cl   = await findChainlinkFeed();
   console.log(`  Pyth feed:        ${pyth?.addr.toBase58() ?? "(none)"}`);
+  console.log(`  Chainlink feed:   ${cl?.toBase58() ?? "(none)"}`);
   console.log(`  Switchboard feed: ${sb?.toBase58() ?? "(none)"}`);
 
   const market = Keypair.generate();
@@ -294,34 +316,65 @@ async function main() {
         })), [admin], { commitment: "confirmed", skipPreflight: true });
     });
   }
-  // asset[2]: Hybrid Chainlink SOL/USD (devnet Chainlink Store has live feeds;
-  // Switchboard On-Demand devnet oracle network is dormant). Override with
-  // SMOKE_CHAINLINK_FEED env var.
-  const chainlinkFeed = new PublicKey(
-    process.env.SMOKE_CHAINLINK_FEED ?? "99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR",
-  );
-  await step(`ConfigureHybridOracle asset[2] (Chainlink ${chainlinkFeed.toBase58().slice(0,10)}…)`, async () => {
-    const slot = BigInt(await conn.getSlot("confirmed"));
-    const zero = Buffer.alloc(32);
-    return sendAndConfirmTransaction(conn, new Transaction()
-      .add(...withCu(400_000))
-      .add(new TransactionInstruction({
-        programId: PROGRAM_ID, keys: [
-          { pubkey: admin.publicKey, isSigner: true, isWritable: false },
-          { pubkey: market.publicKey, isSigner: false, isWritable: true },
-          { pubkey: chainlinkFeed, isSigner: false, isWritable: false },
-        ],
-        data: encConfigureHybridOracle({
-          assetIndex: 2, nowSlot: slot, nowUnixTs: BigInt(Math.floor(Date.now()/1000)),
-          oracleLegCount: 1, oracleLegFlags: 0,
-          maxStalenessSecs: 600n, hybridSoftStaleSlots: 1800n,
-          markEwmaHalflifeSlots: 300n, markMinFee: 500n,
-          invert: 0, unitScale: 0, confFilterBps: 200,
-          // Chainlink uses the feed-account pubkey itself as the feed_id.
-          oracleLegFeeds: [chainlinkFeed.toBuffer().toString("hex"), zero.toString("hex"), zero.toString("hex")],
-        }),
-      })), [admin], { commitment: "confirmed", skipPreflight: true });
-  });
+  // asset[2]: Hybrid — pick whichever non-Pyth oracle is LIVE on this network.
+  // Chainlink Store has live feeds on both devnet + mainnet; Switchboard On-Demand
+  // has live feeds on mainnet (devnet is mostly dormant). On mainnet we prefer
+  // Chainlink → Switchboard; on devnet we keep Chainlink (working) → SB fallback.
+  // Overrides: SMOKE_CHAINLINK_FEED, SMOKE_SB_FEED.
+  let asset2Configured = false;
+  if (cl) {
+    await step(`ConfigureHybridOracle asset[2] (Chainlink ${cl.toBase58().slice(0,10)}…)`, async () => {
+      const slot = BigInt(await conn.getSlot("confirmed"));
+      const zero = Buffer.alloc(32);
+      return sendAndConfirmTransaction(conn, new Transaction()
+        .add(...withCu(400_000))
+        .add(new TransactionInstruction({
+          programId: PROGRAM_ID, keys: [
+            { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+            { pubkey: market.publicKey, isSigner: false, isWritable: true },
+            { pubkey: cl, isSigner: false, isWritable: false },
+          ],
+          data: encConfigureHybridOracle({
+            assetIndex: 2, nowSlot: slot, nowUnixTs: BigInt(Math.floor(Date.now()/1000)),
+            oracleLegCount: 1, oracleLegFlags: 0,
+            maxStalenessSecs: 600n, hybridSoftStaleSlots: 1800n,
+            markEwmaHalflifeSlots: 300n, markMinFee: 500n,
+            invert: 0, unitScale: 0, confFilterBps: 200,
+            oracleLegFeeds: [cl.toBuffer().toString("hex"), zero.toString("hex"), zero.toString("hex")],
+          }),
+        })), [admin], { commitment: "confirmed", skipPreflight: true });
+    });
+    asset2Configured = true;
+  } else if (sb) {
+    await step(`ConfigureHybridOracle asset[2] (Switchboard ${sb.toBase58().slice(0,10)}…)`, async () => {
+      const slot = BigInt(await conn.getSlot("confirmed"));
+      const zero = Buffer.alloc(32);
+      return sendAndConfirmTransaction(conn, new Transaction()
+        .add(...withCu(400_000))
+        .add(new TransactionInstruction({
+          programId: PROGRAM_ID, keys: [
+            { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+            { pubkey: market.publicKey, isSigner: false, isWritable: true },
+            { pubkey: sb, isSigner: false, isWritable: false },
+          ],
+          data: encConfigureHybridOracle({
+            assetIndex: 2, nowSlot: slot, nowUnixTs: BigInt(Math.floor(Date.now()/1000)),
+            oracleLegCount: 1, oracleLegFlags: 0,
+            maxStalenessSecs: 600n, hybridSoftStaleSlots: 1800n,
+            markEwmaHalflifeSlots: 300n, markMinFee: 500n,
+            invert: 0, unitScale: 0, confFilterBps: 200,
+            oracleLegFeeds: [sb.toBuffer().toString("hex"), zero.toString("hex"), zero.toString("hex")],
+          }),
+        })), [admin], { commitment: "confirmed", skipPreflight: true });
+    });
+    asset2Configured = true;
+  }
+  if (!asset2Configured) {
+    // Neither Chainlink nor Switchboard found live on this network — SOFT-skip asset[2]
+    // rather than break the smoke (and risk stranding funds in a locked test market).
+    console.log(`  ⚠️   SOFT-SKIP ConfigureHybridOracle asset[2]: no Chainlink/Switchboard feed found on this network (set SMOKE_CHAINLINK_FEED or SMOKE_SB_FEED to override)`);
+    soft++;
+  }
 
   // ====================================================================
   console.log("\n=== Stage 4b: InitPortfolio × 2 (after assets are configured) ===");
