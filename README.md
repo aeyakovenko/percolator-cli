@@ -105,23 +105,24 @@ keeper self-publishes them from `hermes.pyth.network` via `pyth-solana-receiver`
 of hours it falls back to the EWMA mark (HYBRID_AFTER_HOURS), which the keeper's
 cranks keep advancing. FX (EUR) is 24/5, crypto (SOL/BTC) 24/7.
 
-**Build provenance** (mainnet on 2026-05-31 — per-asset-dt clamp + BPF rollback regressions + resolved-mode fund-stuck fixes)
+**Build provenance** (mainnet on 2026-06-01 — Finding C: expiry-agnostic resolved lien release)
 
 ```
-BPF binary SHA-256:   66ea317980c6272951d0bbe02c65ab23816f8270aa0e6c70fa159cf086e9957b
-BPF binary size:      895,432 bytes ELF
-percolator-prog:      574a7a1  (engine pin 0bee8ef; engine bump for resolved-mode fund-stuck fixes. Prior bump 2b6c80e
-                      added the per-asset-dt clamp (the wrapper's crank price clamp now uses asset_segment_dt_view, not
-                      the wider group dt — matching the engine's per-asset accrual envelope; previously a fresh asset's
-                      crank could be silently bricked when a stale sibling asset dragged group dt out, until the stalest
-                      sibling was cranked). Built on the f413312/047fcc5/574c394 engine-bump chain atop 5ebd136 (source-
-                      credit watermarks + source-backed risk + dust-rent sweep), f01b77f internal-funding cranks + #109
-                      flat-fee fix, 6512fa1 activation slot auth, 0925ed4 validate_shape (#73/#76), 8e0e3f8 per-domain
-                      insurance isolation. Account layouts UNCHANGED across every engine bump — verified each time:
-                      portfolio/market length formulas + all *_LEN/*_SIZE/*_OFF consts + POD struct defs byte-identical;
-                      existing market BhkMic5g + keeper portfolio parse + operate under each new build)
+BPF binary SHA-256:   ed944ef8365f0b88e00c799b647540250bf1c4f06ae3d5a55c37ab5bbd3faf10
+BPF binary size:      895,384 bytes ELF
+percolator-prog:      5ab73eb  (engine pin 7188eec; "Finding C: expiry-agnostic resolved lien release" — resolved-mode
+                      liens no longer require an explicit expiry slot to release, unblocking a class of resolve-cycle
+                      teardown locks. Builds on 574a7a1 resolved-mode fund-stuck fixes + 2b6c80e per-asset-dt clamp
+                      (crank price clamp uses asset_segment_dt_view, not the wider group dt — matching the engine's
+                      per-asset accrual envelope; previously a fresh asset's crank could be silently bricked when a
+                      stale sibling dragged group dt out). Chain atop 5ebd136 source-credit watermarks + source-backed
+                      risk + dust-rent sweep, f01b77f internal-funding cranks + #109 flat-fee fix, 6512fa1 activation
+                      slot auth, 0925ed4 validate_shape (#73/#76), 8e0e3f8 per-domain insurance isolation. Account
+                      layouts UNCHANGED across every engine bump — verified each time: portfolio/market length formulas
+                      + all *_LEN/*_SIZE/*_OFF consts + POD struct defs byte-identical; existing market BhkMic5g +
+                      keeper portfolio parse + operate under each new build)
 MARKET_ACCOUNT_LEN:   116,286 bytes (capacity 64 asset slots; dynamic — realloc-growable)
-Prior builds:         574c394/9e26f8da, 2b6c80e/e8e9527b, 047fcc5/d0571b1d, 5ebd136/d54c9ee3, f01b77f/c55dbb32, 6512fa1/7bdbae6e, d6b384c8/0925ed4, d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
+Prior builds:         574a7a1/66ea3179, 574c394/9e26f8da, 2b6c80e/e8e9527b, 047fcc5/d0571b1d, 5ebd136/d54c9ee3, f01b77f/c55dbb32, 6512fa1/7bdbae6e, d6b384c8/0925ed4, d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
 ```
 
 > Note: under the internal-funding cranks (f01b77f+), `ClosePortfolio` — like trades —
@@ -134,13 +135,13 @@ Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 574a7a1
+cd percolator-prog && git checkout 5ab73eb
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 66ea317980c6272951d0bbe02c65ab23816f8270aa0e6c70fa159cf086e9957b
+#   Expected: ed944ef8365f0b88e00c799b647540250bf1c4f06ae3d5a55c37ab5bbd3faf10
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 895432 /tmp/deployed.so | sha256sum   # must match
+head -c 895384 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
