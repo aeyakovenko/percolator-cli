@@ -42,7 +42,14 @@ const MAX_CRANKS_PER_ASSET = 27;   // per-cycle catch-up cap (3 chunks); beyond 
 const HUGE_GAP = 5000;             // beyond this an asset needs an admin re-anchor, not cranks (skip)
 async function sendChunk(ixs: TransactionInstruction[]): Promise<boolean> {
   const { sendAndConfirmTransaction } = await import("@solana/web3.js");
-  const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: Math.min(1_400_000, 120_000 + ixs.length * 80_000) }), ...ixs);
+  // requestHeapFrame is REQUIRED post-4ee339d — the new build's startup heap
+  // allocations exceed the 32KB default and crash at 159 CU with
+  // "Access violation in heap section" otherwise.
+  const tx = new Transaction().add(
+    ComputeBudgetProgram.setComputeUnitLimit({ units: Math.min(1_400_000, 120_000 + ixs.length * 80_000) }),
+    ComputeBudgetProgram.requestHeapFrame({ bytes: 256 * 1024 }),
+    ...ixs,
+  );
   try { await sendAndConfirmTransaction(conn, tx, [KEEPER], { commitment: "confirmed", skipPreflight: true }); return true; }
   catch (e: any) { console.log(`${ts()} chunk fail (${ixs.length} cranks): ${code(e)}`); return false; }
 }

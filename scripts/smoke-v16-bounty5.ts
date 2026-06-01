@@ -804,7 +804,11 @@ async function main() {
         })), [admin], { commitment: "confirmed" }));
   }
 
+  if (process.env.SKIP_CLOSE_PORTFOLIO) {
+    console.log("  ⏭  SKIP_CLOSE_PORTFOLIO set — leaving portfolios materialized to exercise Finding G (CloseResolved-on-materialized path)");
+  }
   for (const [n, p] of [["A", portA], ["B", portB]] as const) {
+    if (process.env.SKIP_CLOSE_PORTFOLIO) break;
     await step(`Withdraw all from ${n}`, async () => {
       const info = await conn.getAccountInfo(p.publicKey, "confirmed");
       if (!info) throw new Error("portfolio missing");
