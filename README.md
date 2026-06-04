@@ -100,12 +100,20 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 ```
 BPF binary SHA-256:   b0cc3f8051cbc6fbad73eb512b61a6d8830251160d0813f5b29cebe2291a1059
 BPF binary size:      952,272 bytes ELF
-percolator-prog:      59d74cf  (Allow permissionless matcher LP fills; wrapper-only
-                       behavior change on top of 8bb9900 cross-market vault-drain
-                       guard test + 70294cb PushEwmaMark same-slot rate-limit guard.
+percolator-prog:      0a631cf  (Test permissionless matcher LP init binding —
+                       test-fixture-only commit on top of 59d74cf "Allow
+                       permissionless matcher LP fills" + 8bb9900 cross-market
+                       vault-drain guard test + 70294cb PushEwmaMark same-slot
+                       rate-limit guard. The 0a631cf commit only adds
+                       tests/fixtures/auth_matcher/* — no `src/` changes — so
+                       the BPF binary it produces is byte-identical to 59d74cf.
                        Layout unchanged from 70294cb.)
-prior:                70294cb / BPF 1aedbfa2… / 918,184 B (deployed 2026-06-03, superseded 2026-06-04)
-engine pin:           051e268  (release impaired insurance liens in terminal wind-down)
+prior:                59d74cf / BPF b0cc3f80… (same BPF, just earlier wrapper rev)
+                      70294cb / BPF 1aedbfa2… / 918,184 B (deployed 2026-06-03, superseded 2026-06-04)
+engine pin:           05e6e98  (Support signed v16 batch trade legs — the exact rev
+                       pinned by percolator-prog/Cargo.toml; engine HEAD `7b3c67c`
+                       "Record full v16 Kani audit pass" is an audit-only update
+                       that the wrapper has not yet bumped to)
 Layout:               marketauth-collapse (commit 792256b)
                       + asset-0 unified with assets 1..N (commit dba87a9)
                       WrapperConfigV16  = 432 B  (was 624 B; 7 keys → 1 marketauth)
@@ -122,7 +130,7 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 59d74cf
+cd percolator-prog && git checkout 0a631cf
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
 #   Expected: b0cc3f8051cbc6fbad73eb512b61a6d8830251160d0813f5b29cebe2291a1059
