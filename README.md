@@ -98,24 +98,24 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   5b9464a53ed25d84fe1bd657ffbb50e94246465490323a783ab6e25135edbfe3
-BPF binary size:      956,592 bytes ELF
-percolator-prog:      9343dad  (Cover backing fee policy count liveness; sits on
-                       top of 294079f 'Cover invalid domain public calls' +
-                       de85ee9 'Cover batch backing fee policy gate' + two real
-                       behavior changes: ac4d3bc 'Reject cross-market liquidation
-                       rewards' and b5f69a1 'Reject cross-market maintenance cranker
-                       rewards'. src/v16_program.rs +70 / -35 LoC. Layout unchanged
-                       from 70294cb.)
-prior:                198651f / BPF c3ec9493… / 956,104 B (deployed 2026-06-04 evening,
-                       superseded same day — fixed c050578's try_empty stack
-                       overflow by bumping engine to 08ebb7f)
+BPF binary SHA-256:   927f565c79d0aa937fa8fb5694aa5c033f419c381ecca35c3f1925cd201db1e1
+BPF binary size:      966,168 bytes ELF
+percolator-prog:      517a55a  (Bind unsigned matcher fills to LP auth — the real
+                       behavior change; sits atop a 19-commit coverage block of
+                       'Cover ...' tests for cross-market top-up / ledger / vault
+                       isolation surfaces. src/v16_program.rs +306 / -29 LoC.
+                       Layout unchanged from 70294cb.)
+prior:                9343dad / BPF 5b9464a5… / 956,592 B (deployed 2026-06-04
+                       late evening; added cross-market liq/maint cranker reward
+                       rejection)
+                      198651f / BPF c3ec9493… / 956,104 B (fixed try_empty stack)
                       c050578 / BPF 11eafaf1… / 952,544 B (had try_empty warning)
                       0a631cf / BPF b0cc3f80… / 952,272 B (deployed 2026-06-04)
                       70294cb / BPF 1aedbfa2… / 918,184 B (deployed 2026-06-03)
-engine pin:           08ebb7f  (Reduce v16 account init stack usage — unchanged from
-                       198651f. Engine HEAD 1487d50 is a proof commit the wrapper
-                       has not yet bumped to.)
+engine pin:           08ebb7f  (Reduce v16 account init stack usage — unchanged
+                       through the last 3 deploys. Engine has accumulated 8 Kani
+                       proof commits since, ending at 4058f5d 'Prove v16 global
+                       hlock lane selection', that the wrapper has not yet bumped to.)
 Layout:               marketauth-collapse (commit 792256b)
                       + asset-0 unified with assets 1..N (commit dba87a9)
                       WrapperConfigV16  = 432 B  (was 624 B; 7 keys → 1 marketauth)
@@ -132,13 +132,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 9343dad
+cd percolator-prog && git checkout 517a55a
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 5b9464a53ed25d84fe1bd657ffbb50e94246465490323a783ab6e25135edbfe3
+#   Expected: 927f565c79d0aa937fa8fb5694aa5c033f419c381ecca35c3f1925cd201db1e1
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 956592 /tmp/deployed.so | sha256sum   # must match
+head -c 966168 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
