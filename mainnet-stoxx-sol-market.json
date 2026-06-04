@@ -1,0 +1,44 @@
+{
+  "network": "mainnet",
+  "programId": "4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi",
+  "market": "4AXbMuJzrUv5KtVs6zc5jDtXTB4XKhKtEBGU6BmkVut4",
+  "vaultPda": "84o6UPbT4WbhYiK3aWFWCwBeMDc79zB7rbY8fY8Nby53",
+  "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+  "collateralMint": "So11111111111111111111111111111111111111112",
+  "layout": "70294cb (marketauth-collapse / 432B WC)",
+  "bpf": "1aedbfa25945f9fba521d2574d8568167daf2d1c5d7c69cd2c0430c171d1888f",
+  "asset0": {
+    "label": "STOXX/SOL",
+    "oracleMode": "HYBRID_AFTER_HOURS",
+    "oracleLegFeeds": [
+      "dd08f0a40e21ce42178b25bdd9461a2beebccbaa2a781a6e02b323576c4072ab",
+      "a995d00bb36a63cef7fd2c287dc105fc8f3d93779f062f09551b0af3e81ec30b",
+      "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"
+    ],
+    "oracleAccounts": [
+      "C2Cf16vF6LX8GrWJwfZga5z5tjVsax5VWnL2T7Q8CF91",
+      "Fu76ChamBDjE8UuGLV6GP2AcPPSU6gjhkNhAyuoPm7ny",
+      "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
+    ],
+    "invert": true,
+    "oracleLegFlags": 2
+  },
+  "fees": {
+    "newAccountFee": "7500000",
+    "permissionlessMarketInitFee": "7500000",
+    "maintenanceFeePerSlot": "35",
+    "solPriceAssumed": "$69.26",
+    "note": "all ≈ $0.50"
+  },
+  "config": {
+    "maxPortfolioAssets": 1,
+    "leverage": 20,
+    "maintenanceMarginBps": 500,
+    "initialMarginBps": 500,
+    "maxStalenessSecs": 300,
+    "hybridSoftStaleSlots": 200,
+    "markEwmaHalflifeSlots": 300,
+    "permissionlessResolveStaleSlots": 6480000,
+    "forceCloseDelaySlots": 216000
+  }
+}
