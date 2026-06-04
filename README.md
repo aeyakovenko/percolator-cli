@@ -98,18 +98,23 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   11eafaf1b8e5b6d0cd72bfe038d9d9b5309c1ba93d005510e769f22294e1cdee
-BPF binary size:      952,544 bytes ELF
-percolator-prog:      c050578  (Clean up wrapper engine API usage; sits on top of a
-                       ~10-commit test-coverage block ending in c050578. Wrapper
-                       shrank ~775 LoC net (228 added, 1003 deleted) as logic
-                       moves into the engine. Layout unchanged from 70294cb.)
-prior:                0a631cf / BPF b0cc3f80… / 952,272 B (deployed 2026-06-04,
-                      superseded same day — was identical to 59d74cf)
+BPF binary SHA-256:   c3ec949319d76466c0710a182dc7f932ee1fefddfdf4ba5191dc6fae12050563
+BPF binary size:      956,104 bytes ELF
+percolator-prog:      198651f  (Bump percolator engine; sits on top of ec773a1
+                       'Cover optional ledger kind confusion' + cd4241e 'Cover
+                       ledger sync account-kind confusion' + c6a6850 'Bump engine
+                       and bound stale trade path'. Layout unchanged from 70294cb.)
+prior:                c050578 / BPF 11eafaf1… / 952,544 B (deployed 2026-06-04
+                       afternoon, superseded same day; emitted a stack-size warning
+                       on PortfolioAccountV16Account::try_empty fixed by the engine
+                       bump below)
+                      0a631cf / BPF b0cc3f80… / 952,272 B (deployed 2026-06-04)
                       70294cb / BPF 1aedbfa2… / 918,184 B (deployed 2026-06-03)
-engine pin:           76d0e75  (Add public v16 wrapper interfaces — engine API
-                       widened by +648 LoC of public surface so the wrapper can
-                       delegate validation. Pinned exactly by percolator-prog/Cargo.toml.)
+engine pin:           08ebb7f  (Reduce v16 account init stack usage — fixes the
+                       8,768-byte try_empty stack frame that exceeded the BPF
+                       4,096-byte limit on c050578. Builds clean now. Engine HEAD
+                       1487d50 'Prove v16 in-place account initialization clears
+                       risk state' is a proof commit the wrapper has not yet bumped.)
 Layout:               marketauth-collapse (commit 792256b)
                       + asset-0 unified with assets 1..N (commit dba87a9)
                       WrapperConfigV16  = 432 B  (was 624 B; 7 keys → 1 marketauth)
@@ -126,13 +131,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout c050578
+cd percolator-prog && git checkout 198651f
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 11eafaf1b8e5b6d0cd72bfe038d9d9b5309c1ba93d005510e769f22294e1cdee
+#   Expected: c3ec949319d76466c0710a182dc7f932ee1fefddfdf4ba5191dc6fae12050563
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 952544 /tmp/deployed.so | sha256sum   # must match
+head -c 956104 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
