@@ -1,7 +1,7 @@
 /**
  * v16 account parsers: header, wrapper config, market group, portfolio.
  * Offsets sourced from src/v16/constants.ts (regenerated from
- * percolator-prog/examples/dump_layout.rs).
+ * percolator-prog/examples/dump_layout.rs at HEAD `70294cb`).
  */
 import { PublicKey } from "@solana/web3.js";
 import {
@@ -48,29 +48,23 @@ export function isPortfolio(data: Buffer): boolean {
   return h.magic === MAGIC && h.version === VERSION && h.kind === KIND_PORTFOLIO;
 }
 
-// ---------- WrapperConfigV16 ----------
+// ---------- WrapperConfigV16 (432 B, post-`marketauth` collapse 792256b) ----------
 export interface WrapperConfig {
-  admin: PublicKey;
+  marketauth: PublicKey;                     // collapsed from 7 keys
   collateralMint: PublicKey;
-  secondaryCollateralMint: PublicKey;        // NEW (ea7ef40)
-  baseUnitAuthority: PublicKey;              // NEW (ea7ef40)
+  secondaryCollateralMint: PublicKey;
   maintenanceFeePerSlot: bigint;
-  permissionlessMarketInitFee: bigint;       // NEW (ea7ef40)
+  permissionlessMarketInitFee: bigint;
   tradeFeeBaseBps: bigint;
   permissionlessResolveStaleSlots: bigint;
   forceCloseDelaySlots: bigint;
   lastGoodOracleSlot: bigint;
-  insuranceAuthority: PublicKey;
-  insuranceOperator: PublicKey;
-  backingBucketAuthority: PublicKey;
-  assetAuthority: PublicKey;
-  hyperpMarkAuthority: PublicKey;
   insuranceWithdrawDepositRemaining: bigint;
   insuranceWithdrawMaxBps: number;
   liquidationCrankerFeeShareBps: number;
-  maintenanceCrankerFeeShareBps: number;     // present since 689b90e
-  backingTradeFeeBpsLong: number;            // NEW (05a8f84)
-  backingTradeFeeBpsShort: number;           // NEW (05a8f84)
+  maintenanceCrankerFeeShareBps: number;
+  backingTradeFeeBpsLong: number;
+  backingTradeFeeBpsShort: number;
   unitScale: number;
   confFilterBps: number;
   insuranceWithdrawDepositsOnly: number;
@@ -78,6 +72,7 @@ export interface WrapperConfig {
   oracleLegCount: number;
   oracleLegFlags: number;
   invert: number;
+  freeMarketSlotCount: number;
   insuranceWithdrawCooldownSlots: bigint;
   lastInsuranceWithdrawSlot: bigint;
   maxStalenessSecs: bigint;
@@ -91,10 +86,17 @@ export interface WrapperConfig {
   oracleLegFeeds: string[];
   oracleLegPricesE6: bigint[];
   oracleLegPublishTimes: bigint[];
-  backingTradeFeePolicyCount: number;                  // NEW (05a8f84)
-  backingTradeFeeInsuranceShareBpsLong: number;        // NEW (05a8f84)
-  backingTradeFeeInsuranceShareBpsShort: number;       // NEW (05a8f84)
-  feeRedirectToMarket0Bps: number;                     // NEW (ea7ef40)
+  backingTradeFeePolicyCount: number;
+  backingTradeFeeInsuranceShareBpsLong: number;
+  backingTradeFeeInsuranceShareBpsShort: number;
+  feeRedirectToMarket0Bps: number;
+  // Backward-compat aliases (all resolve to marketauth) so existing call sites
+  // that read `.admin` / `.insuranceAuthority` etc. compile against the new layout.
+  admin?: PublicKey;
+  insuranceAuthority?: PublicKey;
+  insuranceOperator?: PublicKey;
+  backingBucketAuthority?: PublicKey;
+  assetAuthority?: PublicKey;
 }
 
 export function parseWrapperConfig(data: Buffer): WrapperConfig {
@@ -111,22 +113,22 @@ export function parseWrapperConfig(data: Buffer): WrapperConfig {
   for (let i = 0; i < ORACLE_LEG_CAP; i++) {
     legTimes.push(i64(data, b + WC.oracle_leg_publish_times + i * 8));
   }
+  const marketauth = pk(data, b + WC.marketauth);
   return {
-    admin: pk(data, b + WC.admin),
+    marketauth,
+    admin: marketauth,
+    insuranceAuthority: marketauth,
+    insuranceOperator: marketauth,
+    backingBucketAuthority: marketauth,
+    assetAuthority: marketauth,
     collateralMint: pk(data, b + WC.collateral_mint),
     secondaryCollateralMint: pk(data, b + WC.secondary_collateral_mint),
-    baseUnitAuthority: pk(data, b + WC.base_unit_authority),
     maintenanceFeePerSlot: u128(data, b + WC.maintenance_fee_per_slot),
     permissionlessMarketInitFee: u128(data, b + WC.permissionless_market_init_fee),
     tradeFeeBaseBps: u64(data, b + WC.trade_fee_base_bps),
     permissionlessResolveStaleSlots: u64(data, b + WC.permissionless_resolve_stale_slots),
     forceCloseDelaySlots: u64(data, b + WC.force_close_delay_slots),
     lastGoodOracleSlot: u64(data, b + WC.last_good_oracle_slot),
-    insuranceAuthority: pk(data, b + WC.insurance_authority),
-    insuranceOperator: pk(data, b + WC.insurance_operator),
-    backingBucketAuthority: pk(data, b + WC.backing_bucket_authority),
-    assetAuthority: pk(data, b + WC.asset_authority),
-    hyperpMarkAuthority: pk(data, b + WC.hyperp_mark_authority),
     insuranceWithdrawDepositRemaining: u128(data, b + WC.insurance_withdraw_deposit_remaining),
     insuranceWithdrawMaxBps: u16(data, b + WC.insurance_withdraw_max_bps),
     liquidationCrankerFeeShareBps: u16(data, b + WC.liquidation_cranker_fee_share_bps),
@@ -140,6 +142,7 @@ export function parseWrapperConfig(data: Buffer): WrapperConfig {
     oracleLegCount: u8(data, b + WC.oracle_leg_count),
     oracleLegFlags: u8(data, b + WC.oracle_leg_flags),
     invert: u8(data, b + WC.invert),
+    freeMarketSlotCount: u16(data, b + WC.free_market_slot_count),
     insuranceWithdrawCooldownSlots: u64(data, b + WC.insurance_withdraw_cooldown_slots),
     lastInsuranceWithdrawSlot: u64(data, b + WC.last_insurance_withdraw_slot),
     maxStalenessSecs: u64(data, b + WC.max_staleness_secs),
@@ -160,10 +163,10 @@ export function parseWrapperConfig(data: Buffer): WrapperConfig {
   };
 }
 
-// ---------- AssetStateV16 ----------
+// ---------- AssetStateV16 (499 B, unchanged) ----------
 export interface AssetState {
   index: number;
-  marketId: bigint;         // NEW (commit 4942e45 + earlier prefix)
+  marketId: bigint;
   retiredSlot: bigint;
   lifecycle: number;
   rawOracleTargetPrice: bigint;
@@ -202,7 +205,11 @@ export function parseAsset(data: Buffer, baseOff: number, index: number): AssetS
   };
 }
 
-// ---------- AssetOracleProfileV16 (per-slot, at oracle-storage offset 0) ----------
+// ---------- AssetOracleProfileV16 (per-slot, at slot+0; for asset_index >= 1) ----------
+// After commit `dba87a9`/`792256b` the wrapper-level authorities (insurance_authority,
+// insurance_operator, backing_bucket_authority) collapsed into the market-wide
+// `marketauth`, so per-asset profiles now only carry `oracle_authority` (the
+// per-asset mark pusher).
 export interface AssetOracleProfile {
   index: number;
   oracleMode: number;
@@ -215,9 +222,6 @@ export interface AssetOracleProfile {
   backingTradeFeeBpsShort: number;
   backingTradeFeeInsuranceShareBpsLong: number;
   backingTradeFeeInsuranceShareBpsShort: number;
-  insuranceAuthority: PublicKey;
-  insuranceOperator: PublicKey;
-  backingBucketAuthority: PublicKey;
   oracleAuthority: PublicKey;
   maxStalenessSecs: bigint;
   hybridSoftStaleSlots: bigint;
@@ -230,10 +234,12 @@ export interface AssetOracleProfile {
   oracleLegFeeds: string[];
   oracleLegPricesE6: bigint[];
   oracleLegPublishTimes: bigint[];
+  // Back-compat aliases (all = marketauth on the new layout; populated at parse time).
+  insuranceAuthority?: PublicKey;
+  insuranceOperator?: PublicKey;
+  backingBucketAuthority?: PublicKey;
 }
 
-// `slotOff` is the start of the slot (= MARKET_GROUP_OFF + MG.asset_slots + i*ASSET_SLOT_LEN);
-// the profile sits at slotOff + 0 (engine `Market<T>` puts the oracle storage first).
 export function parseAssetOracleProfile(data: Buffer, slotOff: number, index: number): AssetOracleProfile {
   const o = slotOff;
   const legFeeds: string[] = [];
@@ -256,9 +262,6 @@ export function parseAssetOracleProfile(data: Buffer, slotOff: number, index: nu
     backingTradeFeeBpsShort: u16(data, o + AOP.backing_trade_fee_bps_short),
     backingTradeFeeInsuranceShareBpsLong: u16(data, o + AOP.backing_trade_fee_insurance_share_bps_long),
     backingTradeFeeInsuranceShareBpsShort: u16(data, o + AOP.backing_trade_fee_insurance_share_bps_short),
-    insuranceAuthority: pk(data, o + AOP.insurance_authority),
-    insuranceOperator: pk(data, o + AOP.insurance_operator),
-    backingBucketAuthority: pk(data, o + AOP.backing_bucket_authority),
     oracleAuthority: pk(data, o + AOP.oracle_authority),
     maxStalenessSecs: u64(data, o + AOP.max_staleness_secs),
     hybridSoftStaleSlots: u64(data, o + AOP.hybrid_soft_stale_slots),
@@ -307,21 +310,10 @@ export interface MarketGroup {
 
 export function parseMarketGroup(data: Buffer): MarketGroup {
   const b = MARKET_GROUP_OFF;
-  // The engine seeds all 16 asset slots with lifecycle=Active and
-  // placeholder price=1, so a slot is "truly activated" only when its
-  // effective_price differs from the placeholder (or oi/positions exist).
   const assets: AssetState[] = [];
-  // Asset-slot capacity is DYNAMIC, not a fixed 64: the asset_slots array is the
-  // trailing field of the account, and permissionless append reallocs the account
-  // to grow it (asset_index+1). Derive capacity from the account data length, the
-  // same way the program does (market_slot_capacity), rather than hardcoding
-  // V16_MAX_MARKET_SLOTS — otherwise we'd read past a smaller account or miss the
-  // slots of a grown one.
+  // Asset-slot capacity is dynamic. Derive from the account data length.
   const capacity = Math.max(0, Math.floor((data.length - b - MG.asset_slots) / ASSET_SLOT_LEN));
   for (let i = 0; i < capacity; i++) {
-    // Each slot is engine `Market<T> = { wrapper: T, engine }`:
-    //   [slotOff .. +512)  oracle storage (AssetOracleProfileV16 at +0)
-    //   [slotOff+512 ..)   EngineAssetSlot (AssetStateV16Account at +0)
     const slotOff = b + MG.asset_slots + i * ASSET_SLOT_LEN;
     const off = slotOff + ASSET_ORACLE_WRAPPER_LEN;
     const a = parseAsset(data, off, i);
@@ -367,10 +359,10 @@ export function parseMarketGroup(data: Buffer): MarketGroup {
 export interface Leg {
   index: number;
   active: number;
-  assetIndex: number;      // u32 — which market asset this leg trades
-  marketId: bigint;        // u64
-  side: number;            // 0 long / 1 short
-  basisPosQ: bigint;       // i128
+  assetIndex: number;
+  marketId: bigint;
+  side: number;
+  basisPosQ: bigint;
   aBasis: bigint;
   kSnap: bigint; fSnap: bigint;
   epochSnap: bigint;
@@ -402,7 +394,7 @@ export function parseLeg(data: Buffer, baseOff: number, index: number): Leg {
   };
 }
 
-// ---------- PortfolioAccountV16 ----------
+// ---------- PortfolioAccountV16 (9179 B state + 16 B header) ----------
 export interface Portfolio {
   marketGroupId: PublicKey;
   portfolioAccountId: PublicKey;
@@ -413,8 +405,8 @@ export interface Portfolio {
   feeCredits: bigint;
   cancelDepositEscrow: bigint;
   lastFeeSlot: bigint;
-  activeBitmap: bigint;     // widened to u64 in commit 5741bb9
-  legs: Leg[];          // only legs flagged active=1
+  activeBitmap: bigint;
+  legs: Leg[];
   staleState: number;
   bStaleState: number;
   rebalanceLock: number;
@@ -424,8 +416,7 @@ export interface Portfolio {
 export function parsePortfolio(data: Buffer): Portfolio {
   const b = PORTFOLIO_STATE_OFF;
   const legs: Leg[] = [];
-  // The portfolio leg array is fixed at 16 (legs@19684 .. health_cert@21988 =
-  // 16×144), NOT V16_MAX_MARKET_SLOTS (64) — iterating 64 overruns the buffer.
+  // 16 leg slots; source domains follow at offset 2532 (32 × 196 B).
   const PORTFOLIO_LEG_COUNT = 16;
   for (let i = 0; i < PORTFOLIO_LEG_COUNT; i++) {
     const off = b + PA.legs + i * LEG_LEN;
@@ -443,7 +434,7 @@ export function parsePortfolio(data: Buffer): Portfolio {
     feeCredits: i128(data, b + PA.fee_credits),
     cancelDepositEscrow: u128(data, b + PA.cancel_deposit_escrow),
     lastFeeSlot: u64(data, b + PA.last_fee_slot),
-    activeBitmap: u64(data, b + PA.active_bitmap),    // now u64
+    activeBitmap: u64(data, b + PA.active_bitmap),
     legs,
     staleState: u8(data, b + PA.stale_state),
     bStaleState: u8(data, b + PA.b_stale_state),

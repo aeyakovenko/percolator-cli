@@ -480,9 +480,14 @@ async function main() {
       })), [admin], { commitment: "confirmed" }));
 
   // ====================================================================
-  console.log("\n=== Stage 7: Authority rotation ===");
+  // Stage 7 rewritten for the `marketauth` collapse (commit 792256b): the
+  // wrapper now exposes a single market-level authority and a single
+  // `UpdateAuthority` tag that rotates it.  Exercise admin → fakeOp → admin
+  // round-trip (proves both signer paths) instead of the per-kind rotation
+  // that used to be possible.
+  console.log("\n=== Stage 7: Authority rotation (marketauth round-trip) ===");
   const fakeOp = Keypair.generate();
-  await step("UpdateAuthority kind=InsuranceOperator → fakeOp", () =>
+  await step("UpdateAuthority marketauth: admin → fakeOp", () =>
     sendAndConfirmTransaction(conn, new Transaction()
       .add(...withCu(200_000))
       .add(new TransactionInstruction({
@@ -490,9 +495,9 @@ async function main() {
           { pubkey: admin.publicKey, isSigner: true, isWritable: false },
           { pubkey: fakeOp.publicKey, isSigner: true, isWritable: false },
           { pubkey: market.publicKey, isSigner: false, isWritable: true },
-        ], data: encUpdateAuthority({ kind: AuthorityKind.InsuranceOperator, newPubkey: fakeOp.publicKey }),
+        ], data: encUpdateAuthority({ newPubkey: fakeOp.publicKey }),
       })), [admin, fakeOp], { commitment: "confirmed" }));
-  await step("UpdateAuthority rotate back to admin", () =>
+  await step("UpdateAuthority marketauth: fakeOp → admin", () =>
     sendAndConfirmTransaction(conn, new Transaction()
       .add(...withCu(200_000))
       .add(new TransactionInstruction({
@@ -500,7 +505,7 @@ async function main() {
           { pubkey: fakeOp.publicKey, isSigner: true, isWritable: false },
           { pubkey: admin.publicKey, isSigner: true, isWritable: false },
           { pubkey: market.publicKey, isSigner: false, isWritable: true },
-        ], data: encUpdateAuthority({ kind: AuthorityKind.InsuranceOperator, newPubkey: admin.publicKey }),
+        ], data: encUpdateAuthority({ newPubkey: admin.publicKey }),
       })), [admin, fakeOp], { commitment: "confirmed" }));
 
   // ====================================================================

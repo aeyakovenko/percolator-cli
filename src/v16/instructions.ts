@@ -281,9 +281,21 @@ export function encTopUpBackingBucket(a: TopUpBackingBucketArgs): Buffer {
   ]);
 }
 
-export interface UpdateAuthorityArgs { kind: number; newPubkey: PublicKey | string; }
+// UpdateAuthority (tag 32): rotates the market-wide `marketauth` key
+// (post-792256b authority collapse). No `kind` discriminator — only one
+// market-level authority exists. Per-asset oracle authority rotation is now
+// handled by `UpdateAssetAuthority` (tag 65) which carries asset_index + kind.
+// `kind` is preserved on the interface for source compat with old call sites
+// but is unused on the wire — every market-level rotation hits `marketauth`.
+export interface UpdateAuthorityArgs { kind?: number; newPubkey: PublicKey | string; }
 export function encUpdateAuthority(a: UpdateAuthorityArgs): Buffer {
-  return Buffer.concat([u8(TAG.UpdateAuthority), u8(a.kind), pkLE(a.newPubkey)]);
+  return Buffer.concat([u8(TAG.UpdateAuthority), pkLE(a.newPubkey)]);
+}
+// UpdateAssetAuthority (tag 65) — rotates a per-asset authority slot.
+// `kind` is the per-asset authority kind code (defined by the program).
+export interface UpdateAssetAuthorityArgs { assetIndex: number; kind: number; newPubkey: PublicKey | string; }
+export function encUpdateAssetAuthority(a: UpdateAssetAuthorityArgs): Buffer {
+  return Buffer.concat([u8(65), u16le(a.assetIndex), u8(a.kind), pkLE(a.newPubkey)]);
 }
 
 export interface UpdateInsurancePolicyArgs {
