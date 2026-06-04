@@ -98,23 +98,24 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   c3ec949319d76466c0710a182dc7f932ee1fefddfdf4ba5191dc6fae12050563
-BPF binary size:      956,104 bytes ELF
-percolator-prog:      198651f  (Bump percolator engine; sits on top of ec773a1
-                       'Cover optional ledger kind confusion' + cd4241e 'Cover
-                       ledger sync account-kind confusion' + c6a6850 'Bump engine
-                       and bound stale trade path'. Layout unchanged from 70294cb.)
-prior:                c050578 / BPF 11eafaf1… / 952,544 B (deployed 2026-06-04
-                       afternoon, superseded same day; emitted a stack-size warning
-                       on PortfolioAccountV16Account::try_empty fixed by the engine
-                       bump below)
+BPF binary SHA-256:   5b9464a53ed25d84fe1bd657ffbb50e94246465490323a783ab6e25135edbfe3
+BPF binary size:      956,592 bytes ELF
+percolator-prog:      9343dad  (Cover backing fee policy count liveness; sits on
+                       top of 294079f 'Cover invalid domain public calls' +
+                       de85ee9 'Cover batch backing fee policy gate' + two real
+                       behavior changes: ac4d3bc 'Reject cross-market liquidation
+                       rewards' and b5f69a1 'Reject cross-market maintenance cranker
+                       rewards'. src/v16_program.rs +70 / -35 LoC. Layout unchanged
+                       from 70294cb.)
+prior:                198651f / BPF c3ec9493… / 956,104 B (deployed 2026-06-04 evening,
+                       superseded same day — fixed c050578's try_empty stack
+                       overflow by bumping engine to 08ebb7f)
+                      c050578 / BPF 11eafaf1… / 952,544 B (had try_empty warning)
                       0a631cf / BPF b0cc3f80… / 952,272 B (deployed 2026-06-04)
                       70294cb / BPF 1aedbfa2… / 918,184 B (deployed 2026-06-03)
-engine pin:           08ebb7f  (Reduce v16 account init stack usage — fixes the
-                       8,768-byte try_empty stack frame that exceeded the BPF
-                       4,096-byte limit on c050578. Builds clean now. Engine HEAD
-                       1487d50 'Prove v16 in-place account initialization clears
-                       risk state' is a proof commit the wrapper has not yet bumped.)
+engine pin:           08ebb7f  (Reduce v16 account init stack usage — unchanged from
+                       198651f. Engine HEAD 1487d50 is a proof commit the wrapper
+                       has not yet bumped to.)
 Layout:               marketauth-collapse (commit 792256b)
                       + asset-0 unified with assets 1..N (commit dba87a9)
                       WrapperConfigV16  = 432 B  (was 624 B; 7 keys → 1 marketauth)
@@ -131,13 +132,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 198651f
+cd percolator-prog && git checkout 9343dad
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: c3ec949319d76466c0710a182dc7f932ee1fefddfdf4ba5191dc6fae12050563
+#   Expected: 5b9464a53ed25d84fe1bd657ffbb50e94246465490323a783ab6e25135edbfe3
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 956104 /tmp/deployed.so | sha256sum   # must match
+head -c 956592 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
