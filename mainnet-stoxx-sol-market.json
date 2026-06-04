@@ -5,8 +5,9 @@
   "vaultPda": "84o6UPbT4WbhYiK3aWFWCwBeMDc79zB7rbY8fY8Nby53",
   "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "collateralMint": "So11111111111111111111111111111111111111112",
-  "layout": "70294cb (marketauth-collapse / 432B WC)",
-  "bpf": "1aedbfa25945f9fba521d2574d8568167daf2d1c5d7c69cd2c0430c171d1888f",
+  "layout": "70294cb marketauth-collapse / 432B WC — current 59d74cf wrapper, layout unchanged",
+  "bpf": "b0cc3f8051cbc6fbad73eb512b61a6d8830251160d0813f5b29cebe2291a1059",
+  "bpfPrior": "1aedbfa25945f9fba521d2574d8568167daf2d1c5d7c69cd2c0430c171d1888f",
   "asset0": {
     "label": "STOXX/SOL",
     "oracleMode": "HYBRID_AFTER_HOURS",

@@ -98,9 +98,13 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   1aedbfa25945f9fba521d2574d8568167daf2d1c5d7c69cd2c0430c171d1888f
-BPF binary size:      918,184 bytes ELF
-percolator-prog:      70294cb  (PushEwmaMark same-slot rate-limit guard)
+BPF binary SHA-256:   b0cc3f8051cbc6fbad73eb512b61a6d8830251160d0813f5b29cebe2291a1059
+BPF binary size:      952,272 bytes ELF
+percolator-prog:      59d74cf  (Allow permissionless matcher LP fills; wrapper-only
+                       behavior change on top of 8bb9900 cross-market vault-drain
+                       guard test + 70294cb PushEwmaMark same-slot rate-limit guard.
+                       Layout unchanged from 70294cb.)
+prior:                70294cb / BPF 1aedbfa2… / 918,184 B (deployed 2026-06-03, superseded 2026-06-04)
 engine pin:           051e268  (release impaired insurance liens in terminal wind-down)
 Layout:               marketauth-collapse (commit 792256b)
                       + asset-0 unified with assets 1..N (commit dba87a9)
@@ -118,13 +122,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 70294cb
+cd percolator-prog && git checkout 59d74cf
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 1aedbfa25945f9fba521d2574d8568167daf2d1c5d7c69cd2c0430c171d1888f
+#   Expected: b0cc3f8051cbc6fbad73eb512b61a6d8830251160d0813f5b29cebe2291a1059
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 918184 /tmp/deployed.so | sha256sum   # must match
+head -c 952272 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
