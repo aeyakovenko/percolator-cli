@@ -28,7 +28,7 @@
     "permissionlessMarketInitFee": "7500000",
     "maintenanceFeePerSlot": "35",
     "solPriceAssumed": "$69.26",
-    "note": "all ≈ $0.50"
+    "note": "all \u2248 $0.50"
   },
   "config": {
     "maxPortfolioAssets": 1,
@@ -40,5 +40,8 @@
     "markEwmaHalflifeSlots": 300,
     "permissionlessResolveStaleSlots": 6480000,
     "forceCloseDelaySlots": 216000
-  }
+  },
+  "keeperKey": "9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ",
+  "keeperPortfolio": "9cQXfQcu5sTf4fZBSJs5hHSMkqpUrN8AynoAkafkBShz",
+  "keeperKeypairPath": "~/.config/solana/bounty5-keeper.json"
 }

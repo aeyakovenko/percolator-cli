@@ -44,232 +44,177 @@ Or use command-line flags:
 - `--json` - Output in JSON format
 - `--simulate` - Simulate transaction without sending
 
-## Mainnet Bounty 6 — `bounty_v16_multimarket_sol_20x` (v16, LIVE)
+## Mainnet Bounty 7 — STOXX/SOL single-asset (v16 `marketauth`-collapse layout, LIVE)
 
-> **Status (2026-05-25, LIVE):** v16 multi-market group on a **new** program,
-> wSOL-collateralized, **3 inverted markets** at 20× in HYBRID_AFTER_HOURS fee
-> mode. SOL is the base unit; all marks are Pyth composites. Per-market isolated
-> insurance, a $0.50-ish account-hold-per-day + market-create fee, and **20% of
-> non-zero-market trade fees + backing yield redirected to market 0**.
-> Permissionless market append is enabled. Authorities **NOT burned**.
-> (The v1 STOXX/SOL single-market bounty-5 on `4ToDRrQW…`/`DV4Qa…` was wound down
-> 2026-05-25 — see *Deprecated* below.)
+> **Status (2026-06-03, LIVE):** single-asset perpetuals market — STOXX50 priced
+> in SOL via a 3-leg Pyth composite (STOXX·EUR × EUR/USD ÷ SOL/USD, inverted).
+> 20× leverage, wSOL collateral, `HYBRID_AFTER_HOURS` oracle mode so the EWMA
+> carries the mark when STOXX is closed. New layout (commit `792256b` collapsed
+> the 7 market-level authorities into a single `marketauth`; commit `dba87a9`
+> unified asset 0 with assets 1..N): the market account is **2,955 B / 0.0215
+> SOL rent** instead of the old 116 KB / 2.06 SOL — 99× cheaper.
+>
+> (The previous 3-asset `BhkMic5g…` bounty market was wound down 2026-06-03
+> via the `unsafe_forced_close` admin escape hatch, recovering +6.576 SOL from
+> every old-layout zombie account under PROG including the long-stranded
+> AWCZ2pK dust and the 2026-05-26 attacker husk `8oYjDr2…`. See *Deprecated*
+> below.)
 
 **On-chain addresses**
 
 ```
-Program:    4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi   (v16 program)
-Market:     BhkMic5gHLjj5Uxkg6rBBXofUzeTZVwmV4uFzfhwtgQw   (market group; re-launched 2026-05-26)
-Vault PDA:  DmDYnHsLnDiAS8PtrxfKkNbzd6KpSyT1vmC8icGjgPhj
-Vault ATA:  wRvSrR1ffEM4gSkVR48xWeaKvSyDp8z1aSaQTWoptXQ   (wrapped SOL, PDA-signed)
-Matcher:    (none — third parties provision their own matcher program + context)
-Insurance:  ~1.5 SOL (domains 0/2/4)
-Keeper:     9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ   (dedicated; proximity-driven liquidator)
-Keeper pf:  5iWTBYod2C4RovvrWfqs45sTbqNPb9B1B7cSkN2atVNs
+Program:       4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi   (v16 program, marketauth layout)
+Market:        4AXbMuJzrUv5KtVs6zc5jDtXTB4XKhKtEBGU6BmkVut4   (STOXX/SOL, launched 2026-06-03)
+Vault PDA:     84o6UPbT4WbhYiK3aWFWCwBeMDc79zB7rbY8fY8Nby53
+Collateral:    So11111111111111111111111111111111111111112   (wSOL)
+marketauth:    A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK   (admin; single collapsed key)
+Keeper key:    9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ   (dedicated; dormant-when-empty)
+Keeper pf:     9cQXfQcu5sTf4fZBSJs5hHSMkqpUrN8AynoAkafkBShz
+Insurance:     0 SOL (not seeded at launch)
+Matcher:       (none — bilateral TradeNoCpi only on this market)
+Manifest:      mainnet-stoxx-sol-market.json
 ```
 
-> **Re-launched 2026-05-26 after a claimed bounty.** The original market
-> `8oYjDr2…` was drained (1.5 SOL) via an insurance-domain isolation flaw: a
-> caller could permissionlessly create their own market and `WithdrawInsuranceDomain`
-> from the *shared* vault through their own domain. Fixed by upgrading the program to
-> engine `8e0e3f8` (per-domain insurance isolation — a new domain starts at 0 budget
-> and cannot withdraw insurance funded into other domains; verified blocked on-chain).
-> The corrupted `8oYjDr2…` is **retired** — left as a dead husk (insurance 0): the
-> upgraded isolation-engine rejects reconfigure AND resolve of its inconsistent
-> post-exploit state (unbacked domain budgets → `0xe`), so it cannot be wound down
-> on-chain. Harmless (drained, exploit blocked); its rent is stranded.
+**Asset 0 — STOXX/SOL** (the only asset; this is a single-asset market)
 
-**Markets** (all inverted → priced in SOL)
-
-| # | Market | Oracle (Pyth pull) |
+| | Pyth feed | PriceUpdateV2 account |
 |---|---|---|
-| m0 | USD/SOL | SOL/USD `7UVimffx…`, 1-leg, inverted |
-| m1 | STOXX50/SOL | STOXX50·EUR `C2Cf16…` × EUR/USD `Fu76Cham…` ÷ SOL/USD `7UVimffx…`, 3-leg `DIVIDE_LEG3`, inverted |
-| m2 | BTC/SOL | BTC/USD `4cSM2e6…` ÷ SOL/USD `7UVimffx…`, 2-leg `DIVIDE_LEG2`, inverted |
+| leg 0 | STOXX50·EUR  `dd08f0a4…` | `C2Cf16vF6LX8GrWJwfZga5z5tjVsax5VWnL2T7Q8CF91` |
+| leg 1 | EUR/USD      `a995d00b…` | `Fu76ChamBDjE8UuGLV6GP2AcPPSU6gjhkNhAyuoPm7ny` |
+| leg 2 | SOL/USD      `ef0d8b6f…` | `7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE` |
 
-> A 4th asset slot (index 3) is an **empty leftover** from the on-chain exploit-fix
-> verification — **0 insurance budget, no positions**, so it cannot be drained and
-> does not affect the bounty's solvency (on-chain `Σ domain_budget == insurance`,
-> market healthy). It is **being wound down**: the admin has shut it down
-> (`Active → Recovery`, 2026-05-26), and it RETIREs after the ~24 h force-close
-> maturity, freeing the slot (its rent stays in the market account until the whole
-> market is closed). Only m0/m1/m2 are the live bounty markets.
+Composite formula: `STOXX·EUR × EUR/USD ÷ SOL/USD` (via `oracle_leg_flags =
+DIVIDE_LEG3 = 0x02`), then **inverted** so SOL is the base unit. At launch
+(slot `424152688`) the EWMA seeded at `mark_ewma_e6 = 961,571` = **0.9616
+SOL per STOXX share** (STOXX ~$72, SOL ~$69 → 1.04 STOXX/SOL inverted).
 
-**Oracles** — each market's Pyth pull legs are in the table above (m1's composite
-is `STOXX50·EUR × EUR/USD ÷ SOL/USD` = STOXX50/SOL via `DIVIDE_LEG3 = 0x02`;
-m2's is `BTC/USD ÷ SOL/USD` = BTC/SOL via `DIVIDE_LEG2 = 0x01`; m0 is SOL/USD
-inverted). The shard-0 PriceUpdateV2 accounts have no external keeper, so the
-keeper self-publishes them from `hermes.pyth.network` via `pyth-solana-receiver`
-(`/home/anatoly/pyth-pusher`), pushing a leg only when its on-chain price nears
-`max_staleness_secs`. The equity leg (STOXX) trades Europe/Paris 09:00–17:30; out
-of hours it falls back to the EWMA mark (HYBRID_AFTER_HOURS), which the keeper's
-cranks keep advancing. FX (EUR) is 24/5, crypto (SOL/BTC) 24/7.
+`oracle_mode = HYBRID_AFTER_HOURS` (mode 1). When all legs are fresh inside
+`max_staleness_secs` the engine reads the composite oracle; when any leg
+goes stale (STOXX overnight + weekends), it falls back to the EWMA mark.
+SOL/USD is kept fresh by Pyth's sponsored shard-0 crank; STOXX·EUR + EUR/USD
+are self-pushed by the keeper from `hermes.pyth.network` during EU market
+hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess.
 
-**Build provenance** (mainnet on 2026-06-01 — Finding C: expiry-agnostic resolved lien release)
+**Build provenance**
 
 ```
-BPF binary SHA-256:   ed944ef8365f0b88e00c799b647540250bf1c4f06ae3d5a55c37ab5bbd3faf10
-BPF binary size:      895,384 bytes ELF
-percolator-prog:      5ab73eb  (engine pin 7188eec; "Finding C: expiry-agnostic resolved lien release" — resolved-mode
-                      liens no longer require an explicit expiry slot to release, unblocking a class of resolve-cycle
-                      teardown locks. Builds on 574a7a1 resolved-mode fund-stuck fixes + 2b6c80e per-asset-dt clamp
-                      (crank price clamp uses asset_segment_dt_view, not the wider group dt — matching the engine's
-                      per-asset accrual envelope; previously a fresh asset's crank could be silently bricked when a
-                      stale sibling dragged group dt out). Chain atop 5ebd136 source-credit watermarks + source-backed
-                      risk + dust-rent sweep, f01b77f internal-funding cranks + #109 flat-fee fix, 6512fa1 activation
-                      slot auth, 0925ed4 validate_shape (#73/#76), 8e0e3f8 per-domain insurance isolation. Account
-                      layouts UNCHANGED across every engine bump — verified each time: portfolio/market length formulas
-                      + all *_LEN/*_SIZE/*_OFF consts + POD struct defs byte-identical; existing market BhkMic5g +
-                      keeper portfolio parse + operate under each new build)
-MARKET_ACCOUNT_LEN:   116,286 bytes (capacity 64 asset slots; dynamic — realloc-growable)
-Prior builds:         574a7a1/66ea3179, 574c394/9e26f8da, 2b6c80e/e8e9527b, 047fcc5/d0571b1d, 5ebd136/d54c9ee3, f01b77f/c55dbb32, 6512fa1/7bdbae6e, d6b384c8/0925ed4, d06bea6e/ef3e1ca, ea42aa49/6e7de51, 473958ea/7f7cefc, f476f8fc/c929fb0 — superseded
+BPF binary SHA-256:   1aedbfa25945f9fba521d2574d8568167daf2d1c5d7c69cd2c0430c171d1888f
+BPF binary size:      918,184 bytes ELF
+percolator-prog:      70294cb  (PushEwmaMark same-slot rate-limit guard)
+engine pin:           051e268  (release impaired insurance liens in terminal wind-down)
+Layout:               marketauth-collapse (commit 792256b)
+                      + asset-0 unified with assets 1..N (commit dba87a9)
+                      WrapperConfigV16  = 432 B  (was 624 B; 7 keys → 1 marketauth)
+                      MarketGroupHeader = 710 B  (was 638 B; engine accounting block)
+                      PortfolioAccount  = 9,195 B  (was 22,379 B; source-domain claims
+                                          compacted into a 32-slot × 196 B inline array)
+                      DEFAULT_MARKET_SLOT_CAPACITY = 1  (market reallocs on asset activate)
+MARKET_ACCOUNT_LEN:   2,955 B for a 1-slot market = 448 (header+config)
+                                                 + 710 (MG header)
+                                                 + 1 × 1,797 (slot stride: 512 oracle + 1,285 engine)
 ```
 
-> Note: under the internal-funding cranks (f01b77f+), `ClosePortfolio` — like trades —
-> requires the market cranked up to the current slot first, else it locks with `0x15`
-> (catch-up crank, then close). The keeper handles this; users closing manually must
-> catch-up crank too.
-
-Verify locally (the toolchain dependency `wincode-derive@0.4.4` requires
-`edition2024`, so use platform-tools `v1.52`+ which ships rustc 1.89):
+Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 5ab73eb
+cd percolator-prog && git checkout 70294cb
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: ed944ef8365f0b88e00c799b647540250bf1c4f06ae3d5a55c37ab5bbd3faf10
+#   Expected: 1aedbfa25945f9fba521d2574d8568167daf2d1c5d7c69cd2c0430c171d1888f
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 895384 /tmp/deployed.so | sha256sum   # must match
+head -c 918184 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
 
 | Param | Value | Notes |
 |---|---|---|
-| `mm` (maintenance margin) | 500 bps | = im → 20× nominal leverage |
-| `im` | 500 bps | no opening buffer |
-| `max_price_move_bps_per_slot` | 24 | §1.4 envelope at mm=500 + max_accrual_dt=20; caps the mark walk to ≤480 bps/crank |
-| `max_accrual_dt_slots` | 20 | accrual catch-up step; a market past it is not dead — keeper cranks it back |
-| `h_min` / `h_max` | 0 / 6_480_000 | up to ~30d profit maturity |
-| `max_trading_fee_bps` | 10_000 | hybrid mode cap (100%) |
-| `trade_fee_base_bps` | 1 | hybrid base; +EWMA movement bps in off-hours |
-| `trade_fee_mode` | `HYBRID_AFTER_HOURS` | fresh-oracle → static; stale leg → EWMA mark + dynamic fee |
-| `liquidation_fee_bps` | 5 | frees envelope budget |
+| `mm` / `im` (margin) | 500 bps / 500 bps | 20× nominal leverage, no opening buffer |
+| `max_price_move_bps_per_slot` | 49 | §1.4 envelope at mm=500 + max_accrual_dt=10 |
+| `max_accrual_dt_slots` | 10 | per-crank accrual step; keeper targets ≤20 slots gap (2 cranks/cycle) |
+| `h_min` / `h_max` | 0 / 6_480_000 | up to ~30 d profit maturity |
+| `max_trading_fee_bps` | 10,000 | hybrid mode cap (100%) |
+| `trade_fee_base_bps` | 1 | hybrid base; +EWMA movement bps off-hours |
+| `liquidation_fee_bps` | 5 | 0.05% per liq, capped at 50 SOL |
 | `min_nonzero_mm_req` / `_im_req` | 500 / 600 | exact-N proof room |
 | `min_liquidation_abs` | 0 | no per-call dust floor |
-| `liquidation_fee_cap` | 50 × 10⁹ | $50K cap per liquidation |
-| `permissionless_resolve_stale_slots` | 6_480_000 (~30 d) | survives any multi-day market closure |
-| `force_close_delay_slots` | 216_000 (~24 h) | post-resolve grace |
-| `maintenance_fee_per_slot` | ~27 lamports | ≈ **$0.50/day** account-hold spam deterrent (computed from live SOL/USD) |
-| `permissionless_market_init_fee` | ~5.8M lamports | ≈ **$0.50** to permissionlessly append a new market |
-| `fee_redirect_to_market_0_bps` | 2000 | **20%** of non-zero-market trade fees + backing yield → market 0 |
-| `max_staleness_secs` | 600 | crank accepts a leg up to 10 min old; freshen the leg (push) before cranking past this |
-| Insurance seed | ~1.5 SOL (domains 0/2/4) | per-domain isolated; re-seeded at 2026-05-26 re-launch |
+| `permissionless_resolve_stale_slots` | 6,480,000 (~30 d) | survives any multi-day market closure |
+| `force_close_delay_slots` | 216,000 (~24 h) | post-resolve grace |
+| `maintenance_fee_per_slot` | 35 lamports | ≈ **$0.50/day** account hold (SOL ≈ $69 at launch) |
+| `permissionless_market_init_fee` | 7,500,000 lamports | ≈ **$0.50** to permissionlessly append a new asset slot |
+| `max_staleness_secs` | 259,200 (3 d) | covers weekend STOXX gaps; HYBRID_AFTER_HOURS falls back to EWMA past this |
+| `hybrid_soft_stale_slots` | 200 | soft-stale window before EWMA-only fallback inside max_staleness |
+| `mark_ewma_halflife_slots` | 300 | EWMA half-life ≈ 2 min |
+| `insurance_withdraw_max_bps` | 5,000 | 50% per-window withdraw cap |
+| `insurance_withdraw_cooldown_slots` | 216,000 (~24 h) | between withdraws |
+| Insurance seed | **0 SOL** | not seeded yet at launch — top up via `TopUpInsurance` / `TopUpInsuranceDomain` |
 
-### Trading is permissionless — but you push your own oracles
+### Trading
 
-This market is run **dormant** to keep operating cost near zero. With no open
-positions the keeper does **not** crank, and the Pyth pull legs are **not**
-maintained — so the market sits stale on purpose.
+`InitPortfolio` + `Deposit` are cheap (rent ~0.065 SOL + tx fees); there is
+no per-account creation fee on this market (the `newAccountFee` field was
+removed in the new layout). Bilateral `TradeNoCpi` works without a matcher;
+both sides simply sign.
 
-**Staleness gating is per-asset** (as of program `7f7cefc`; insurance is per-domain isolated as of `6e7de51`). To trade asset *X* you
-only need *X* fresh — a stale *other* asset no longer blocks you (the engine's
-market-wide loss-stale bit is ignored for a trade when neither the traded asset nor
-either account's open legs touch a stale asset). `InitPortfolio` / `Deposit` aren't
-staleness-gated at all. (The group-wide lock still applies to **admin oracle
-reconfig** — `ConfigureAuthMark` / `ConfigureHybridOracle` — but not to trading.)
+Before a trade the asset must be cranked up to within `max_accrual_dt`
+slots of the current slot. The keeper does this when there are positions
+open; users entering against an idle market can self-crank by packing one or
+more `PermissionlessCrank action:0` ixs into their own trade tx.
 
-**To trade you catch up just the asset(s) you touch** (permissionless):
-1. Freshen that asset's Pyth pull legs — publish the shard-0 PriceUpdateV2 accounts
-   (e.g. `pyth-solana-receiver` against `hermes.pyth.network`).
-2. **Catch-up crank the asset** with `PermissionlessCrank action:0` *repeatedly*:
-   each crank advances accrual by ≤ `max_accrual_dt` (20 slots), so a long-idle asset
-   needs many cranks (a day of drift ≈ thousands) until its `slot_last` is within
-   `max_accrual_dt` of the current slot.
-3. Then `InitPortfolio` → `Deposit` → `TradeNoCpi` (atomic-crank-then-trade in one tx
-   keeps the asset fresh at execution).
+### Keeper — dormant-when-empty
 
-The keeper only guarantees the market never **hard**-stales (~30 d, see below); it
-does not keep it continuously trade-ready. Liquidation (`action:1`) is also **not**
-blocked by staleness, so the keeper can always liquidate even while idle drift sits.
+`scripts/mainnet-stoxx-sol-keeper.ts` (cron wrapper:
+`scripts/stoxx-sol-keeper-cron.sh`) runs **once per minute** on the
+dedicated keeper key. It costs roughly nothing when the market is empty:
 
-**Operational keepalive — proximity-driven.** Cron runs `mainnet-bounty5-v16-tick.ts`
-every minute on a **dedicated keeper key** (`9WiMAQtd…`, NOT the admin/upgrade key).
-A position can only become liquidatable on-chain when its stored mark moves, and the
-mark only moves when cranked — so the keeper cranks **only when needed**:
-1. it reads every portfolio + each asset's mark and computes each position's health
-   buffer **off-chain** (capital + pnl − fee_debt vs Σ maintenance_req) — no tx;
-2. **no positions →** the market is left to drift; the keeper cranks an asset only if
-   its oracle-staleness clock nears the ~30-day hard-stale (`HEARTBEAT_SLOTS`), one
-   crank resets it. Idle cost ≈ 0 (no VAA pushes);
-3. **position near its liq level →** a tight crank+liquidate **burst** on that asset:
-   it walks the stored mark toward the live price in small steps (≤ `max_price_move ·
-   max_accrual_dt` = 480 bps/crank) and fires `PermissionlessCrank action:1` as the
-   mark crosses, bounding bad debt. The engine is the source of truth — action:1
-   no-ops (`0x15`/`0x16`) on a healthy account, so an over-eager burst is harmless;
-4. **position present but comfortable →** a single refresh crank + liq probe per tick.
+| state | cranks/cycle | cost |
+|---|---|---|
+| **DORMANT** — no portfolios with capital, gap < `HEARTBEAT_SLOTS` (5M slots ≈ 23 d) | 0 | 0 SOL/day |
+| **DORMANT heartbeat** — gap > `HEARTBEAT_SLOTS` | 1 | ~12 cranks/year → effectively 0 |
+| **ACTIVE** — any portfolio has capital | up to 9 in one tx | 5,000 lamports/tick × 1,440/day = **0.0072 SOL/day ≈ \$0.50/day** |
 
-`timeout 58 s` cron wrapper; log at `~/.cache/percolator/bounty5-v16-cron.log`.
-**Keep the keeper key funded.** Liquidation (`action:1`) is **not** gated by the
-market-wide stale lock, so the keeper can always liquidate even while the idle market
-is drifting. If the market ever hard-stales (`> permissionless_resolve_stale_slots`,
-~30 d), re-run the installer's bootstrap (admin `ConfigureHybridOracle` re-freshen).
+Active-state cranking pulls the engine's `asset.slot_last` back to within
+`TARGET_GAP=20` slots of the clock — even though the on-chain
+`max_accrual_dt_slots=10` cap means each crank only advances 10 slots, the
+script packs `ceil(gap / max_accrual_dt) + 1` cranks per tick. Zero priority
+fee — only the 5,000 lamport base fee.
 
-Install (the installer creates the keeper key + portfolio, bootstraps a stale market,
-and PRINTS the cron line — it does NOT modify the crontab itself):
+The keeper also self-pushes STOXX·EUR + EUR/USD from Pyth Hermes via the
+local `~/pyth-pusher` subprocess **only** when the market is active (or
+heartbeating). Off-hours dormancy doesn't push anything.
 
-```bash
-NETWORK=mainnet npx tsx scripts/mainnet-bounty5-v16-cron-install.ts
-# fund the printed keeper pubkey, then add the printed line via `crontab -e`
-tail -f ~/.cache/percolator/bounty5-v16-cron.log
+Cron entry (single line; the wrapper exports PATH + cd's into the repo):
+
+```cron
+* * * * * /bin/sh /home/anatoly/percolator-cli/scripts/stoxx-sol-keeper-cron.sh # percolator-stoxx-sol-keeper
 ```
 
-**Trading the market (any wallet, any time)**
+Log: `~/.cache/percolator/stoxx-sol-keeper.log`.
 
-```
-InitUser (6 accts):           [user, slab, userAta, vault, tokenProgram, clock]
-DepositCollateral (6):        [user, slab, userAta, vault, tokenProgram, clock]
-WithdrawCollateral (10):      [user, slab, vault, userAta, vaultPda, tokenProgram, clock, leg1, leg2, leg3]
-TradeNoCpi (7):               [user, lp, slab, clock, leg1, leg2, leg3]
-CloseAccount (10):            [user, slab, vault, userAta, vaultPda, tokenProgram, clock, leg1, leg2, leg3]
-KeeperCrank (6):              [caller, slab, clock, leg1, leg2, leg3]
-```
+### Bounty win condition
 
-InitUser / DepositCollateral don't require fresh oracle. Withdraw / Close /
-Trade / Crank all read the 3-leg composite — during EU off-hours the equity
-leg is stale and the wrapper falls back to the EWMA mark + dynamic fee.
+Cause `group.insurance` on `4AXbMuJzrUv5…` to drop below its current value
+via any sequence of public-instruction calls. Pyth manipulation and Solana
+validator attacks are out of scope; admission bypass, K overflow, ADL math,
+conservation violation, fee-credits sign flip, stale-mark arb exceeding fee
+mechanics, mark-EWMA exploitation, and the 3-leg oracle composition
+(`DIVIDE_LEG3 + invert`) are all in scope. (No insurance seeded yet at
+launch — top up via `TopUpInsurance` is the prerequisite to any drain
+attempt being profitable.)
 
-**Known intentional surface** (these are the bug-hunting hooks, not bugs):
+---
 
-- Equity leg's sponsored-shard cadence is irregular (5–60 min between
-  updates). With `max_staleness=600 s`, the wrapper often falls into the
-  EWMA-mark branch even during EU hours. A trader entering when the engine
-  has stale `last_oracle_price` carries that mark until the next composite
-  refresh propagates.
-- `MAX_ACCRUAL_DT_SLOTS=10` caps each crank's catch-up to ~4 s of wall
-  clock. With open interest and a long oracle outage, lag accumulates.
-- `tvl_insurance_cap_mult=50` — total user capital can reach 50 × the
-  insurance fund. Bigger than typical perp DEXs (~20×).
-- No matcher is provisioned. **TradeNoCpi works with any LP regardless of
-  matcher** — the handler explicitly notes "no matcher check, both sides
-  are bilateral signers, no CPI invoked" (line 7795). `InitLP` still
-  requires `matcher_program != Pubkey::default()` (line 6687) — any
-  non-default pubkey suffices; the matcher fields are ignored by
-  TradeNoCpi. Use TradeCpi only if you want spread/impact pricing via a
-  deployed matcher program.
-- Smoke verified on the bounty 4 incarnation of the same wrapper
-  (2026-05-13/14): InitUser → InitLP (dummy matcher) → TradeNoCpi off-mark
-  drove EWMA mark drift; conservation held throughout. Bounty 5 inherits
-  the same trading surface.
 
-**Bounty win condition**: cause `engine.insurance_fund.balance` to drop
-below its current value via any sequence of public-instruction calls.
-Pyth manipulation and Solana validator attacks are out of scope; admission
-bypass, K overflow, ADL math, conservation violation, fee-credits sign
-flip, stale-mark arb exceeding fee mechanics, mark-EWMA exploitation,
-multi-leg oracle composition flaws — all in scope.
+## Deprecated: Mainnet Bounty 6 — 3-asset USD/STOXX/BTC bounty (wound down)
+
+> **Status (2026-06-03):** the v16 multi-market bounty-6 (`BhkMic5g…`, 3 assets,
+> on the pre-`marketauth` 116 KB layout) was wound down + drained via the
+> `unsafe_forced_close` admin escape hatch. Insurance + vault residue, every
+> portfolio, the 2026-05-26 attacker husk `8oYjDr2…`, and the long-stranded
+> dust-pathology husk `AWCZ2pK…` all rent-reclaimed (+6.576 SOL total). The
+> old keeper portfolio `5iWTBYod…` is gone. See Bounty 7 above.
 
 ---
 
