@@ -5,21 +5,21 @@
  *    set the lp account to the matcher program and matcher instance;
  *    that is all we need"
  *
- *   "the LP account should take a program id for the matcher, and the matcher
- *    program instance; then cpi into the program with the instance and pass the
- *    lp account derived pda as a signer"
+ * Wrapper 7144d9b reshaped the matcher binding: instead of a separate auth PDA
+ * (or signer_b co-sign), the LP portfolio now carries a 104-byte
+ * `PortfolioMatcherConfigV16` tail. Flow:
  *
- * Confirmed mechanic from v16_program.rs:6749:
- *
- *   if signer_b.is_signer { return Ok(8); }   // skip the auth account entirely
- *
- * So when the LP owner co-signs TradeCpi, the wrapper does NOT consult any
- * separate auth PDA — it just derives the matcher_delegate from
- * (market, lp_portfolio, lp_owner, matcher_program, matcher_context),
- * verifies the passed delegate pubkey matches, and CPIs into the matcher with
- * the delegate as an invoke_signed signer. The matcher's MatcherCtx stores
- * lp_pda = matcher_delegate (set at matcher's tag-2 init), so it verifies the
- * caller matches and quotes against the LP.
+ *   1. Generate the matcher context (regular keypair, matcher-owned).
+ *   2. Derive `matcher_delegate` PDA under wrapper PROG with seeds
+ *      `[matcher, market, lp_portfolio, lp_owner, matcher_program, matcher_context]`.
+ *   3. Matcher tag 2 — records `lp_pda = matcher_delegate` in MatcherCtx.
+ *   4. Wrapper `SetMatcherConfig` (tag 68) — LP owner signs, writes the
+ *      `{matcher_program, matcher_context, matcher_delegate, enabled=1}` tuple
+ *      into the LP portfolio's tail.
+ *   5. TradeCpi (tag 10) now has 7 fixed accounts (no signer_b):
+ *      [signer_a, market, account_a, account_b, matcher_prog, matcher_ctx, matcher_delegate, …tail]
+ *      Wrapper reads the LP portfolio's matcher config and verifies it matches
+ *      the passed program/context/delegate.  Fast path at v16_program.rs:6708.
  *
  * Flow:
  *   1. Init smoke market, LP + taker portfolios, fund both.
@@ -56,7 +56,7 @@ import * as fs from "fs";
 import {
   encInitMarket, encInitPortfolio, encDeposit, encConfigureHyperpMark,
   encTopUpBackingBucket, encSyncBackingDomainLedger, encPushHyperpMark,
-  encTradeCpi, encPermissionlessCrank,
+  encTradeCpi, encPermissionlessCrank, encSetMatcherConfig,
   marketAccountLenFor, PORTFOLIO_ACCOUNT_LEN, HEADER_LEN,
 } from "../../src/v16/index.js";
 import { parseMarketGroup, parsePortfolio } from "../../src/v16/parsers.js";
@@ -128,7 +128,7 @@ function parseLedgerCounters(buf: Buffer) {
 
 (async () => {
   console.log("=".repeat(72));
-  console.log("Matcher LP counter exercise — devnet 8306372, matcher 5ogNxr4u…");
+  console.log("Matcher LP counter exercise — devnet 7144d9b, matcher 5ogNxr4u…");
   console.log("=".repeat(72));
 
   // ---- accounts ----
@@ -249,6 +249,21 @@ function parseLedgerCounters(buf: Buffer) {
     }),
   })]);
 
+  // ---- SetMatcherConfig (tag 68 — 7144d9b) ----
+  // Wrapper writes the matcher_program / matcher_context / matcher_delegate tuple
+  // into the LP portfolio's 104-byte tail. After this, TradeCpi accepts unsigned
+  // LP fills as long as the passed matcher accounts byte-for-byte match.
+  await trySend("SetMatcherConfig (enable matcher on LP portfolio)", [new TransactionInstruction({
+    programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },        // lp_owner
+      { pubkey: market.publicKey, isSigner: false, isWritable: false },
+      { pubkey: lp.publicKey, isSigner: false, isWritable: true },           // lp portfolio
+      { pubkey: MATCHER, isSigner: false, isWritable: false },
+      { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: false },
+      { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+    ], data: encSetMatcherConfig(1),
+  })]);
+
   // ---- baseline ledger ----
   const ledIx = (data: Buffer) => new TransactionInstruction({ programId: PROG, keys: [
     { pubkey: admin.publicKey, isSigner: true, isWritable: false },
@@ -259,25 +274,21 @@ function parseLedgerCounters(buf: Buffer) {
   const L0 = parseLedgerCounters(Buffer.from((await conn.getAccountInfo(bckLedger.publicKey, "confirmed"))!.data));
   console.log(`  [pre-trade  ] cumLoss=${L0.cumLoss}  cumRecov=${L0.cumRecov}  lastUnavail=${L0.lastUnavail}`);
 
-  // ---- TradeCpi: admin signs as BOTH signer_a (taker) and signer_b (LP owner) ----
-  // The matcher_tail_start_or_verify_auth fast-path returns 8 because signer_b is a signer,
-  // so the auth-PDA check is skipped entirely.
-  // Account layout (v16_program.rs:6790+):
+  // ---- TradeCpi (7144d9b: 7 fixed accounts, no signer_b) ----
+  // Account layout (v16_program.rs:6751+):
   //   0  signer_a            (taker signer)
-  //   1  signer_b            (LP owner signer)
-  //   2  market
-  //   3  account_a           (taker portfolio)
-  //   4  account_b           (LP portfolio)
-  //   5  matcher_program
-  //   6  matcher_context
-  //   7  matcher_delegate    (PDA derived under wrapper)
-  //   8+ tail (oracle accts; empty for Hyperp asset 0 which has no external oracle)
+  //   1  market
+  //   2  account_a           (taker portfolio)
+  //   3  account_b           (LP portfolio)
+  //   4  matcher_program
+  //   5  matcher_context
+  //   6  matcher_delegate    (PDA derived under wrapper)
+  //   7+ tail (oracle accts; empty for Hyperp asset 0 which has no external oracle)
   console.log("\n  attempting TradeCpi: taker +100M long against LP via matcher…");
   try {
     await send([new TransactionInstruction({
       programId: PROG, keys: [
-        { pubkey: admin.publicKey, isSigner: true, isWritable: false },   // signer_a
-        { pubkey: admin.publicKey, isSigner: true, isWritable: false },   // signer_b
+        { pubkey: admin.publicKey, isSigner: true, isWritable: false },   // signer_a (taker)
         { pubkey: market.publicKey, isSigner: false, isWritable: true },
         { pubkey: taker.publicKey, isSigner: false, isWritable: true },
         { pubkey: lp.publicKey, isSigner: false, isWritable: true },

@@ -232,11 +232,16 @@ export const AS = {
   mode_short: 498,
 } as const;
 
-// ---------- Portfolio (9,179 B state + 16 B header = 9,195 total, fixed) ----------
+// ---------- Portfolio (9,179 B state + 16 B header + 104 B matcher config tail = 9,299 total) ----------
 // PortfolioAccountV16Account shrank from 22,363 → 9,179; source-domain claims
 // compacted into a fixed inline sparse array (32 slots × 196 B = 6,272 B).
+// 7144d9b: appended 104-byte PortfolioMatcherConfigV16 tail (matcher_program +
+// matcher_context + matcher_delegate + enabled u8 + 7 B padding).
 export const PORTFOLIO_STATE_LEN = 9179;
-export const PORTFOLIO_ACCOUNT_LEN = HEADER_LEN + PORTFOLIO_STATE_LEN; // 9195
+export const PORTFOLIO_ENGINE_ACCOUNT_LEN = HEADER_LEN + PORTFOLIO_STATE_LEN; // 9195
+export const PORTFOLIO_MATCHER_CONFIG_LEN = 104;
+export const PORTFOLIO_MATCHER_CONFIG_OFF = PORTFOLIO_ENGINE_ACCOUNT_LEN; // 9195
+export const PORTFOLIO_ACCOUNT_LEN = PORTFOLIO_ENGINE_ACCOUNT_LEN + PORTFOLIO_MATCHER_CONFIG_LEN; // 9299
 export const PORTFOLIO_STATE_OFF = HEADER_LEN; // 16
 
 // PortfolioAccountV16Account inline field offsets (within state region):

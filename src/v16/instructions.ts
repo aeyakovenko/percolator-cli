@@ -72,6 +72,10 @@ export const TAG = {
   ConfigureAuthMark: 62,
   PushAuthMark: 63,
   ForceCloseAbandonedAsset: 64,
+  // 7144d9b — renamed from SetMatcherAuthorization, no longer takes a separate
+  // auth PDA; writes a 104-byte PortfolioMatcherConfigV16 tail directly on the
+  // LP portfolio. Enables TradeCpi without the LP owner co-signing each fill.
+  SetMatcherConfig: 68,
 } as const;
 
 // ---------- Encoders ----------
@@ -462,6 +466,17 @@ export function encSyncBackingDomainLedger(domain: number): Buffer {
 // 54 SyncInsuranceLedger — refresh an InsuranceLedger account's counters.
 // Accounts: [market, ledger]
 export function encSyncInsuranceLedger(): Buffer { return u8(TAG.SyncInsuranceLedger); }
+
+// 68 SetMatcherConfig (commit 7144d9b — replaces SetMatcherAuthorization) —
+// LP owner installs/clears a matcher binding directly on the LP portfolio.
+// Accounts (enabled=1): [lp_owner(signer), market, lp_portfolio(writable),
+//                        matcher_program, matcher_context, matcher_delegate]
+// Accounts (enabled=0): [lp_owner(signer), market, lp_portfolio(writable)]
+// The wrapper rejects the call if data_len < PORTFOLIO_ACCOUNT_LEN; existing
+// portfolios may need to be (re)allocated to the post-7144d9b size (9,299 B).
+export function encSetMatcherConfig(enabled: number): Buffer {
+  return Buffer.concat([u8(TAG.SetMatcherConfig), u8(enabled)]);
+}
 
 // 55 UpdateTradeFeePolicy — admin sets the base trade fee.
 // Accounts: [admin(signer), market]
