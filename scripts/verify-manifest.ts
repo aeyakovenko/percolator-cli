@@ -13,10 +13,20 @@
  * Exits non-zero on any mismatch so CI / the deploy post-write guard fails loudly.
  */
 import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
 import { BOUNTY5_PARAMS, MANIFEST_SAFETY_FIELDS } from "./bounty5-params.js";
 
+// Resolve the default manifest relative to the repo root, not `$HOME` — so the
+// script runs from any checkout (CI, sibling clones, contributor laptops), not
+// just the author's home directory. Override with the `MANIFEST_PATH` env var.
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// The bounty-6 market `BhkMic5g…` was wound down 2026-06-03 and the new live
+// market is the single-asset STOXX/SOL at `4AXbMuJz…` — see
+// `mainnet-stoxx-sol-market.json` at the repo root. Default to the live
+// manifest so the path is always valid; explicit `MANIFEST_PATH=…` overrides.
 const MANIFEST_PATH = process.env.MANIFEST_PATH
-  ?? `${process.env.HOME}/percolator-cli/mainnet-bounty5-v16-market.json`;
+  ?? path.join(REPO_ROOT, "mainnet-stoxx-sol-market.json");
 
 const fails: string[] = [];
 const ok: string[] = [];

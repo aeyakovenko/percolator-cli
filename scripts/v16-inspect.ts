@@ -99,14 +99,37 @@ async function main() {
   }
   console.log("\n=== Invariants ===");
   for (const m of markets) {
+    const tag = m.address.toBase58().slice(0, 8);
     // Filter portfolios that belong to *this* market (by provenance.market_group_id).
     const minePortfolios = portfolios.filter(p =>
       p.data.marketGroupId.equals(m.address));
     const sumPortfolioCapital = minePortfolios.reduce((s, p) => s + p.data.capital, 0n);
-    check(`market[${m.address.toBase58().slice(0,8)}] vault ≥ Σ portfolio capital  (vault=${m.group.vault}, Σcapital=${sumPortfolioCapital}, n=${minePortfolios.length})`,
+
+    // `vault ≥ Σ capital` is a SUBSET lower-bound: capital is non-negative, so
+    // dropping any portfolio only shrinks Σ. Safe to assert unconditionally.
+    check(`market[${tag}] vault ≥ Σ portfolio capital  (vault=${m.group.vault}, Σcapital=${sumPortfolioCapital}, n=${minePortfolios.length})`,
       m.group.vault >= sumPortfolioCapital);
-    check(`market[${m.address.toBase58().slice(0,8)}] c_tot == Σ portfolio capital  (c_tot=${m.group.cTot}, Σcapital=${sumPortfolioCapital})`,
-      m.group.cTot === sumPortfolioCapital);
+
+    // `c_tot == Σ capital` is an EXACT identity, but only over the COMPLETE
+    // portfolio set. The group's own `materialized_portfolio_count` tells us
+    // how many should exist; if `getProgramAccounts` returned fewer (RPC node
+    // truncation / pagination / eventual consistency) the exact check would
+    // false-positive on the missing capital. Fall back to the lower bound
+    // `c_tot ≥ Σ` (always true for a subset, since capital ≥ 0) and surface
+    // the partial-discovery state so a real on-chain divergence is still
+    // observable, just not conflated with RPC incompleteness.
+    const expected = m.group.materializedPortfolioCount;
+    const discoveryComplete = BigInt(minePortfolios.length) >= expected;
+    if (discoveryComplete) {
+      check(`market[${tag}] c_tot == Σ portfolio capital  (c_tot=${m.group.cTot}, Σcapital=${sumPortfolioCapital}, n=${minePortfolios.length}/${expected})`,
+        m.group.cTot === sumPortfolioCapital);
+    } else {
+      console.log(`  ⚠ market[${tag}] partial discovery — c_tot==Σ skipped ` +
+        `(found ${minePortfolios.length} of ${expected} materialized portfolios; ` +
+        `asserting lower bound c_tot ≥ Σcapital instead)`);
+      check(`market[${tag}] c_tot ≥ Σ portfolio capital (partial set)  (c_tot=${m.group.cTot}, Σcapital=${sumPortfolioCapital})`,
+        m.group.cTot >= sumPortfolioCapital);
+    }
   }
   console.log(`\n${asserts - failed}/${asserts} invariants passed.`);
   if (failed > 0) process.exit(1);

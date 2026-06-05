@@ -280,6 +280,12 @@ export function parseAssetOracleProfile(data: Buffer, slotOff: number, index: nu
 // ---------- MarketGroupV16 ----------
 export interface MarketGroup {
   marketGroupId: string;
+  /** Authoritative slot count: the program's own `asset_slot_capacity` u32 at
+   *  MG.asset_slot_capacity in the header. Surfaced so callers can assert the
+   *  drift invariant `assetSlotCapacity === (data.length - asset_slots) / ASSET_SLOT_LEN`
+   *  — a mismatch is observable evidence that constants.ts and the deployed
+   *  program disagree on layout, before the mis-decode pollutes anything else. */
+  assetSlotCapacity: number;
   vault: bigint;
   insurance: bigint;
   cTot: bigint;
@@ -311,8 +317,14 @@ export interface MarketGroup {
 export function parseMarketGroup(data: Buffer): MarketGroup {
   const b = MARKET_GROUP_OFF;
   const assets: AssetState[] = [];
-  // Asset-slot capacity is dynamic. Derive from the account data length.
-  const capacity = Math.max(0, Math.floor((data.length - b - MG.asset_slots) / ASSET_SLOT_LEN));
+  // Asset-slot capacity: read the program's own authoritative u32 first
+  // (`MG.asset_slot_capacity` in the header), then clamp iteration to the
+  // smaller of stored / fits-in-buffer so a corrupted stored value can never
+  // make us overrun. The two MUST agree for a well-formed account; surfacing
+  // the stored value lets callers detect drift instead of mis-decoding silently.
+  const assetSlotCapacity = u32(data, b + MG.asset_slot_capacity);
+  const slotsThatFit = Math.max(0, Math.floor((data.length - b - MG.asset_slots) / ASSET_SLOT_LEN));
+  const capacity = Math.min(assetSlotCapacity, slotsThatFit);
   for (let i = 0; i < capacity; i++) {
     const slotOff = b + MG.asset_slots + i * ASSET_SLOT_LEN;
     const off = slotOff + ASSET_ORACLE_WRAPPER_LEN;
@@ -326,6 +338,7 @@ export function parseMarketGroup(data: Buffer): MarketGroup {
   }
   return {
     marketGroupId: hex(data, b + MG.market_group_id, 32),
+    assetSlotCapacity,
     vault: u128(data, b + MG.vault),
     insurance: u128(data, b + MG.insurance),
     cTot: u128(data, b + MG.c_tot),
