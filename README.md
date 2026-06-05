@@ -497,6 +497,8 @@ A matcher program must implement:
 
 The matcher context must also store the LP PDA and verify it matches on every trade call. This prevents unauthorized programs from using your matcher.
 
+**Permissionless (unsigned-LP) fills require on-chain authorization.** Because the matcher context account is matcher-owned (and therefore not a trustworthy record of LP consent on its own), the percolator program does **not** rely on it to authorize fills where the LP does not sign. Instead, the LP owner must register the matcher with the percolator program via `SetMatcherAuthorization` (tag `68`), which records the approval in a **Percolator-owned** authorization account (a canonical PDA). `TradeCpi` / `BatchTradeCpi` then accept an unsigned-LP fill only when this authorization account exists, is `enabled`, and matches the exact `(market, lp_portfolio, lp_owner, matcher_program, matcher_context, matcher_delegate)` tuple. The LP can revoke at any time by calling `SetMatcherAuthorization` with `enabled = 0`. Use `encSetMatcherAuthorization(enabled)` to build this instruction.
+
 ### Creating a Custom Matcher
 
 #### Step 1: Write the matcher program

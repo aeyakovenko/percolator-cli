@@ -298,6 +298,25 @@ export function encUpdateAssetAuthority(a: UpdateAssetAuthorityArgs): Buffer {
   return Buffer.concat([u8(65), u16le(a.assetIndex), u8(a.kind), pkLE(a.newPubkey)]);
 }
 
+// SetMatcherAuthorization (tag 68) — an LP authorizes (or revokes) a specific
+// matcher program/context for permissionless (unsigned-LP) fills against its own
+// portfolio. `enabled` is 1 to authorize, 0 to revoke. The instruction must be
+// signed by the LP owner; the program records the approval in a Percolator-owned
+// authorization account (the canonical PDA), which is what `TradeCpi` /
+// `BatchTradeCpi` check when signer_b (the LP) does not sign. Wire: [68, enabled:u8].
+export function encSetMatcherAuthorization(enabled: number): Buffer {
+  return Buffer.concat([u8(68), u8(enabled)]);
+}
+
+// RestartAsset0Oracle (tag 69) — market-authority recovery: re-arms asset 0 (which
+// must be in RECOVERY with no open positions) at a fresh `initialPrice`, preserving
+// its insurance budget. `nowSlot` is a fallback only — the program uses the on-chain
+// clock when available. Wire: [69, now_slot:u64 LE, initial_price:u64 LE].
+export interface RestartAsset0OracleArgs { nowSlot: bigint; initialPrice: bigint; }
+export function encRestartAsset0Oracle(a: RestartAsset0OracleArgs): Buffer {
+  return Buffer.concat([u8(69), u64le(a.nowSlot), u64le(a.initialPrice)]);
+}
+
 export interface UpdateInsurancePolicyArgs {
   maxBps: number;
   depositsOnly: number;
