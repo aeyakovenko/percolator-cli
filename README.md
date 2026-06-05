@@ -98,28 +98,25 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   3acd544c9915466b17f290b37ac42ac083b81ceaef12d4bb2257bf04506f1ed5
-BPF binary size:      971,344 bytes ELF
-percolator-prog:      b469dae  (Cover cross-market trade provenance — sits atop
-                       three real behavior changes: 8690121 'Bind matcher
-                       authorization to canonical PDA', cc91b07 'Gate live
-                       insurance withdraw on exposed oracle lag', f857902
-                       'Prevent cross-LP matcher auth overwrite' — plus engine
-                       API plumbing 9210407 and matcher-auth coverage. Net
-                       src/v16_program.rs +99 / -114 LoC. Layout unchanged.)
-prior:                517a55a / BPF 927f565c… / 966,168 B (deployed 2026-06-04
-                       late evening; bound unsigned matcher fills to LP auth)
+BPF binary SHA-256:   5c6625dfaeb3bc9c59b4d367a340290064d03ef200c3ee4e9088aa2232eb7648
+BPF binary size:      978,504 bytes ELF
+percolator-prog:      6da5d8c  (Add asset restart byte-hygiene tests — although
+                       the commit message frames it as test-only, the wrapper
+                       source actually changed substantially: src/v16_program.rs
+                       +303 / -92 LoC. Sits atop d5ebb8c 'Cover force-close
+                       market provenance'. Layout unchanged from 70294cb.)
+prior:                b469dae / BPF 3acd544c… / 971,344 B (deployed 2026-06-05
+                       early morning; matcher PDA binding + oracle-lag insurance gate)
+                      517a55a / BPF 927f565c… / 966,168 B (bound unsigned matcher fills to LP auth)
                       9343dad / BPF 5b9464a5… / 956,592 B (cross-market reward rejection)
                       198651f / BPF c3ec9493… / 956,104 B (fixed try_empty stack)
                       c050578 / BPF 11eafaf1… / 952,544 B (had try_empty warning)
                       0a631cf / BPF b0cc3f80… / 952,272 B (deployed 2026-06-04)
                       70294cb / BPF 1aedbfa2… / 918,184 B (deployed 2026-06-03)
-engine pin:           4897680  (Add v16 reset finalization API — bumped from
-                       08ebb7f via 9 intermediate commits including 4058f5d
-                       'Prove v16 global hlock lane selection' + the v16 domain
-                       insurance / value boundary proof set. Engine HEAD 0a32fd4
-                       'Widen v16 trade OI symmetry proof' is one commit ahead and
-                       proof-only; the wrapper has not yet bumped.)
+engine pin:           4897680  (unchanged — 'Add v16 reset finalization API'.
+                       Engine main has progressed to 10da35a 'Widen v16 shared
+                       source support proof' via 4 proof-only commits the
+                       wrapper has not bumped to.)
 Layout:               marketauth-collapse (commit 792256b)
                       + asset-0 unified with assets 1..N (commit dba87a9)
                       WrapperConfigV16  = 432 B  (was 624 B; 7 keys → 1 marketauth)
@@ -136,13 +133,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout b469dae
+cd percolator-prog && git checkout 6da5d8c
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 3acd544c9915466b17f290b37ac42ac083b81ceaef12d4bb2257bf04506f1ed5
+#   Expected: 5c6625dfaeb3bc9c59b4d367a340290064d03ef200c3ee4e9088aa2232eb7648
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 971344 /tmp/deployed.so | sha256sum   # must match
+head -c 978504 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
