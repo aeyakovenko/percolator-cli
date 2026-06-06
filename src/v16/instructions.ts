@@ -39,8 +39,13 @@ export const TAG = {
   UpdateAuthority: 32,
   UpdateInsurancePolicy: 33,
   ConfigureHybridOracle: 34,
-  ConfigureHyperpMark: 35,
-  PushHyperpMark: 36,
+  // Renamed in program 7144d9b: ConfigureEwmaMark / PushEwmaMark. Both names
+  // are exported as aliases below for source-compat with older call sites.
+  // Same wire / same opcode — tags 35/36 are still very much active.
+  ConfigureEwmaMark: 35,
+  PushEwmaMark: 36,
+  ConfigureHyperpMark: 35,    // deprecated alias
+  PushHyperpMark: 36,         // deprecated alias
   UpdateLiquidationFeePolicy: 37,
   ConfigurePermissionlessResolve: 38,
   ResolveStalePermissionless: 39,
@@ -67,15 +72,22 @@ export const TAG = {
   UpdateMarketInitFeePolicy: 59,
   UpdateBaseUnitMints: 60,
   SwapSecondaryForPrimary: 61,
-  // ConfigureHyperpMark(35)/PushHyperpMark(36) are RETIRED — the manual-mark
-  // path is now AUTH_MARK (oracle_mode 3): configure once, then push the mark.
+  // ConfigureAuthMark/PushAuthMark are a DIFFERENT oracle mode (AUTH_MARK,
+  // oracle_mode 3) used when a designated oracle_authority externally pushes
+  // marks. The EWMA mode at 35/36 is the engine-walked target mark — both
+  // tags remain live in the deployed wrapper.
   ConfigureAuthMark: 62,
   PushAuthMark: 63,
   ForceCloseAbandonedAsset: 64,
+  BatchTradeNoCpi: 66,
+  BatchTradeCpi: 67,
   // 7144d9b — renamed from SetMatcherAuthorization, no longer takes a separate
   // auth PDA; writes a 104-byte PortfolioMatcherConfigV16 tail directly on the
   // LP portfolio. Enables TradeCpi without the LP owner co-signing each fill.
   SetMatcherConfig: 68,
+  // RestartAsset0Oracle — market-authority recovery to re-arm asset 0 after a
+  // RECOVERY trip; preserves the insurance budget across the reset.
+  RestartAsset0Oracle: 69,
 } as const;
 
 // ---------- Encoders ----------
@@ -248,6 +260,50 @@ export function encTradeCpi(a: TradeCpiArgs): Buffer {
   ]);
 }
 
+// BatchTradeNoCpi (tag 66) — atomic multi-leg bilateral trade, up to 16 legs
+// against a single counterparty pair.  Each leg's signed `sizeQ` sets direction,
+// so a single batch can carry mixed long/short. Wire:
+//   [66, n:u8, [u16 asset_index, i128 size_q, u64 exec_price, u64 fee_bps] × n]
+// Accounts mirror TradeNoCpi: [signer_a, signer_b, market, account_a, account_b]
+export interface BatchTradeLeg {
+  assetIndex: number; sizeQ: bigint; execPrice: bigint; feeBps: bigint;
+}
+export function encBatchTradeNoCpi(legs: BatchTradeLeg[]): Buffer {
+  if (legs.length === 0 || legs.length > 16) throw new Error("BatchTradeNoCpi: 1..=16 legs");
+  return Buffer.concat([
+    u8(TAG.BatchTradeNoCpi),
+    u8(legs.length),
+    ...legs.flatMap(l => [u16le(l.assetIndex), i128le(l.sizeQ), u64le(l.execPrice), u64le(l.feeBps)]),
+  ]);
+}
+
+// BatchTradeCpi (tag 67) — matcher batch fill, up to 16 legs against a single
+// LP via matcher CPI (matcher tag 3).  Each leg's signed `sizeQ` sets direction.
+// Wire: [67, n:u8, [u16 asset_index, i128 size_q, u64 fee_bps, u64 limit_price] × n]
+// Accounts mirror TradeCpi (7 fixed under 7144d9b):
+//   [signer_a, market, account_a, account_b, matcher_program, matcher_context, matcher_delegate, …tail]
+export interface BatchTradeCpiLeg {
+  assetIndex: number; sizeQ: bigint; feeBps: bigint; limitPrice: bigint;
+}
+export function encBatchTradeCpi(legs: BatchTradeCpiLeg[]): Buffer {
+  if (legs.length === 0 || legs.length > 16) throw new Error("BatchTradeCpi: 1..=16 legs");
+  return Buffer.concat([
+    u8(TAG.BatchTradeCpi),
+    u8(legs.length),
+    ...legs.flatMap(l => [u16le(l.assetIndex), i128le(l.sizeQ), u64le(l.feeBps), u64le(l.limitPrice)]),
+  ]);
+}
+
+// RestartAsset0Oracle (tag 69) — market-authority recovery primitive.  Re-arms
+// asset 0 (which must be in RECOVERY with no open positions) at a fresh
+// `initialPrice`, preserving its insurance budget.  Accounts:
+//   [admin(signer), market]
+// Wire: [69, u64 now_slot, u64 initial_price]
+export interface RestartAsset0OracleArgs { nowSlot: bigint; initialPrice: bigint; }
+export function encRestartAsset0Oracle(a: RestartAsset0OracleArgs): Buffer {
+  return Buffer.concat([u8(TAG.RestartAsset0Oracle), u64le(a.nowSlot), u64le(a.initialPrice)]);
+}
+
 export interface PermissionlessCrankArgs {
   action: number;
   assetIndex: number;        // u16 since commit 5741bb9
@@ -381,30 +437,40 @@ export function encConfigureHybridOracle(a: ConfigureHybridOracleArgs): Buffer {
   ]);
 }
 
-export interface ConfigureHyperpMarkArgs {
+// ConfigureEwmaMark (tag 35) — set an asset to EWMA-MARK oracle mode with a
+// starting mark + halflife.  Authority = market admin for asset 0.
+// (Wrapper 7144d9b renamed this from `ConfigureHyperpMark`; same wire format.)
+export interface ConfigureEwmaMarkArgs {
   assetIndex: number;
   nowSlot: bigint;
   initialMarkE6: bigint;
   markEwmaHalflifeSlots: bigint;
   markMinFee: bigint;
 }
-export function encConfigureHyperpMark(a: ConfigureHyperpMarkArgs): Buffer {
+export function encConfigureEwmaMark(a: ConfigureEwmaMarkArgs): Buffer {
   return Buffer.concat([
-    u8(TAG.ConfigureHyperpMark),
+    u8(TAG.ConfigureEwmaMark),
     u16le(a.assetIndex),
     u64le(a.nowSlot), u64le(a.initialMarkE6),
     u64le(a.markEwmaHalflifeSlots), u64le(a.markMinFee),
   ]);
 }
+// Deprecated alias for older call sites — same wire, same opcode.
+export type ConfigureHyperpMarkArgs = ConfigureEwmaMarkArgs;
+export const encConfigureHyperpMark = encConfigureEwmaMark;
 
-export interface PushHyperpMarkArgs { assetIndex: number; nowSlot: bigint; markE6: bigint; }
-export function encPushHyperpMark(a: PushHyperpMarkArgs): Buffer {
+// PushEwmaMark (tag 36) — push a new mark target; engine walks effective_price
+// toward it bounded by max_price_move_bps_per_slot and the EWMA halflife.
+export interface PushEwmaMarkArgs { assetIndex: number; nowSlot: bigint; markE6: bigint; }
+export function encPushEwmaMark(a: PushEwmaMarkArgs): Buffer {
   return Buffer.concat([
-    u8(TAG.PushHyperpMark),
+    u8(TAG.PushEwmaMark),
     u16le(a.assetIndex),
     u64le(a.nowSlot), u64le(a.markE6),
   ]);
 }
+export type PushHyperpMarkArgs = PushEwmaMarkArgs;
+export const encPushHyperpMark = encPushEwmaMark;
 
 // 62 ConfigureAuthMark — set an asset to AUTH_MARK oracle mode with an initial
 // mark. Authority = market admin for asset 0, else the per-asset oracle_authority.

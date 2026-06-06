@@ -205,11 +205,12 @@ export function parseAsset(data: Buffer, baseOff: number, index: number): AssetS
   };
 }
 
-// ---------- AssetOracleProfileV16 (per-slot, at slot+0; for asset_index >= 1) ----------
-// After commit `dba87a9`/`792256b` the wrapper-level authorities (insurance_authority,
-// insurance_operator, backing_bucket_authority) collapsed into the market-wide
-// `marketauth`, so per-asset profiles now only carry `oracle_authority` (the
-// per-asset mark pusher).
+// ---------- AssetOracleProfileV16 (per-slot, at slot+0) ----------
+// Per-asset profile carries ALL of {insurance_authority, insurance_operator,
+// backing_bucket_authority, oracle_authority, asset_admin} as independent
+// rotatable slots (tag 65 UpdateAssetAuthority reads/writes each one separately).
+// The market-wide `marketauth` mirrors are convenience copies in WrapperConfigV16,
+// not a replacement for the per-asset slots.
 export interface AssetOracleProfile {
   index: number;
   oracleMode: number;
@@ -222,6 +223,9 @@ export interface AssetOracleProfile {
   backingTradeFeeBpsShort: number;
   backingTradeFeeInsuranceShareBpsLong: number;
   backingTradeFeeInsuranceShareBpsShort: number;
+  insuranceAuthority: PublicKey;
+  insuranceOperator: PublicKey;
+  backingBucketAuthority: PublicKey;
   oracleAuthority: PublicKey;
   maxStalenessSecs: bigint;
   hybridSoftStaleSlots: bigint;
@@ -234,10 +238,7 @@ export interface AssetOracleProfile {
   oracleLegFeeds: string[];
   oracleLegPricesE6: bigint[];
   oracleLegPublishTimes: bigint[];
-  // Back-compat aliases (all = marketauth on the new layout; populated at parse time).
-  insuranceAuthority?: PublicKey;
-  insuranceOperator?: PublicKey;
-  backingBucketAuthority?: PublicKey;
+  assetAdmin: PublicKey;
 }
 
 export function parseAssetOracleProfile(data: Buffer, slotOff: number, index: number): AssetOracleProfile {
@@ -262,6 +263,9 @@ export function parseAssetOracleProfile(data: Buffer, slotOff: number, index: nu
     backingTradeFeeBpsShort: u16(data, o + AOP.backing_trade_fee_bps_short),
     backingTradeFeeInsuranceShareBpsLong: u16(data, o + AOP.backing_trade_fee_insurance_share_bps_long),
     backingTradeFeeInsuranceShareBpsShort: u16(data, o + AOP.backing_trade_fee_insurance_share_bps_short),
+    insuranceAuthority: pk(data, o + AOP.insurance_authority),
+    insuranceOperator: pk(data, o + AOP.insurance_operator),
+    backingBucketAuthority: pk(data, o + AOP.backing_bucket_authority),
     oracleAuthority: pk(data, o + AOP.oracle_authority),
     maxStalenessSecs: u64(data, o + AOP.max_staleness_secs),
     hybridSoftStaleSlots: u64(data, o + AOP.hybrid_soft_stale_slots),
@@ -274,6 +278,7 @@ export function parseAssetOracleProfile(data: Buffer, slotOff: number, index: nu
     oracleLegFeeds: legFeeds,
     oracleLegPricesE6: legPrices,
     oracleLegPublishTimes: legTimes,
+    assetAdmin: pk(data, o + AOP.asset_admin),
   };
 }
 

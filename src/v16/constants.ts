@@ -96,6 +96,11 @@ export const DEFAULT_MARKET_SLOT_CAPACITY = 1; // initial alloc; grows on Activa
 // mark-pusher). Offsets verified against `cargo run --example dump_layout`.
 // NB: only asset_index >= 1 uses this struct; asset 0's oracle config lives in
 // WrapperConfigV16 directly.
+// AssetOracleProfileV16 layout (size = 400 B, dumped via examples/dump_layout):
+// the marketauth-collapse comment elsewhere is misleading — the per-asset profile
+// still carries insurance_authority / insurance_operator / backing_bucket_authority
+// slots; they're just mirrored from `marketauth` in the wrapper code path, but
+// `UpdateAssetAuthority` (tag 65) reads and writes them independently.
 export const AOP = {
   oracle_mode: 0,                      // u8
   oracle_leg_count: 1,                 // u8
@@ -107,24 +112,24 @@ export const AOP = {
   backing_trade_fee_bps_short: 12,     // u16
   backing_trade_fee_insurance_share_bps_long: 14,
   backing_trade_fee_insurance_share_bps_short: 16,
-  // 18..24 padding
-  oracle_authority: 24,                // [u8;32]  (the only remaining per-slot authority)
-  // 56..152 inline mark/oracle state (grew by 32 vs old 368B AOP since marketauth replaces
-  // insurance_authority/insurance_operator/backing_bucket_authority — net +32 from layout
-  // re-organization; offsets below derived from dump_layout if needed by a parser).
-  // For the smoke we mostly care about oracle_authority for asset-1+ mark pushers.
-  max_staleness_secs: 56,
-  hybrid_soft_stale_slots: 64,
-  mark_ewma_e6: 72,
-  mark_ewma_last_slot: 80,
-  mark_ewma_halflife_slots: 88,
-  mark_min_fee: 96,
-  oracle_target_price_e6: 104,
-  oracle_target_publish_time: 112,     // i64
-  last_good_oracle_slot: 120,
-  oracle_leg_feeds: 128,               // 3 × [u8;32] = 96 B
-  oracle_leg_prices_e6: 224,           // 3 × u64 = 24 B
-  oracle_leg_publish_times: 248,       // 3 × i64 = 24 B  (ends at 272, +128 padding = 400)
+  // 18..24 _padding0 (6 B)
+  insurance_authority: 24,             // [u8;32]
+  insurance_operator: 56,              // [u8;32]
+  backing_bucket_authority: 88,        // [u8;32]
+  oracle_authority: 120,               // [u8;32]
+  max_staleness_secs: 152,             // u64
+  hybrid_soft_stale_slots: 160,        // u64
+  mark_ewma_e6: 168,                   // u64
+  mark_ewma_last_slot: 176,            // u64
+  mark_ewma_halflife_slots: 184,       // u64
+  mark_min_fee: 192,                   // u64
+  oracle_target_price_e6: 200,         // u64
+  oracle_target_publish_time: 208,     // i64
+  last_good_oracle_slot: 216,          // u64
+  oracle_leg_feeds: 224,               // 3 × [u8;32] = 96 B
+  oracle_leg_prices_e6: 320,           // 3 × u64 = 24 B
+  oracle_leg_publish_times: 344,       // 3 × i64 = 24 B  (ends at 368)
+  asset_admin: 368,                    // [u8;32]  (ends at 400)
 } as const;
 
 // ---------- MarketGroup ----------
