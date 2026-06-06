@@ -98,19 +98,22 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   58d155fa5f64684a66f23e93a7f2b23cac06165a58e3c0303194e13390539eef
-BPF binary size:      1,047,480 bytes ELF
-percolator-prog:      2c7035f  (HEAD — tests-only chain on top of the behavior
-                       change 7144d9b 'Bind matcher config to LP portfolios':
-                       SetMatcherAuthorization is replaced by SetMatcherConfig
-                       (same tag 68, different semantics), the matcher tuple
-                       is now stored in a 104-byte tail on the LP portfolio,
-                       TradeCpi drops signer_b (7 fixed accounts, was 8), and
-                       the old kind=5 matcher-auth account is gone. Commits
-                       65fd34e / aa17204 / cbcf3aa / 8a2d26e / 86825b9 /
-                       2c7035f only add tests/v16_cu.rs coverage; BPF is
-                       byte-identical to 7144d9b.)
-prior:                8306372 / BPF 1c1ca8ff… /   978,504 B (deterministic backing residual reward counter)
+BPF binary SHA-256:   71aaf7c262f6da16fb21b7576db70051fc7d655731184e961731aaf3e5fe6b7d
+BPF binary size:      1,035,008 bytes ELF
+percolator-prog:      5349b2f  ('Bump engine restart API' — pins percolator
+                       engine to 74f7b73. Behavior changes since the last
+                       deploy (2c7035f) are 0cf5134 'Unify live insurance
+                       withdrawal by asset' (tags 23 + 33 DELETED, tag 57
+                       renamed WithdrawInsuranceDomain → WithdrawInsuranceAsset
+                       with wire change u8 domain → u16 asset_index) and
+                       5469b2c 'Make asset oracle restart uniform' (tag 69
+                       renamed RestartAsset0Oracle → RestartAssetOracle with
+                       prepended u16 asset_index, now uniform across asset 0
+                       and permissionless assets 1..N). 946e559 adds an
+                       inactive-domain topup guard; 926d2ca / e20a381 / 5349b2f
+                       are tests-only + engine pin bumps.)
+prior:                2c7035f / BPF 58d155fa… / 1,047,480 B (matcher config moves into LP portfolio tail — 7144d9b)
+                      8306372 / BPF 1c1ca8ff… /   978,504 B (deterministic backing residual reward counter)
                       6da5d8c / BPF 5c6625df… /   978,504 B (asset restart byte-hygiene tests)
                       b469dae / BPF 3acd544c… /   971,344 B (matcher PDA binding + oracle-lag insurance gate)
                       517a55a / BPF 927f565c… /   966,168 B (bound unsigned matcher fills to LP auth)
@@ -119,14 +122,20 @@ prior:                8306372 / BPF 1c1ca8ff… /   978,504 B (deterministic bac
                       c050578 / BPF 11eafaf1… /   952,544 B (had try_empty warning)
                       0a631cf / BPF b0cc3f80… /   952,272 B (deployed 2026-06-04)
                       70294cb / BPF 1aedbfa2… /   918,184 B (deployed 2026-06-03)
-engine pin:           4897680  (unchanged through 8 deploys now — 'Add v16 reset
-                       finalization API'. Engine main has progressed to a390ac6
-                       'Widen v16 lien accounting proofs' via several proof-only
-                       commits the wrapper has not yet bumped to.)
+engine pin:           74f7b73  ('Bump engine restart API' bumped the engine
+                       from 4897680 — required by the unified asset-oracle
+                       restart API in 5469b2c).
+Removed tags:         23 WithdrawInsuranceLimited and 33 UpdateInsurancePolicy
+                       are GONE in the deployed wrapper (the entire policy /
+                       cooldown / deposits_only / max_bps surface was deleted
+                       in 0cf5134). Callers using tags 23/33 now get
+                       InvalidInstructionData.
 Layout:               marketauth-collapse (commit 792256b)
                       + asset-0 unified with assets 1..N (commit dba87a9)
                       + matcher-config tail on portfolios (commit 7144d9b)
-                      WrapperConfigV16  = 432 B  (was 624 B; 7 keys → 1 marketauth)
+                      WrapperConfigV16  = 432 B  (insurance_withdraw_* fields
+                                          retained as zeroed slots — layout
+                                          stable across the 0cf5134 deletion)
                       MarketGroupHeader = 710 B  (was 638 B; engine accounting block)
                       PortfolioAccount  = 9,299 B  (was 9,195 B; +104 B matcher
                                           config tail that records matcher_program,
@@ -141,13 +150,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 2c7035f
+cd percolator-prog && git checkout 5349b2f
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 58d155fa5f64684a66f23e93a7f2b23cac06165a58e3c0303194e13390539eef
+#   Expected: 71aaf7c262f6da16fb21b7576db70051fc7d655731184e961731aaf3e5fe6b7d
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 1047480 /tmp/deployed.so | sha256sum   # must match
+head -c 1035008 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
