@@ -32,12 +32,14 @@ export const TAG = {
   TradeCpi: 10,
   CloseSlab: 13,
   ResolveMarket: 19,
-  WithdrawInsuranceLimited: 23,
+  // Tags 23 (WithdrawInsuranceLimited) and 33 (UpdateInsurancePolicy) REMOVED
+  // in wrapper 0cf5134 "Unify live insurance withdrawal by asset" — the entire
+  // policy/cooldown/deposits_only/max_bps surface is gone. Live insurance
+  // extraction is now done per-asset via WithdrawInsuranceAsset (tag 57).
   TopUpBackingBucket: 24,
   ConvertReleasedPnl: 28,
   CloseResolved: 30,
   UpdateAuthority: 32,
-  UpdateInsurancePolicy: 33,
   ConfigureHybridOracle: 34,
   // Renamed in program 7144d9b: ConfigureEwmaMark / PushEwmaMark. Both names
   // are exported as aliases below for source-compat with older call sites.
@@ -67,7 +69,11 @@ export const TAG = {
   SyncInsuranceLedger: 54,
   UpdateTradeFeePolicy: 55,
   TopUpInsuranceDomain: 56,
-  WithdrawInsuranceDomain: 57,
+  // Renamed in wrapper 0cf5134: was WithdrawInsuranceDomain (u8 domain), now
+  // WithdrawInsuranceAsset (u16 asset_index) — draws against the asset's
+  // funded long+short insurance budget in one shot.
+  WithdrawInsuranceAsset: 57,
+  WithdrawInsuranceDomain: 57,   // deprecated alias — DIFFERENT WIRE
   UpdateFeeRedirectPolicy: 58,
   UpdateMarketInitFeePolicy: 59,
   UpdateBaseUnitMints: 60,
@@ -85,9 +91,12 @@ export const TAG = {
   // auth PDA; writes a 104-byte PortfolioMatcherConfigV16 tail directly on the
   // LP portfolio. Enables TradeCpi without the LP owner co-signing each fill.
   SetMatcherConfig: 68,
-  // RestartAsset0Oracle — market-authority recovery to re-arm asset 0 after a
-  // RECOVERY trip; preserves the insurance budget across the reset.
-  RestartAsset0Oracle: 69,
+  // Renamed in wrapper 5469b2c "Make asset oracle restart uniform": the API
+  // now takes asset_index:u16 BEFORE now_slot, and is uniform across asset-0
+  // and permissionless assets 1..N. Old name is a deprecated alias —
+  // DIFFERENT WIRE (it was just [u64, u64]).
+  RestartAssetOracle: 69,
+  RestartAsset0Oracle: 69,  // deprecated alias — DIFFERENT WIRE
 } as const;
 
 // ---------- Encoders ----------
@@ -222,7 +231,14 @@ export function encClosePortfolio(): Buffer { return u8(TAG.ClosePortfolio); }
 export function encCloseSlab(): Buffer { return u8(TAG.CloseSlab); }
 export function encResolveMarket(): Buffer { return u8(TAG.ResolveMarket); }
 export function encTopUpInsurance(amount: bigint): Buffer { return Buffer.concat([u8(TAG.TopUpInsurance), u128le(amount)]); }
-export function encWithdrawInsuranceLimited(amount: bigint): Buffer { return Buffer.concat([u8(TAG.WithdrawInsuranceLimited), u128le(amount)]); }
+/** @deprecated REMOVED in wrapper 0cf5134 — tag 23 is now an unknown opcode.
+ *  Use WithdrawInsuranceAsset (tag 57) on the new wrapper. */
+export function encWithdrawInsuranceLimited(amount: bigint): Buffer {
+  // Encoder is preserved as a no-op-but-callable placeholder so old call sites
+  // get a runtime error from the wrapper (InvalidInstructionData), not a TS
+  // compile failure. New code should call encWithdrawInsuranceAsset instead.
+  return Buffer.concat([Buffer.from([23]), u128le(amount)]);
+}
 export function encConvertReleasedPnl(amount: bigint): Buffer { return Buffer.concat([u8(TAG.ConvertReleasedPnl), u128le(amount)]); }
 export function encCloseResolved(feeRatePerSlot: bigint): Buffer { return Buffer.concat([u8(TAG.CloseResolved), u128le(feeRatePerSlot)]); }
 
@@ -294,14 +310,22 @@ export function encBatchTradeCpi(legs: BatchTradeCpiLeg[]): Buffer {
   ]);
 }
 
-// RestartAsset0Oracle (tag 69) — market-authority recovery primitive.  Re-arms
-// asset 0 (which must be in RECOVERY with no open positions) at a fresh
-// `initialPrice`, preserving its insurance budget.  Accounts:
-//   [admin(signer), market]
-// Wire: [69, u64 now_slot, u64 initial_price]
+// RestartAssetOracle (tag 69) — uniform per-asset oracle restart, including
+// asset 0 (wrapper 5469b2c "Make asset oracle restart uniform"). The asset must
+// be in RECOVERY with no open positions or loss state. Insurance budget is
+// preserved across the reset.
+// Accounts: [admin(signer), market]
+// Wire: [69, u16 asset_index, u64 now_slot, u64 initial_price]
+export interface RestartAssetOracleArgs { assetIndex: number; nowSlot: bigint; initialPrice: bigint; }
+export function encRestartAssetOracle(a: RestartAssetOracleArgs): Buffer {
+  return Buffer.concat([u8(TAG.RestartAssetOracle), u16le(a.assetIndex), u64le(a.nowSlot), u64le(a.initialPrice)]);
+}
+/** @deprecated Renamed to RestartAssetOracle in wrapper 5469b2c with a
+ *  prepended u16 asset_index. Old call sites get the new wire automatically
+ *  with assetIndex=0 (the prior implicit asset). */
 export interface RestartAsset0OracleArgs { nowSlot: bigint; initialPrice: bigint; }
 export function encRestartAsset0Oracle(a: RestartAsset0OracleArgs): Buffer {
-  return Buffer.concat([u8(TAG.RestartAsset0Oracle), u64le(a.nowSlot), u64le(a.initialPrice)]);
+  return encRestartAssetOracle({ assetIndex: 0, nowSlot: a.nowSlot, initialPrice: a.initialPrice });
 }
 
 export interface PermissionlessCrankArgs {
@@ -358,6 +382,9 @@ export function encUpdateAssetAuthority(a: UpdateAssetAuthorityArgs): Buffer {
   return Buffer.concat([u8(65), u16le(a.assetIndex), u8(a.kind), pkLE(a.newPubkey)]);
 }
 
+/** @deprecated REMOVED in wrapper 0cf5134 — tag 33 is now an unknown opcode.
+ *  The entire insurance-policy surface (max_bps / cooldown / deposits_only)
+ *  was deleted; live insurance now uses per-asset WithdrawInsuranceAsset (57). */
 export interface UpdateInsurancePolicyArgs {
   maxBps: number;
   depositsOnly: number;
@@ -365,7 +392,7 @@ export interface UpdateInsurancePolicyArgs {
 }
 export function encUpdateInsurancePolicy(a: UpdateInsurancePolicyArgs): Buffer {
   return Buffer.concat([
-    u8(TAG.UpdateInsurancePolicy),
+    Buffer.from([33]),
     u16le(a.maxBps), u8(a.depositsOnly), u64le(a.cooldownSlots),
   ]);
 }
@@ -557,11 +584,20 @@ export function encTopUpInsuranceDomain(a: TopUpInsuranceDomainArgs): Buffer {
   return Buffer.concat([u8(TAG.TopUpInsuranceDomain), u8(a.domain), u128le(a.amount)]);
 }
 
-// 57 WithdrawInsuranceDomain — withdraw from a specific domain's insurance budget.
-// Accounts: [authority(signer), market, dest_token, vault_token, vault_authority, token_program]
+// 57 WithdrawInsuranceAsset — withdraw from the asset's funded long+short
+// insurance budget in one call. Renamed and wire-changed in wrapper 0cf5134:
+// was `WithdrawInsuranceDomain { domain:u8, amount:u128 }`, now
+// `WithdrawInsuranceAsset { asset_index:u16, amount:u128 }`.
+// Accounts: [operator(signer), market, dest_token, vault_token, vault_authority, token_program, (opt) ledger]
+export interface WithdrawInsuranceAssetArgs { assetIndex: number; amount: bigint; }
+export function encWithdrawInsuranceAsset(a: WithdrawInsuranceAssetArgs): Buffer {
+  return Buffer.concat([u8(TAG.WithdrawInsuranceAsset), u16le(a.assetIndex), u128le(a.amount)]);
+}
+/** @deprecated Renamed to WithdrawInsuranceAsset in wrapper 0cf5134 and
+ *  re-shaped (domain:u8 → asset_index:u16). Old wire format no longer parses. */
 export interface WithdrawInsuranceDomainArgs { domain: number; amount: bigint; }
 export function encWithdrawInsuranceDomain(a: WithdrawInsuranceDomainArgs): Buffer {
-  return Buffer.concat([u8(TAG.WithdrawInsuranceDomain), u8(a.domain), u128le(a.amount)]);
+  return encWithdrawInsuranceAsset({ assetIndex: a.domain >> 1, amount: a.amount });
 }
 
 // 58 UpdateFeeRedirectPolicy — admin sets fee_redirect_to_market_0_bps (0..=10_000).

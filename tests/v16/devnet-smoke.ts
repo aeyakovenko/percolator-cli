@@ -8,11 +8,12 @@
  *   T5  — matcher SetMatcherConfig + TradeCpi + two-phase backing counter
  *   T6  — UpdateAuthority (tag 32) + UpdateAssetAuthority (tag 65) — auth rotation
  *   T7  — TradeNoCpi (6) + BatchTradeNoCpi (66) — bilateral signed trades
- *   T8  — Config setters (33/37/38/49/51/55/58/59) — admin policy updates
- *   T9  — Per-domain insurance (56/57) + SyncInsuranceLedger (54)
+ *   T8  — Config setters (37/38/49/51/55/58/59) — admin policy updates
+ *   T9  — Per-asset insurance: TopUpInsuranceDomain (56) + WithdrawInsuranceAsset (57)
+ *         + SyncInsuranceLedger (54)
  *   T10 — AUTH_MARK oracle mode: ConfigureAuthMark (62) + PushAuthMark (63)
  *   T11 — BatchTradeCpi (67) — matcher-fill single-leg batch
- *   T12 — WithdrawBackingBucket (50) + RebalanceReduce (44) + WithdrawInsuranceLimited (23)
+ *   T12 — WithdrawBackingBucket (50) + RebalanceReduce (44)  [tag 23 REMOVED]
  *   T13 — UpdateBaseUnitMints (60) on a fresh market (vault/c_tot/insurance == 0)
  *   T14 — ResolveStalePermissionless (39): stale-matured oracle → resolvable
  *   T15 — UpdateAssetLifecycle SHUTDOWN (40) + ForceCloseAbandonedAsset (64)
@@ -27,7 +28,7 @@
  *   47 RefineResolvedUnreceiptedBound (needs resolved-market unreceipted residue)
  *   52 WithdrawBackingBucketEarnings  (needs accrued utilization fee earnings)
  *   61 SwapSecondaryForPrimary        (needs 2-mint vault setup with secondary funded)
- *   69 RestartAsset0Oracle            (needs asset-0 in RECOVERY)
+ *   69 RestartAssetOracle             (needs asset in RECOVERY)
  *   PermissionlessCrank action=1 (Liquidate) / action=2 (SettleB) — both hit
  *     RecoveryRequired in the T5 LP scenario; need a SettleB-first ordering
  *
@@ -57,19 +58,19 @@ import {
   encPermissionlessCrank, encTopUpBackingBucket, encSyncBackingDomainLedger,
   encTradeNoCpi, encBatchTradeNoCpi, encBatchTradeCpi,
   encUpdateAuthority, encUpdateAssetAuthority,
-  encUpdateInsurancePolicy, encUpdateLiquidationFeePolicy,
+  encUpdateLiquidationFeePolicy,
   encUpdateMaintenanceFeePolicy, encUpdateBackingFeePolicy,
   encUpdateTradeFeePolicy, encUpdateFeeRedirectPolicy,
   encUpdateMarketInitFeePolicy, encConfigurePermissionlessResolve,
   encConfigureAuthMark, encPushAuthMark,
-  encTopUpInsuranceDomain, encWithdrawInsuranceDomain,
+  encTopUpInsuranceDomain, encWithdrawInsuranceAsset,
   encSyncInsuranceLedger,
-  encWithdrawBackingBucket, encRebalanceReduce, encWithdrawInsuranceLimited,
+  encWithdrawBackingBucket, encRebalanceReduce,
   encUpdateBaseUnitMints, encResolveStalePermissionless,
   encUpdateAssetLifecycle, encForceCloseAbandonedAsset,
   encClaimResolvedPayoutTopup, encRefineResolvedUnreceiptedBound,
   encCureAndCancelClose, encSwapSecondaryForPrimary,
-  encForfeitRecoveryLeg, encFinalizeResetSide, encRestartAsset0Oracle,
+  encForfeitRecoveryLeg, encFinalizeResetSide, encRestartAssetOracle,
   encConvertReleasedPnl, encWithdrawBackingBucketEarnings,
   encConfigureHybridOracle,
   marketAccountLenFor, PORTFOLIO_ACCOUNT_LEN, HEADER_LEN,
@@ -855,16 +856,13 @@ async function testBilateralAndBatch(): Promise<{ market: Keypair; portfolios: K
  * These are admin-only operations against a fresh market.
  */
 async function testConfigSetters(): Promise<{ market: Keypair; portfolios: Keypair[] }> {
-  console.log("\n[T8] Config setters (33/37/38/49/51/55/58/59)");
+  console.log("\n[T8] Config setters (37/38/49/51/55/58/59) — tag 33 removed in 0cf5134");
   const { market } = await deployBareEwmaMarket();
   const adminKeys = (writable = true) => [
     { pubkey: admin.publicKey, isSigner: true, isWritable: false },
     { pubkey: market.publicKey, isSigner: false, isWritable: writable },
   ];
 
-  // tag 33 — UpdateInsurancePolicy (max_bps, deposits_only, cooldown_slots)
-  await send([new TransactionInstruction({ programId: PROG, keys: adminKeys(),
-    data: encUpdateInsurancePolicy({ maxBps: 2500, depositsOnly: 0, cooldownSlots: 50_000n }) })]);
   // tag 37 — UpdateLiquidationFeePolicy
   await send([new TransactionInstruction({ programId: PROG, keys: adminKeys(),
     data: encUpdateLiquidationFeePolicy(1500) })]);
@@ -889,15 +887,12 @@ async function testConfigSetters(): Promise<{ market: Keypair; portfolios: Keypa
 
   // Confirm fields persisted by re-parsing the wrapper config
   const wc = parseWrapperConfig(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data));
-  record("Config setters: all 8 admin policy tags accepted by deployed wrapper",
-    true, "tags 33/37/38/49/51/55/58/59 all succeeded");
+  record("Config setters: all 7 admin policy tags accepted by deployed wrapper",
+    true, "tags 37/38/49/51/55/58/59 all succeeded");
   record("UpdateTradeFeePolicy persisted: trade_fee_base_bps == 7",
     Number(wc.tradeFeeBaseBps) === 7, `tradeFeeBaseBps=${wc.tradeFeeBaseBps}`);
   record("UpdateLiquidationFeePolicy persisted: cranker_share == 1500",
     Number(wc.liquidationCrankerFeeShareBps) === 1500, `cranker=${wc.liquidationCrankerFeeShareBps}`);
-  record("UpdateInsurancePolicy persisted: max_bps == 2500, cooldown == 50000",
-    Number(wc.insuranceWithdrawMaxBps) === 2500 && Number(wc.insuranceWithdrawCooldownSlots) === 50000,
-    `max=${wc.insuranceWithdrawMaxBps} cooldown=${wc.insuranceWithdrawCooldownSlots}`);
   record("UpdateFeeRedirectPolicy persisted: fee_redirect_to_market_0_bps == 3000",
     Number(wc.feeRedirectToMarket0Bps) === 3000, `redirect=${wc.feeRedirectToMarket0Bps}`);
   record("ConfigurePermissionlessResolve persisted: stale=80 / forceClose=50",
@@ -908,7 +903,7 @@ async function testConfigSetters(): Promise<{ market: Keypair; portfolios: Keypa
 }
 
 /**
- * T9 — Per-domain insurance: TopUpInsuranceDomain (56) / WithdrawInsuranceDomain (57)
+ * T9 — Per-asset insurance: TopUpInsuranceDomain (56) / WithdrawInsuranceAsset (57)
  *      + SyncInsuranceLedger (54)
  *
  * The insurance ledger tracks cumulative profit/loss for the per-asset insurance
@@ -968,7 +963,8 @@ async function testPerDomainInsuranceAndLedger(): Promise<{ market: Keypair; por
     L1.cumLoss >= 0n,
     `cumLoss=${L1.cumLoss}, lastUnavail=${L1.lastUnavail}`);
 
-  // WithdrawInsuranceDomain — partial drain
+  // WithdrawInsuranceAsset (tag 57 — renamed and re-shaped in wrapper 0cf5134;
+  // takes asset_index:u16 now, draws against long+short budgets in one call)
   await send([new TransactionInstruction({ programId: PROG, keys: [
     { pubkey: admin.publicKey, isSigner: true, isWritable: false },
     { pubkey: market.publicKey, isSigner: false, isWritable: true },
@@ -977,9 +973,9 @@ async function testPerDomainInsuranceAndLedger(): Promise<{ market: Keypair; por
     { pubkey: vaultAuth, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: insLedger.publicKey, isSigner: false, isWritable: true },
-  ], data: encWithdrawInsuranceDomain({ domain: 0, amount: 10_000_000n }) })]);
+  ], data: encWithdrawInsuranceAsset({ assetIndex: 0, amount: 10_000_000n }) })]);
   const mgAfterWith: any = parseMarketGroup(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data));
-  record("WithdrawInsuranceDomain: market.insurance dropped by 10M",
+  record("WithdrawInsuranceAsset (57): market.insurance dropped by 10M",
     BigInt(mgAfterTop.insurance) - BigInt(mgAfterWith.insurance) === 10_000_000n,
     `before=${mgAfterTop.insurance}, after=${mgAfterWith.insurance}`);
 
@@ -1061,10 +1057,10 @@ async function testAuthMarkOracle(): Promise<{ market: Keypair; portfolios: Keyp
  * T12 — Simple admin / portfolio ops needing no special market state:
  *       50 WithdrawBackingBucket — withdraw unencumbered bucket capital
  *       44 RebalanceReduce — reduce an open position
- *       23 WithdrawInsuranceLimited — operator-gated insurance withdraw (cooldown=1)
+ *       (tag 23 WithdrawInsuranceLimited removed in wrapper 0cf5134)
  */
 async function testRound1SimpleOps(): Promise<{ market: Keypair; portfolios: Keypair[] }> {
-  console.log("\n[T12] WithdrawBackingBucket + RebalanceReduce + WithdrawInsuranceLimited");
+  console.log("\n[T12] WithdrawBackingBucket + RebalanceReduce");
   const market = Keypair.generate();
   const portA = Keypair.generate();
   const portB = Keypair.generate();
@@ -1107,11 +1103,8 @@ async function testRound1SimpleOps(): Promise<{ market: Keypair; portfolios: Key
     { pubkey: market.publicKey, isSigner: false, isWritable: true },
   ], data: encConfigureEwmaMark({ assetIndex: 0, nowSlot: slot0, initialMarkE6: 1_000_000n,
     markEwmaHalflifeSlots: 300n, markMinFee: 500n } as any) })]);
-  // Set insurance cooldown to 1 slot so WithdrawInsuranceLimited works immediately
-  await send([new TransactionInstruction({ programId: PROG, keys: [
-    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
-    { pubkey: market.publicKey, isSigner: false, isWritable: true },
-  ], data: encUpdateInsurancePolicy({ maxBps: 5000, depositsOnly: 0, cooldownSlots: 1n }) })]);
+  // (cooldown setup removed — UpdateInsurancePolicy + WithdrawInsuranceLimited
+  //  are gone in wrapper 0cf5134; live insurance is now WithdrawInsuranceAsset)
   for (const pf of [portA, portB]) {
     await send([new TransactionInstruction({ programId: PROG, keys: [
       { pubkey: admin.publicKey, isSigner: true, isWritable: false },
@@ -1184,26 +1177,9 @@ async function testRound1SimpleOps(): Promise<{ market: Keypair; portfolios: Key
     pAOpen.legs[0].basisPosQ === 50_000_000n && pAReduced.legs[0].basisPosQ === 30_000_000n,
     `before=${pAOpen.legs[0].basisPosQ}, after=${pAReduced.legs[0].basisPosQ}`);
 
-  // --- tag 23 WithdrawInsuranceLimited ---
-  // Wait a couple slots for cooldown=1 to lapse, then withdraw up to max_bps=5000.
-  await new Promise(r => setTimeout(r, 1500));
-  const mgBefore23: any = parseMarketGroup(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data));
-  try {
-    await send([new TransactionInstruction({ programId: PROG, keys: [
-      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
-      { pubkey: market.publicKey, isSigner: false, isWritable: true },
-      { pubkey: adminAta, isSigner: false, isWritable: true },
-      { pubkey: vaultAta, isSigner: false, isWritable: true },
-      { pubkey: vaultAuth, isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    ], data: encWithdrawInsuranceLimited(5_000_000n) })]);
-    const mgAfter23: any = parseMarketGroup(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data));
-    record("WithdrawInsuranceLimited: insurance dropped by 5M",
-      BigInt(mgBefore23.insurance) - BigInt(mgAfter23.insurance) === 5_000_000n,
-      `before=${mgBefore23.insurance}, after=${mgAfter23.insurance}`);
-  } catch (e: any) {
-    record("WithdrawInsuranceLimited: 5M withdraw", false, `error=${code(e)}`);
-  }
+  // (tag 23 WithdrawInsuranceLimited REMOVED in wrapper 0cf5134 — the entire
+  //  policy/cooldown surface is gone. Live insurance now flows through
+  //  WithdrawInsuranceAsset (tag 57), covered by T9.)
 
   return { market, portfolios: [portA, portB] };
 }
@@ -1676,12 +1652,12 @@ async function testConfigureHybridOracle(): Promise<{ market: Keypair; portfolio
  *
  *   SHUTDOWN asset 0 (40) → ForfeitRecoveryLeg (43) on a leg in RECOVERY →
  *   ForceCloseAbandonedAsset (64) drains remaining matched exposure →
- *   RestartAsset0Oracle (69) re-arms asset 0 from a clean RECOVERY +
+ *   RestartAssetOracle (69) re-arms asset 0 from a clean RECOVERY +
  *   no-positions state → FinalizeResetSide (45) closes out each side's
  *   reset bookkeeping.
  */
 async function testRecoveryChain(): Promise<{ market: Keypair; portfolios: Keypair[] }> {
-  console.log("\n[T19] RECOVERY chain: SHUTDOWN → ForfeitRecoveryLeg → ForceClose → RestartAsset0Oracle → FinalizeResetSide");
+  console.log("\n[T19] RECOVERY chain: SHUTDOWN → ForfeitRecoveryLeg → ForceClose → RestartAssetOracle → FinalizeResetSide");
   const market = Keypair.generate();
   const portA = Keypair.generate();
   const portB = Keypair.generate();
@@ -1801,21 +1777,21 @@ async function testRecoveryChain(): Promise<{ market: Keypair; portfolios: Keypa
     ], data: encForceCloseAbandonedAsset({ assetIndex: 0, nowSlot: slotForce, closeQ: 50_000_000n }) })]);
   } catch { /* may already be closed by ForfeitRecoveryLeg */ }
 
-  // --- tag 69 RestartAsset0Oracle ---
-  // Requires: marketauth signs, mode=Live, asset-0 lifecycle==RECOVERY, no positions
+  // --- tag 69 RestartAssetOracle (renamed + reshaped in wrapper 5469b2c) ---
+  // Requires: marketauth signs, mode=Live, asset lifecycle==RECOVERY, no positions
   const slotRestart = BigInt(await conn.getSlot("confirmed"));
   try {
     await send([new TransactionInstruction({ programId: PROG, keys: [
       { pubkey: admin.publicKey, isSigner: true, isWritable: false },
       { pubkey: market.publicKey, isSigner: false, isWritable: true },
-    ], data: encRestartAsset0Oracle({ nowSlot: slotRestart, initialPrice: 1_000_000n }) })]);
+    ], data: encRestartAssetOracle({ assetIndex: 0, nowSlot: slotRestart, initialPrice: 1_000_000n }) })]);
     const mgAfterRestart: any = parseMarketGroup(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data));
-    record("RestartAsset0Oracle: tag 69 succeeded; asset-0 lifecycle back to ACTIVE",
+    record("RestartAssetOracle (69): succeeded; asset-0 lifecycle back to ACTIVE",
       Number(mgAfterRestart.assets[0]?.lifecycle) === 2,
       `lifecycle=${mgAfterRestart.assets[0]?.lifecycle}`);
   } catch (e: any) {
     const c = code(e);
-    record("RestartAsset0Oracle: tag 69 wire/accounts accepted",
+    record("RestartAssetOracle (69): wire/accounts accepted",
       c === "21" || c === "0x15",
       `error=${c} (21=LockActive if residual positions or mode!=Live)`);
   }
@@ -2527,7 +2503,7 @@ async function teardown(market: Keypair, portfolios: Keypair[]) {
   await runIsolated("[T9] per-domain insurance", testPerDomainInsuranceAndLedger);
   await runIsolated("[T10] auth-mark oracle",  testAuthMarkOracle);
   await runIsolated("[T11] batch TradeCpi",    testBatchTradeCpi);
-  await runIsolated("[T12] WithdrawBackingBucket + RebalanceReduce + WithdrawInsuranceLimited",
+  await runIsolated("[T12] WithdrawBackingBucket + RebalanceReduce",
                                                testRound1SimpleOps);
   await runIsolated("[T13] UpdateBaseUnitMints", testUpdateBaseUnitMints);
   await runIsolated("[T14] ResolveStalePermissionless", testResolveStalePermissionless);
@@ -2537,7 +2513,7 @@ async function teardown(market: Keypair, portfolios: Keypair[]) {
                                                testPostResolveClaimAndRefine);
   await runIsolated("[T17] CureAndCancelClose", testCureAndCancelClose);
   await runIsolated("[T18] SwapSecondaryForPrimary (2-mint)", testSwapSecondaryForPrimary);
-  await runIsolated("[T19] RECOVERY chain (ForfeitRecoveryLeg + RestartAsset0Oracle + FinalizeResetSide)",
+  await runIsolated("[T19] RECOVERY chain (ForfeitRecoveryLeg + RestartAssetOracle + FinalizeResetSide)",
                                                testRecoveryChain);
   await runIsolated("[T20] ConvertReleasedPnl + WithdrawBackingBucketEarnings",
                                                testReleasedPnlAndBucketEarnings);
