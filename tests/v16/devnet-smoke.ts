@@ -1,10 +1,14 @@
 /**
- * Clean-room TDD for the four claims in PR #81.
+ * Devnet smoke suite for the live wrapper program `Bu1J8eQQN…`.
  *
- * Each test models the bug as described, then runs against a freshly-deployed
- * devnet smoke market on the live program (`Bu1J8eQQN…`). If the assertion
- * fails, the bug is real and we patch the corresponding production file. If the
- * assertion passes, the claim doesn't reproduce and we leave the code alone.
+ *   T1 — parseMarketGroup exposes asset_slot_capacity (PR #81)
+ *   T2 — v16-inspect c_tot conservation handles partial discovery (PR #81)
+ *   T3 — verify-manifest.ts resolves repo-relative default path (PR #81)
+ *   T4 — pnpm typecheck:tests covers tests/ (PR #81)
+ *   T5 — matcher SetMatcherConfig + TradeCpi + two-phase backing counter
+ *
+ * T5 deploys its OWN fresh market (markEwmaHalflife=1) so the two-phase mark
+ * walk can drive `cumulative_loss_atoms` within a reasonable test horizon.
  *
  * Setup spends real devnet SOL. Teardown attempts CloseSlab; if it fails the
  * smoke market is left as a paid orphan on devnet (no big deal, devnet is
@@ -28,10 +32,14 @@ import {
   encInitMarket, encInitPortfolio, encDeposit, encWithdraw,
   encConfigureHyperpMark, encResolveMarket, encCloseResolved,
   encSyncMaintenanceFee, encWithdrawInsurance, encCloseSlab,
-  marketAccountLenFor, PORTFOLIO_ACCOUNT_LEN,
+  encTradeCpi, encSetMatcherConfig, encPushHyperpMark,
+  encPermissionlessCrank, encTopUpBackingBucket, encSyncBackingDomainLedger,
+  marketAccountLenFor, PORTFOLIO_ACCOUNT_LEN, HEADER_LEN,
   MARKET_GROUP_OFF, MG, OracleProvider,
 } from "../../src/v16/index.js";
 import { parseMarketGroup, parsePortfolio } from "../../src/v16/parsers.js";
+
+const MATCHER = new PublicKey("5ogNxr4uFXZXoeJ4cP89kKZkx1FkbaD2FBQr91KoYZep");
 
 // ============================================================================
 // Setup
@@ -308,6 +316,257 @@ function testTypecheckCoversTests() {
       : `exit=${r.status}`);
 }
 
+/**
+ * Test 5 — matcher binding + TradeCpi + backing counter
+ *
+ * Covers the wrapper-7144d9b end-to-end matcher path against devnet matcher
+ * `5ogNxr4u…` (vAMM kind). Verifies:
+ *
+ *   (a) SetMatcherConfig (tag 68) writes the matcher tuple into the LP
+ *       portfolio's 104-byte tail.
+ *   (b) TradeCpi (tag 10, 7 fixed accounts) fills the LP at the matcher's
+ *       quoted price; the LP gets a short leg, taker gets a long leg.
+ *   (c) Two-phase mark scenario drives `cumulative_loss_atoms`:
+ *       Phase 1 (mark DOWN) → LP positive PnL → engine credits source_claim.
+ *       Phase 2 (mark UP)   → LP loss > claim+capital → bucket.consumed_liened
+ *                              grows → SyncBackingDomainLedger ticks the counter.
+ *
+ * Uses its own market so the EWMA halflife can be 1 slot (the main smoke market
+ * uses 300 slots which is too slow to walk effective price within a test).
+ */
+function encMatcherInitVamm(p: {
+  kind: number; tradingFeeBps: number; baseSpreadBps: number; maxTotalBps: number;
+  impactKBps: number; liquidityNotionalE6: bigint; maxFillAbs: bigint; maxInventoryAbs: bigint;
+}): Buffer {
+  const b = Buffer.alloc(66);
+  b[0] = 2;
+  b[1] = p.kind;
+  b.writeUInt32LE(p.tradingFeeBps, 2);
+  b.writeUInt32LE(p.baseSpreadBps, 6);
+  b.writeUInt32LE(p.maxTotalBps, 10);
+  b.writeUInt32LE(p.impactKBps, 14);
+  b.writeBigUInt64LE(p.liquidityNotionalE6 & 0xffffffffffffffffn, 18);
+  b.writeBigUInt64LE(p.liquidityNotionalE6 >> 64n, 26);
+  b.writeBigUInt64LE(p.maxFillAbs & 0xffffffffffffffffn, 34);
+  b.writeBigUInt64LE(p.maxFillAbs >> 64n, 42);
+  b.writeBigUInt64LE(p.maxInventoryAbs & 0xffffffffffffffffn, 50);
+  b.writeBigUInt64LE(p.maxInventoryAbs >> 64n, 58);
+  return b;
+}
+function u128le(b: Buffer, o: number): bigint {
+  return b.readBigUInt64LE(o) | (b.readBigUInt64LE(o + 8) << 64n);
+}
+function parseLedgerCounters(buf: Buffer) {
+  let o = HEADER_LEN + 32 + 32 + 16 * 6;
+  return {
+    cumLoss:     u128le(buf, o),
+    cumRecov:    u128le(buf, o + 16),
+    lastUnavail: u128le(buf, o + 32),
+  };
+}
+
+async function testMatcherFlow(): Promise<{ market: Keypair; portfolios: Keypair[] }> {
+  console.log("\n[T5] matcher binding + TradeCpi + backing counter (two-phase)");
+  const market = Keypair.generate();
+  const lp = Keypair.generate();
+  const taker = Keypair.generate();
+  const matcherCtx = Keypair.generate();
+  const bckLedger = Keypair.generate();
+  const [vaultAuth] = PublicKey.findProgramAddressSync([Buffer.from("vault"), market.publicKey.toBuffer()], PROG);
+  const vaultAta = getAssociatedTokenAddressSync(NATIVE_MINT, vaultAuth, true);
+  const adminAta = getAssociatedTokenAddressSync(NATIVE_MINT, admin.publicKey);
+
+  const [matcherDelegate] = PublicKey.findProgramAddressSync([
+    Buffer.from("matcher"),
+    market.publicKey.toBuffer(),
+    lp.publicKey.toBuffer(),
+    admin.publicKey.toBuffer(),
+    MATCHER.toBuffer(),
+    matcherCtx.publicKey.toBuffer(),
+  ], PROG);
+
+  const mkLen = marketAccountLenFor(1);
+  const mkRent = await conn.getMinimumBalanceForRentExemption(mkLen);
+  const pfRent = await conn.getMinimumBalanceForRentExemption(PORTFOLIO_ACCOUNT_LEN);
+  const ctxRent = await conn.getMinimumBalanceForRentExemption(320);
+  const ledRent = await conn.getMinimumBalanceForRentExemption(2048);
+
+  await send([
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: market.publicKey,
+      lamports: mkRent, space: mkLen, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: lp.publicKey,
+      lamports: pfRent, space: PORTFOLIO_ACCOUNT_LEN, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: taker.publicKey,
+      lamports: pfRent, space: PORTFOLIO_ACCOUNT_LEN, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: matcherCtx.publicKey,
+      lamports: ctxRent, space: 320, programId: MATCHER }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: bckLedger.publicKey,
+      lamports: ledRent, space: 2048, programId: PROG }),
+  ], [admin, market, lp, taker, matcherCtx, bckLedger]);
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: NATIVE_MINT, isSigner: false, isWritable: false },
+  ], data: encInitMarket({
+    maxPortfolioAssets: 1,
+    hMin: 0n, hMax: 6_480_000n, initialPrice: 1_000_000n,
+    minNonzeroMmReq: 500n, minNonzeroImReq: 600n,
+    maintenanceMarginBps: 500n, initialMarginBps: 500n,
+    maxTradingFeeBps: 10_000n, tradeFeeBaseBps: 1n,
+    liquidationFeeBps: 5n, liquidationFeeCap: 50_000_000_000n,
+    minLiquidationAbs: 0n,
+    maxPriceMoveBpsPerSlot: 49n, maxAccrualDtSlots: 10n,
+    maxAbsFundingE9PerSlot: 1_000n, minFundingLifetimeSlots: 10_000_000n,
+    maxAccountBSettlementChunks: 16n, maxBankruptCloseChunks: 16n,
+    maxBankruptCloseLifetimeSlots: 10_000_000n,
+    publicBChunkAtoms: 1_000_000n, maintenanceFeePerSlot: 35n,
+  } as any) })]);
+  const slot0 = BigInt(await conn.getSlot("confirmed"));
+  // markEwmaHalflifeSlots=1 so effective price tracks the target in 1 crank
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encConfigureHyperpMark({ assetIndex: 0, nowSlot: slot0, initialMarkE6: 1_000_000n,
+    markEwmaHalflifeSlots: 1n, markMinFee: 500n } as any) })]);
+  for (const pf of [lp, taker]) {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: pf.publicKey, isSigner: false, isWritable: true },
+    ], data: encInitPortfolio() })]);
+  }
+  await send([
+    createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, adminAta, admin.publicKey, NATIVE_MINT),
+    createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, vaultAta, vaultAuth, NATIVE_MINT),
+    SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: adminAta, lamports: 2_000_000_000 }),
+    createSyncNativeInstruction(adminAta),
+  ]);
+  const dep = (pf: PublicKey, amt: bigint) => new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false }, { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: pf, isSigner: false, isWritable: true }, { pubkey: adminAta, isSigner: false, isWritable: true },
+    { pubkey: vaultAta, isSigner: false, isWritable: true }, { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }],
+    data: encDeposit(amt) });
+  // LP intentionally thin: 10M cap on a 100M short = 10x leverage, mm@5%=5M.
+  await send([dep(lp.publicKey, 10_000_000n)]);
+  await send([dep(taker.publicKey, 300_000_000n)]);
+  const expirySlot = BigInt(await conn.getSlot("confirmed")) + 10_000_000n;
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: adminAta, isSigner: false, isWritable: true },
+    { pubkey: vaultAta, isSigner: false, isWritable: true },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: bckLedger.publicKey, isSigner: false, isWritable: true },
+  ], data: encTopUpBackingBucket({ domain: 0, amount: 400_000_000n, expirySlot }) })]);
+  // Init matcher (tag 2)
+  await send([new TransactionInstruction({ programId: MATCHER, keys: [
+    { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+    { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
+  ], data: encMatcherInitVamm({
+    kind: 1, tradingFeeBps: 10, baseSpreadBps: 50, maxTotalBps: 1000,
+    impactKBps: 1, liquidityNotionalE6: 1_000_000_000n,
+    maxFillAbs: 100_000_000n, maxInventoryAbs: 500_000_000n,
+  }) })]);
+
+  // (a) SetMatcherConfig writes the tuple into the LP portfolio tail
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },     // lp_owner
+    { pubkey: market.publicKey, isSigner: false, isWritable: false },
+    { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+    { pubkey: MATCHER, isSigner: false, isWritable: false },
+    { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: false },
+    { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+  ], data: encSetMatcherConfig(1) })]);
+  const lpAfterCfg = (await conn.getAccountInfo(lp.publicKey, "confirmed"))!;
+  const cfgEnabled = lpAfterCfg.data[PORTFOLIO_ACCOUNT_LEN - 8];
+  const cfgMatcherProg = new PublicKey(lpAfterCfg.data.slice(
+    PORTFOLIO_ACCOUNT_LEN - 104, PORTFOLIO_ACCOUNT_LEN - 72));
+  record("SetMatcherConfig writes enabled=1 into LP portfolio tail",
+    cfgEnabled === 1, `enabled byte=${cfgEnabled}, matcher_program=${cfgMatcherProg.toBase58()}`);
+  record("SetMatcherConfig wrote correct matcher program",
+    cfgMatcherProg.equals(MATCHER), `expected=${MATCHER.toBase58()}, got=${cfgMatcherProg.toBase58()}`);
+
+  // (b) TradeCpi (7 fixed accounts, no signer_b)
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },     // signer_a (taker)
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: taker.publicKey, isSigner: false, isWritable: true },
+    { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+    { pubkey: MATCHER, isSigner: false, isWritable: false },
+    { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
+    { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+  ], data: encTradeCpi({ assetIndex: 0, sizeQ: 100_000_000n, feeBps: 1n, limitPrice: 1_100_000n }) })]);
+  const lpAfterTrade: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(lp.publicKey, "confirmed"))!.data));
+  const takerAfterTrade: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(taker.publicKey, "confirmed"))!.data));
+  record("TradeCpi: LP has 1 short leg (basis -100M)",
+    lpAfterTrade.legs.length === 1 && lpAfterTrade.legs[0].side === 1 && lpAfterTrade.legs[0].basisPosQ === -100_000_000n,
+    `legs=${lpAfterTrade.legs.length}, side=${lpAfterTrade.legs[0]?.side}, basis=${lpAfterTrade.legs[0]?.basisPosQ}`);
+  record("TradeCpi: taker has 1 long leg (basis +100M)",
+    takerAfterTrade.legs.length === 1 && takerAfterTrade.legs[0].side === 0 && takerAfterTrade.legs[0].basisPosQ === 100_000_000n,
+    `legs=${takerAfterTrade.legs.length}, side=${takerAfterTrade.legs[0]?.side}, basis=${takerAfterTrade.legs[0]?.basisPosQ}`);
+
+  // (c) Two-phase mark walk → counter increments
+  const ledIx = (data: Buffer) => new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: bckLedger.publicKey, isSigner: false, isWritable: true },
+  ], data });
+  await send([ledIx(encSyncBackingDomainLedger(0))]);
+  const L0 = parseLedgerCounters(Buffer.from((await conn.getAccountInfo(bckLedger.publicKey, "confirmed"))!.data));
+
+  // Phase 1: mark DOWN → LP positive PnL → source_claim_bound grows
+  console.log("    Phase 1 (mark DOWN, 10 cranks ~5s each)…");
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encPushHyperpMark({ assetIndex: 0, nowSlot: BigInt(await conn.getSlot("confirmed")), markE6: 500_000n } as any) })]);
+  for (let i = 0; i < 10; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const s = BigInt(await conn.getSlot("confirmed"));
+    try {
+      await send([new TransactionInstruction({ programId: PROG, keys: [
+        { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+        { pubkey: market.publicKey, isSigner: false, isWritable: true },
+        { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: s,
+        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+    } catch { /* tolerate transient */ }
+  }
+  const lpAfterP1: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(lp.publicKey, "confirmed"))!.data));
+  record("Phase 1: LP accrued positive PnL (builds source_claim)",
+    BigInt(lpAfterP1.pnl) > 0n, `LP pnl=${lpAfterP1.pnl}`);
+
+  // Phase 2: mark UP past 1.0 → LP loss exceeds claim+capital → bucket consumes
+  console.log("    Phase 2 (mark UP, 12 cranks ~5s each)…");
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encPushHyperpMark({ assetIndex: 0, nowSlot: BigInt(await conn.getSlot("confirmed")), markE6: 2_000_000n } as any) })]);
+  for (let i = 0; i < 12; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const s = BigInt(await conn.getSlot("confirmed"));
+    try {
+      await send([new TransactionInstruction({ programId: PROG, keys: [
+        { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+        { pubkey: market.publicKey, isSigner: false, isWritable: true },
+        { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: s,
+        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+    } catch { /* tolerate transient */ }
+    // Early exit once we cross 1.0 (LP definitely past its claim+capital at that point)
+    const eff = BigInt((parseMarketGroup(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data)) as any).assets[0].effectivePrice);
+    if (eff >= 1_100_000n) break;
+  }
+  await send([ledIx(encSyncBackingDomainLedger(0))]);
+  const L2 = parseLedgerCounters(Buffer.from((await conn.getAccountInfo(bckLedger.publicKey, "confirmed"))!.data));
+  record("Phase 2: cumulative_loss_atoms incremented from bucket consume",
+    L2.cumLoss > L0.cumLoss, `pre=${L0.cumLoss}, post=${L2.cumLoss}, delta=${L2.cumLoss - L0.cumLoss}`);
+  record("Phase 2: last_observed_unavailable matches cumulative_loss",
+    L2.lastUnavail === L2.cumLoss, `lastUnavail=${L2.lastUnavail}, cumLoss=${L2.cumLoss}`);
+
+  return { market, portfolios: [lp, taker] };
+}
+
 // ============================================================================
 // Teardown — best-effort cleanup so devnet doesn't accumulate orphans
 // ============================================================================
@@ -369,7 +628,7 @@ async function teardown(market: Keypair, portfolios: Keypair[]) {
 // ============================================================================
 (async () => {
   console.log("=".repeat(72));
-  console.log("PR #81 claims — clean-room TDD against devnet smoke market");
+  console.log("Devnet smoke — PR #81 TDD + matcher TradeCpi + backing counter");
   console.log("=".repeat(72));
 
   // Tests that don't need a deployed market — run first, cheap
@@ -387,6 +646,16 @@ async function teardown(market: Keypair, portfolios: Keypair[]) {
     await teardown(market, portfolios);
   }
 
+  // T5: matcher init + TradeCpi + backing counter (own fresh market)
+  let matcherEnv: { market: Keypair; portfolios: Keypair[] } | null = null;
+  try {
+    matcherEnv = await testMatcherFlow();
+  } catch (e: any) {
+    record("[T5] matcher flow", false, `threw: ${e?.message ?? e}`);
+  } finally {
+    if (matcherEnv) await teardown(matcherEnv.market, matcherEnv.portfolios);
+  }
+
   // ----------------------------------------------------------------- summary
   const failed = results.filter(r => !r.passed);
   console.log("\n" + "=".repeat(72));
@@ -396,5 +665,5 @@ async function teardown(market: Keypair, portfolios: Keypair[]) {
     for (const r of failed) console.log(`  ✗ ${r.name}${r.details ? "  — " + r.details : ""}`);
     process.exit(1);
   }
-  console.log("All assertions green — no real bugs to fix from PR #81's claims.");
+  console.log("All assertions green.");
 })().catch(e => { console.error("FATAL:", e?.message || e); process.exit(2); });
