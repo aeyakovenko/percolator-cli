@@ -98,33 +98,39 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   1c1ca8ffc1866a6b50c88be9bc2d1da1bd2ad148779c5bbe70d204c9f8cc1a8c
-BPF binary size:      978,504 bytes ELF
-percolator-prog:      8306372  (Test backing residual reward counter semantics —
-                       sits atop the real behavior change c2019a8 'Expose
-                       deterministic backing residual reward counter' (+30 LoC
-                       pure-additive in src/v16_program.rs) plus a5ed02e
-                       'Document trade-time portfolio refresh invariant' and the
-                       63007d9 / 9849f26 leg-refresh tests. Layout unchanged
-                       from 70294cb; same ELF size as prior deploy.)
-prior:                6da5d8c / BPF 5c6625df… / 978,504 B (asset restart byte-hygiene tests)
-                      b469dae / BPF 3acd544c… / 971,344 B (matcher PDA binding + oracle-lag insurance gate)
-                      517a55a / BPF 927f565c… / 966,168 B (bound unsigned matcher fills to LP auth)
-                      9343dad / BPF 5b9464a5… / 956,592 B (cross-market reward rejection)
-                      198651f / BPF c3ec9493… / 956,104 B (fixed try_empty stack)
-                      c050578 / BPF 11eafaf1… / 952,544 B (had try_empty warning)
-                      0a631cf / BPF b0cc3f80… / 952,272 B (deployed 2026-06-04)
-                      70294cb / BPF 1aedbfa2… / 918,184 B (deployed 2026-06-03)
-engine pin:           4897680  (unchanged through 7 deploys now — 'Add v16 reset
+BPF binary SHA-256:   58d155fa5f64684a66f23e93a7f2b23cac06165a58e3c0303194e13390539eef
+BPF binary size:      1,047,480 bytes ELF
+percolator-prog:      2c7035f  (HEAD — tests-only chain on top of the behavior
+                       change 7144d9b 'Bind matcher config to LP portfolios':
+                       SetMatcherAuthorization is replaced by SetMatcherConfig
+                       (same tag 68, different semantics), the matcher tuple
+                       is now stored in a 104-byte tail on the LP portfolio,
+                       TradeCpi drops signer_b (7 fixed accounts, was 8), and
+                       the old kind=5 matcher-auth account is gone. Commits
+                       65fd34e / aa17204 / cbcf3aa / 8a2d26e / 86825b9 /
+                       2c7035f only add tests/v16_cu.rs coverage; BPF is
+                       byte-identical to 7144d9b.)
+prior:                8306372 / BPF 1c1ca8ff… /   978,504 B (deterministic backing residual reward counter)
+                      6da5d8c / BPF 5c6625df… /   978,504 B (asset restart byte-hygiene tests)
+                      b469dae / BPF 3acd544c… /   971,344 B (matcher PDA binding + oracle-lag insurance gate)
+                      517a55a / BPF 927f565c… /   966,168 B (bound unsigned matcher fills to LP auth)
+                      9343dad / BPF 5b9464a5… /   956,592 B (cross-market reward rejection)
+                      198651f / BPF c3ec9493… /   956,104 B (fixed try_empty stack)
+                      c050578 / BPF 11eafaf1… /   952,544 B (had try_empty warning)
+                      0a631cf / BPF b0cc3f80… /   952,272 B (deployed 2026-06-04)
+                      70294cb / BPF 1aedbfa2… /   918,184 B (deployed 2026-06-03)
+engine pin:           4897680  (unchanged through 8 deploys now — 'Add v16 reset
                        finalization API'. Engine main has progressed to a390ac6
                        'Widen v16 lien accounting proofs' via several proof-only
                        commits the wrapper has not yet bumped to.)
 Layout:               marketauth-collapse (commit 792256b)
                       + asset-0 unified with assets 1..N (commit dba87a9)
+                      + matcher-config tail on portfolios (commit 7144d9b)
                       WrapperConfigV16  = 432 B  (was 624 B; 7 keys → 1 marketauth)
                       MarketGroupHeader = 710 B  (was 638 B; engine accounting block)
-                      PortfolioAccount  = 9,195 B  (was 22,379 B; source-domain claims
-                                          compacted into a 32-slot × 196 B inline array)
+                      PortfolioAccount  = 9,299 B  (was 9,195 B; +104 B matcher
+                                          config tail that records matcher_program,
+                                          matcher_context, matcher_delegate, enabled)
                       DEFAULT_MARKET_SLOT_CAPACITY = 1  (market reallocs on asset activate)
 MARKET_ACCOUNT_LEN:   2,955 B for a 1-slot market = 448 (header+config)
                                                  + 710 (MG header)
@@ -135,13 +141,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 8306372
+cd percolator-prog && git checkout 2c7035f
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 1c1ca8ffc1866a6b50c88be9bc2d1da1bd2ad148779c5bbe70d204c9f8cc1a8c
+#   Expected: 58d155fa5f64684a66f23e93a7f2b23cac06165a58e3c0303194e13390539eef
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 978504 /tmp/deployed.so | sha256sum   # must match
+head -c 1047480 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
