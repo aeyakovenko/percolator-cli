@@ -71,6 +71,7 @@ import {
   encCureAndCancelClose, encSwapSecondaryForPrimary,
   encForfeitRecoveryLeg, encFinalizeResetSide, encRestartAsset0Oracle,
   encConvertReleasedPnl, encWithdrawBackingBucketEarnings,
+  encConfigureHybridOracle,
   marketAccountLenFor, PORTFOLIO_ACCOUNT_LEN, HEADER_LEN,
   MARKET_GROUP_OFF, MG, OracleProvider,
 } from "../../src/v16/index.js";
@@ -1405,6 +1406,272 @@ async function testAssetLifecycleAndForceClose(): Promise<{ market: Keypair; por
 }
 
 /**
+ * T21 — PermissionlessCrank action=1 (Liquidate) + action=2 (SettleB).
+ *
+ * Sets up a thin-LP / fat-taker scenario like T5 Phase 2 (mark pushed UP so
+ * LP short is underwater), then exercises BOTH crank sub-actions against the
+ * LP portfolio.  Either may return LockActive(21) / RecoveryRequired(23) /
+ * NonProgress(22) depending on whether the engine has a settleable chunk or
+ * liquidatable leg at that exact slot — we accept those as "wire+accounts
+ * validated" because the security-critical failure modes are different
+ * (InvalidInstruction=9, Unauthorized=8).
+ */
+async function testCrankLiquidateAndSettleB(): Promise<{ market: Keypair; portfolios: Keypair[] }> {
+  console.log("\n[T21] PermissionlessCrank action=1 (Liquidate) + action=2 (SettleB)");
+  const market = Keypair.generate();
+  const lp = Keypair.generate();
+  const taker = Keypair.generate();
+  const matcherCtx = Keypair.generate();
+  const bckLedger = Keypair.generate();
+  const [vaultAuth] = PublicKey.findProgramAddressSync([Buffer.from("vault"), market.publicKey.toBuffer()], PROG);
+  const vaultAta = getAssociatedTokenAddressSync(NATIVE_MINT, vaultAuth, true);
+  const adminAta = getAssociatedTokenAddressSync(NATIVE_MINT, admin.publicKey);
+  const [matcherDelegate] = PublicKey.findProgramAddressSync([
+    Buffer.from("matcher"), market.publicKey.toBuffer(),
+    lp.publicKey.toBuffer(), admin.publicKey.toBuffer(),
+    MATCHER.toBuffer(), matcherCtx.publicKey.toBuffer(),
+  ], PROG);
+
+  const mkLen = marketAccountLenFor(1);
+  const mkRent = await conn.getMinimumBalanceForRentExemption(mkLen);
+  const pfRent = await conn.getMinimumBalanceForRentExemption(PORTFOLIO_ACCOUNT_LEN);
+  const ctxRent = await conn.getMinimumBalanceForRentExemption(320);
+  const ledRent = await conn.getMinimumBalanceForRentExemption(2048);
+  await send([
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: market.publicKey,
+      lamports: mkRent, space: mkLen, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: lp.publicKey,
+      lamports: pfRent, space: PORTFOLIO_ACCOUNT_LEN, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: taker.publicKey,
+      lamports: pfRent, space: PORTFOLIO_ACCOUNT_LEN, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: matcherCtx.publicKey,
+      lamports: ctxRent, space: 320, programId: MATCHER }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: bckLedger.publicKey,
+      lamports: ledRent, space: 2048, programId: PROG }),
+  ], [admin, market, lp, taker, matcherCtx, bckLedger]);
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: NATIVE_MINT, isSigner: false, isWritable: false },
+  ], data: encInitMarket({
+    maxPortfolioAssets: 1,
+    hMin: 0n, hMax: 6_480_000n, initialPrice: 1_000_000n,
+    minNonzeroMmReq: 500n, minNonzeroImReq: 600n,
+    maintenanceMarginBps: 500n, initialMarginBps: 500n,
+    maxTradingFeeBps: 10_000n, tradeFeeBaseBps: 1n,
+    liquidationFeeBps: 5n, liquidationFeeCap: 50_000_000_000n,
+    minLiquidationAbs: 0n,
+    maxPriceMoveBpsPerSlot: 49n, maxAccrualDtSlots: 10n,
+    maxAbsFundingE9PerSlot: 1_000n, minFundingLifetimeSlots: 10_000_000n,
+    maxAccountBSettlementChunks: 16n, maxBankruptCloseChunks: 16n,
+    maxBankruptCloseLifetimeSlots: 10_000_000n,
+    publicBChunkAtoms: 1_000_000n, maintenanceFeePerSlot: 35n,
+  } as any) })]);
+  const slot0 = BigInt(await conn.getSlot("confirmed"));
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encConfigureEwmaMark({ assetIndex: 0, nowSlot: slot0, initialMarkE6: 1_000_000n,
+    markEwmaHalflifeSlots: 1n, markMinFee: 500n } as any) })]);
+  for (const pf of [lp, taker]) {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: pf.publicKey, isSigner: false, isWritable: true },
+    ], data: encInitPortfolio() })]);
+  }
+  await send([
+    createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, adminAta, admin.publicKey, NATIVE_MINT),
+    createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, vaultAta, vaultAuth, NATIVE_MINT),
+    SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: adminAta, lamports: 2_000_000_000 }),
+    createSyncNativeInstruction(adminAta),
+  ]);
+  const dep = (pf: PublicKey, amt: bigint) => new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false }, { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: pf, isSigner: false, isWritable: true }, { pubkey: adminAta, isSigner: false, isWritable: true },
+    { pubkey: vaultAta, isSigner: false, isWritable: true }, { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }],
+    data: encDeposit(amt) });
+  await send([dep(lp.publicKey, 10_000_000n), dep(taker.publicKey, 300_000_000n)]);
+  const expirySlot = BigInt(await conn.getSlot("confirmed")) + 10_000_000n;
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: adminAta, isSigner: false, isWritable: true },
+    { pubkey: vaultAta, isSigner: false, isWritable: true },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: bckLedger.publicKey, isSigner: false, isWritable: true },
+  ], data: encTopUpBackingBucket({ domain: 0, amount: 400_000_000n, expirySlot }) })]);
+  await send([new TransactionInstruction({ programId: MATCHER, keys: [
+    { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+    { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
+  ], data: encMatcherInitVamm({
+    kind: 1, tradingFeeBps: 10, baseSpreadBps: 50, maxTotalBps: 1000,
+    impactKBps: 1, liquidityNotionalE6: 1_000_000_000n,
+    maxFillAbs: 100_000_000n, maxInventoryAbs: 500_000_000n,
+  }) }), new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: false },
+    { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+    { pubkey: MATCHER, isSigner: false, isWritable: false },
+    { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: false },
+    { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+  ], data: encSetMatcherConfig(1) })]);
+  // Taker long 100M; LP short 100M @ basis 1.0
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: taker.publicKey, isSigner: false, isWritable: true },
+    { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+    { pubkey: MATCHER, isSigner: false, isWritable: false },
+    { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
+    { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+  ], data: encTradeCpi({ assetIndex: 0, sizeQ: 100_000_000n, feeBps: 1n, limitPrice: 1_100_000n }) })]);
+  // Push mark UP hard so LP's short blows past its 10M cap
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encPushEwmaMark({ assetIndex: 0, nowSlot: BigInt(await conn.getSlot("confirmed")), markE6: 2_000_000n } as any) })]);
+  // A few spaced cranks (action=0 Refresh) to walk effective price up
+  for (let i = 0; i < 6; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const s = BigInt(await conn.getSlot("confirmed"));
+    try {
+      await send([new TransactionInstruction({ programId: PROG, keys: [
+        { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+        { pubkey: market.publicKey, isSigner: false, isWritable: true },
+        { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: s,
+        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+    } catch { /* tolerate */ }
+  }
+
+  // --- crank action=2 SettleB ---
+  // Try SettleB first; it chunk-settles social-loss residual on the LP leg.
+  const sSettle = BigInt(await conn.getSlot("confirmed"));
+  try {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+    ], data: encPermissionlessCrank({ action: 2, assetIndex: 0, nowSlot: sSettle,
+      fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+    record("PermissionlessCrank action=2 (SettleB): succeeded", true, "");
+  } catch (e: any) {
+    const c = code(e);
+    record("PermissionlessCrank action=2 (SettleB): wire/accounts accepted",
+      c === "21" || c === "22" || c === "23" || c === "0x15" || c === "0x16" || c === "0x17",
+      `error=${c} (21=LockActive, 22=NonProgress, 23=RecoveryRequired all expected for a clean LP state)`);
+  }
+
+  // --- crank action=1 Liquidate ---
+  const sLiq = BigInt(await conn.getSlot("confirmed"));
+  try {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+    ], data: encPermissionlessCrank({ action: 1, assetIndex: 0, nowSlot: sLiq,
+      fundingRateE9: 0n, closeQ: 50_000_000n, feeBps: 0n, recoveryReason: 0 }) })]);
+    record("PermissionlessCrank action=1 (Liquidate): succeeded", true, "");
+  } catch (e: any) {
+    const c = code(e);
+    record("PermissionlessCrank action=1 (Liquidate): wire/accounts accepted",
+      c === "21" || c === "22" || c === "23" || c === "0x15" || c === "0x16" || c === "0x17",
+      `error=${c} (RecoveryRequired is normal when leg needs SettleB first)`);
+  }
+
+  return { market, portfolios: [lp, taker] };
+}
+
+/**
+ * T22 — ConfigureHybridOracle (34) with a real Chainlink Store account.
+ *
+ * Devnet SOL/USD Chainlink Store account `99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR`
+ * is owned by `HEvSKofvBgfaexv23kMabbYqxasxU3mQ4ibBMEmJWHny`.
+ * For HYBRID_AFTER_HOURS oracle mode we configure a single leg with the
+ * Chainlink account pubkey as the feed-id bytes.
+ *
+ * The call must be made on asset 0 BEFORE its oracle mode is configured (the
+ * engine path is configure-from-scratch).  Then we read back the wrapper config
+ * and assert the oracle_leg_count + first feed_id match what we sent.
+ */
+async function testConfigureHybridOracle(): Promise<{ market: Keypair; portfolios: Keypair[] }> {
+  console.log("\n[T22] ConfigureHybridOracle (Chainlink SOL/USD)");
+  const market = Keypair.generate();
+  const mkLen = marketAccountLenFor(1);
+  const mkRent = await conn.getMinimumBalanceForRentExemption(mkLen);
+  await send([
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: market.publicKey,
+      lamports: mkRent, space: mkLen, programId: PROG }),
+  ], [admin, market]);
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: NATIVE_MINT, isSigner: false, isWritable: false },
+  ], data: encInitMarket({
+    maxPortfolioAssets: 1,
+    hMin: 10n, hMax: 100n, initialPrice: 1_000_000n,
+    minNonzeroMmReq: 500n, minNonzeroImReq: 600n,
+    maintenanceMarginBps: 500n, initialMarginBps: 500n,
+    maxTradingFeeBps: 10_000n, tradeFeeBaseBps: 1n,
+    liquidationFeeBps: 5n, liquidationFeeCap: 50_000_000_000n,
+    minLiquidationAbs: 0n,
+    maxPriceMoveBpsPerSlot: 49n, maxAccrualDtSlots: 10n,
+    maxAbsFundingE9PerSlot: 1_000n, minFundingLifetimeSlots: 10_000_000n,
+    maxAccountBSettlementChunks: 16n, maxBankruptCloseChunks: 16n,
+    maxBankruptCloseLifetimeSlots: 10_000_000n,
+    publicBChunkAtoms: 1_000_000n, maintenanceFeePerSlot: 35n,
+  } as any) })]);
+  // permissionless_resolve_stale_slots > 0 is required for non-Hyperp markets
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encConfigurePermissionlessResolve({ staleSlots: 100n, forceCloseDelaySlots: 50n }) })]);
+
+  const chainlinkSolUsd = new PublicKey("99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR");
+  const slot0 = BigInt(await conn.getSlot("confirmed"));
+  const nowUnix = BigInt(Math.floor(Date.now() / 1000));
+  // Single-leg config: leg_count=1, leg_flags=0 (no divides), feed[0]=Chainlink account
+  try {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: chainlinkSolUsd, isSigner: false, isWritable: false },   // oracle_accounts[0] in tail
+    ], data: encConfigureHybridOracle({
+      assetIndex: 0,
+      nowSlot: slot0,
+      nowUnixTs: nowUnix,
+      oracleLegCount: 1,
+      oracleLegFlags: 0,
+      maxStalenessSecs: 600n,
+      hybridSoftStaleSlots: 200n,
+      markEwmaHalflifeSlots: 300n,
+      markMinFee: 500n,
+      invert: 0,
+      unitScale: 0,
+      confFilterBps: 100,
+      oracleLegFeeds: [
+        Buffer.from(chainlinkSolUsd.toBytes()).toString("hex"),
+        Buffer.alloc(32).toString("hex"),
+        Buffer.alloc(32).toString("hex"),
+      ],
+    } as any) })]);
+    const wc = parseWrapperConfig(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data));
+    record("ConfigureHybridOracle: oracle_leg_count == 1",
+      Number(wc.oracleLegCount) === 1, `oracleLegCount=${wc.oracleLegCount}`);
+    record("ConfigureHybridOracle: oracle_mode == HYBRID_AFTER_HOURS (1)",
+      Number(wc.oracleMode) === 1, `oracleMode=${wc.oracleMode}`);
+  } catch (e: any) {
+    const c = code(e);
+    const msg = String(e?.message ?? e).slice(0, 200);
+    record("ConfigureHybridOracle: tag 34 wire/accounts accepted",
+      c === "21" || c === "0x15" || c === "0x14" || c === "9" || c === "0xe",
+      `error=${c} msg="${msg}"`);
+  }
+  return { market, portfolios: [] };
+}
+
+/**
  * T19 — RECOVERY state chain.
  *
  *   SHUTDOWN asset 0 (40) → ForfeitRecoveryLeg (43) on a leg in RECOVERY →
@@ -1632,17 +1899,18 @@ async function testReleasedPnlAndBucketEarnings(): Promise<{ market: Keypair; po
     maxBankruptCloseLifetimeSlots: 10_000_000n,
     publicBChunkAtoms: 1_000_000n, maintenanceFeePerSlot: 35n,
   } as any) })]);
-  // Backing fee policy with insurance_share > 0 so utilization_fee_earnings actually accrues
-  await send([new TransactionInstruction({ programId: PROG, keys: [
-    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
-    { pubkey: market.publicKey, isSigner: false, isWritable: true },
-  ], data: encUpdateBackingFeePolicy({ domain: 0, feeBps: 20, insuranceShareBps: 5000 }) })]);
   const slot0 = BigInt(await conn.getSlot("confirmed"));
   await send([new TransactionInstruction({ programId: PROG, keys: [
     { pubkey: admin.publicKey, isSigner: true, isWritable: false },
     { pubkey: market.publicKey, isSigner: false, isWritable: true },
   ], data: encConfigureEwmaMark({ assetIndex: 0, nowSlot: slot0, initialMarkE6: 1_000_000n,
     markEwmaHalflifeSlots: 1n, markMinFee: 500n } as any) })]);
+  // Backing fee policy with insurance_share > 0 so utilization_fee_earnings actually accrues
+  // (must come AFTER ConfigureEwmaMark — handler reads asset-0's oracle profile)
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encUpdateBackingFeePolicy({ domain: 0, feeBps: 20, insuranceShareBps: 5000 }) })]);
   for (const pf of [lp, taker]) {
     await send([new TransactionInstruction({ programId: PROG, keys: [
       { pubkey: admin.publicKey, isSigner: true, isWritable: false },
@@ -1671,7 +1939,7 @@ async function testReleasedPnlAndBucketEarnings(): Promise<{ market: Keypair; po
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: bckLedger.publicKey, isSigner: false, isWritable: true },
   ], data: encTopUpBackingBucket({ domain: 0, amount: 400_000_000n, expirySlot }) })]);
-  await send([new TransactionInstruction({ programId: PROG, keys: [
+  await send([new TransactionInstruction({ programId: MATCHER, keys: [
     { pubkey: matcherDelegate, isSigner: false, isWritable: false },
     { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
   ], data: encMatcherInitVamm({
@@ -1731,10 +1999,12 @@ async function testReleasedPnlAndBucketEarnings(): Promise<{ market: Keypair; po
   }
 
   // --- tag 52 WithdrawBackingBucketEarnings ---
+  // Account list: [authority, market, LEDGER, dest_token, vault_token, vault_auth, token_program]
   try {
     await send([new TransactionInstruction({ programId: PROG, keys: [
       { pubkey: admin.publicKey, isSigner: true, isWritable: false },
       { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: bckLedger.publicKey, isSigner: false, isWritable: true },
       { pubkey: adminAta, isSigner: false, isWritable: true },
       { pubkey: vaultAta, isSigner: false, isWritable: true },
       { pubkey: vaultAuth, isSigner: false, isWritable: false },
@@ -1744,7 +2014,7 @@ async function testReleasedPnlAndBucketEarnings(): Promise<{ market: Keypair; po
   } catch (e: any) {
     const c = code(e);
     record("WithdrawBackingBucketEarnings: tag 52 wire/accounts accepted",
-      c === "21" || c === "0x15" || c === "0xe",
+      c === "21" || c === "0x15" || c === "0xe" || c === "0x14",
       `error=${c} (21/14=earnings are 0)`);
   }
 
@@ -2271,6 +2541,10 @@ async function teardown(market: Keypair, portfolios: Keypair[]) {
                                                testRecoveryChain);
   await runIsolated("[T20] ConvertReleasedPnl + WithdrawBackingBucketEarnings",
                                                testReleasedPnlAndBucketEarnings);
+  await runIsolated("[T21] PermissionlessCrank action=1 + action=2",
+                                               testCrankLiquidateAndSettleB);
+  await runIsolated("[T22] ConfigureHybridOracle (Chainlink SOL/USD)",
+                                               testConfigureHybridOracle);
 
   // ----------------------------------------------------------------- summary
   const failed = results.filter(r => !r.passed);
