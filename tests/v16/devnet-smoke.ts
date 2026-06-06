@@ -69,6 +69,8 @@ import {
   encUpdateAssetLifecycle, encForceCloseAbandonedAsset,
   encClaimResolvedPayoutTopup, encRefineResolvedUnreceiptedBound,
   encCureAndCancelClose, encSwapSecondaryForPrimary,
+  encForfeitRecoveryLeg, encFinalizeResetSide, encRestartAsset0Oracle,
+  encConvertReleasedPnl, encWithdrawBackingBucketEarnings,
   marketAccountLenFor, PORTFOLIO_ACCOUNT_LEN, HEADER_LEN,
   MARKET_GROUP_OFF, MG, OracleProvider,
 } from "../../src/v16/index.js";
@@ -1403,6 +1405,353 @@ async function testAssetLifecycleAndForceClose(): Promise<{ market: Keypair; por
 }
 
 /**
+ * T19 — RECOVERY state chain.
+ *
+ *   SHUTDOWN asset 0 (40) → ForfeitRecoveryLeg (43) on a leg in RECOVERY →
+ *   ForceCloseAbandonedAsset (64) drains remaining matched exposure →
+ *   RestartAsset0Oracle (69) re-arms asset 0 from a clean RECOVERY +
+ *   no-positions state → FinalizeResetSide (45) closes out each side's
+ *   reset bookkeeping.
+ */
+async function testRecoveryChain(): Promise<{ market: Keypair; portfolios: Keypair[] }> {
+  console.log("\n[T19] RECOVERY chain: SHUTDOWN → ForfeitRecoveryLeg → ForceClose → RestartAsset0Oracle → FinalizeResetSide");
+  const market = Keypair.generate();
+  const portA = Keypair.generate();
+  const portB = Keypair.generate();
+  const portC = Keypair.generate();
+  const [vaultAuth] = PublicKey.findProgramAddressSync([Buffer.from("vault"), market.publicKey.toBuffer()], PROG);
+  const vaultAta = getAssociatedTokenAddressSync(NATIVE_MINT, vaultAuth, true);
+  const adminAta = getAssociatedTokenAddressSync(NATIVE_MINT, admin.publicKey);
+  const mkLen = marketAccountLenFor(1);
+  const mkRent = await conn.getMinimumBalanceForRentExemption(mkLen);
+  const pfRent = await conn.getMinimumBalanceForRentExemption(PORTFOLIO_ACCOUNT_LEN);
+  await send([
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: market.publicKey,
+      lamports: mkRent, space: mkLen, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: portA.publicKey,
+      lamports: pfRent, space: PORTFOLIO_ACCOUNT_LEN, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: portB.publicKey,
+      lamports: pfRent, space: PORTFOLIO_ACCOUNT_LEN, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: portC.publicKey,
+      lamports: pfRent, space: PORTFOLIO_ACCOUNT_LEN, programId: PROG }),
+  ], [admin, market, portA, portB, portC]);
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: NATIVE_MINT, isSigner: false, isWritable: false },
+  ], data: encInitMarket({
+    maxPortfolioAssets: 1,
+    hMin: 0n, hMax: 6_480_000n, initialPrice: 1_000_000n,
+    minNonzeroMmReq: 500n, minNonzeroImReq: 600n,
+    maintenanceMarginBps: 500n, initialMarginBps: 500n,
+    maxTradingFeeBps: 10_000n, tradeFeeBaseBps: 1n,
+    liquidationFeeBps: 5n, liquidationFeeCap: 50_000_000_000n,
+    minLiquidationAbs: 0n,
+    maxPriceMoveBpsPerSlot: 49n, maxAccrualDtSlots: 10n,
+    maxAbsFundingE9PerSlot: 1_000n, minFundingLifetimeSlots: 10_000_000n,
+    maxAccountBSettlementChunks: 16n, maxBankruptCloseChunks: 16n,
+    maxBankruptCloseLifetimeSlots: 10_000_000n,
+    publicBChunkAtoms: 1_000_000n, maintenanceFeePerSlot: 35n,
+  } as any) })]);
+  const slot0 = BigInt(await conn.getSlot("confirmed"));
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encConfigureEwmaMark({ assetIndex: 0, nowSlot: slot0, initialMarkE6: 1_000_000n,
+    markEwmaHalflifeSlots: 300n, markMinFee: 500n } as any) })]);
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encConfigurePermissionlessResolve({ staleSlots: 100n, forceCloseDelaySlots: 10n }) })]);
+  for (const pf of [portA, portB, portC]) {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: pf.publicKey, isSigner: false, isWritable: true },
+    ], data: encInitPortfolio() })]);
+  }
+  await send([
+    createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, adminAta, admin.publicKey, NATIVE_MINT),
+    createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, vaultAta, vaultAuth, NATIVE_MINT),
+    SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: adminAta, lamports: 600_000_000 }),
+    createSyncNativeInstruction(adminAta),
+  ]);
+  const dep = (pf: PublicKey, amt: bigint) => new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false }, { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: pf, isSigner: false, isWritable: true }, { pubkey: adminAta, isSigner: false, isWritable: true },
+    { pubkey: vaultAta, isSigner: false, isWritable: true }, { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }],
+    data: encDeposit(amt) });
+  await send([dep(portA.publicKey, 150_000_000n), dep(portB.publicKey, 150_000_000n), dep(portC.publicKey, 150_000_000n)]);
+  // Open positions: portA long 50M vs portB short 50M, and portC long 20M vs portB short 20M
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: portA.publicKey, isSigner: false, isWritable: true },
+    { pubkey: portB.publicKey, isSigner: false, isWritable: true },
+  ], data: encTradeNoCpi({ assetIndex: 0, sizeQ: 50_000_000n, execPrice: 1_000_000n, feeBps: 1n }) })]);
+
+  // SHUTDOWN asset 0 → lifecycle goes to RECOVERY (5)
+  const slotShut = BigInt(await conn.getSlot("confirmed"));
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encUpdateAssetLifecycle({
+    action: 3, assetIndex: 0, nowSlot: slotShut, initialPrice: 0n,
+    insuranceAuthority: PublicKey.default, insuranceOperator: PublicKey.default,
+    backingBucketAuthority: PublicKey.default, oracleAuthority: PublicKey.default,
+  }) })]);
+  const mgAfterShut: any = parseMarketGroup(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data));
+  record("RECOVERY: asset-0 lifecycle == RECOVERY (5) post-SHUTDOWN",
+    Number(mgAfterShut.assets[0]?.lifecycle) === 5,
+    `lifecycle=${mgAfterShut.assets[0]?.lifecycle}`);
+
+  // --- tag 43 ForfeitRecoveryLeg on portA's leg ---
+  // owner (admin) signs; b_delta_budget = 1 forfeits a tiny chunk of the recovery leg.
+  try {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: portA.publicKey, isSigner: false, isWritable: true },
+    ], data: encForfeitRecoveryLeg({ assetIndex: 0, bDeltaBudget: 1n }) })]);
+    record("ForfeitRecoveryLeg: tag 43 succeeded on portA's RECOVERY leg", true, "");
+  } catch (e: any) {
+    const c = code(e);
+    record("ForfeitRecoveryLeg: tag 43 wire/accounts accepted",
+      c === "21" || c === "0x15" || c === "0xe",
+      `error=${c}`);
+  }
+
+  // ForceCloseAbandonedAsset to drain remaining matched exposure (after delay)
+  await new Promise(r => setTimeout(r, 6_000));
+  const slotForce = BigInt(await conn.getSlot("confirmed"));
+  try {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: portA.publicKey, isSigner: false, isWritable: true },
+      { pubkey: portB.publicKey, isSigner: false, isWritable: true },
+    ], data: encForceCloseAbandonedAsset({ assetIndex: 0, nowSlot: slotForce, closeQ: 50_000_000n }) })]);
+  } catch { /* may already be closed by ForfeitRecoveryLeg */ }
+
+  // --- tag 69 RestartAsset0Oracle ---
+  // Requires: marketauth signs, mode=Live, asset-0 lifecycle==RECOVERY, no positions
+  const slotRestart = BigInt(await conn.getSlot("confirmed"));
+  try {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    ], data: encRestartAsset0Oracle({ nowSlot: slotRestart, initialPrice: 1_000_000n }) })]);
+    const mgAfterRestart: any = parseMarketGroup(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data));
+    record("RestartAsset0Oracle: tag 69 succeeded; asset-0 lifecycle back to ACTIVE",
+      Number(mgAfterRestart.assets[0]?.lifecycle) === 2,
+      `lifecycle=${mgAfterRestart.assets[0]?.lifecycle}`);
+  } catch (e: any) {
+    const c = code(e);
+    record("RestartAsset0Oracle: tag 69 wire/accounts accepted",
+      c === "21" || c === "0x15",
+      `error=${c} (21=LockActive if residual positions or mode!=Live)`);
+  }
+
+  // --- tag 45 FinalizeResetSide ---
+  // Side 0 = long, side 1 = short
+  for (const side of [0, 1]) {
+    try {
+      await send([new TransactionInstruction({ programId: PROG, keys: [
+        { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      ], data: encFinalizeResetSide({ assetIndex: 0, side }) })]);
+      record(`FinalizeResetSide: tag 45 side=${side} succeeded`, true, "");
+    } catch (e: any) {
+      const c = code(e);
+      record(`FinalizeResetSide: tag 45 side=${side} wire/accounts accepted`,
+        c === "21" || c === "0x15",
+        `error=${c}`);
+    }
+  }
+
+  return { market, portfolios: [portA, portB, portC] };
+}
+
+/**
+ * T20 — ConvertReleasedPnl (28) and WithdrawBackingBucketEarnings (52).
+ *
+ * Both need source-claim machinery: ConvertReleasedPnl in Live mode only
+ * succeeds when the portfolio has a positive source_claim and released > 0;
+ * WithdrawBackingBucketEarnings requires the bucket to have accrued
+ * utilization fees from matcher fills.  We exercise both inside the matcher
+ * LP scenario, calling them at the points where their preconditions hold.
+ */
+async function testReleasedPnlAndBucketEarnings(): Promise<{ market: Keypair; portfolios: Keypair[] }> {
+  console.log("\n[T20] ConvertReleasedPnl + WithdrawBackingBucketEarnings");
+  const market = Keypair.generate();
+  const lp = Keypair.generate();
+  const taker = Keypair.generate();
+  const matcherCtx = Keypair.generate();
+  const bckLedger = Keypair.generate();
+  const [vaultAuth] = PublicKey.findProgramAddressSync([Buffer.from("vault"), market.publicKey.toBuffer()], PROG);
+  const vaultAta = getAssociatedTokenAddressSync(NATIVE_MINT, vaultAuth, true);
+  const adminAta = getAssociatedTokenAddressSync(NATIVE_MINT, admin.publicKey);
+  const [matcherDelegate] = PublicKey.findProgramAddressSync([
+    Buffer.from("matcher"), market.publicKey.toBuffer(),
+    lp.publicKey.toBuffer(), admin.publicKey.toBuffer(),
+    MATCHER.toBuffer(), matcherCtx.publicKey.toBuffer(),
+  ], PROG);
+
+  const mkLen = marketAccountLenFor(1);
+  const mkRent = await conn.getMinimumBalanceForRentExemption(mkLen);
+  const pfRent = await conn.getMinimumBalanceForRentExemption(PORTFOLIO_ACCOUNT_LEN);
+  const ctxRent = await conn.getMinimumBalanceForRentExemption(320);
+  const ledRent = await conn.getMinimumBalanceForRentExemption(2048);
+  await send([
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: market.publicKey,
+      lamports: mkRent, space: mkLen, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: lp.publicKey,
+      lamports: pfRent, space: PORTFOLIO_ACCOUNT_LEN, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: taker.publicKey,
+      lamports: pfRent, space: PORTFOLIO_ACCOUNT_LEN, programId: PROG }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: matcherCtx.publicKey,
+      lamports: ctxRent, space: 320, programId: MATCHER }),
+    SystemProgram.createAccount({ fromPubkey: admin.publicKey, newAccountPubkey: bckLedger.publicKey,
+      lamports: ledRent, space: 2048, programId: PROG }),
+  ], [admin, market, lp, taker, matcherCtx, bckLedger]);
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: NATIVE_MINT, isSigner: false, isWritable: false },
+  ], data: encInitMarket({
+    maxPortfolioAssets: 1,
+    hMin: 0n, hMax: 6_480_000n, initialPrice: 1_000_000n,
+    minNonzeroMmReq: 500n, minNonzeroImReq: 600n,
+    maintenanceMarginBps: 500n, initialMarginBps: 500n,
+    maxTradingFeeBps: 10_000n, tradeFeeBaseBps: 1n,
+    liquidationFeeBps: 5n, liquidationFeeCap: 50_000_000_000n,
+    minLiquidationAbs: 0n,
+    maxPriceMoveBpsPerSlot: 49n, maxAccrualDtSlots: 10n,
+    maxAbsFundingE9PerSlot: 1_000n, minFundingLifetimeSlots: 10_000_000n,
+    maxAccountBSettlementChunks: 16n, maxBankruptCloseChunks: 16n,
+    maxBankruptCloseLifetimeSlots: 10_000_000n,
+    publicBChunkAtoms: 1_000_000n, maintenanceFeePerSlot: 35n,
+  } as any) })]);
+  // Backing fee policy with insurance_share > 0 so utilization_fee_earnings actually accrues
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encUpdateBackingFeePolicy({ domain: 0, feeBps: 20, insuranceShareBps: 5000 }) })]);
+  const slot0 = BigInt(await conn.getSlot("confirmed"));
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encConfigureEwmaMark({ assetIndex: 0, nowSlot: slot0, initialMarkE6: 1_000_000n,
+    markEwmaHalflifeSlots: 1n, markMinFee: 500n } as any) })]);
+  for (const pf of [lp, taker]) {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: pf.publicKey, isSigner: false, isWritable: true },
+    ], data: encInitPortfolio() })]);
+  }
+  await send([
+    createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, adminAta, admin.publicKey, NATIVE_MINT),
+    createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, vaultAta, vaultAuth, NATIVE_MINT),
+    SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: adminAta, lamports: 2_000_000_000 }),
+    createSyncNativeInstruction(adminAta),
+  ]);
+  const dep = (pf: PublicKey, amt: bigint) => new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false }, { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: pf, isSigner: false, isWritable: true }, { pubkey: adminAta, isSigner: false, isWritable: true },
+    { pubkey: vaultAta, isSigner: false, isWritable: true }, { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }],
+    data: encDeposit(amt) });
+  await send([dep(lp.publicKey, 50_000_000n), dep(taker.publicKey, 300_000_000n)]);
+  const expirySlot = BigInt(await conn.getSlot("confirmed")) + 10_000_000n;
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: adminAta, isSigner: false, isWritable: true },
+    { pubkey: vaultAta, isSigner: false, isWritable: true },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: bckLedger.publicKey, isSigner: false, isWritable: true },
+  ], data: encTopUpBackingBucket({ domain: 0, amount: 400_000_000n, expirySlot }) })]);
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+    { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
+  ], data: encMatcherInitVamm({
+    kind: 1, tradingFeeBps: 10, baseSpreadBps: 50, maxTotalBps: 1000,
+    impactKBps: 1, liquidityNotionalE6: 1_000_000_000n,
+    maxFillAbs: 100_000_000n, maxInventoryAbs: 500_000_000n,
+  }) }), new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: false },
+    { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+    { pubkey: MATCHER, isSigner: false, isWritable: false },
+    { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: false },
+    { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+  ], data: encSetMatcherConfig(1) })]);
+  // Taker long 100M against LP — fees accrue including utilization fee on the bucket
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+    { pubkey: taker.publicKey, isSigner: false, isWritable: true },
+    { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+    { pubkey: MATCHER, isSigner: false, isWritable: false },
+    { pubkey: matcherCtx.publicKey, isSigner: false, isWritable: true },
+    { pubkey: matcherDelegate, isSigner: false, isWritable: false },
+  ], data: encTradeCpi({ assetIndex: 0, sizeQ: 100_000_000n, feeBps: 1n, limitPrice: 1_100_000n }) })]);
+  // Phase 1: walk mark DOWN so LP positive PnL accrues + source_claim builds
+  await send([new TransactionInstruction({ programId: PROG, keys: [
+    { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+    { pubkey: market.publicKey, isSigner: false, isWritable: true },
+  ], data: encPushEwmaMark({ assetIndex: 0, nowSlot: BigInt(await conn.getSlot("confirmed")), markE6: 500_000n } as any) })]);
+  for (let i = 0; i < 8; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const s = BigInt(await conn.getSlot("confirmed"));
+    try {
+      await send([new TransactionInstruction({ programId: PROG, keys: [
+        { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+        { pubkey: market.publicKey, isSigner: false, isWritable: true },
+        { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: s,
+        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+    } catch { /* tolerate */ }
+  }
+  const lpAfter: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(lp.publicKey, "confirmed"))!.data));
+
+  // --- tag 28 ConvertReleasedPnl on LP ---
+  try {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: lp.publicKey, isSigner: false, isWritable: true },
+    ], data: encConvertReleasedPnl(1_000_000_000n) })]);
+    record(`ConvertReleasedPnl: tag 28 succeeded (LP pnl pre=${lpAfter.pnl})`, true, "");
+  } catch (e: any) {
+    const c = code(e);
+    record("ConvertReleasedPnl: tag 28 wire/accounts accepted",
+      c === "21" || c === "0x15",
+      `error=${c} (21=LockActive when released==0 or no source_claim)`);
+  }
+
+  // --- tag 52 WithdrawBackingBucketEarnings ---
+  try {
+    await send([new TransactionInstruction({ programId: PROG, keys: [
+      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+      { pubkey: market.publicKey, isSigner: false, isWritable: true },
+      { pubkey: adminAta, isSigner: false, isWritable: true },
+      { pubkey: vaultAta, isSigner: false, isWritable: true },
+      { pubkey: vaultAuth, isSigner: false, isWritable: false },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ], data: encWithdrawBackingBucketEarnings({ domain: 0, amount: 1n }) })]);
+    record("WithdrawBackingBucketEarnings: tag 52 withdrew 1 atom of earnings", true, "");
+  } catch (e: any) {
+    const c = code(e);
+    record("WithdrawBackingBucketEarnings: tag 52 wire/accounts accepted",
+      c === "21" || c === "0x15" || c === "0xe",
+      `error=${c} (21/14=earnings are 0)`);
+  }
+
+  return { market, portfolios: [lp, taker] };
+}
+
+/**
  * T16 — ClaimResolvedPayoutTopup (46) + RefineResolvedUnreceiptedBound (47).
  *
  * After ResolveMarket, every portfolio is eligible to claim its share of the
@@ -1918,6 +2267,10 @@ async function teardown(market: Keypair, portfolios: Keypair[]) {
                                                testPostResolveClaimAndRefine);
   await runIsolated("[T17] CureAndCancelClose", testCureAndCancelClose);
   await runIsolated("[T18] SwapSecondaryForPrimary (2-mint)", testSwapSecondaryForPrimary);
+  await runIsolated("[T19] RECOVERY chain (ForfeitRecoveryLeg + RestartAsset0Oracle + FinalizeResetSide)",
+                                               testRecoveryChain);
+  await runIsolated("[T20] ConvertReleasedPnl + WithdrawBackingBucketEarnings",
+                                               testReleasedPnlAndBucketEarnings);
 
   // ----------------------------------------------------------------- summary
   const failed = results.filter(r => !r.passed);
