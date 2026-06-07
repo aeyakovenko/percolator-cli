@@ -237,41 +237,50 @@ export const AS = {
   mode_short: 498,
 } as const;
 
-// ---------- Portfolio (9,179 B state + 16 B header + 104 B matcher config tail = 9,299 total) ----------
-// PortfolioAccountV16Account shrank from 22,363 → 9,179; source-domain claims
-// compacted into a fixed inline sparse array (32 slots × 196 B = 6,272 B).
+// ---------- Portfolio (9,227 B state + 16 B header + 104 B matcher config tail = 9,347 total) ----------
+// PortfolioAccountV16Account shrank from 22,363 → 9,179 (source-domain claims
+// compacted into a fixed inline sparse array, 32 slots × 196 B = 6,272 B).
 // 7144d9b: appended 104-byte PortfolioMatcherConfigV16 tail (matcher_program +
 // matcher_context + matcher_delegate + enabled u8 + 7 B padding).
-export const PORTFOLIO_STATE_LEN = 9179;
-export const PORTFOLIO_ENGINE_ACCOUNT_LEN = HEADER_LEN + PORTFOLIO_STATE_LEN; // 9195
+// 0f87dcb: PortfolioAccount header gained 48 bytes (3 × u128) for monotonic
+// residual-reward counters between reserved_pnl and fee_credits:
+//   residual_crystallized_loss_atoms_total  (180..196)
+//   residual_spent_principal_atoms_total    (196..212)
+//   residual_received_atoms_total           (212..228)
+// All later fields shifted by 48 bytes; PORTFOLIO_STATE_LEN: 9179 → 9227.
+export const PORTFOLIO_STATE_LEN = 9227;
+export const PORTFOLIO_ENGINE_ACCOUNT_LEN = HEADER_LEN + PORTFOLIO_STATE_LEN; // 9243
 export const PORTFOLIO_MATCHER_CONFIG_LEN = 104;
-export const PORTFOLIO_MATCHER_CONFIG_OFF = PORTFOLIO_ENGINE_ACCOUNT_LEN; // 9195
-export const PORTFOLIO_ACCOUNT_LEN = PORTFOLIO_ENGINE_ACCOUNT_LEN + PORTFOLIO_MATCHER_CONFIG_LEN; // 9299
+export const PORTFOLIO_MATCHER_CONFIG_OFF = PORTFOLIO_ENGINE_ACCOUNT_LEN; // 9243
+export const PORTFOLIO_ACCOUNT_LEN = PORTFOLIO_ENGINE_ACCOUNT_LEN + PORTFOLIO_MATCHER_CONFIG_LEN; // 9347
 export const PORTFOLIO_STATE_OFF = HEADER_LEN; // 16
 
 // PortfolioAccountV16Account inline field offsets (within state region):
-// legs[16] at 228 (16 × 144 = 2304 → ends at 2532)
-// source_domains[32] at 2532 (32 × 196 = 6272 → ends at 8804)
+// legs[16] at 276 (16 × 144 = 2304 → ends at 2580)
+// source_domains[32] at 2580 (32 × 196 = 6272 → ends at 8852)
 // then health_cert(121) close_progress(184) resolved_payout_receipt(66).
 export const PA = {
-  provenance_header: 0,                // 100 B
-  owner: 100,                          // 32 B
-  capital: 132,                        // u128
-  pnl: 148,                            // i128
-  reserved_pnl: 164,
-  fee_credits: 180,                    // i128
-  cancel_deposit_escrow: 196,
-  last_fee_slot: 212,                  // u64
-  active_bitmap: 220,                  // [u64; 1]
-  legs: 228,                           // 16 × 144 = 2304 → ends at 2532
-  source_domains: 2532,                // 32 × 196 = 6272 → ends at 8804
-  health_cert: 8804,                   // 121 B
-  stale_state: 8925,                   // u8
-  b_stale_state: 8926,                 // u8
-  rebalance_lock: 8927,                // u8
-  liquidation_lock: 8928,              // u8
-  close_progress: 8929,                // 184 B
-  resolved_payout_receipt: 9113,       // 66 B → struct end at 9179
+  provenance_header: 0,                          // 100 B
+  owner: 100,                                    // 32 B
+  capital: 132,                                  // u128
+  pnl: 148,                                      // i128
+  reserved_pnl: 164,                             // u128
+  residual_crystallized_loss_atoms_total: 180,   // u128  (NEW in 0f87dcb)
+  residual_spent_principal_atoms_total: 196,     // u128  (NEW in 0f87dcb)
+  residual_received_atoms_total: 212,            // u128  (NEW in 0f87dcb)
+  fee_credits: 228,                              // i128
+  cancel_deposit_escrow: 244,                    // u128
+  last_fee_slot: 260,                            // u64
+  active_bitmap: 268,                            // [u64; 1]
+  legs: 276,                                     // 16 × 144 = 2304 → ends at 2580
+  source_domains: 2580,                          // 32 × 196 = 6272 → ends at 8852
+  health_cert: 8852,                             // 121 B
+  stale_state: 8973,                             // u8
+  b_stale_state: 8974,                           // u8
+  rebalance_lock: 8975,                          // u8
+  liquidation_lock: 8976,                        // u8
+  close_progress: 8977,                          // 184 B
+  resolved_payout_receipt: 9161,                 // 66 B → struct end at 9227
 } as const;
 
 // ---------- PortfolioLegV16Account (144 B, unchanged) ----------

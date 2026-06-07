@@ -359,7 +359,7 @@ export interface TopUpBackingBucketArgs {
 export function encTopUpBackingBucket(a: TopUpBackingBucketArgs): Buffer {
   return Buffer.concat([
     u8(TAG.TopUpBackingBucket),
-    u8(a.domain),
+    u16le(a.domain),                  // widened u8→u16 in 0f87dcb
     u128le(a.amount),
     u64le(a.expirySlot),
   ]);
@@ -413,7 +413,7 @@ export function encUpdateMaintenanceFeePolicy(crankerShareBps: number): Buffer {
 // Accounts: [authority(signer), market, dest_token, vault_token, vault_authority, token_program]
 export interface WithdrawBackingBucketArgs { domain: number; amount: bigint; }
 export function encWithdrawBackingBucket(a: WithdrawBackingBucketArgs): Buffer {
-  return Buffer.concat([u8(TAG.WithdrawBackingBucket), u8(a.domain), u128le(a.amount)]);
+  return Buffer.concat([u8(TAG.WithdrawBackingBucket), u16le(a.domain), u128le(a.amount)]);
 }
 
 export interface ConfigurePermissionlessResolveArgs {
@@ -532,14 +532,14 @@ export function encPushAuthMark(a: PushAuthMarkArgs): Buffer {
 // 51 UpdateBackingFeePolicy — admin sets per-domain backing-trade-fee policy.
 // Accounts: [admin(signer), market]
 export interface UpdateBackingFeePolicyArgs {
-  domain: number;            // u8 (asset_index*2 + side)
+  domain: number;            // u16 (asset_index*2 + side; widened in 0f87dcb)
   feeBps: number;            // u16
   insuranceShareBps: number; // u16
 }
 export function encUpdateBackingFeePolicy(a: UpdateBackingFeePolicyArgs): Buffer {
   return Buffer.concat([
     u8(TAG.UpdateBackingFeePolicy),
-    u8(a.domain), u16le(a.feeBps), u16le(a.insuranceShareBps),
+    u16le(a.domain), u16le(a.feeBps), u16le(a.insuranceShareBps),
   ]);
 }
 
@@ -547,13 +547,13 @@ export function encUpdateBackingFeePolicy(a: UpdateBackingFeePolicyArgs): Buffer
 // Accounts: [authority(signer), market, dest_token, vault_token, vault_authority, token_program]
 export interface WithdrawBackingBucketEarningsArgs { domain: number; amount: bigint; }
 export function encWithdrawBackingBucketEarnings(a: WithdrawBackingBucketEarningsArgs): Buffer {
-  return Buffer.concat([u8(TAG.WithdrawBackingBucketEarnings), u8(a.domain), u128le(a.amount)]);
+  return Buffer.concat([u8(TAG.WithdrawBackingBucketEarnings), u16le(a.domain), u128le(a.amount)]);
 }
 
 // 53 SyncBackingDomainLedger — refresh a BackingDomainLedger account's counters.
 // Accounts: [market, ledger]
 export function encSyncBackingDomainLedger(domain: number): Buffer {
-  return Buffer.concat([u8(TAG.SyncBackingDomainLedger), u8(domain)]);
+  return Buffer.concat([u8(TAG.SyncBackingDomainLedger), u16le(domain)]);
 }
 
 // 54 SyncInsuranceLedger — refresh an InsuranceLedger account's counters.
@@ -581,7 +581,7 @@ export function encUpdateTradeFeePolicy(tradeFeeBaseBps: bigint): Buffer {
 // Accounts: [signer, market, source_token, vault_token, token_program, (opt) ledger]
 export interface TopUpInsuranceDomainArgs { domain: number; amount: bigint; }
 export function encTopUpInsuranceDomain(a: TopUpInsuranceDomainArgs): Buffer {
-  return Buffer.concat([u8(TAG.TopUpInsuranceDomain), u8(a.domain), u128le(a.amount)]);
+  return Buffer.concat([u8(TAG.TopUpInsuranceDomain), u16le(a.domain), u128le(a.amount)]);
 }
 
 // 57 WithdrawInsuranceAsset — withdraw from the asset's funded long+short

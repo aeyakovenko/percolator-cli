@@ -412,7 +412,13 @@ export function parseLeg(data: Buffer, baseOff: number, index: number): Leg {
   };
 }
 
-// ---------- PortfolioAccountV16 (9179 B state + 16 B header) ----------
+// ---------- PortfolioAccountV16 (9227 B state + 16 B header) ----------
+// 0f87dcb added three u128 residual-reward counters between reserved_pnl and
+// fee_credits.  The invariant is `residualSpentPrincipalAtomsTotal <=
+// residualCrystallizedLossAtomsTotal` (shape-validated); the third counter
+// is monotonic and accumulates the LP/counterparty's reward credits across
+// every matched-fill leg of TradeNoCpi / TradeCpi / BatchTradeNoCpi /
+// BatchTradeCpi.  None of the three counters affect solvency/margin.
 export interface Portfolio {
   marketGroupId: PublicKey;
   portfolioAccountId: PublicKey;
@@ -420,6 +426,9 @@ export interface Portfolio {
   capital: bigint;
   pnl: bigint;
   reservedPnl: bigint;
+  residualCrystallizedLossAtomsTotal: bigint;   // u128 (NEW in 0f87dcb)
+  residualSpentPrincipalAtomsTotal: bigint;     // u128 (NEW)
+  residualReceivedAtomsTotal: bigint;           // u128 (NEW)
   feeCredits: bigint;
   cancelDepositEscrow: bigint;
   lastFeeSlot: bigint;
@@ -449,6 +458,9 @@ export function parsePortfolio(data: Buffer): Portfolio {
     capital: u128(data, b + PA.capital),
     pnl: i128(data, b + PA.pnl),
     reservedPnl: u128(data, b + PA.reserved_pnl),
+    residualCrystallizedLossAtomsTotal: u128(data, b + PA.residual_crystallized_loss_atoms_total),
+    residualSpentPrincipalAtomsTotal: u128(data, b + PA.residual_spent_principal_atoms_total),
+    residualReceivedAtomsTotal: u128(data, b + PA.residual_received_atoms_total),
     feeCredits: i128(data, b + PA.fee_credits),
     cancelDepositEscrow: u128(data, b + PA.cancel_deposit_escrow),
     lastFeeSlot: u64(data, b + PA.last_fee_slot),
