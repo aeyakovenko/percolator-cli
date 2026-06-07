@@ -98,21 +98,24 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   71aaf7c262f6da16fb21b7576db70051fc7d655731184e961731aaf3e5fe6b7d
-BPF binary size:      1,035,008 bytes ELF
-percolator-prog:      5349b2f  ('Bump engine restart API' — pins percolator
-                       engine to 74f7b73. Behavior changes since the last
-                       deploy (2c7035f) are 0cf5134 'Unify live insurance
-                       withdrawal by asset' (tags 23 + 33 DELETED, tag 57
-                       renamed WithdrawInsuranceDomain → WithdrawInsuranceAsset
-                       with wire change u8 domain → u16 asset_index) and
-                       5469b2c 'Make asset oracle restart uniform' (tag 69
-                       renamed RestartAsset0Oracle → RestartAssetOracle with
-                       prepended u16 asset_index, now uniform across asset 0
-                       and permissionless assets 1..N). 946e559 adds an
-                       inactive-domain topup guard; 926d2ca / e20a381 / 5349b2f
-                       are tests-only + engine pin bumps.)
-prior:                2c7035f / BPF 58d155fa… / 1,047,480 B (matcher config moves into LP portfolio tail — 7144d9b)
+BPF binary SHA-256:   cbcd8b8d9d37eca60626c3aa13cee85c1a6e39e9699858a4af044e1e0f1f6024
+BPF binary size:      1,050,104 bytes ELF
+percolator-prog:      0f87dcb  ('Bump engine and cover residual reward counters'.
+                       Adds 48 bytes (3 × u128) to PortfolioAccountV16Account
+                       header for account-level monotonic residual reward
+                       counters: residual_crystallized_loss_atoms_total,
+                       residual_spent_principal_atoms_total, and
+                       residual_received_atoms_total. The wrapper shape-
+                       validates the invariant `spent <= crystallized`; the
+                       counters never affect solvency or margin. Same commit
+                       widens `domain` from u8 to u16 on six instructions:
+                       TopUpBackingBucket (24), WithdrawBackingBucket (50),
+                       UpdateBackingFeePolicy (51), WithdrawBackingBucketEarnings
+                       (52), SyncBackingDomainLedger (53), TopUpInsuranceDomain
+                       (56). 7dedb03 'Bump engine and use proven wrapper APIs'
+                       is an internal refactor only.)
+prior:                5349b2f / BPF 71aaf7c2… / 1,035,008 B (insurance API unified — 0cf5134; oracle restart uniform — 5469b2c)
+                      2c7035f / BPF 58d155fa… / 1,047,480 B (matcher config moves into LP portfolio tail — 7144d9b)
                       8306372 / BPF 1c1ca8ff… /   978,504 B (deterministic backing residual reward counter)
                       6da5d8c / BPF 5c6625df… /   978,504 B (asset restart byte-hygiene tests)
                       b469dae / BPF 3acd544c… /   971,344 B (matcher PDA binding + oracle-lag insurance gate)
@@ -122,24 +125,30 @@ prior:                2c7035f / BPF 58d155fa… / 1,047,480 B (matcher config mo
                       c050578 / BPF 11eafaf1… /   952,544 B (had try_empty warning)
                       0a631cf / BPF b0cc3f80… /   952,272 B (deployed 2026-06-04)
                       70294cb / BPF 1aedbfa2… /   918,184 B (deployed 2026-06-03)
-engine pin:           74f7b73  ('Bump engine restart API' bumped the engine
-                       from 4897680 — required by the unified asset-oracle
-                       restart API in 5469b2c).
+engine pin:           58dc1180  (bumped in 0f87dcb; required by the new
+                       account-residual-reward counters in the engine).
 Removed tags:         23 WithdrawInsuranceLimited and 33 UpdateInsurancePolicy
-                       are GONE in the deployed wrapper (the entire policy /
-                       cooldown / deposits_only / max_bps surface was deleted
-                       in 0cf5134). Callers using tags 23/33 now get
-                       InvalidInstructionData.
+                       are GONE (deleted in 0cf5134). Callers using tags
+                       23/33 now get InvalidInstructionData.
+Wire breaking change (0f87dcb): `domain` widened u8 → u16 on tags
+                       24, 50, 51, 52, 53, 56. Old encoders are off-by-one
+                       and get InvalidInstructionData; the CLI's TS
+                       encoders are updated.
 Layout:               marketauth-collapse (commit 792256b)
                       + asset-0 unified with assets 1..N (commit dba87a9)
                       + matcher-config tail on portfolios (commit 7144d9b)
+                      + 48 B residual-reward counter block (commit 0f87dcb)
                       WrapperConfigV16  = 432 B  (insurance_withdraw_* fields
                                           retained as zeroed slots — layout
                                           stable across the 0cf5134 deletion)
-                      MarketGroupHeader = 710 B  (was 638 B; engine accounting block)
-                      PortfolioAccount  = 9,299 B  (was 9,195 B; +104 B matcher
-                                          config tail that records matcher_program,
-                                          matcher_context, matcher_delegate, enabled)
+                      MarketGroupHeader = 710 B  (engine accounting block)
+                      PortfolioAccount  = 9,347 B  (was 9,299 B; +48 B
+                                          residual-reward counter block
+                                          between reserved_pnl and fee_credits)
+                          residual_crystallized_loss_atoms_total at offset 180
+                          residual_spent_principal_atoms_total   at offset 196
+                          residual_received_atoms_total          at offset 212
+                          fee_credits …                          at offset 228
                       DEFAULT_MARKET_SLOT_CAPACITY = 1  (market reallocs on asset activate)
 MARKET_ACCOUNT_LEN:   2,955 B for a 1-slot market = 448 (header+config)
                                                  + 710 (MG header)
@@ -150,13 +159,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 5349b2f
+cd percolator-prog && git checkout 0f87dcb
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 71aaf7c262f6da16fb21b7576db70051fc7d655731184e961731aaf3e5fe6b7d
+#   Expected: cbcd8b8d9d37eca60626c3aa13cee85c1a6e39e9699858a4af044e1e0f1f6024
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 1035008 /tmp/deployed.so | sha256sum   # must match
+head -c 1050104 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
