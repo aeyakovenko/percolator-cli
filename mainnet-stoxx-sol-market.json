@@ -1,16 +1,16 @@
 {
   "network": "mainnet",
   "programId": "4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi",
-  "market": "4AXbMuJzrUv5KtVs6zc5jDtXTB4XKhKtEBGU6BmkVut4",
-  "vaultPda": "84o6UPbT4WbhYiK3aWFWCwBeMDc79zB7rbY8fY8Nby53",
+  "market": "HgpvbLJhEZhtDAR25XWnGYMAr7MKMT1Zzpv5HGUrzbVq",
+  "vaultPda": "8pav89e94hQ2MSpJ4B1abthf9sgLs8UDzACz2hm1BqwD",
   "admin": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "collateralMint": "So11111111111111111111111111111111111111112",
-  "layout": "current wrapper d445710 (engine 58dc1180); fe69816 fix #113: maintenance fee credited to asset-0 only (was 1/N split across active assets — permissionless siphon fixed). PortfolioAccount 9,347 B with residual-reward counter block; domain u16 on tags 24/50/51/52/53/56; tags 23+33 deleted; tag 57 WithdrawInsuranceAsset; tag 69 RestartAssetOracle.",
-  "wrapperCommit": "d445710",
-  "enginePin": "58dc1180",
-  "bpf": "e84e93297a63b5cc83df6bb0633df9336dbdb9db215fc8a0ab5985925178e04a",
-  "bpfSize": 1046736,
-  "bpfPrior": "cbcd8b8d9d37eca60626c3aa13cee85c1a6e39e9699858a4af044e1e0f1f6024",
+  "layout": "current wrapper d5e4c256/ce073dc engine (MG 726B / WC 432B / PA 9347B / asset slot stride 1797B)",
+  "wrapperCommit": "5e4c256",
+  "enginePin": "ce073dc",
+  "bpf": "e977024b60aeb9648981d61bca9ec8996c32951ddac436d6c207b4f81be22cef",
+  "bpfSize": 1065240,
+  "bpfPrior": "e84e93297a63b5cc83df6bb0633df9336dbdb9db215fc8a0ab5985925178e04a",
   "asset0": {
     "label": "STOXX/SOL",
     "oracleMode": "HYBRID_AFTER_HOURS",
@@ -45,7 +45,10 @@
     "permissionlessResolveStaleSlots": 6480000,
     "forceCloseDelaySlots": 216000
   },
+  "keeperPortfolio": "BpFmbw74f2LXma7cJwvW79upVtUignMCEYRPw2uwJBZ6",
   "keeperKey": "9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ",
-  "keeperPortfolio": "9yZP2g2v2Hqv4XCs9pWe4QwyfFWkCSCxtQKoxpG5N2Fo",
-  "keeperKeypairPath": "~/.config/solana/bounty5-keeper.json"
+  "keeperKeypairPath": "~/.config/solana/bounty5-keeper.json",
+  "priorMarket": "4AXbMuJzrUv5KtVs6zc5jDtXTB4XKhKtEBGU6BmkVut4",
+  "priorMarketStatus": "Resolved, ~0.088 SOL stranded (market 0.022 + zombie keeper pf 0.066). CloseSlab blocked by bricked pre-7144d9b keeper portfolio 9cQXfQcu that fails is_empty() under post-0f87dcb layout (HiddenLeg).",
+  "oracleConfigPending": "ConfigureHybridOracle pending: Pyth STOXX\u00b7EUR feed frozen at publish_time 1781105419 (3.5+ hours stale at source, max_staleness_secs clamped to 600). Retry when Pyth refreshes during EU market hours."
 }

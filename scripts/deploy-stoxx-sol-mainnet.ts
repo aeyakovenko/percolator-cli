@@ -12,7 +12,6 @@ import * as fs from "fs";
 import {
   encInitMarket, encConfigureHybridOracle, encConfigurePermissionlessResolve,
   encUpdateMarketInitFeePolicy, encUpdateFeeRedirectPolicy, encUpdateMaintenanceFeePolicy,
-  encUpdateInsurancePolicy,
   marketAccountLenFor, ORACLE_LEG_FLAG_DIVIDE_LEG3,
 } from "../src/v16/index.js";
 import { parseMarketGroup, parseWrapperConfig } from "../src/v16/parsers.js";
@@ -119,14 +118,9 @@ async function fetchCode(e: any): Promise<string> {
   })]);
   console.log("  ✅ PermissionlessResolve(30d stale / 24h force-close)");
 
-  // Insurance policy: 50% per-period drain cap
-  await send([new TransactionInstruction({
-    programId: PROG, keys: [
-      { pubkey: admin.publicKey, isSigner: true, isWritable: false },
-      { pubkey: market.publicKey, isSigner: false, isWritable: true },
-    ], data: encUpdateInsurancePolicy({ maxBps: 5000, depositsOnly: 0, cooldownSlots: 216_000n }),
-  })]);
-  console.log("  ✅ InsurancePolicy(5000bps / 24h cooldown)");
+  // (Insurance policy surface — tag 33 UpdateInsurancePolicy + tag 23
+  //  WithdrawInsuranceLimited — was deleted in wrapper 0cf5134.  Live
+  //  insurance withdrawal is now per-asset via WithdrawInsuranceAsset (57).)
 
   // [3] ConfigureHybridOracle for asset 0: 3-leg composite STOXX·EUR × EUR/USD ÷ SOL/USD
   console.log("\n[3] ConfigureHybridOracle asset[0] — STOXX/SOL (3-leg composite, EWMA after-hours)…");
@@ -186,8 +180,12 @@ async function fetchCode(e: any): Promise<string> {
     vaultPda: vaultAuth.toBase58(),
     admin: admin.publicKey.toBase58(),
     collateralMint: NATIVE_MINT.toBase58(),
-    layout: "70294cb (marketauth-collapse / 432B WC)",
-    bpf: "1aedbfa25945f9fba521d2574d8568167daf2d1c5d7c69cd2c0430c171d1888f",
+    layout: "current wrapper d5e4c256/ce073dc engine (MG 726B / WC 432B / PA 9347B / asset slot stride 1797B)",
+    wrapperCommit: "5e4c256",
+    enginePin: "ce073dc",
+    bpf: "e977024b60aeb9648981d61bca9ec8996c32951ddac436d6c207b4f81be22cef",
+    bpfSize: 1065240,
+    bpfPrior: "e84e93297a63b5cc83df6bb0633df9336dbdb9db215fc8a0ab5985925178e04a",
     asset0: {
       label: "STOXX/SOL",
       oracleMode: "HYBRID_AFTER_HOURS",

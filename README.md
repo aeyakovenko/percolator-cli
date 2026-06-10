@@ -98,24 +98,31 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   e84e93297a63b5cc83df6bb0633df9336dbdb9db215fc8a0ab5985925178e04a
-BPF binary size:      1,046,736 bytes ELF
-percolator-prog:      d445710  (HEAD; tests-only chain on top of the security
-                       fix fe69816 'Fix #113: credit account-level maintenance
-                       fee to asset-0 only'. credit_maintenance_fee_to_active_
-                       market_budgets_view used to split every maintenance fee
-                       equally across all ACTIVE assets' insurance domains
-                       (base_share = amount/active_count) with no positions/
-                       activity requirement; a non-admin could permissionlessly
-                       append a do-nothing asset (itself as insurance_operator)
-                       and siphon k/(k+1) of every honest maintenance fee via
-                       WithdrawInsuranceAsset. Maintenance fee is now credited
-                       to asset-0 only — a zero-activity parasite earns nothing,
-                       and the wrapper's last O(N)-in-max_market_slots cost is
-                       gone (path is now O(1)). Commits 32a2017 / 3a5954a /
-                       6a4fa1e / a584fc0 / 601632d / 2195171 / d445710 are
-                       guard / repro tests; BPF reflects fe69816's code change.)
-prior:                0f87dcb / BPF cbcd8b8d… / 1,050,104 B (account-level residual reward counters; domain u8→u16 on six tags)
+BPF binary SHA-256:   e977024b60aeb9648981d61bca9ec8996c32951ddac436d6c207b4f81be22cef
+BPF binary size:      1,046,736 → 1,065,240 bytes ELF
+percolator-prog:      5e4c256  (HEAD; engine pinned to v16.8.11 / rev ce073dc;
+                       MarketGroupV16HeaderAccount grew 710 → 726 B with one
+                       new field `source_fresh_backing_total_num: u128` inserted
+                       between source_claim_bound_total_num and
+                       source_insurance_credit_reserved_total_atoms. 11
+                       wrapper src/v16_program.rs commits since d445710 are
+                       all staleness / liveness hardening:
+                         dd09d12  Reject self-program matcher CPI contexts
+                         a9c5454  Cover stale asset shutdown guard
+                         42b3319  Cover stale force close guard
+                         4358aeb  Cover stale forfeit recovery guard
+                         e814f20  Isolate permissionless asset oracle liveness
+                         1d9ba8f  Freeze stale asset oracle restarts
+                         c35ef1a  Freeze stale rebalance reduce exposure
+                         6d6886f  Freeze permissionless activation after stale resolve
+                         5b2a5ef  Guard base unit mint reset reserves
+                         db0d527  Reject mismatched base unit mint decimals
+                       Engine fixes (a6f0420 v16.8.10): residual/backing
+                       double-claim, realize, expiry. Tests-only commits in
+                       the chain don't affect the BPF.)
+prior production:     d445710 / BPF e84e93297a63b5cc83df6bb0633df9336dbdb9db215fc8a0ab5985925178e04a / 1,046,736 B (fe69816 #113 fix: maintenance fee credits to asset-0 only)
+prior:                d445710 / BPF e84e9329… / 1,046,736 B (fe69816 #113 fix: maintenance fee credits to asset-0 only)
+                      0f87dcb / BPF cbcd8b8d… / 1,050,104 B (account-level residual reward counters; domain u8→u16 on six tags)
                       5349b2f / BPF 71aaf7c2… / 1,035,008 B (insurance API unified — 0cf5134; oracle restart uniform — 5469b2c)
                       2c7035f / BPF 58d155fa… / 1,047,480 B (matcher config moves into LP portfolio tail — 7144d9b)
                       8306372 / BPF 1c1ca8ff… /   978,504 B (deterministic backing residual reward counter)
@@ -127,8 +134,10 @@ prior:                0f87dcb / BPF cbcd8b8d… / 1,050,104 B (account-level res
                       c050578 / BPF 11eafaf1… /   952,544 B (had try_empty warning)
                       0a631cf / BPF b0cc3f80… /   952,272 B (deployed 2026-06-04)
                       70294cb / BPF 1aedbfa2… /   918,184 B (deployed 2026-06-03)
-engine pin:           58dc1180  (unchanged through this deploy — the fe69816
-                       fix touches the wrapper only).
+engine pin:           ce073dc  (v16.8.11; bumped from 58dc1180 via a6f0420
+                       'Upgrade engine to v16.8.10' + 3f01701 'Bump engine
+                       to v16.8.11'. v16.8.10 covered residual/backing
+                       double-claim + realize + expiry fixes.)
 Removed tags:         23 WithdrawInsuranceLimited and 33 UpdateInsurancePolicy
                        are GONE (deleted in 0cf5134). Callers using tags
                        23/33 now get InvalidInstructionData.
@@ -161,13 +170,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout d445710
+cd percolator-prog && git checkout 5e4c256
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: e84e93297a63b5cc83df6bb0633df9336dbdb9db215fc8a0ab5985925178e04a
+#   Expected: e977024b60aeb9648981d61bca9ec8996c32951ddac436d6c207b4f81be22cef
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 1046736 /tmp/deployed.so | sha256sum   # must match
+head -c 1065240 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
