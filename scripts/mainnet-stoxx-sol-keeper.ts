@@ -128,24 +128,35 @@ function selfPushPythLegs(): void {
   // perm_resolve_stale_slots (the heartbeat).
   const isActive = matz > 1 || cTot > 0n;   // keeper pf counts as matz=1 with zero cap
 
-  if (gap > HUGE_GAP) {
-    console.log(`${ts()} HUGE_GAP (${gap}) — needs admin ConfigureHybridOracle re-anchor, skip`);
-    return;
-  }
-
   let nCranks = 0;
   if (isActive) {
+    // ACTIVE branch only — HUGE_GAP risks cascade settle so we bail and
+    // require admin re-anchor.  In dormant the heartbeat path is safe at any
+    // gap (action=0 with no positions can't cascade), so the guard does NOT
+    // apply there.  Branch-order bug fixed 2026-06-10: previously the
+    // HUGE_GAP early-return sat above the isActive/heartbeat dispatch and
+    // made the dormant heartbeat unreachable for the entire range
+    // HUGE_GAP < gap < HEARTBEAT_SLOTS.
+    if (gap > HUGE_GAP) {
+      console.log(`${ts()} ACTIVE+HUGE_GAP (${gap}) — admin ConfigureHybridOracle re-anchor needed, skip`);
+      return;
+    }
     // crank enough to land within TARGET_GAP of the clock
     nCranks = Math.min(MAX_CRANKS_PER_TICK, Math.max(1, Math.ceil(Math.max(0, gap - TARGET_GAP) / MAX_ACCRUAL_DT) + 1));
     console.log(`${ts()} ACTIVE — planning ${nCranks} crank(s) to reach ≤${TARGET_GAP} slots`);
     // STOXX requires fresh leg accounts; in-hours we self-push the closed legs.
     selfPushPythLegs();
-  } else if (gap > HEARTBEAT_SLOTS) {
-    nCranks = 1;
-    console.log(`${ts()} DORMANT heartbeat — slot_last is ${gap} slots stale (>HEARTBEAT_SLOTS=${HEARTBEAT_SLOTS})`);
+  } else if (gap > HEARTBEAT_SLOTS / 50) {
+    // DORMANT heartbeat — fire as soon as the gap exceeds ~2% of the auto-resolve
+    // threshold so a single dormant tick reliably catches up before the gap can
+    // exceed max_accrual_dt × MAX_CRANKS_PER_TICK on the next tick.  Use the
+    // full crank budget so we make real progress even when slot_last has fallen
+    // far behind.  HEARTBEAT_SLOTS/50 = 100K with HEARTBEAT_SLOTS=5M.
+    nCranks = MAX_CRANKS_PER_TICK;
+    console.log(`${ts()} DORMANT heartbeat — slot_last is ${gap} slots stale (>${Math.floor(HEARTBEAT_SLOTS/50)}); cranking ${nCranks}x to catch up`);
     selfPushPythLegs();
   } else {
-    console.log(`${ts()} DORMANT — no positions and gap=${gap} < HEARTBEAT_SLOTS=${HEARTBEAT_SLOTS}, no cranks`);
+    console.log(`${ts()} DORMANT — no positions and gap=${gap} < ${Math.floor(HEARTBEAT_SLOTS/50)}, no cranks`);
     return;
   }
 
