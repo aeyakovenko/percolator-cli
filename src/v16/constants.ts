@@ -136,14 +136,18 @@ export const AOP = {
 // Layout: [HEADER(16)][WRAPPER_CONFIG(432)][MarketGroupHeader(710)][slots × N]
 // Each slot = oracle storage(512) + EngineAssetSlot(1285) = 1797 B.
 export const MARKET_GROUP_OFF = HEADER_LEN + WRAPPER_CONFIG_LEN; // 448
-export const MARKET_GROUP_HEADER_LEN = 710;
+// Was 710; +16 B in ce073dc (engine v16.8.11) — inserted
+// `source_fresh_backing_total_num: u128` between `source_claim_bound_total_num`
+// and `source_insurance_credit_reserved_total_atoms`. All MG header fields at
+// or after `source_insurance_credit_reserved_total_atoms` shift +16 bytes.
+export const MARKET_GROUP_HEADER_LEN = 726;
 export const ASSET_SLOT_LEN = ASSET_ORACLE_WRAPPER_LEN + ENGINE_ASSET_SLOT_LEN; // 1797
 // Helper for smoke account allocation. Old MARKET_ACCOUNT_LEN assumed 64 slots;
 // new model defaults to 1 and grows.
 export function marketAccountLenFor(slotCapacity: number): number {
   return MARKET_GROUP_OFF + MARKET_GROUP_HEADER_LEN + slotCapacity * ASSET_SLOT_LEN;
 }
-// Default 4-slot smoke market: 448 + 710 + 4*1797 = 8346.
+// Default 4-slot smoke market: 448 + 726 + 4*1797 = 8362.
 export const MARKET_ACCOUNT_LEN = marketAccountLenFor(4);
 // Old name kept for compat; resolves to the same 4-slot smoke default.
 export const MARKET_GROUP_LEN = MARKET_GROUP_HEADER_LEN + 4 * ASSET_SLOT_LEN;
@@ -151,7 +155,10 @@ export const MARKET_GROUP_LEN = MARKET_GROUP_HEADER_LEN + 4 * ASSET_SLOT_LEN;
 export const V16_MAX_ASSETS = V16_MAX_MARKET_SLOTS;
 export const ORACLE_LEG_CAP = 3;
 
-// MarketGroupV16HeaderAccount (710 B, align=1). Field offsets from dump_layout.
+// MarketGroupV16HeaderAccount (726 B, align=1; was 710 pre-ce073dc).
+// Field offsets from dump_layout. ce073dc adds 16 B `source_fresh_backing_total_num`
+// inside the 397..485 accounting block; all fields at or after
+// materialized_portfolio_count shift +16.
 export const MG = {
   market_group_id: 0,                  // [u8;32]
   config: 32,                          // V16ConfigAccount (249 B)
@@ -160,35 +167,39 @@ export const MG = {
   insurance: 301,
   c_tot: 317,
   pnl_pos_tot: 333,
-  pnl_pos_bound_tot_num: 349,          // NEW
+  pnl_pos_bound_tot_num: 349,
   pnl_pos_bound_tot: 365,
-  pnl_matured_pos_tot: 381,            // NEW
-  // 397..469 — 72-byte accounting block (audit/proof state; not parsed for smoke)
-  materialized_portfolio_count: 469,   // u64  (was 397 in old layout)
-  stale_certificate_count: 477,
-  b_stale_account_count: 485,
-  negative_pnl_account_count: 493,
-  risk_epoch: 501,
-  asset_set_epoch: 509,
-  asset_activation_count: 517,
-  last_asset_activation_slot: 525,
-  next_market_id: 533,
-  oracle_epoch: 541,
-  funding_epoch: 549,
-  slot_last: 557,
-  current_slot: 565,
-  bankruptcy_hlock_active: 573,
-  threshold_stress_active: 574,
-  loss_stale_active: 575,
-  recovery_reason: 576,                // u8 (single byte now; was 2 bytes present+value)
-  // 577 _padding
-  mode: 578,                           // u8
-  resolved_slot: 579,
-  payout_snapshot: 587,
-  payout_snapshot_pnl_pos_tot: 603,
-  payout_snapshot_captured: 619,
-  resolved_payout_ledger: 620,         // 90 B → ends at 710
-  asset_slots: MARKET_GROUP_HEADER_LEN, // 710 (asset slots start here)
+  pnl_matured_pos_tot: 381,
+  // 397..485 — 88-byte accounting block (backing_provider_earnings,
+  // source_claim_bound_total_num, source_fresh_backing_total_num [NEW ce073dc],
+  // source_insurance_credit_reserved_total_atoms,
+  // insurance_domain_budget_remaining_total, resolved_payout_blocker_count;
+  // not parsed for smoke)
+  materialized_portfolio_count: 485,   // u64  (was 469 pre-ce073dc)
+  stale_certificate_count: 493,
+  b_stale_account_count: 501,
+  negative_pnl_account_count: 509,
+  risk_epoch: 517,
+  asset_set_epoch: 525,
+  asset_activation_count: 533,
+  last_asset_activation_slot: 541,
+  next_market_id: 549,
+  oracle_epoch: 557,
+  funding_epoch: 565,
+  slot_last: 573,
+  current_slot: 581,
+  bankruptcy_hlock_active: 589,
+  threshold_stress_active: 590,
+  loss_stale_active: 591,
+  recovery_reason: 592,                // u8 (single byte; was 2 bytes present+value)
+  // 593 _padding
+  mode: 594,                           // u8
+  resolved_slot: 595,
+  payout_snapshot: 603,
+  payout_snapshot_pnl_pos_tot: 619,
+  payout_snapshot_captured: 635,
+  resolved_payout_ledger: 636,         // 90 B → ends at 726
+  asset_slots: MARKET_GROUP_HEADER_LEN, // 726 (asset slots start here)
 } as const;
 
 // ---------- AssetStateV16Account (499 B, unchanged in this round) ----------

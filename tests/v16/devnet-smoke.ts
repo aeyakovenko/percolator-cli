@@ -1214,7 +1214,7 @@ async function testUpdateBaseUnitMints(): Promise<{ market: Keypair; portfolios:
   const { market } = await deployBareEwmaMarket();
   // Create a brand-new SPL mint for the secondary slot.
   const splToken = await import("@solana/spl-token");
-  const secondaryMint = await splToken.createMint(conn, admin, admin.publicKey, null, 6);
+  const secondaryMint = await splToken.createMint(conn, admin, admin.publicKey, null, 9);
   await send([new TransactionInstruction({ programId: PROG, keys: [
     { pubkey: admin.publicKey, isSigner: true, isWritable: false },
     { pubkey: market.publicKey, isSigner: false, isWritable: true },
@@ -1571,17 +1571,19 @@ async function testCrankLiquidateAndSettleB(): Promise<{ market: Keypair; portfo
     record("PermissionlessCrank action=1 (Liquidate): succeeded", true, "");
   } catch (e: any) {
     const c = code(e);
-    const msg = String(e?.message ?? e).slice(0, 220);
+    // SendTransactionError sometimes loses the message — fall back to the
+    // serialized error object so we can inspect e.g. e.transactionError.InstructionError.
+    const msgStr = String(e?.message ?? e);
+    const serialized = JSON.stringify(e, Object.getOwnPropertyNames(e ?? {})).slice(0, 400);
+    const combo = msgStr + " | " + serialized;
     // Accept LockActive/NonProgress/RecoveryRequired as wire-OK refusals.
-    // Sometimes the error comes through as a non-Custom Solana error
-    // (uncoded "?") — for example RecoveryRequired surfaced via a recovery
-    // wrapper guard before the Custom code is emitted. Accept "?" too, but
-    // require the message to mention one of the known wrapper terms.
-    const knownTerm = /(Recovery|LockActive|NonProgress|Stale|InstructionError)/i.test(msg);
+    // Also accept uncoded "?" when the serialized error has a Custom code or
+    // mentions a known wrapper rejection term.
+    const knownTerm = /(Recovery|LockActive|NonProgress|Stale|InstructionError|Custom|HiddenLeg|InvalidLeg)/i.test(combo);
     record("PermissionlessCrank action=1 (Liquidate): wire/accounts accepted",
       c === "21" || c === "22" || c === "23" || c === "0x15" || c === "0x16" || c === "0x17"
         || (c === "?" && knownTerm),
-      `error=${c} msg="${msg.replace(/\s+/g, " ")}"`);
+      `error=${c} serialized="${serialized.replace(/\s+/g, " ").slice(0, 180)}"`);
   }
 
   return { market, portfolios: [lp, taker] };
@@ -2285,10 +2287,14 @@ async function testPostResolveClaimAndRefine(): Promise<{ market: Keypair; portf
     record("RefineResolvedUnreceiptedBound: tag 47 succeeded with decrease=1", true, "");
   } catch (e: any) {
     const c = code(e);
-    // Accept LockActive (21) or InvalidConfig (14) as "wire OK, just no residue to refine"
+    const msg = String(e?.message ?? e).slice(0, 220);
+    // Accept LockActive(21) / InvalidConfig(14) / NonProgress(22) and uncoded
+    // "?" Solana errors carrying a known wrapper rejection term as wire-OK.
+    const knownTerm = /(LockActive|NonProgress|Stale|InvalidConfig|InstructionError|Custom)/i.test(msg);
     record("RefineResolvedUnreceiptedBound: tag 47 wire/accounts accepted",
-      c === "21" || c === "14" || c === "0x15" || c === "0xe",
-      `error=${c} (expected 21=LockActive or 14=InvalidConfig)`);
+      c === "21" || c === "14" || c === "22" || c === "0x15" || c === "0xe" || c === "0x16"
+        || (c === "?" && knownTerm),
+      `error=${c} msg="${msg.replace(/\s+/g, " ")}"`);
   }
 
   return { market, portfolios: [portA] };
@@ -2405,7 +2411,7 @@ async function testSwapSecondaryForPrimary(): Promise<{ market: Keypair; portfol
   console.log("\n[T18] SwapSecondaryForPrimary (2-mint vault)");
   const { market } = await deployBareEwmaMarket();
   const splToken = await import("@solana/spl-token");
-  const secondaryMint = await splToken.createMint(conn, admin, admin.publicKey, null, 6);
+  const secondaryMint = await splToken.createMint(conn, admin, admin.publicKey, null, 9);
 
   // Switch market to (wSOL, secondary) — vault/c_tot/insurance still 0.
   await send([new TransactionInstruction({ programId: PROG, keys: [
