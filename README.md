@@ -98,30 +98,30 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   e977024b60aeb9648981d61bca9ec8996c32951ddac436d6c207b4f81be22cef
-BPF binary size:      1,046,736 → 1,065,240 bytes ELF
-percolator-prog:      5e4c256  (HEAD; engine pinned to v16.8.11 / rev ce073dc;
-                       MarketGroupV16HeaderAccount grew 710 → 726 B with one
-                       new field `source_fresh_backing_total_num: u128` inserted
-                       between source_claim_bound_total_num and
-                       source_insurance_credit_reserved_total_atoms. 11
-                       wrapper src/v16_program.rs commits since d445710 are
-                       all staleness / liveness hardening:
-                         dd09d12  Reject self-program matcher CPI contexts
-                         a9c5454  Cover stale asset shutdown guard
-                         42b3319  Cover stale force close guard
-                         4358aeb  Cover stale forfeit recovery guard
-                         e814f20  Isolate permissionless asset oracle liveness
-                         1d9ba8f  Freeze stale asset oracle restarts
-                         c35ef1a  Freeze stale rebalance reduce exposure
-                         6d6886f  Freeze permissionless activation after stale resolve
-                         5b2a5ef  Guard base unit mint reset reserves
-                         db0d527  Reject mismatched base unit mint decimals
-                       Engine fixes (a6f0420 v16.8.10): residual/backing
-                       double-claim, realize, expiry. Tests-only commits in
-                       the chain don't affect the BPF.)
-prior production:     d445710 / BPF e84e93297a63b5cc83df6bb0633df9336dbdb9db215fc8a0ab5985925178e04a / 1,046,736 B (fe69816 #113 fix: maintenance fee credits to asset-0 only)
-prior:                d445710 / BPF e84e9329… / 1,046,736 B (fe69816 #113 fix: maintenance fee credits to asset-0 only)
+BPF binary SHA-256:   4b731df2489e6190d7ccd1b3f65bbdb43bd427127cb69827384155b746ee6964
+BPF binary size:      1,068,664 bytes ELF
+percolator-prog:      4724c29  (HEAD; engine pinned to v16.8.11 / rev ce073dc;
+                       MG/PA/WC layouts unchanged from the prior deploy.
+                       Behavior changes since 5e4c256 — no-CPI mark-fee
+                       discipline + batch-CPI hardening (15 src commits):
+                         9aa74ea  Quote no-CPI EWMA fees from mark move
+                         da01084  Clamp no-CPI EWMA movement to paid fee
+                         248931b  Cap no-CPI mark fee instead of rejecting
+                         097bb45  Use clamped no-CPI price for mark fees
+                         b9a3783  Reject zero no-CPI reported prices
+                         5bbfee5  Preflight crank target before oracle
+                         1663c66  Reject over-cap batch CPI before matcher
+                         5c3219d  Preflight liquidation reward owner before oracle
+                         af87763  Reject duplicate batch CPI before matcher
+                         8b53fa9  Reject backing-fee batch CPI before matcher
+                         d7e131c  Reject overfee batch CPI before matcher
+                         f11427a  Reject stale batch CPI before matcher
+                         304a909  Fix oversized batch decode panic
+                         1677269  Fix host market fresh backing serialization
+                         cdd5f72  Bound terminal insurance high-slot withdrawal CU
+                       Tests-only commits round out the chain to 4724c29.)
+prior:                5e4c256 / BPF e977024b… / 1,065,240 B (engine v16.8.11 — MG 710→726 B)
+                      d445710 / BPF e84e9329… / 1,046,736 B (fe69816 #113 fix: maintenance fee credits to asset-0 only)
                       0f87dcb / BPF cbcd8b8d… / 1,050,104 B (account-level residual reward counters; domain u8→u16 on six tags)
                       5349b2f / BPF 71aaf7c2… / 1,035,008 B (insurance API unified — 0cf5134; oracle restart uniform — 5469b2c)
                       2c7035f / BPF 58d155fa… / 1,047,480 B (matcher config moves into LP portfolio tail — 7144d9b)
@@ -170,13 +170,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 5e4c256
+cd percolator-prog && git checkout 4724c29
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: e977024b60aeb9648981d61bca9ec8996c32951ddac436d6c207b4f81be22cef
+#   Expected: 4b731df2489e6190d7ccd1b3f65bbdb43bd427127cb69827384155b746ee6964
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 1065240 /tmp/deployed.so | sha256sum   # must match
+head -c 1068664 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**

@@ -2287,14 +2287,18 @@ async function testPostResolveClaimAndRefine(): Promise<{ market: Keypair; portf
     record("RefineResolvedUnreceiptedBound: tag 47 succeeded with decrease=1", true, "");
   } catch (e: any) {
     const c = code(e);
-    const msg = String(e?.message ?? e).slice(0, 220);
+    // SendTransactionError sometimes loses e.message — fall back to a JSON
+    // serialization to inspect transactionError.InstructionError.Custom.
+    const msgStr = String(e?.message ?? e);
+    const serialized = JSON.stringify(e, Object.getOwnPropertyNames(e ?? {})).slice(0, 400);
+    const combo = msgStr + " | " + serialized;
     // Accept LockActive(21) / InvalidConfig(14) / NonProgress(22) and uncoded
-    // "?" Solana errors carrying a known wrapper rejection term as wire-OK.
-    const knownTerm = /(LockActive|NonProgress|Stale|InvalidConfig|InstructionError|Custom)/i.test(msg);
+    // "?" Solana errors carrying a known wrapper rejection term.
+    const knownTerm = /(LockActive|NonProgress|Stale|InvalidConfig|InstructionError|Custom|HiddenLeg|InvalidLeg)/i.test(combo);
     record("RefineResolvedUnreceiptedBound: tag 47 wire/accounts accepted",
       c === "21" || c === "14" || c === "22" || c === "0x15" || c === "0xe" || c === "0x16"
         || (c === "?" && knownTerm),
-      `error=${c} msg="${msg.replace(/\s+/g, " ")}"`);
+      `error=${c} serialized="${serialized.replace(/\s+/g, " ").slice(0, 180)}"`);
   }
 
   return { market, portfolios: [portA] };
