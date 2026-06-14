@@ -98,10 +98,14 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   4b731df2489e6190d7ccd1b3f65bbdb43bd427127cb69827384155b746ee6964
-BPF binary size:      1,068,664 bytes ELF
-percolator-prog:      4724c29  (HEAD; engine pinned to v16.8.11 / rev ce073dc;
+BPF binary SHA-256:   bbe8a7efbacb7a6839f22b93190eca9402319cb981286a5cdad58c3360342acf
+BPF binary size:      1,068,168 bytes ELF
+percolator-prog:      d16864b  (HEAD; engine pinned to v16.8.11 / rev ce073dc;
                        MG/PA/WC layouts unchanged from the prior deploy.
+                       Adds bdb1fa3 'Isolate terminal CU bounds' on top of
+                       4724c29 — splits terminal insurance + high-asset
+                       oracle CU paths into their own bounded entry points
+                       so neither can grow past a per-instruction CU ceiling.
                        Behavior changes since 5e4c256 — no-CPI mark-fee
                        discipline + batch-CPI hardening (15 src commits):
                          9aa74ea  Quote no-CPI EWMA fees from mark move
@@ -120,7 +124,8 @@ percolator-prog:      4724c29  (HEAD; engine pinned to v16.8.11 / rev ce073dc;
                          1677269  Fix host market fresh backing serialization
                          cdd5f72  Bound terminal insurance high-slot withdrawal CU
                        Tests-only commits round out the chain to 4724c29.)
-prior:                5e4c256 / BPF e977024b… / 1,065,240 B (engine v16.8.11 — MG 710→726 B)
+prior:                4724c29 / BPF 4b731df2… / 1,068,664 B (no-CPI mark-fee discipline + batch CPI hardening)
+                      5e4c256 / BPF e977024b… / 1,065,240 B (engine v16.8.11 — MG 710→726 B)
                       d445710 / BPF e84e9329… / 1,046,736 B (fe69816 #113 fix: maintenance fee credits to asset-0 only)
                       0f87dcb / BPF cbcd8b8d… / 1,050,104 B (account-level residual reward counters; domain u8→u16 on six tags)
                       5349b2f / BPF 71aaf7c2… / 1,035,008 B (insurance API unified — 0cf5134; oracle restart uniform — 5469b2c)
@@ -170,13 +175,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout 4724c29
+cd percolator-prog && git checkout d16864b
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: 4b731df2489e6190d7ccd1b3f65bbdb43bd427127cb69827384155b746ee6964
+#   Expected: bbe8a7efbacb7a6839f22b93190eca9402319cb981286a5cdad58c3360342acf
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 1068664 /tmp/deployed.so | sha256sum   # must match
+head -c 1068168 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
