@@ -98,12 +98,26 @@ hours (Eurex 07:00–22:00 UTC Mon–Fri) via the local `pyth-pusher` subprocess
 **Build provenance**
 
 ```
-BPF binary SHA-256:   bbe8a7efbacb7a6839f22b93190eca9402319cb981286a5cdad58c3360342acf
-BPF binary size:      1,068,168 bytes ELF
-percolator-prog:      d16864b  (HEAD; engine pinned to v16.8.11 / rev ce073dc;
-                       MG/PA/WC layouts unchanged from the prior deploy.
-                       Adds bdb1fa3 'Isolate terminal CU bounds' on top of
-                       4724c29 — splits terminal insurance + high-asset
+BPF binary SHA-256:   97c44071848a905192bcac97e8902b0b559d3242ddb30af36cbb51eaf5668eaa
+BPF binary size:        993,648 bytes ELF
+percolator-prog:      8d1c82c  (HEAD; engine pin BUMPED ce073dc → b0e221a
+                       via 8d1c82c 'Pin percolator engine to b0e221a' on
+                       top of d16864b. Engine b0e221a is a kernel-extraction
+                       refactor of v16.rs (28 src/v16.rs commits, ~2,200 LoC
+                       of churn) that pulls inline branches into separately
+                       proven kernels (attach-leg, clear-leg, batch-projection,
+                       restart-lifecycle, margin-gate, close-progress) and
+                       adds src/v16_kani_api.rs + src/v16_proofs.rs with
+                       no-LoF/no-DoS/no-steal/value-conservation composition
+                       certificates. Public-boundary behavior is unchanged
+                       (devnet smoke 64/64 green, parses HgpvbLJh… market
+                       under same WC=432 / MG=726 / PA=9347 / asset stride
+                       1797 layout). Net BPF size dropped 1,068,168 → 993,648
+                       (~75 KB smaller) — extraction consolidated codegen.
+                       MG/PA/WC layouts unchanged: drop-in for existing
+                       market HgpvbLJh….
+                       d16864b base adds bdb1fa3 'Isolate terminal CU bounds'
+                       on top of 4724c29 — splits terminal insurance + high-asset
                        oracle CU paths into their own bounded entry points
                        so neither can grow past a per-instruction CU ceiling.
                        Behavior changes since 5e4c256 — no-CPI mark-fee
@@ -124,7 +138,8 @@ percolator-prog:      d16864b  (HEAD; engine pinned to v16.8.11 / rev ce073dc;
                          1677269  Fix host market fresh backing serialization
                          cdd5f72  Bound terminal insurance high-slot withdrawal CU
                        Tests-only commits round out the chain to 4724c29.)
-prior:                4724c29 / BPF 4b731df2… / 1,068,664 B (no-CPI mark-fee discipline + batch CPI hardening)
+prior:                d16864b / BPF bbe8a7e… / 1,068,168 B (bdb1fa3 'Isolate terminal CU bounds')
+                      4724c29 / BPF 4b731df2… / 1,068,664 B (no-CPI mark-fee discipline + batch CPI hardening)
                       5e4c256 / BPF e977024b… / 1,065,240 B (engine v16.8.11 — MG 710→726 B)
                       d445710 / BPF e84e9329… / 1,046,736 B (fe69816 #113 fix: maintenance fee credits to asset-0 only)
                       0f87dcb / BPF cbcd8b8d… / 1,050,104 B (account-level residual reward counters; domain u8→u16 on six tags)
@@ -139,9 +154,11 @@ prior:                4724c29 / BPF 4b731df2… / 1,068,664 B (no-CPI mark-fee d
                       c050578 / BPF 11eafaf1… /   952,544 B (had try_empty warning)
                       0a631cf / BPF b0cc3f80… /   952,272 B (deployed 2026-06-04)
                       70294cb / BPF 1aedbfa2… /   918,184 B (deployed 2026-06-03)
-engine pin:           ce073dc  (v16.8.11; bumped from 58dc1180 via a6f0420
-                       'Upgrade engine to v16.8.10' + 3f01701 'Bump engine
-                       to v16.8.11'. v16.8.10 covered residual/backing
+engine pin:           b0e221a  (no-LoF/no-DoS/no-steal/value-conservation
+                       composition proofs landed; src/v16.rs refactored to
+                       extract proven kernels. Previous pin ce073dc =
+                       v16.8.11, bumped from 58dc1180 via a6f0420 +
+                       3f01701; v16.8.10 covered residual/backing
                        double-claim + realize + expiry fixes.)
 Removed tags:         23 WithdrawInsuranceLimited and 33 UpdateInsurancePolicy
                        are GONE (deleted in 0cf5134). Callers using tags
@@ -175,13 +192,13 @@ Verify locally:
 
 ```bash
 git clone https://github.com/aeyakovenko/percolator-prog.git
-cd percolator-prog && git checkout d16864b
+cd percolator-prog && git checkout 8d1c82c
 cargo build-sbf --tools-version v1.52
 sha256sum target/deploy/percolator_prog.so
-#   Expected: bbe8a7efbacb7a6839f22b93190eca9402319cb981286a5cdad58c3360342acf
+#   Expected: 97c44071848a905192bcac97e8902b0b559d3242ddb30af36cbb51eaf5668eaa
 
 solana program dump -u m 4m3ipBQDYX6JQ9YSmUXDjESDHMtGWtiXforkWr9Qoxdi /tmp/deployed.so
-head -c 1068168 /tmp/deployed.so | sha256sum   # must match
+head -c 993648 /tmp/deployed.so | sha256sum   # must match
 ```
 
 **Configuration**
