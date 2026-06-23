@@ -70,9 +70,14 @@ async function tryTx(label: string, ixs: TransactionInstruction[]): Promise<bool
 }
 
 async function cleanupMarket(market: PublicKey) {
-  console.log(`\n[market] ${market.toBase58()}`);
   const info = await conn.getAccountInfo(market, "confirmed");
-  if (!info) { console.log("  (gone)"); return; }
+  if (!info) { console.log(`[market] ${market.toBase58()}  (gone)`); return; }
+  // Legacy pre-collapse layouts (94K+) are unparseable under current MG offsets — skip.
+  if (info.data.length > 50000) {
+    console.log(`[market] ${market.toBase58()}  ${info.data.length}B  (legacy layout, skipping)`);
+    return;
+  }
+  console.log(`\n[market] ${market.toBase58()}  ${info.data.length}B`);
   const d = Buffer.from(info.data);
   const mode = d[MARKET_GROUP_OFF + MG.mode];
   const vault = rd128(d, MARKET_GROUP_OFF + MG.vault);
@@ -150,9 +155,13 @@ async function cleanupMarket(market: PublicKey) {
 }
 
 async function cleanupPortfolio(p: PublicKey) {
-  console.log(`\n[portfolio] ${p.toBase58()}`);
   const info = await conn.getAccountInfo(p, "confirmed");
-  if (!info) { console.log("  (gone)"); return; }
+  if (!info) { console.log(`[portfolio] ${p.toBase58()}  (gone)`); return; }
+  if (info.data.length > 50000) {
+    console.log(`[portfolio] ${p.toBase58()}  ${info.data.length}B  (legacy layout, skipping)`);
+    return;
+  }
+  console.log(`\n[portfolio] ${p.toBase58()}  ${info.data.length}B`);
   const d = Buffer.from(info.data);
   // provenance_header.market_group_id at offset 0..32 inside portfolio state.
   const marketBytes = d.subarray(PORTFOLIO_STATE_OFF + PROV.market_group_id, PORTFOLIO_STATE_OFF + PROV.market_group_id + 32);
@@ -201,10 +210,10 @@ async function main() {
   const ports = await conn.getProgramAccounts(PROGRAM_ID, {
     commitment: "confirmed",
     filters: [
-      { dataSize: PORTFOLIO_ACCOUNT_LEN },
       { memcmp: { offset: 0, bytes: bs58.encode(headerBytes(KIND_PORTFOLIO)) } },
     ],
   });
+  console.log(`  found ${ports.length} portfolios`);
   for (const { pubkey } of ports) {
     await cleanupPortfolio(pubkey);
   }
@@ -213,10 +222,10 @@ async function main() {
   const mkts = await conn.getProgramAccounts(PROGRAM_ID, {
     commitment: "confirmed",
     filters: [
-      { dataSize: MARKET_ACCOUNT_LEN },
       { memcmp: { offset: 0, bytes: bs58.encode(headerBytes(KIND_MARKET)) } },
     ],
   });
+  console.log(`  found ${mkts.length} markets`);
   for (const { pubkey } of mkts) {
     await cleanupMarket(pubkey);
   }

@@ -45,7 +45,7 @@
     "permissionlessResolveStaleSlots": 6480000,
     "forceCloseDelaySlots": 216000
   },
-  "keeperPortfolio": "BpFmbw74f2LXma7cJwvW79upVtUignMCEYRPw2uwJBZ6",
+  "keeperPortfolio": "7PXkXySugAyJ3JuYhdreeMYR6SvfnWcwT7stx2SFY6vy",
   "keeperKey": "9WiMAQtdx8zXMovePuaZ7v472UsFgZ7vkL7rr7APuxBQ",
   "keeperKeypairPath": "~/.config/solana/bounty5-keeper.json",
   "priorMarket": "4AXbMuJzrUv5KtVs6zc5jDtXTB4XKhKtEBGU6BmkVut4",
