@@ -583,8 +583,7 @@ async function testMatcherFlow(): Promise<{ market: Keypair; portfolios: Keypair
         { pubkey: admin.publicKey, isSigner: true, isWritable: false },
         { pubkey: market.publicKey, isSigner: false, isWritable: true },
         { pubkey: lp.publicKey, isSigner: false, isWritable: true },
-      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: s,
-        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+      ], data: encPermissionlessCrank({ nowSlot: s, closeQ: 0n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     } catch { /* tolerate transient */ }
   }
   const lpAfterP1: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(lp.publicKey, "confirmed"))!.data));
@@ -605,8 +604,7 @@ async function testMatcherFlow(): Promise<{ market: Keypair; portfolios: Keypair
         { pubkey: admin.publicKey, isSigner: true, isWritable: false },
         { pubkey: market.publicKey, isSigner: false, isWritable: true },
         { pubkey: lp.publicKey, isSigner: false, isWritable: true },
-      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: s,
-        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+      ], data: encPermissionlessCrank({ nowSlot: s, closeQ: 0n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     } catch { /* tolerate transient */ }
     // Early exit once we cross 1.0 (LP definitely past its claim+capital at that point)
     const eff = BigInt((parseMarketGroup(Buffer.from((await conn.getAccountInfo(market.publicKey, "confirmed"))!.data)) as any).assets[0].effectivePrice);
@@ -1536,8 +1534,7 @@ async function testCrankLiquidateAndSettleB(): Promise<{ market: Keypair; portfo
         { pubkey: admin.publicKey, isSigner: true, isWritable: false },
         { pubkey: market.publicKey, isSigner: false, isWritable: true },
         { pubkey: lp.publicKey, isSigner: false, isWritable: true },
-      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: s,
-        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+      ], data: encPermissionlessCrank({ nowSlot: s, closeQ: 0n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     } catch { /* tolerate */ }
   }
 
@@ -1549,8 +1546,7 @@ async function testCrankLiquidateAndSettleB(): Promise<{ market: Keypair; portfo
       { pubkey: admin.publicKey, isSigner: true, isWritable: false },
       { pubkey: market.publicKey, isSigner: false, isWritable: true },
       { pubkey: lp.publicKey, isSigner: false, isWritable: true },
-    ], data: encPermissionlessCrank({ action: 2, assetIndex: 0, nowSlot: sSettle,
-      fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+    ], data: encPermissionlessCrank({ nowSlot: sSettle, closeQ: 0n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     record("PermissionlessCrank action=2 (SettleB): succeeded", true, "");
   } catch (e: any) {
     const c = code(e);
@@ -1566,8 +1562,7 @@ async function testCrankLiquidateAndSettleB(): Promise<{ market: Keypair; portfo
       { pubkey: admin.publicKey, isSigner: true, isWritable: false },
       { pubkey: market.publicKey, isSigner: false, isWritable: true },
       { pubkey: lp.publicKey, isSigner: false, isWritable: true },
-    ], data: encPermissionlessCrank({ action: 1, assetIndex: 0, nowSlot: sLiq,
-      fundingRateE9: 0n, closeQ: 50_000_000n, feeBps: 0n, recoveryReason: 0 }) })]);
+    ], data: encPermissionlessCrank({ nowSlot: sLiq, closeQ: 50_000_000n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     record("PermissionlessCrank action=1 (Liquidate): succeeded", true, "");
   } catch (e: any) {
     const c = code(e);
@@ -2127,8 +2122,7 @@ async function testReleasedPnlAndBucketEarnings(): Promise<{ market: Keypair; po
         { pubkey: admin.publicKey, isSigner: true, isWritable: false },
         { pubkey: market.publicKey, isSigner: false, isWritable: true },
         { pubkey: lp.publicKey, isSigner: false, isWritable: true },
-      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: s,
-        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+      ], data: encPermissionlessCrank({ nowSlot: s, closeQ: 0n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     } catch { /* tolerate */ }
   }
   const lpAfter: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(lp.publicKey, "confirmed"))!.data));

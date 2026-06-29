@@ -269,8 +269,7 @@ async function readLedger(ledger: PublicKey, label: string): Promise<BackingLedg
         { pubkey: admin.publicKey, isSigner: true, isWritable: false },
         { pubkey: market.publicKey, isSigner: false, isWritable: true },
         { pubkey: portA.publicKey, isSigner: false, isWritable: true },
-      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: slot,
-        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+      ], data: encPermissionlessCrank({ nowSlot: slot, closeQ: 0n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     } catch (e: any) { /* tolerate intermediate crank rejects */ }
   }
   await send([ledIx(encSyncBackingDomainLedger(0))]);
@@ -314,8 +313,7 @@ async function readLedger(ledger: PublicKey, label: string): Promise<BackingLedg
         { pubkey: admin.publicKey, isSigner: true, isWritable: false },
         { pubkey: market.publicKey, isSigner: false, isWritable: true },
         { pubkey: portA.publicKey, isSigner: false, isWritable: true },
-      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: slot,
-        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+      ], data: encPermissionlessCrank({ nowSlot: slot, closeQ: 0n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     } catch (e: any) { /* tolerate */ }
   }
   await send([ledIx(encSyncBackingDomainLedger(0))]);

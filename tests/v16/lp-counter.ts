@@ -338,8 +338,7 @@ function parseLedgerCounters(buf: Buffer) {
         { pubkey: admin.publicKey, isSigner: true, isWritable: false },
         { pubkey: market.publicKey, isSigner: false, isWritable: true },
         { pubkey: lp.publicKey, isSigner: false, isWritable: true },
-      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: slot,
-        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+      ], data: encPermissionlessCrank({ nowSlot: slot, closeQ: 0n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     } catch { /* tolerate */ }
     const mai = (await conn.getAccountInfo(market.publicKey, "confirmed"))!;
     const mg: any = parseMarketGroup(Buffer.from(mai.data));
@@ -371,8 +370,7 @@ function parseLedgerCounters(buf: Buffer) {
         { pubkey: admin.publicKey, isSigner: true, isWritable: false },
         { pubkey: market.publicKey, isSigner: false, isWritable: true },
         { pubkey: lp.publicKey, isSigner: false, isWritable: true },
-      ], data: encPermissionlessCrank({ action: 0, assetIndex: 0, nowSlot: slot,
-        fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0 }) })]);
+      ], data: encPermissionlessCrank({ nowSlot: slot, closeQ: 0n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     } catch { /* tolerate */ }
     const mai = (await conn.getAccountInfo(market.publicKey, "confirmed"))!;
     const mg: any = parseMarketGroup(Buffer.from(mai.data));
@@ -388,8 +386,7 @@ function parseLedgerCounters(buf: Buffer) {
       { pubkey: admin.publicKey, isSigner: true, isWritable: false },
       { pubkey: market.publicKey, isSigner: false, isWritable: true },
       { pubkey: lp.publicKey, isSigner: false, isWritable: true },
-    ], data: encPermissionlessCrank({ action: 1, assetIndex: 0, nowSlot: slot,
-      fundingRateE9: 0n, closeQ: 50_000_000n, feeBps: 0n, recoveryReason: 0 }) })]);
+    ], data: encPermissionlessCrank({ nowSlot: slot, closeQ: 50_000_000n, observations: [{ assetIndex: 0, oracleAccounts: 0 }] }) })]);
     console.log(`    liquidate sig=${sig}`);
   } catch (e: any) {
     const msg = typeof e === "object" ? JSON.stringify(e, null, 2) : String(e);

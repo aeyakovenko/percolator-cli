@@ -328,29 +328,29 @@ export function encRestartAsset0Oracle(a: RestartAsset0OracleArgs): Buffer {
   return encRestartAssetOracle({ assetIndex: 0, nowSlot: a.nowSlot, initialPrice: a.initialPrice });
 }
 
-export interface PermissionlessCrankArgs {
-  action: number;
-  assetIndex: number;        // u16 since commit 5741bb9
-  nowSlot: bigint;
-  fundingRateE9: bigint;
-  closeQ: bigint;
-  feeBps: bigint;
-  recoveryReason: number;
+// Engine auto-crank ABI (commit e26cf72 "Clean up permissionless crank ABI"):
+// caller no longer chooses an action — supplies only oracle hints per asset
+// and the engine selects maintenance / liquidation / settle / resolve-close.
+export interface CrankObservationHint {
+  assetIndex: number;        // u16
+  oracleAccounts: number;    // u8 — number of oracle account tail accounts attached for this asset
 }
-// `effective_price` was REMOVED from the wire in commit 4c93b82
-// ("Remove public crank price input") — the crank now reads price from the
-// asset's oracle/mark, not a caller-supplied value.
+export interface PermissionlessCrankArgs {
+  nowSlot: bigint;
+  closeQ: bigint;
+  observations: CrankObservationHint[];
+}
 export function encPermissionlessCrank(a: PermissionlessCrankArgs): Buffer {
-  return Buffer.concat([
+  const parts: Buffer[] = [
     u8(TAG.PermissionlessCrank),
-    u8(a.action),
-    u16le(a.assetIndex),
     u64le(a.nowSlot),
-    i128le(a.fundingRateE9),
     u128le(a.closeQ),
-    u64le(a.feeBps),
-    u8(a.recoveryReason),
-  ]);
+    u8(a.observations.length),
+  ];
+  for (const o of a.observations) {
+    parts.push(u16le(o.assetIndex), u8(o.oracleAccounts));
+  }
+  return Buffer.concat(parts);
 }
 
 export interface TopUpBackingBucketArgs {

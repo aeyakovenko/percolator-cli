@@ -76,8 +76,9 @@ function crankIx(nowSlot: bigint): TransactionInstruction {
       ...ORACLE_ACCTS.map((a: PublicKey) => ({ pubkey: a, isSigner: false, isWritable: false })),
     ],
     data: encPermissionlessCrank({
-      action: 0, assetIndex: 0, nowSlot,
-      fundingRateE9: 0n, closeQ: 0n, feeBps: 0n, recoveryReason: 0,
+      nowSlot,
+      closeQ: 0n,
+      observations: [{ assetIndex: 0, oracleAccounts: ORACLE_ACCTS.length }],
     }),
   });
 }

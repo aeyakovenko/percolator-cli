@@ -33,8 +33,13 @@ export const KIND_MARKET = 1;
 export const KIND_PORTFOLIO = 2;
 export const HEADER_LEN = 16;
 
-// ---------- WrapperConfigV16 (432 B, immediately after header) ----------
-export const WRAPPER_CONFIG_LEN = 432;
+// ---------- WrapperConfigV16 (448 B, immediately after header) ----------
+// Grew 432 → 448 in the post-fd98358 era: two new fields appended at the end
+// (matcher_req_seq u64 at offset 432, _padding1 [u8;8] at offset 440). All
+// existing field offsets are UNCHANGED; only WRAPPER_CONFIG_LEN + MARKET_GROUP_OFF
+// shift +16. Old-layout markets are unparseable under the new wrapper because
+// the engine's V16Config validation reads MG at offset 464 not 448.
+export const WRAPPER_CONFIG_LEN = 448;
 export const WRAPPER_CONFIG_OFF = HEADER_LEN; // 16
 
 export const WC = {
@@ -78,7 +83,9 @@ export const WC = {
   backing_trade_fee_policy_count: 424, // u16
   backing_trade_fee_insurance_share_bps_long: 426,  // u16
   backing_trade_fee_insurance_share_bps_short: 428, // u16
-  fee_redirect_to_market_0_bps: 430,   // u16  (ends at 432)
+  fee_redirect_to_market_0_bps: 430,   // u16
+  matcher_req_seq: 432,                // u64  (NEW post-fd98358 era — market-level matcher nonce)
+  // 440..448 _padding1 [u8;8]
 } as const;
 
 // ---------- Per-asset oracle profile (slot wrapper storage, +0) ----------
@@ -133,9 +140,9 @@ export const AOP = {
 } as const;
 
 // ---------- MarketGroup ----------
-// Layout: [HEADER(16)][WRAPPER_CONFIG(432)][MarketGroupHeader(710)][slots × N]
+// Layout: [HEADER(16)][WRAPPER_CONFIG(448)][MarketGroupHeader(726)][slots × N]
 // Each slot = oracle storage(512) + EngineAssetSlot(1285) = 1797 B.
-export const MARKET_GROUP_OFF = HEADER_LEN + WRAPPER_CONFIG_LEN; // 448
+export const MARKET_GROUP_OFF = HEADER_LEN + WRAPPER_CONFIG_LEN; // 464
 // Was 710; +16 B in ce073dc (engine v16.8.11) — inserted
 // `source_fresh_backing_total_num: u128` between `source_claim_bound_total_num`
 // and `source_insurance_credit_reserved_total_atoms`. All MG header fields at
@@ -248,27 +255,34 @@ export const AS = {
   mode_short: 498,
 } as const;
 
-// ---------- Portfolio (9,227 B state + 16 B header + 104 B matcher config tail = 9,347 total) ----------
+// ---------- Portfolio (9,291 B state + 16 B header + 104 B matcher config tail = 9,411 total) ----------
 // PortfolioAccountV16Account shrank from 22,363 → 9,179 (source-domain claims
 // compacted into a fixed inline sparse array, 32 slots × 196 B = 6,272 B).
 // 7144d9b: appended 104-byte PortfolioMatcherConfigV16 tail (matcher_program +
-// matcher_context + matcher_delegate + enabled u8 + 7 B padding).
+// matcher_context + matcher_delegate + enabled u64 = 104 B).
 // 0f87dcb: PortfolioAccount header gained 48 bytes (3 × u128) for monotonic
 // residual-reward counters between reserved_pnl and fee_credits:
 //   residual_crystallized_loss_atoms_total  (180..196)
 //   residual_spent_principal_atoms_total    (196..212)
 //   residual_received_atoms_total           (212..228)
-// All later fields shifted by 48 bytes; PORTFOLIO_STATE_LEN: 9179 → 9227.
-export const PORTFOLIO_STATE_LEN = 9227;
-export const PORTFOLIO_ENGINE_ACCOUNT_LEN = HEADER_LEN + PORTFOLIO_STATE_LEN; // 9243
+// post-fd98358: appended 4 × u128 funding-flow counters between
+// residual_received_atoms_total and fee_credits — all fields at or after
+// fee_credits shift +64:
+//   funding_long_paid_atoms_total       (228..244)
+//   funding_long_received_atoms_total   (244..260)
+//   funding_short_paid_atoms_total      (260..276)
+//   funding_short_received_atoms_total  (276..292)
+// PORTFOLIO_STATE_LEN: 9227 → 9291.
+export const PORTFOLIO_STATE_LEN = 9291;
+export const PORTFOLIO_ENGINE_ACCOUNT_LEN = HEADER_LEN + PORTFOLIO_STATE_LEN; // 9307
 export const PORTFOLIO_MATCHER_CONFIG_LEN = 104;
-export const PORTFOLIO_MATCHER_CONFIG_OFF = PORTFOLIO_ENGINE_ACCOUNT_LEN; // 9243
-export const PORTFOLIO_ACCOUNT_LEN = PORTFOLIO_ENGINE_ACCOUNT_LEN + PORTFOLIO_MATCHER_CONFIG_LEN; // 9347
+export const PORTFOLIO_MATCHER_CONFIG_OFF = PORTFOLIO_ENGINE_ACCOUNT_LEN; // 9307
+export const PORTFOLIO_ACCOUNT_LEN = PORTFOLIO_ENGINE_ACCOUNT_LEN + PORTFOLIO_MATCHER_CONFIG_LEN; // 9411
 export const PORTFOLIO_STATE_OFF = HEADER_LEN; // 16
 
 // PortfolioAccountV16Account inline field offsets (within state region):
-// legs[16] at 276 (16 × 144 = 2304 → ends at 2580)
-// source_domains[32] at 2580 (32 × 196 = 6272 → ends at 8852)
+// legs[16] at 340 (16 × 144 = 2304 → ends at 2644)
+// source_domains[32] at 2644 (32 × 196 = 6272 → ends at 8916)
 // then health_cert(121) close_progress(184) resolved_payout_receipt(66).
 export const PA = {
   provenance_header: 0,                          // 100 B
@@ -279,19 +293,23 @@ export const PA = {
   residual_crystallized_loss_atoms_total: 180,   // u128  (NEW in 0f87dcb)
   residual_spent_principal_atoms_total: 196,     // u128  (NEW in 0f87dcb)
   residual_received_atoms_total: 212,            // u128  (NEW in 0f87dcb)
-  fee_credits: 228,                              // i128
-  cancel_deposit_escrow: 244,                    // u128
-  last_fee_slot: 260,                            // u64
-  active_bitmap: 268,                            // [u64; 1]
-  legs: 276,                                     // 16 × 144 = 2304 → ends at 2580
-  source_domains: 2580,                          // 32 × 196 = 6272 → ends at 8852
-  health_cert: 8852,                             // 121 B
-  stale_state: 8973,                             // u8
-  b_stale_state: 8974,                           // u8
-  rebalance_lock: 8975,                          // u8
-  liquidation_lock: 8976,                        // u8
-  close_progress: 8977,                          // 184 B
-  resolved_payout_receipt: 9161,                 // 66 B → struct end at 9227
+  funding_long_paid_atoms_total: 228,            // u128  (NEW post-fd98358)
+  funding_long_received_atoms_total: 244,        // u128
+  funding_short_paid_atoms_total: 260,           // u128
+  funding_short_received_atoms_total: 276,       // u128
+  fee_credits: 292,                              // i128  (was 228, shifted +64)
+  cancel_deposit_escrow: 308,                    // u128
+  last_fee_slot: 324,                            // u64
+  active_bitmap: 332,                            // [u64; 1]
+  legs: 340,                                     // 16 × 144 = 2304 → ends at 2644
+  source_domains: 2644,                          // 32 × 196 = 6272 → ends at 8916
+  health_cert: 8916,                             // 121 B
+  stale_state: 9037,                             // u8
+  b_stale_state: 9038,                           // u8
+  rebalance_lock: 9039,                          // u8
+  liquidation_lock: 9040,                        // u8
+  close_progress: 9041,                          // 184 B
+  resolved_payout_receipt: 9225,                 // 66 B → struct end at 9291
 } as const;
 
 // ---------- PortfolioLegV16Account (144 B, unchanged) ----------

@@ -412,7 +412,7 @@ export function parseLeg(data: Buffer, baseOff: number, index: number): Leg {
   };
 }
 
-// ---------- PortfolioAccountV16 (9227 B state + 16 B header) ----------
+// ---------- PortfolioAccountV16 (9291 B state + 16 B header) ----------
 // 0f87dcb added three u128 residual-reward counters between reserved_pnl and
 // fee_credits.  The invariant is `residualSpentPrincipalAtomsTotal <=
 // residualCrystallizedLossAtomsTotal` (shape-validated); the third counter
