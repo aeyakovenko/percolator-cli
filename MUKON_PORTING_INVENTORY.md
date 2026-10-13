@@ -67,9 +67,13 @@ ports the required health/coherence dependencies.
 
 Stage 3A ports the reviewed `cd5f012` market-health and temporal-coherence
 engines byte-for-byte with their offline tests. It remains intentionally pure:
-the RPC-backed `check-current-market-health.ts`, audit-profile selection, and
-the keeper executable are still deferred until their live product defaults are
+the keeper executable remains deferred until its live product defaults are
 removed and explicit configuration is enforced.
+
+Stage 3B adds the reviewed audit profiles and a read-only RPC wrapper. Unlike
+the historical wrapper, it has no program, market, or portfolio fallback: all
+target identities and the RPC role are required explicitly. Its offline tests
+prove configuration and source safety; no live audit was run during the port.
 
 ### Release and singleton controls
 

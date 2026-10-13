@@ -7,6 +7,10 @@
     "rootDir": "."
   },
   "include": [
+    "scripts/check-current-market-health.ts",
+    "scripts/check-current-market-health.test.ts",
+    "scripts/v16-audit-profile.ts",
+    "scripts/v16-audit-profile.test.ts",
     "scripts/v16-market-health.ts",
     "scripts/v16-market-health.test.ts",
     "scripts/v16-market-coherence.ts",

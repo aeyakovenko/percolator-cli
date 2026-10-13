@@ -12,6 +12,7 @@
     "dist"
   ],
   "scripts": {
+    "audit:v16": "node --import tsx scripts/check-current-market-health.ts",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "typecheck:keeper-core": "tsc -p tsconfig.keeper-core.json",
@@ -26,7 +27,7 @@
     "test:mukon-compat": "node --import tsx scripts/mukon-deployed-v16.test.ts",
     "test:normalized": "node --import tsx tests/normalized/foundation.test.ts",
     "test:oracle-providers": "node --import tsx scripts/pyth-hermes.test.ts && node --import tsx scripts/pyth-solana-push.test.ts && node --import tsx scripts/oracle-price-source.test.ts && node --import tsx scripts/magicblock-demo-prices.test.ts",
-    "test:v16-health": "node --import tsx scripts/v16-market-health.test.ts && node --import tsx scripts/v16-market-coherence.test.ts"
+    "test:v16-health": "node --import tsx scripts/v16-market-health.test.ts && node --import tsx scripts/v16-market-coherence.test.ts && node --import tsx scripts/v16-audit-profile.test.ts && node --import tsx scripts/check-current-market-health.test.ts"
   },
   "dependencies": {
     "@pythnetwork/hermes-client": "^2.1.0",
