@@ -4,6 +4,10 @@
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./normalized": "./dist/normalized/index.js"
+  },
   "files": [
     "dist"
   ],
@@ -12,9 +16,12 @@
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "smoke": "tsx scripts/smoke-v16-bounty5.ts",
-    "test": "tsx tests/v16/devnet-smoke.ts",
-    "test:offline": "tsx scripts/verify-manifest.ts",
-    "test:mukon-compat": "tsx scripts/mukon-deployed-v16.test.ts"
+    "test": "pnpm test:offline",
+    "test:devnet": "node --import tsx tests/v16/devnet-smoke.ts",
+    "test:offline": "pnpm test:mukon-compat && pnpm test:normalized",
+    "test:legacy-manifest": "node --import tsx scripts/verify-manifest.ts",
+    "test:mukon-compat": "node --import tsx scripts/mukon-deployed-v16.test.ts",
+    "test:normalized": "node --import tsx tests/normalized/foundation.test.ts"
   },
   "dependencies": {
     "@pythnetwork/hermes-client": "^2.1.0",

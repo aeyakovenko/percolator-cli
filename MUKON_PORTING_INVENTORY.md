@@ -24,18 +24,25 @@ newer layouts.
 
 ### Generic CLI and runtime
 
-Port in a dedicated commit after reconciling its imports with upstream
-`src/v16`, without replacing or deleting the upstream bindings:
+The Stage 1 source audit proved that this area cannot be copied as one package.
+Despite its generic names, `src/abi`, `src/solana/slab.ts`, and the command
+modules implement the pre-v16 single-slab program: tags 0–30, a 72-byte header,
+and a 1,156,936-byte slab. Those files are incompatible with both upstream's
+current v16 layout and Mukon's deployed v16 wrapper. They remain preserved on
+the archive branch, but are not active normalized CLI code.
 
-- `src/abi/{accounts,encode,errors,instructions}.ts`
-- `src/{cli,config,index,validation}.ts`
-- `src/runtime/{context,tx}.ts`
-- `src/solana/{ata,oracle,pda,slab,wallet}.ts`
-- the command modules under `src/commands/`
-- focused unit tests under `test/`
+Port only version-independent concepts into an explicit namespace:
 
-This is a real reusable CLI/library layer, including the slab implementation
-and validation boundary. It must not be treated as release debris.
+- strict numeric/public-key validation;
+- explicit runtime configuration with no default cluster or wallet;
+- RPC construction with automatic 429 retries disabled;
+- abortable, blockheight-aware confirmation with distinct timeout,
+  cancellation, expiry, transport, and on-chain failures; and
+- offline tests for those boundaries.
+
+Any future command must select `src/v16` or `src/mukon/deployed-v16` explicitly.
+There will be no unversioned instruction or slab parser and no compatibility
+shim that guesses a layout from account bytes.
 
 ### Keeper, oracle, and provider isolation
 
@@ -108,6 +115,10 @@ coverage.
   or environment-driven inputs, not a copied live deployment snapshot.
 - old recovery tests/scripts: keep only if parameterized against explicit
   fixtures and free of automatic broadcast behavior.
+- `scripts/verify-manifest.ts`: its current fixture is a historical mainnet
+  manifest that fails five policy fields. It remains available only as the
+  explicit `test:legacy-manifest` diagnostic and is not part of the default
+  offline test suite.
 
 ## Drop from the normalized product line
 
@@ -137,7 +148,8 @@ market-specific recovery tools.
 
 1. `491775d`: deployed-v16 compatibility overlay (already present).
 2. This inventory and normalization boundary.
-3. Generic CLI/runtime plus unit tests, preserving upstream `src/v16`.
+3. Version-explicit normalized runtime foundation plus offline tests,
+   preserving upstream `src/v16` and excluding the legacy single-slab ABI.
 4. Keeper/provider package plus deterministic tests.
 5. Health/coherence and simulation-only operator tools.
 6. Manual release/singleton controls.
