@@ -7,6 +7,9 @@
     "rootDir": "."
   },
   "include": [
+    "scripts/bs58.d.ts",
+    "scripts/keeper-executable-config.ts",
+    "scripts/keeper-executable-config.test.ts",
     "scripts/keeper-policy.ts",
     "scripts/keeper-runtime.ts",
     "scripts/keeper-runtime.test.ts",
@@ -14,6 +17,7 @@
     "scripts/keeper-maintenance.test.ts",
     "scripts/keeper-entry-wiring.test.ts",
     "scripts/keeper-shadow.ts",
+    "scripts/oracle-keeper-v16.ts",
     "scripts/oracle-price-source.ts",
     "scripts/oracle-price-source.test.ts",
     "scripts/pyth-hermes.ts",

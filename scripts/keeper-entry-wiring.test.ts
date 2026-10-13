@@ -6,6 +6,15 @@ function keeperSource(): string {
   return readFileSync(new URL("./oracle-keeper-v16.ts", import.meta.url), "utf8");
 }
 
+test("entry point requires normalized targets, mode, and feed mappings without product fallbacks", () => {
+  const source = keeperSource();
+  assert.match(source, /requireKeeperExecutableConfiguration\(process\.env\)/);
+  assert.doesNotMatch(source, /7C37Xn3|DNhYhm8|BWqxjf1/);
+  assert.doesNotMatch(source, /ef0d8b6f|e62df6c8|ff61491a|be9b59d1/);
+  assert.doesNotMatch(source, /ASSETS\.filter|symbol !== "ZEC"/);
+  assert.doesNotMatch(source, /process\.env\.(PROGRAM_ID|MARKET|LP_PORTFOLIO)\s*\?\?/);
+});
+
 test("production wiring performs maintenance after push and before LP without legacy cached heal", () => {
   const source = keeperSource();
   const tick = source.slice(source.indexOf("async function tickInner"), source.indexOf("async function tick()"));

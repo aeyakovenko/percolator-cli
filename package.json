@@ -14,6 +14,7 @@
   "scripts": {
     "audit:v16": "node --import tsx scripts/check-current-market-health.ts",
     "build": "tsup",
+    "keeper:v16": "node --import tsx scripts/oracle-keeper-v16.ts",
     "typecheck": "tsc --noEmit",
     "typecheck:keeper-core": "tsc -p tsconfig.keeper-core.json",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
@@ -21,7 +22,8 @@
     "smoke": "tsx scripts/smoke-v16-bounty5.ts",
     "test": "pnpm test:offline",
     "test:devnet": "node --import tsx tests/v16/devnet-smoke.ts",
-    "test:offline": "pnpm test:mukon-compat && pnpm test:normalized && pnpm test:keeper-core && pnpm test:oracle-providers && pnpm test:v16-health",
+    "test:offline": "pnpm test:mukon-compat && pnpm test:normalized && pnpm test:keeper-core && pnpm test:keeper-entry && pnpm test:oracle-providers && pnpm test:v16-health",
+    "test:keeper-entry": "node --import tsx scripts/keeper-executable-config.test.ts && node --import tsx scripts/keeper-entry-wiring.test.ts",
     "test:keeper-core": "node --import tsx scripts/keeper-runtime.test.ts && node --import tsx scripts/keeper-maintenance.test.ts",
     "test:legacy-manifest": "node --import tsx scripts/verify-manifest.ts",
     "test:mukon-compat": "node --import tsx scripts/mukon-deployed-v16.test.ts",

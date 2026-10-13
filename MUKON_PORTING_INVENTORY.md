@@ -75,6 +75,13 @@ the historical wrapper, it has no program, market, or portfolio fallback: all
 target identities and the RPC role are required explicitly. Its offline tests
 prove configuration and source safety; no live audit was run during the port.
 
+Stage 3C admits the reviewed keeper executable without its historical product
+defaults. RPC, program, market, LP portfolio, keeper mode, signer role, and the
+ordered asset/feed mapping are all explicit. Missing mode never falls through
+to live operation, and the prior hard-coded major/ZEC policy is not part of the
+normalized source. The executable and its source-wiring tests are offline-
+reviewed only; no keeper was started and no signer or RPC was used.
+
 ### Release and singleton controls
 
 Port together and keep manual-only:
