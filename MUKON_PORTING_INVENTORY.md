@@ -82,6 +82,11 @@ to live operation, and the prior hard-coded major/ZEC policy is not part of the
 normalized source. The executable and its source-wiring tests are offline-
 reviewed only; no keeper was started and no signer or RPC was used.
 
+Stage 4A ports only the pure singleton-status and fresh-release-write validators
+with generic offline fixtures. They consume bounded synthetic stdin in tests and
+cannot call Fly. Workflow, image, hosting configuration, and deployment docs
+remain deferred to a separate package.
+
 ### Release and singleton controls
 
 Port together and keep manual-only:
