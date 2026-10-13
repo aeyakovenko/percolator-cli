@@ -1,0 +1,10 @@
+allowBuilds:
+  bigint-buffer: false
+  bufferutil: false
+  esbuild: true
+  protobufjs: true
+  utf-8-validate: false
+
+overrides:
+  '@pythnetwork/pyth-solana-receiver>rpc-websockets': 7.11.2
+  '@coral-xyz/anchor>rpc-websockets': 7.11.2

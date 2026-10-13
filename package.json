@@ -33,11 +33,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "pnpm": {
-    "overrides": {
-      "@pythnetwork/pyth-solana-receiver>rpc-websockets": "7.11.2",
-      "@coral-xyz/anchor>rpc-websockets": "7.11.2"
-    }
   }
 }
