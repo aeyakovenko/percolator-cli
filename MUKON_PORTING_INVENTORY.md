@@ -87,6 +87,16 @@ with generic offline fixtures. They consume bounded synthetic stdin in tests and
 cannot call Fly. Workflow, image, hosting configuration, and deployment docs
 remain deferred to a separate package.
 
+Stage 4B adds the manual continuous-singleton release package. Its workflow
+requires an explicit app and exact started Machine, validates the Machine's
+explicit live target settings and required secret names without reading secret
+values, builds while the old keeper remains live, and preserves the reviewed
+fresh-write, operational-audit, and one-rollback gates. The container, Fly
+template, and runbooks contain no historical deployment identity or runtime
+target default. This package is locally reviewed only; no workflow was
+dispatched and no GitHub, registry, Fly, RPC, signer, or deployment state was
+touched.
+
 ### Release and singleton controls
 
 Port together and keep manual-only:

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "license": "Apache-2.0",
   "type": "module",
+  "packageManager": "pnpm@11.25.0",
   "main": "./dist/index.js",
   "exports": {
     ".": "./dist/index.js",
@@ -15,6 +16,7 @@
     "audit:v16": "node --import tsx scripts/check-current-market-health.ts",
     "build": "tsup",
     "keeper:v16": "node --import tsx scripts/oracle-keeper-v16.ts",
+    "release:check": "pnpm test && pnpm typecheck && pnpm typecheck:keeper-core && pnpm typecheck:tests && pnpm typecheck:v16-health && pnpm build",
     "typecheck": "tsc --noEmit",
     "typecheck:keeper-core": "tsc -p tsconfig.keeper-core.json",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
@@ -22,14 +24,15 @@
     "smoke": "tsx scripts/smoke-v16-bounty5.ts",
     "test": "pnpm test:offline",
     "test:devnet": "node --import tsx tests/v16/devnet-smoke.ts",
-    "test:offline": "pnpm test:mukon-compat && pnpm test:normalized && pnpm test:keeper-core && pnpm test:keeper-entry && pnpm test:oracle-providers && pnpm test:v16-health && pnpm test:release-gates",
+    "test:offline": "pnpm test:mukon-compat && pnpm test:normalized && pnpm test:keeper-core && pnpm test:keeper-entry && pnpm test:oracle-providers && pnpm test:v16-health && pnpm test:release-gates && pnpm test:release-workflow",
     "test:keeper-entry": "node --import tsx scripts/keeper-executable-config.test.ts && node --import tsx scripts/keeper-entry-wiring.test.ts",
     "test:keeper-core": "node --import tsx scripts/keeper-runtime.test.ts && node --import tsx scripts/keeper-maintenance.test.ts",
     "test:legacy-manifest": "node --import tsx scripts/verify-manifest.ts",
     "test:mukon-compat": "node --import tsx scripts/mukon-deployed-v16.test.ts",
     "test:normalized": "node --import tsx tests/normalized/foundation.test.ts",
     "test:oracle-providers": "node --import tsx scripts/pyth-hermes.test.ts && node --import tsx scripts/pyth-solana-push.test.ts && node --import tsx scripts/oracle-price-source.test.ts && node --import tsx scripts/magicblock-demo-prices.test.ts",
-    "test:release-gates": "node --test scripts/verify-fly-singleton.test.mjs scripts/verify-keeper-release-log.test.mjs",
+    "test:release-gates": "node --test scripts/verify-fly-singleton.test.mjs scripts/verify-keeper-release-log.test.mjs scripts/verify-fly-secret-names.test.mjs",
+    "test:release-workflow": "node --test scripts/check-keeper-release-workflow.test.mjs",
     "test:v16-health": "node --import tsx scripts/v16-market-health.test.ts && node --import tsx scripts/v16-market-coherence.test.ts && node --import tsx scripts/v16-audit-profile.test.ts && node --import tsx scripts/check-current-market-health.test.ts"
   },
   "dependencies": {

@@ -1,0 +1,14 @@
+# Identity-free template for one existing v16 oracle-keeper Machine.
+# Deliberately omit `app`, `primary_region`, target identities, and secrets.
+# Operators must supply the reviewed existing app explicitly and may not use
+# this template to create, clone, scale, or start a Machine.
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[deploy]
+  strategy = "immediate"

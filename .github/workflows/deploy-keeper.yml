@@ -1,0 +1,319 @@
+name: Promote v16 oracle keeper (continuous singleton)
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Exact existing Fly application name
+        required: true
+        type: string
+      machine_id:
+        description: Exact existing started singleton Fly Machine ID
+        required: true
+        type: string
+      current_source_revision:
+        description: Full source revision currently recorded on the Machine
+        required: true
+        type: string
+      current_image_digest:
+        description: Current sha256 image digest from the release checkpoint
+        required: true
+        type: string
+      release_version:
+        description: Candidate release label, for example v1
+        required: true
+        type: string
+      oracle_price_source:
+        description: Exact reviewed oracle source the candidate must prove
+        required: true
+        type: choice
+        options:
+          - pyth-solana-push
+          - pyth-hermes
+          - magicblock-demo
+      minimum_lp_risk_equity_usdc:
+        description: Reviewed operational LP risk-equity floor in USDC
+        required: true
+        type: string
+      minimum_domain_insurance_usdc:
+        description: Reviewed operational aggregate domain-insurance floor in USDC
+        required: true
+        type: string
+      confirmation:
+        description: Type DEPLOY to authorize this exact Machine promotion
+        required: true
+        type: string
+      rollback_confirmation:
+        description: Type ROLLBACK to authorize one bounded captured-image rollback
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keeper-release-${{ inputs.app }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Build live, promote exact singleton, and prove first write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: production
+    env:
+      EXPECTED_APP: ${{ inputs.app }}
+      EXPECTED_MACHINE_ID: ${{ inputs.machine_id }}
+      EXPECTED_CURRENT_SOURCE: ${{ inputs.current_source_revision }}
+      EXPECTED_CURRENT_DIGEST: ${{ inputs.current_image_digest }}
+      RELEASE_VERSION: ${{ inputs.release_version }}
+      ORACLE_PRICE_SOURCE: ${{ inputs.oracle_price_source }}
+      MINIMUM_LP_RISK_EQUITY_USDC: ${{ inputs.minimum_lp_risk_equity_usdc }}
+      MINIMUM_DOMAIN_INSURANCE_USDC: ${{ inputs.minimum_domain_insurance_usdc }}
+      RELEASE_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - name: Check explicit promotion and rollback authority
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          ROLLBACK_CONFIRMATION: ${{ inputs.rollback_confirmation }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = "DEPLOY"
+          test "$ROLLBACK_CONFIRMATION" = "ROLLBACK"
+          [[ "$EXPECTED_APP" =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]]
+          [[ "$EXPECTED_MACHINE_ID" =~ ^[A-Za-z0-9_-]{6,64}$ ]]
+          [[ "$EXPECTED_CURRENT_SOURCE" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_CURRENT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$RELEASE_VERSION" =~ ^v[0-9]+$ ]]
+          case "$ORACLE_PRICE_SOURCE" in
+            pyth-solana-push|pyth-hermes|magicblock-demo) ;;
+            *) exit 1 ;;
+          esac
+          [[ "$MINIMUM_LP_RISK_EQUITY_USDC" =~ ^[0-9]+([.][0-9]{1,6})?$ ]]
+          [[ "$MINIMUM_DOMAIN_INSURANCE_USDC" =~ ^[0-9]+([.][0-9]{1,6})?$ ]]
+          [[ "$MINIMUM_LP_RISK_EQUITY_USDC" =~ [1-9] ]]
+          [[ "$MINIMUM_DOMAIN_INSURANCE_USDC" =~ [1-9] ]]
+
+      - name: Check out exact candidate source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Enable the package manager
+        run: corepack enable
+
+      - name: Install exact dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run release checks while the old keeper remains live
+        run: pnpm release:check
+
+      - name: Install Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
+        with:
+          version: 0.4.77
+
+      - name: Verify and capture the running pre-release singleton
+        id: preflight
+        run: |
+          set -euo pipefail
+          status_file="$RUNNER_TEMP/keeper-preflight.json"
+          flyctl status --app "$EXPECTED_APP" --json > "$status_file"
+          node scripts/verify-fly-singleton.mjs \
+            "$EXPECTED_APP" \
+            "$EXPECTED_MACHINE_ID" \
+            started \
+            "$EXPECTED_CURRENT_SOURCE" \
+            "$EXPECTED_CURRENT_DIGEST" < "$status_file"
+
+          machine_json="$(jq -ce --arg id "$EXPECTED_MACHINE_ID" '
+            (.Machines // .machines // [])
+            | map(select((.ID // .id) == $id))
+            | if length == 1 then .[0] else error("exact Machine missing") end
+          ' "$status_file")"
+          jq -e '
+            (.Config.env // .config.env // {}) as $env
+            | ($env | type == "object")
+              and ($env.KEEPER_MODE == "live")
+              and ([
+                $env.PROGRAM_ID,
+                $env.MARKET,
+                $env.LP_PORTFOLIO,
+                $env.KEEPER_ASSETS_JSON,
+                $env.ORACLE_PRICE_SOURCE
+              ] | all(type == "string" and length > 0))
+          ' <<< "$machine_json" >/dev/null
+
+          old_image="$(jq -r '.Config.image // .config.image' <<< "$machine_json")"
+          old_digest="$(jq -r '.ImageRef.digest // .image_ref.digest' <<< "$machine_json")"
+          old_release_version="$(jq -r '.Config.metadata.release_version // .config.metadata.release_version' <<< "$machine_json")"
+          old_source="$(jq -r '.Config.metadata.source_revision // .config.metadata.source_revision' <<< "$machine_json")"
+          old_oracle_price_source="$(jq -r '.Config.env.ORACLE_PRICE_SOURCE // .config.env.ORACLE_PRICE_SOURCE' <<< "$machine_json")"
+          [[ "$old_image" =~ ^registry[.]fly[.]io/[A-Za-z0-9._/-]+(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$ ]]
+          [[ "$old_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$old_source" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$old_release_version" =~ ^[A-Za-z0-9._-]{1,32}$ ]]
+          case "$old_oracle_price_source" in
+            pyth-solana-push|pyth-hermes|magicblock-demo) ;;
+            *) exit 1 ;;
+          esac
+          echo "old_image=$old_image" >> "$GITHUB_OUTPUT"
+          echo "old_digest=$old_digest" >> "$GITHUB_OUTPUT"
+          echo "old_release_version=$old_release_version" >> "$GITHUB_OUTPUT"
+          echo "old_source=$old_source" >> "$GITHUB_OUTPUT"
+          echo "old_oracle_price_source=$old_oracle_price_source" >> "$GITHUB_OUTPUT"
+
+      - name: Verify required runtime secret names
+        env:
+          OLD_ORACLE_PRICE_SOURCE: ${{ steps.preflight.outputs.old_oracle_price_source }}
+        run: |
+          set -euo pipefail
+          required=(RPC_URL KEEPER_SECRET_KEY)
+          if [[ "$ORACLE_PRICE_SOURCE" = "pyth-hermes" || "$OLD_ORACLE_PRICE_SOURCE" = "pyth-hermes" ]]; then
+            required+=(PYTH_API_KEY)
+          fi
+          flyctl secrets list --app "$EXPECTED_APP" --json \
+            | node scripts/verify-fly-secret-names.mjs "${required[@]}"
+
+      - name: Build and pin the candidate while the old keeper remains live
+        id: candidate
+        run: |
+          set -euo pipefail
+          candidate_tag="registry.fly.io/$EXPECTED_APP:keeper-$GITHUB_SHA"
+          metadata_file="$RUNNER_TEMP/keeper-build-metadata.json"
+          flyctl auth docker
+          docker buildx build \
+            --build-arg "NINJA_RELEASE_SOURCE=$GITHUB_SHA" \
+            --build-arg "NINJA_RELEASE_ID=$RELEASE_ID" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --metadata-file "$metadata_file" \
+            --provenance=false \
+            --push \
+            --tag "$candidate_tag" \
+            .
+          candidate_digest="$(jq -r '."containerimage.digest"' "$metadata_file")"
+          [[ "$candidate_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "candidate_image=$candidate_tag@$candidate_digest" >> "$GITHUB_OUTPUT"
+          echo "candidate_digest=$candidate_digest" >> "$GITHUB_OUTPUT"
+
+      - name: Recheck continuity immediately before promotion
+        run: |
+          set -euo pipefail
+          flyctl status --app "$EXPECTED_APP" --json \
+            | node scripts/verify-fly-singleton.mjs \
+                "$EXPECTED_APP" \
+                "$EXPECTED_MACHINE_ID" \
+                started \
+                "${{ steps.preflight.outputs.old_source }}" \
+                "${{ steps.preflight.outputs.old_digest }}"
+
+      - name: Require a healthy operational audit immediately before promotion
+        run: |
+          set -euo pipefail
+          health_file="$RUNNER_TEMP/keeper-pre-promotion-health.txt"
+          audit_command="env AUDIT_PROFILE=operational LP_MIN_RISK_EQUITY_USDC=$MINIMUM_LP_RISK_EQUITY_USDC MIN_DOMAIN_INSURANCE_USDC=$MINIMUM_DOMAIN_INSURANCE_USDC node --import tsx scripts/check-current-market-health.ts"
+          if ! flyctl ssh console \
+              --app "$EXPECTED_APP" \
+              --machine "$EXPECTED_MACHINE_ID" \
+              --pty=false \
+              --quiet \
+              --command "$audit_command" \
+              > "$health_file" 2>&1; then
+            cat "$health_file"
+            exit 1
+          fi
+          cat "$health_file"
+
+      - name: Promote, prove the first confirmed push, or perform one authorized rollback
+        run: |
+          set -euo pipefail
+
+          prove_status() {
+            local source_revision="$1"
+            local image_digest="$2"
+            flyctl status --app "$EXPECTED_APP" --json \
+              | node scripts/verify-fly-singleton.mjs \
+                  "$EXPECTED_APP" "$EXPECTED_MACHINE_ID" started "$source_revision" "$image_digest"
+          }
+
+          prove_logs() {
+            local source_revision="$1"
+            local release_id="$2"
+            local cutoff="$3"
+            local proof_mode="$4"
+            local oracle_price_source="$5"
+            local log_file="$RUNNER_TEMP/keeper-release-logs.jsonl"
+            for _attempt in $(seq 1 24); do
+              flyctl logs \
+                --app "$EXPECTED_APP" \
+                --machine "$EXPECTED_MACHINE_ID" \
+                --json \
+                --no-tail > "$log_file"
+              if node scripts/verify-keeper-release-log.mjs \
+                  "$EXPECTED_MACHINE_ID" "$source_revision" "$release_id" "$cutoff" "$proof_mode" "$oracle_price_source" \
+                  < "$log_file"; then
+                return 0
+              fi
+              sleep 5
+            done
+            return 1
+          }
+
+          audit_market() {
+            local label="$1"
+            local slug="${label//[^A-Za-z0-9]/-}"
+            local health_file="$RUNNER_TEMP/keeper-$slug-health.txt"
+            local audit_command="env AUDIT_PROFILE=operational LP_MIN_RISK_EQUITY_USDC=$MINIMUM_LP_RISK_EQUITY_USDC MIN_DOMAIN_INSURANCE_USDC=$MINIMUM_DOMAIN_INSURANCE_USDC node --import tsx scripts/check-current-market-health.ts"
+            if ! flyctl ssh console \
+                --app "$EXPECTED_APP" \
+                --machine "$EXPECTED_MACHINE_ID" \
+                --pty=false \
+                --quiet \
+                --command "$audit_command" \
+                > "$health_file" 2>&1; then
+              cat "$health_file"
+              return 1
+            fi
+            cat "$health_file"
+          }
+
+          promotion_cutoff="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+          set +e
+          flyctl machine update "$EXPECTED_MACHINE_ID" \
+            --app "$EXPECTED_APP" \
+            --image "${{ steps.candidate.outputs.candidate_image }}" \
+            --metadata "release_version=$RELEASE_VERSION" \
+            --metadata "source_revision=$GITHUB_SHA" \
+            --env "ORACLE_PRICE_SOURCE=$ORACLE_PRICE_SOURCE" \
+            --wait-timeout 300 \
+            --yes
+          update_status=$?
+          set -e
+
+          if [[ $update_status -eq 0 ]] \
+            && prove_status "$GITHUB_SHA" "${{ steps.candidate.outputs.candidate_digest }}" \
+            && prove_logs "$GITHUB_SHA" "$RELEASE_ID" "$promotion_cutoff" strict "$ORACLE_PRICE_SOURCE" \
+            && audit_market "Post-promotion"; then
+            echo "Promotion proved one started Machine, a fresh confirmed push, and operational health." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if prove_status "${{ steps.preflight.outputs.old_source }}" "${{ steps.preflight.outputs.old_digest }}" \
+            && prove_logs "${{ steps.preflight.outputs.old_source }}" "$RELEASE_ID" "$promotion_cutoff" legacy-rollback "${{ steps.preflight.outputs.old_oracle_price_source }}"; then
+            echo "The old image remained live; no rollback mutation was needed." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          rollback_cutoff="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+          flyctl machine update "$EXPECTED_MACHINE_ID" \
+            --app "$EXPECTED_APP" \
+            --image "${{ steps.preflight.outputs.old_image }}" \
+            --metadata "release_version=${{ steps.preflight.outputs.old_release_version }}" \
+            --metadata "source_revision=${{ steps.preflight.outputs.old_source }}" \
+            --env "ORACLE_PRICE_SOURCE=${{ steps.preflight.outputs.old_oracle_price_source }}" \
+            --wait-timeout 300 \
+            --yes
+          prove_status "${{ steps.preflight.outputs.old_source }}" "${{ steps.preflight.outputs.old_digest }}"
+          prove_logs "${{ steps.preflight.outputs.old_source }}" "$RELEASE_ID" "$rollback_cutoff" legacy-rollback "${{ steps.preflight.outputs.old_oracle_price_source }}"
+          audit_market "Post-rollback"
+          echo "Candidate failed; one authorized rollback restored and proved the old image." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
