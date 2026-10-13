@@ -50,3 +50,20 @@ test("runtime admission follows feed latency and precedes push; deferred tick ha
   assert.doesNotMatch(tick, /conn.getSlot/);
   assert.match(tick, /if \(admission.maintenanceUsed\) \{[\s\S]*?return;\s*\}/);
 });
+
+test("keeper reports startup, periodic, and rejected-crank health without funding", () => {
+  const source = keeperSource();
+  assert.match(source, /reportLpHealth\("startup", signal\)/);
+  assert.match(source, /reportLpHealth\("periodic", signal\)/);
+  assert.match(source, /reportLpHealth\("crank rejected", signal\)/);
+  assert.match(source, /LP_HEALTH_CHECK_MS = 5 \* 60_000/);
+  assert.match(source, /LP_FAILURE_HEALTH_CHECK_MS = 60_000/);
+  assert.doesNotMatch(source, /fund-current-market-lp|mintTo|topUpBacking|depositInstruction/);
+
+  const checker = readFileSync(new URL("./check-current-market-health.ts", import.meta.url), "utf8");
+  assert.match(checker, /getMultipleAccountsInfoAndContext/);
+  assert.match(checker, /minContextSlot/);
+  assert.match(checker, /AccountLayout\.decode/);
+  assert.doesNotMatch(checker, /getTokenAccountBalance/);
+  assert.doesNotMatch(checker, /sendRawTransaction|sendTransaction|simulateTransaction|TransactionInstruction/);
+});

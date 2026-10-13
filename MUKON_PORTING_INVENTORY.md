@@ -65,6 +65,12 @@ deliberately deferred: its four source-ordering tests are preserved separately
 and must pass after Stage 3 removes live program/market/portfolio defaults and
 ports the required health/coherence dependencies.
 
+Stage 3A ports the reviewed `cd5f012` market-health and temporal-coherence
+engines byte-for-byte with their offline tests. It remains intentionally pure:
+the RPC-backed `check-current-market-health.ts`, audit-profile selection, and
+the keeper executable are still deferred until their live product defaults are
+removed and explicit configuration is enforced.
+
 ### Release and singleton controls
 
 Port together and keep manual-only:

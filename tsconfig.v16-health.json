@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "declaration": false,
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": [
+    "scripts/v16-market-health.ts",
+    "scripts/v16-market-health.test.ts",
+    "scripts/v16-market-coherence.ts",
+    "scripts/v16-market-coherence.test.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
