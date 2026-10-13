@@ -14,14 +14,17 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
+    "typecheck:keeper-core": "tsc -p tsconfig.keeper-core.json",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "smoke": "tsx scripts/smoke-v16-bounty5.ts",
     "test": "pnpm test:offline",
     "test:devnet": "node --import tsx tests/v16/devnet-smoke.ts",
-    "test:offline": "pnpm test:mukon-compat && pnpm test:normalized",
+    "test:offline": "pnpm test:mukon-compat && pnpm test:normalized && pnpm test:keeper-core && pnpm test:oracle-providers",
+    "test:keeper-core": "node --import tsx scripts/keeper-runtime.test.ts && node --import tsx scripts/keeper-maintenance.test.ts",
     "test:legacy-manifest": "node --import tsx scripts/verify-manifest.ts",
     "test:mukon-compat": "node --import tsx scripts/mukon-deployed-v16.test.ts",
-    "test:normalized": "node --import tsx tests/normalized/foundation.test.ts"
+    "test:normalized": "node --import tsx tests/normalized/foundation.test.ts",
+    "test:oracle-providers": "node --import tsx scripts/pyth-hermes.test.ts && node --import tsx scripts/pyth-solana-push.test.ts && node --import tsx scripts/oracle-price-source.test.ts && node --import tsx scripts/magicblock-demo-prices.test.ts"
   },
   "dependencies": {
     "@pythnetwork/hermes-client": "^2.1.0",

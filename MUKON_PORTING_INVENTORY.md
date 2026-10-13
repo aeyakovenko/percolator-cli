@@ -59,6 +59,12 @@ reconciliation, push/crank separation, loss-stale and delayed-maintenance
 recovery, per-feed quarantine, authenticated Hermes requests, and preservation
 of the exactly-one-writer rule.
 
+Stage 2 ports the deterministic keeper runtime, maintenance, shadow and provider
+modules plus 115 focused tests. The executable `oracle-keeper-v16.ts` is
+deliberately deferred: its four source-ordering tests are preserved separately
+and must pass after Stage 3 removes live program/market/portfolio defaults and
+ports the required health/coherence dependencies.
+
 ### Release and singleton controls
 
 Port together and keep manual-only:

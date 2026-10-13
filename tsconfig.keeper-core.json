@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "declaration": false,
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": [
+    "scripts/keeper-policy.ts",
+    "scripts/keeper-runtime.ts",
+    "scripts/keeper-runtime.test.ts",
+    "scripts/keeper-maintenance.ts",
+    "scripts/keeper-maintenance.test.ts",
+    "scripts/keeper-entry-wiring.test.ts",
+    "scripts/keeper-shadow.ts",
+    "scripts/oracle-price-source.ts",
+    "scripts/oracle-price-source.test.ts",
+    "scripts/pyth-hermes.ts",
+    "scripts/pyth-hermes.test.ts",
+    "scripts/pyth-solana-push.ts",
+    "scripts/pyth-solana-push.test.ts",
+    "scripts/magicblock-demo-prices.ts",
+    "scripts/magicblock-demo-prices.test.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
