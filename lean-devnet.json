@@ -4,7 +4,7 @@
     "repo": "percolator-lean",
     "commit": "35cd13c",
     "compiler": "lean-svm 1a7b89d",
-    "note": "Deployed = 35cd13c (builds, proofs close, 11/11 suites). Adds reservedMm anti-shielding firewall + EWMA/Hybrid After-Hours oracle. All of A0/A1/A2 + native Pyth/Chainlink/Switchboard/composite/EWMA verified on devnet this session."
+    "note": "Deployed = 35cd13c (builds, proofs close, 11/11 suites). Adds reservedMm anti-shielding firewall + EWMA/Hybrid After-Hours oracle. All of A0/A1/A2 + native Pyth/Chainlink/Switchboard/composite/EWMA verified on devnet this session. (hashes = on-chain/deployed bytes, verified; percolator-lean build/ is actively changing and non-reproducible, so the deployed bytes are the source of truth.)"
   },
   "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "programs": {
@@ -12,7 +12,7 @@
       "id": "GD43BhWwAjiZLs56juEkacSKkY3TVCTbD7cG7HHDYKdA",
       "elf": "percolator.so",
       "size": 73224,
-      "sha256": "6e539f050c45e69eec4ee23147f656016d070fc1450c8fd931d773d4ab447c2f"
+      "sha256": "c6dc8329207c8a0f874b4c1ceb1c48a5529d031453b7c1e9ce6f5808bca436d1"
     },
     "matcher": {
       "id": "9NqBGzLYY5d8v426voAT3VqJUprJX6fwyGJ2a8P4A22N",
@@ -24,7 +24,7 @@
       "id": "5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2",
       "elf": "oracle_adapter.so",
       "size": 20920,
-      "sha256": "dbc9aaa71388d3aa4114bbb7d649fcaf8f526bbe6e273cae1371cfa68e7896e5"
+      "sha256": "4a49d55819d2c5343cdf33663a544b8ac3fae6b9b57d0ac4f36a5094f30a8d1a"
     },
     "mockFeed": {
       "id": "9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx",
