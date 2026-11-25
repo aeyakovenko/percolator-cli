@@ -18,6 +18,15 @@ export const LEAN_DEVNET = {
   mockFeed: new PublicKey("9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx"),
 } as const;
 
+// ---------- deployed programs (mainnet-beta) ----------
+// Byte-identical to the devnet-validated 35cd13c build (core c6dc8329, matcher
+// 9d79d159, adapter 4a49d558). Upgrade authority: A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK.
+export const LEAN_MAINNET = {
+  percolator: new PublicKey("GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm"),
+  matcher: new PublicKey("EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR"),
+  oracleAdapter: new PublicKey("B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN"),
+} as const;
+
 export const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 export const SYSTEM_PROGRAM_ID = new PublicKey("11111111111111111111111111111111");
 

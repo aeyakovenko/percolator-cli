@@ -14,7 +14,7 @@ Percolator now has two on-chain implementations, and this repo has a client for 
   on-chain program ids / ELF hashes are in [`lean-devnet.json`](lean-devnet.json),
   the devnet harness in [`lean-devnet/`](lean-devnet/README.md), and the running
   list of on-chain gaps vs. the legacy protocol in `/tmp/perc-missing.md`.
-  It is **devnet-only** today â see `lean-devnet.json` for the deployed ids.
+  It is now deployed on **mainnet** (bug bounty, see below) as well as devnet.
 
 - **v16 (LEGACY â everything else in this README).** The original Rust program
   (`percolator-prog`). Its client is `src/v16/` (the default `percolator-cli`
@@ -26,6 +26,77 @@ Percolator now has two on-chain implementations, and this repo has a client for 
   `pnpm test`) no longer have a program to hit.
 
 **Everything from "Related Repositories" down describes the legacy v16 protocol.**
+
+## percolator-lean — mainnet bug bounty (LIVE)
+
+The percolator-lean programs are deployed on **mainnet-beta**, byte-identical to
+the devnet-validated `35cd13c` build (core `c6dc8329…`, matcher `9d79d159…`,
+adapter `4a49d558…`). Upgrade authority: `A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK`.
+
+| Program | Mainnet address |
+|---|---|
+| `percolator` (core DEX) | `GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm` |
+| `matcher` (passive-LP AMM) | `EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR` |
+| `oracle_adapter` (Pyth/Chainlink/Switchboard + composite + EWMA) | `B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN` |
+
+These ids are also in `src/lean/constants.ts` as `LEAN_MAINNET`. The client is the
+same for devnet and mainnet — just point it at a mainnet RPC and use `LEAN_MAINNET`.
+
+**Verified on the live mainnet program** (`scripts/lean-mainnet-verify.ts`): creating
+markets priced by a live Pyth feed, opening bilateral positions, **cross-margin** (one
+portfolio holding legs across multiple markets on shared capital), and **building your
+own matcher and trading against it single-signer**. The core safety battery
+(`scripts/lean-attack.ts`) and the pot dress-rehearsal (`scripts/lean-bounty-validate.ts`,
+verdict **GO**) passed on the validated build.
+
+> **Collateral note:** the lean DEX stores token base units directly as its E6
+> accounting, so a market's collateral must be a **6-decimal USD-style token**
+> (e.g. USDC) — not 9-decimal wSOL.
+
+### CLI examples (TypeScript, `percolator-cli/lean`)
+
+```ts
+import { Connection, Keypair, Transaction, SystemProgram } from "@solana/web3.js";
+import {
+  LEAN_MAINNET, DEX_SIZE, PORTFOLIO_SIZE, MATCHER_CFG_SIZE, POS_SCALE, TRADE_MODE,
+  initDex, initPortfolio, depositCollateral, trade,
+  matcherInit, matcherFill, deriveDexVault,
+} from "percolator-cli/lean";
+
+const P = LEAN_MAINNET.percolator, M = LEAN_MAINNET.matcher;
+const conn = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+// (mint = a 6-decimal USDC-style collateral; vault = deriveDexVault(P, dex)[0])
+
+// --- open a position: both counterparties sign one bilateral Trade ---
+trade(P, { dex, market, longPortfolio: pA, longOwner: ownerA.publicKey,
+           shortPortfolio: pB, shortOwner: ownerB.publicKey,
+           mode: TRADE_MODE.OPEN, qty: 2n * POS_SCALE });
+// NOTE: bundle a RefreshLeg per open leg in the same tx — see withLegRefresh().
+
+// --- build your OWN matcher (passive-LP AMM) ---
+matcherInit(M, { cfg: matcherCfg, owner: lpOwner.publicKey, dex,
+                 lpPortfolio, percolator: P,
+                 halfSpreadBps: 50n, impactBps: 20n, maxFillQty: 10n * POS_SCALE });
+// fund the PDA-owned LP portfolio, then anyone can take against it single-signer:
+matcherFill(M, { cfg: matcherCfg, dex, market, lpPortfolio,
+                 takerPortfolio, taker: taker.publicKey, percolator: P,
+                 mode: TRADE_MODE.OPEN, takerIsLong: true,
+                 qty: POS_SCALE, limitPrice });
+```
+
+Runnable end-to-end flows (create market → positions → cross-margin → matcher):
+`scripts/lean-mainnet-verify.ts`. Adversarial / pot-drain attempts:
+`scripts/lean-attack.ts`, `scripts/lean-bounty-validate.ts`.
+
+### Bounty
+
+Break the live market and keep the insurance fund. Winning = draining the market's
+insurance pot or otherwise violating conservation (`V == SPL vault balance`) to
+extract more value than you put in. *(Prize pot seeding pending — see the collateral
+note above.)*
+
+---
+
 
 ## Related Repositories
 

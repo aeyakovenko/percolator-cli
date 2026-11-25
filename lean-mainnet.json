@@ -1,0 +1,15 @@
+{
+  "network": "mainnet-beta",
+  "source": { "repo": "percolator-lean", "commit": "35cd13c", "note": "bytes byte-identical to the devnet-validated 35cd13c build (= d591ab9 program ABI; d591ab9 adds only proofs/docs/tests)" },
+  "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+  "upgradeable": true,
+  "programKeypairs": "~/.config/solana/lean-mainnet-{percolator,matcher,adapter}.json",
+  "programs": {
+    "percolator":    { "id": "GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm", "size": 73224, "sha256": "c6dc8329207c8a0f874b4c1ceb1c48a5529d031453b7c1e9ce6f5808bca436d1" },
+    "matcher":       { "id": "EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR", "size": 8744,  "sha256": "9d79d159d48c14ff0894ef0727b3e3d6b4f9134cd04c635c18aa9eb7d33d4f54" },
+    "oracleAdapter": { "id": "B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN", "size": 20920, "sha256": "4a49d55819d2c5343cdf33663a544b8ac3fae6b9b57d0ac4f36a5094f30a8d1a" }
+  },
+  "collateralNote": "DEX collateral must be a 6-decimal USD-style token (USDC), not 9-decimal wSOL — the program stores token base units directly as E6 accounting.",
+  "verified": "scripts/lean-mainnet-verify.ts (7/7 on mainnet): create market via live Pyth SOL/USD, open positions, cross-margin, build matcher + single-signer fill, conservation.",
+  "bountyPot": "pending collateral (needs ~1 SOL of USDC; wSOL incompatible)"
+}
