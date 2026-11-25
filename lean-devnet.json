@@ -2,9 +2,9 @@
   "network": "devnet",
   "source": {
     "repo": "percolator-lean",
-    "commit": "35cd13c",
+    "commit": "d591ab9",
     "compiler": "lean-svm 1a7b89d",
-    "note": "Deployed = 35cd13c (builds, proofs close, 11/11 suites). Adds reservedMm anti-shielding firewall + EWMA/Hybrid After-Hours oracle. All of A0/A1/A2 + native Pyth/Chainlink/Switchboard/composite/EWMA verified on devnet this session. (hashes = on-chain/deployed bytes, verified; percolator-lean build/ is actively changing and non-reproducible, so the deployed bytes are the source of truth.)"
+    "note": "Source tip d591ab9. Program ABI is IDENTICAL to 35cd13c (d591ab9 changes only INVARIANTS.md/README/TraceProofs.lean/svm-runner tests \u2014 Program/Matcher/OracleAdapter/Layout.lean unchanged), so the deployed 35cd13c bytes still represent the current program logic; no redeploy needed. CI green on 35cd13c: feature smoke 43/43, attack 70/0, oracle (Pyth+composite+EWMA), bounty-validate GO."
   },
   "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "programs": {
