@@ -198,9 +198,9 @@ export function forceClosePair(p: PublicKey, a: { dex: PublicKey; market: Public
   return ix(p, [w(a.dex), w(a.market), w(a.longPortfolio), w(a.shortPortfolio)], Buffer.from([IX.ForceClosePair]));
 }
 
-/** op 16. Permissionless once OI, raw basis and active legs are all 0. */
-export function resolveMarket(p: PublicKey, a: { market: PublicKey }) {
-  return ix(p, [w(a.market)], Buffer.from([IX.ResolveMarket]));
+/** op 16 (35cd13c: + dex for resolved-dust sweep). Permissionless once OI, raw basis and active legs are all 0. */
+export function resolveMarket(p: PublicKey, a: { dex: PublicKey; market: PublicKey }) {
+  return ix(p, [w(a.dex), w(a.market)], Buffer.from([IX.ResolveMarket]));
 }
 
 /** op 17. Permissionless; pays a flat leg's posPnl at the resolved ratio. */

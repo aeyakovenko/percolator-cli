@@ -66,7 +66,8 @@ async function send(label: string, ixs: TransactionInstruction[], signers: Keypa
 }
 
 /** Simulate and assert a specific custom error code at a specific instruction index (default: last). */
-async function expectErr(label: string, ixs: TransactionInstruction[], signers: Keypair[], code: number, refresh = false) {
+async function expectErr(label: string, ixs: TransactionInstruction[], signers: Keypair[], code: number | number[], refresh = false) {
+  const codes = Array.isArray(code) ? code : [code];
   let list = ixs;
   if (refresh) list = (await withLegRefresh(conn, ixs)).instructions;
   const tx = new Transaction().add(...list);
@@ -78,8 +79,8 @@ async function expectErr(label: string, ixs: TransactionInstruction[], signers: 
   const got = err?.InstructionError?.[1]?.Custom;
   const idx = err?.InstructionError?.[0];
   const want = list.length - 1;
-  ok(got === code && idx === want,
-    `${label} rejected with ${leanErrorName(code)} (${code}) [got ${got === undefined ? JSON.stringify(err) : `${leanErrorName(got)} at ix ${idx}`}]`);
+  ok(codes.includes(got) && idx === want,
+    `${label} rejected with ${codes.map(leanErrorName).join("|")} [got ${got === undefined ? JSON.stringify(err) : `${leanErrorName(got)} at ix ${idx}`}]`);
   covered.add(label);
 }
 
@@ -211,7 +212,9 @@ async function main() {
     updateOracle(P, { market: m1, oracleAuth: oracle1.publicKey, price: 98n * POS_SCALE }),
   ], [oracle1], 126);
   await send("RefreshLeg", [refreshLeg(P, { dex, market: m1, portfolio: pA }), refreshLeg(P, { dex, market: m1, portfolio: pB })]);
-  await expectErr("Liquidate healthy", [liquidate(P, V, { market: m1, portfolio: pA, liquidatorToken: funderTok })], [], 116);
+  // 35cd13c Liquidate requires ALL legs fresh; pA's ETH leg is stale here, so either
+  // positionHealthy (116) or stalePortfolioLeg (122) is a correct safe rejection.
+  await expectErr("Liquidate healthy", [liquidate(P, V, { market: m1, portfolio: pA, liquidatorToken: funderTok })], [], [116, 122]);
   await expectErr("ClearDeadLeg with live OI", [clearDeadLeg(P, { dex, market: m1, portfolio: pA })], [], 118);
   await send("Trade(close)", [trade(P, { dex, market: m1, longPortfolio: pA, longOwner: traderA.publicKey, shortPortfolio: pB, shortOwner: traderB.publicKey, mode: TRADE_MODE.CLOSE, qty: POS_SCALE })], [traderA, traderB]);
   ok(parseMarket(await acct(m1)).oiLong === 2n * POS_SCALE, "Trade(close) reduced M1 OI to 2");
@@ -274,7 +277,7 @@ async function main() {
   await send("ForceClosePair", [forceClosePair(P, { dex, market: m1, longPortfolio: pA, shortPortfolio: pB })]);
   const mk1b = parseMarket(await acct(m1));
   ok(mk1b.oiLong === 0n && mk1b.activeLegs === 0n, "M1 fully netted");
-  await send("ResolveMarket", [resolveMarket(P, { market: m1 })]);
+  await send("ResolveMarket", [resolveMarket(P, { dex, market: m1 })]);
   ok(parseMarket(await acct(m1)).status === STATUS.RESOLVED, "M1 resolved");
   for (const [who, pfl] of [["A", pA], ["B", pB]] as const) {
     const leg = parsePortfolio(await acct(pfl)).legs.find((l) => l.market.equals(m1));

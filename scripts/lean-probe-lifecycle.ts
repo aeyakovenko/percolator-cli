@@ -144,11 +144,11 @@ async function main() {
   await sendOk([startWindDown(P, { market: mkt2, caller: funder.publicKey })], []);
   ok(parseMarket(Buffer.from((await conn.getAccountInfo(mkt2))!.data)).status === 1, "mkt2 -> WINDDOWN (permissionless, stale)");
   await reject("forceClosePair during exitWindow", dex, [forceClosePair(P, { dex, market: mkt2, longPortfolio: pA2, shortPortfolio: pB2 })], [], 117);
-  await reject("resolve before OI zero", dex, [resolveMarket(P, { market: mkt2 })], [], 118);
+  await reject("resolve before OI zero", dex, [resolveMarket(P, { dex, market: mkt2 })], [], 118);
   await waitSlots(11);
   await sendOk([forceClosePair(P, { dex, market: mkt2, longPortfolio: pA2, shortPortfolio: pB2 })], []);
   ok(parseMarket(Buffer.from((await conn.getAccountInfo(mkt2))!.data)).oiLong === 0n, "forceClosePair netted OI to 0");
-  await sendOk([resolveMarket(P, { market: mkt2 })], []);
+  await sendOk([resolveMarket(P, { dex, market: mkt2 })], []);
   await reject("tombstone before fully drained", dex, [tombstoneMarket(P, { market: mkt2 })], [], 119);
   for (const [who, pf] of [["A2", pA2], ["B2", pB2]] as const) {
     const leg = parsePortfolio(Buffer.from((await conn.getAccountInfo(pf))!.data)).legs.find(l => l.market.equals(mkt2));

@@ -65,10 +65,11 @@ async function potAndInv(dex: PublicKey) {
   return { pot: s.vaultTokenBalance, inv };
 }
 let potFloor = 0n, theDex: PublicKey;
-async function attack(label: string, ixs: TransactionInstruction[], signers: Keypair[], expect?: number) {
+async function attack(label: string, ixs: TransactionInstruction[], signers: Keypair[], expect?: number | number[]) {
+  const codes = expect === undefined ? undefined : (Array.isArray(expect) ? expect : [expect]);
   const r = await trySim(ixs, signers);
   if (r === null) { sec.push(label); console.log(`  ✗✗ SECURITY: "${label}" SUCCEEDED`); return; }
-  ok(expect === undefined || r === expect, `reject "${label}": ${typeof r === "number" ? leanErrorName(r) : r}${expect !== undefined && r !== expect ? ` (wanted ${leanErrorName(expect)})` : ""}`);
+  ok(codes === undefined || (typeof r === "number" && codes.includes(r)), `reject "${label}": ${typeof r === "number" ? leanErrorName(r) : r}${codes && !(typeof r === "number" && codes.includes(r)) ? ` (wanted ${codes.map(leanErrorName).join("|")})` : ""}`);
   const { pot, inv } = await potAndInv(theDex);
   ok(inv.ok, `  …conservation after "${label}"`);
   ok(pot >= potFloor, `  …pot intact after "${label}" (${Number(pot) / 1e6} >= ${Number(potFloor) / 1e6})`);
@@ -123,7 +124,7 @@ async function main() {
   await attack("deposit w/ Noop token prog (A0)", [depositCollateral(P, { ...V, tokenProgram: NOOP }, { portfolio: pL, depositor: oL.publicKey, sourceToken: fTok, amount: 1000n * POS_SCALE })], [oL], 120);
   await attack("withdraw pot via wrong vault", [withdrawCollateral(P, { ...V, vault: rk() }, { portfolio: pL, owner: oL.publicKey, destToken: fTok, amount: 100n })], [oL], 113);
   await attack("withdraw as non-owner", [withdrawCollateral(P, V, { portfolio: pL, owner: attacker.publicKey, destToken: atkTok, amount: 100n })], [attacker], 111);
-  await attack("over-withdraw beyond capital", [withdrawCollateral(P, V, { portfolio: pL, owner: oL.publicKey, destToken: fTok, amount: 100_000n * POS_SCALE })], [oL], 108);
+  await attack("over-withdraw beyond capital", [withdrawCollateral(P, V, { portfolio: pL, owner: oL.publicKey, destToken: fTok, amount: 100_000n * POS_SCALE })], [oL], [108, 122]);
   await attack("aliased self-trade", [trade(P, { dex, market: mkt, longPortfolio: pL, longOwner: oL.publicKey, shortPortfolio: pL, shortOwner: oL.publicKey, mode: TRADE_MODE.OPEN, qty: POS_SCALE })], [oL]);
   await attack("liquidate healthy position", [liquidate(P, V, { market: mkt, portfolio: pL, liquidatorToken: atkTok })], []);
   await attack("close funded portfolio", [closeAccount(P, { account: pL, authority: oL.publicKey, destination: attacker.publicKey })], [oL], 119);
