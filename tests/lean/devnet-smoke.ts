@@ -19,7 +19,7 @@ import { createMint, createAccount, mintTo, getAccount } from "@solana/spl-token
 import * as fs from "fs";
 import {
   LEAN_DEVNET, DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, MATCHER_CFG_SIZE,
-  ADAPTER_CFG_SIZE, MAGIC, POS_SCALE, STATUS, SIDE, TRADE_MODE, leanErrorName,
+  ADAPTER_CFG_SIZE, MAGIC, POS_SCALE, STATUS, SIDE, TRADE_MODE, FEED_TYPE, leanErrorName,
   assertDevnet, deriveDexVault, deriveOracleAuth,
   initDex, updateCreateFee, createMarket, transferMarketAdmin, burnMarketAdmin, rotateOracleAuth,
   updateOracle, initPortfolio, depositCollateral, withdrawCollateral, depositInsurance,
@@ -247,7 +247,7 @@ async function main() {
       { pubkey: feed, isSigner: false, isWritable: true }, { pubkey: funder.publicKey, isSigner: true, isWritable: false }], data: d })]);
   };
   await writeFeed(102n * POS_SCALE, 50_000n);
-  await send("adapter.Init", [adapterInit(O, { cfg: adpKp.publicKey, admin: funder.publicKey, percolator: P, market: m2, feed, maxFeedAge: 150n, maxConfBps: 100n, fundingBpsPerStep: 10n })]);
+  await send("adapter.Init", [adapterInit(O, { cfg: adpKp.publicKey, admin: funder.publicKey, percolator: P, market: m2, feed, feedType: FEED_TYPE.CUSTOM, maxFeedAge: 150n, maxConfBps: 100n, fundingBpsPerStep: 10n })]);
   ok(parseAdapterConfig(await acct(adpKp.publicKey)).feed.equals(feed), "parseAdapterConfig");
   await writeFeed(102n * POS_SCALE, 5n * POS_SCALE);
   await expectErr("adapter.Crank wide confidence", [adapterCrank(O, { cfg: adpKp.publicKey, market: m2, feed, percolator: P })], [], 301);
