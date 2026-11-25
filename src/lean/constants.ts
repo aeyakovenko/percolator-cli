@@ -7,7 +7,7 @@
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "91fc2ee";
+export const LEAN_SOURCE_COMMIT = "e292ad5";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {

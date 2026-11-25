@@ -1,13 +1,36 @@
 {
   "network": "devnet",
-  "source": { "repo": "percolator-lean", "commit": "91fc2ee", "compiler": "lean-svm 1a7b89d" },
+  "source": {
+    "repo": "percolator-lean",
+    "commit": "e292ad5",
+    "compiler": "lean-svm 1a7b89d",
+    "note": "Deployed = e292ad5 (builds, proofs close, A0 fixed). Repo tip bcf1a21 does NOT build (proof regression in the orphan donated-insurance sweep); its event-log + feedOwner-pinning hardening is blocked until that proof closes."
+  },
   "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "programs": {
-    "percolator":    { "id": "GD43BhWwAjiZLs56juEkacSKkY3TVCTbD7cG7HHDYKdA", "elf": "percolator.so",     "size": 69152, "sha256": "016fcea27ef43f0fd6f1cb7cbd9aa5494d02b9c51f10ff47f0a992fbe5867a6e" },
-    "matcher":       { "id": "9NqBGzLYY5d8v426voAT3VqJUprJX6fwyGJ2a8P4A22N", "elf": "matcher.so",        "size": 8744,  "sha256": "9d79d159d48c14ff0894ef0727b3e3d6b4f9134cd04c635c18aa9eb7d33d4f54" },
-    "oracleAdapter": { "id": "5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2", "elf": "oracle_adapter.so", "size": 6272,  "sha256": "aaf10b89fb8b672d3e0c4718e0ce8e8ec026b028bbb84d462a6e85d575b7ed42" },
-    "mockFeed":      { "id": "9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx", "note": "test-only writable FEED account program (lean-devnet/mock-feed), not part of percolator-lean" }
+    "percolator": {
+      "id": "GD43BhWwAjiZLs56juEkacSKkY3TVCTbD7cG7HHDYKdA",
+      "elf": "percolator.so",
+      "size": 70104,
+      "sha256": "750fd9e73eac7a01ac51cf6256f35ed0019032ca611a920632008620411f51af"
+    },
+    "matcher": {
+      "id": "9NqBGzLYY5d8v426voAT3VqJUprJX6fwyGJ2a8P4A22N",
+      "elf": "matcher.so",
+      "size": 8744,
+      "sha256": "9d79d159d48c14ff0894ef0727b3e3d6b4f9134cd04c635c18aa9eb7d33d4f54"
+    },
+    "oracleAdapter": {
+      "id": "5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2",
+      "elf": "oracle_adapter.so",
+      "size": 6272,
+      "sha256": "aaf10b89fb8b672d3e0c4718e0ce8e8ec026b028bbb84d462a6e85d575b7ed42"
+    },
+    "mockFeed": {
+      "id": "9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx",
+      "note": "test-only writable FEED account program (lean-devnet/mock-feed), not part of percolator-lean"
+    }
   },
-  "abiNote": "Layout offsets and the 20 core opcodes are unchanged from 2dc4d21; 91fc2ee only adds constants (MAX_RAW/MAX_EXIT_WINDOW/MAX_STALENESS) and extends Liquidate (op 12) with optional mode+reqQty and takeover accounts (backward compatible: omitting them = fallback liquidation). The src/lean client is unchanged.",
+  "abiNote": "Offsets + the 20 core opcodes unchanged from 2dc4d21. e292ad5 = 91fc2ee + a test-only svm-runner change, so the src/lean client is unchanged.",
   "verify": "solana program dump -u devnet <id> out.so && head -c <.text size> out.so | sha256sum"
 }
