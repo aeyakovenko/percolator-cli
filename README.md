@@ -88,12 +88,35 @@ Runnable end-to-end flows (create market → positions → cross-margin → matc
 `scripts/lean-mainnet-verify.ts`. Adversarial / pot-drain attempts:
 `scripts/lean-attack.ts`, `scripts/lean-bounty-validate.ts`.
 
-### Bounty
+### Bounty — LIVE market (70 USDC prize)
 
-Break the live market and keep the insurance fund. Winning = draining the market's
-insurance pot or otherwise violating conservation (`V == SPL vault balance`) to
-extract more value than you put in. *(Prize pot seeding pending — see the collateral
-note above.)*
+**Break the live market and keep the insurance fund.** Winning = draining the
+market's insurance pot, or otherwise violating conservation (`V == SPL vault
+balance`) to extract more value than you put in.
+
+| | Mainnet address |
+|---|---|
+| DEX | `6nxbqVQREBwW2ESc1sJyPaUH9yZ7MgKE53fQh3Fm1CkH` |
+| Market (SOL/USD) | `76oGDQbQW3MEteg2uQqf31PyTmFZp8ujZTyGu3kfFSwq` |
+| Vault (holds the prize) | `8MqHSrm6v6ccJVQunjnLqfBBWoAhVGrqUV4hdSH9F8i9` |
+| Collateral | USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
+| Oracle | Pyth SOL/USD via `oracle_adapter` (cfg `DZhXmSK9PD9Jszt2WDTYWABAVrdkxp3WkuNYAHPEnuQH`) |
+| **Prize** | **70 USDC** (insurance pot) |
+
+These are also in [`lean-mainnet.json`](lean-mainnet.json) under `bountyMarket`.
+
+**How to play:**
+1. Point the `percolator-cli/lean` client at a mainnet RPC and `LEAN_MAINNET` (ids above).
+2. Create a portfolio on the DEX, deposit USDC collateral, and trade the market
+   (bilateral `trade`, or `matcherFill` against a matcher) — see the CLI examples above.
+3. Find a way to extract more USDC from the vault than you deposited — e.g. drain
+   the 70 USDC insurance, or break `V == SPL`. If you pull it out on-chain, it's yours.
+4. The runnable attack harnesses `scripts/lean-attack.ts` and
+   `scripts/lean-bounty-validate.ts` show the kinds of attacks already tried (all
+   rejected); a winning exploit is one they miss.
+
+The market oracle updates permissionlessly: anyone can crank it
+(`oracle_adapter` op 1) against the live Pyth SOL/USD feed.
 
 ---
 
