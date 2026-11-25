@@ -1,13 +1,13 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `2dc4d21` (Percolator/{Layout,Matcher,OracleAdapter}.lean).
+ * PINNED to percolator-lean commit `91fc2ee` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "2dc4d21";
+export const LEAN_SOURCE_COMMIT = "91fc2ee";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
