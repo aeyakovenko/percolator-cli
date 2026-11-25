@@ -1,7 +1,9 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/v16/index.ts"],
+  // index → v16 client (unchanged); lean → percolator-lean v2 client.
+  // Separate entries because the two clients export overlapping names.
+  entry: { index: "src/v16/index.ts", lean: "src/lean/index.ts" },
   format: ["esm"],
   target: "node20",
   outDir: "dist",

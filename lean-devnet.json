@@ -1,0 +1,12 @@
+{
+  "network": "devnet",
+  "source": { "repo": "percolator-lean", "commit": "2dc4d21", "compiler": "lean-svm 3362ad7" },
+  "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
+  "programs": {
+    "percolator":    { "id": "GD43BhWwAjiZLs56juEkacSKkY3TVCTbD7cG7HHDYKdA", "elf": "percolator.so",     "size": 52304, "sha256": "27ceb5f0cbe3137938de3b0f9dc8601264825da02f3357f0ec822f63183d4ba1" },
+    "matcher":       { "id": "9NqBGzLYY5d8v426voAT3VqJUprJX6fwyGJ2a8P4A22N", "elf": "matcher.so",        "size": 8752,  "sha256": "a92ab9548eefd0f61afc5849567f7da8b794476509b8299b44a2000af3bdacef" },
+    "oracleAdapter": { "id": "5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2", "elf": "oracle_adapter.so", "size": 6280,  "sha256": "aea7544e7e10934390d57e717b1ea85f55607de48f9fc2699f28675269a0dd88" },
+    "mockFeed":      { "id": "9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx", "note": "test-only writable FEED account program (lean-devnet/mock-feed), not part of percolator-lean" }
+  },
+  "verify": "solana program dump -u devnet <id> out.so && head -c <size> out.so | sha256sum"
+}

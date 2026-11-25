@@ -13,7 +13,9 @@
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "smoke": "tsx scripts/smoke-v16-bounty5.ts",
     "test": "tsx tests/v16/devnet-smoke.ts",
-    "test:offline": "tsx scripts/verify-manifest.ts"
+    "test:offline": "tsx scripts/verify-manifest.ts",
+    "test:lean": "tsx tests/lean/devnet-smoke.ts",
+    "lean:survey": "tsx scripts/lean-survey.ts"
   },
   "dependencies": {
     "@pythnetwork/hermes-client": "^2.1.0",
@@ -38,5 +40,9 @@
       "@pythnetwork/pyth-solana-receiver>rpc-websockets": "7.11.2",
       "@coral-xyz/anchor>rpc-websockets": "7.11.2"
     }
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./lean": "./dist/lean.js"
   }
 }

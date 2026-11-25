@@ -1,0 +1,13 @@
+[package]
+name = "mock_feed"
+version = "0.1.0"
+edition = "2021"
+description = "Devnet-only writable price-feed mock for testing percolator-lean OracleAdapter"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "2.1"
+
+[workspace]

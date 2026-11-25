@@ -10,3 +10,5 @@ build/
 *-keypair.json
 bounty5-v16-program.json
 *.so
+# lean devnet harness build outputs (keypairs live under mock-feed/target/deploy)
+lean-devnet/**/target/

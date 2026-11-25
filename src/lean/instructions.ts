@@ -1,0 +1,292 @@
+/**
+ * percolator-lean v2 instruction builders (percolator core + matcher + oracle_adapter).
+ *
+ * PINNED to percolator-lean `2dc4d21`. Data layouts and account orders mirror the
+ * `ix_*` builders in percolator-lean/svm-runner/src/main.rs at that commit (verified
+ * end-to-end on devnet by lean-devnet/runner) and the Lean handlers.
+ */
+import { PublicKey, TransactionInstruction, AccountMeta } from "@solana/web3.js";
+import {
+  IX, MATCHER_IX, ADAPTER_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
+  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE,
+} from "./constants.js";
+
+const w = (pubkey: PublicKey, isSigner = false): AccountMeta => ({ pubkey, isSigner, isWritable: true });
+const r = (pubkey: PublicKey, isSigner = false): AccountMeta => ({ pubkey, isSigner, isWritable: false });
+
+function data(len: number, op: number): Buffer {
+  const b = Buffer.alloc(len);
+  b.writeUInt8(op, 0);
+  return b;
+}
+const ix = (programId: PublicKey, keys: AccountMeta[], d: Buffer) =>
+  new TransactionInstruction({ programId, keys, data: d });
+
+// ---------------------------------------------------------------- PDAs
+export function deriveDexVault(programId: PublicKey, dex: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([SEED.DEX_VAULT, dex.toBuffer()], programId);
+}
+export function deriveLpAuth(matcherProgram: PublicKey, matcherCfg: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([SEED.LP_AUTH, matcherCfg.toBuffer()], matcherProgram);
+}
+export function deriveOracleAuth(adapterProgram: PublicKey, adapterCfg: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([SEED.ORACLE_AUTH, adapterCfg.toBuffer()], adapterProgram);
+}
+
+// ---------------------------------------------------------------- shared token accounts
+export interface VaultAccounts {
+  dex: PublicKey;
+  mint: PublicKey;
+  vault: PublicKey;
+  tokenProgram?: PublicKey;
+}
+const tok = (v: VaultAccounts) => v.tokenProgram ?? TOKEN_PROGRAM_ID;
+
+// ================================================================= percolator core
+/** op 0. `dex` must be a fresh DEX_SIZE account owned by the program. Admin pays vault rent top-up. */
+export function initDex(p: PublicKey, a: {
+  dex: PublicKey; admin: PublicKey; mint: PublicKey; feeVault: PublicKey;
+  decimals: number; createFee: bigint; rentLamports?: bigint;
+  vaultBump?: number; vault?: PublicKey; tokenProgram?: PublicKey; systemProgram?: PublicKey;
+}): TransactionInstruction {
+  const [vault, bump] = a.vault && a.vaultBump !== undefined ? [a.vault, a.vaultBump] : deriveDexVault(p, a.dex);
+  const d = data(20, IX.InitDex);
+  d.writeUInt8(bump, 1);
+  d.writeUInt8(a.decimals, 2);
+  d.writeBigUInt64LE(a.createFee, 4);
+  d.writeBigUInt64LE(a.rentLamports ?? SPL_TOKEN_ACCOUNT_RENT, 12);
+  return ix(p, [
+    w(a.dex), w(a.admin, true), r(a.mint), w(vault), r(a.feeVault),
+    r(a.tokenProgram ?? TOKEN_PROGRAM_ID), r(a.systemProgram ?? SYSTEM_PROGRAM_ID),
+  ], d);
+}
+
+/** op 1. Optional `newAdmin` rotates the DEX admin. */
+export function updateCreateFee(p: PublicKey, a: { dex: PublicKey; admin: PublicKey; newFee: bigint; newAdmin?: PublicKey }) {
+  const d = data(9, IX.UpdateCreateFee);
+  d.writeBigUInt64LE(a.newFee, 1);
+  const keys = [w(a.dex), r(a.admin, true)];
+  if (a.newAdmin) keys.push(r(a.newAdmin));
+  return ix(p, keys, d);
+}
+
+export interface MarketParams {
+  initPrice: bigint;       // E6
+  exitWindow: bigint;      // slots, >= MIN_EXIT_WINDOW
+  maxStaleness: bigint;    // slots
+  warmupSlots: bigint;     // must be 0 for profit to realize at 2dc4d21
+  imBps: bigint; mmBps: bigint; liqFeeBps: bigint; tradeFeeBps: bigint;
+  maxMoveBps: bigint;      // maxMove + liqFee <= mm < im <= 10000
+  maxInsDrawBps: bigint;
+  maxOi: bigint;           // E6
+  minMm?: bigint;          // E6 floor, default 0
+}
+
+/** op 2. `market` must be a fresh MARKET_SIZE account owned by the program. Creator pays the DEX create fee in quote tokens. */
+export function createMarket(p: PublicKey, a: {
+  dex: PublicKey; market: PublicKey; mint: PublicKey; oracleAuth: PublicKey;
+  creator: PublicKey; creatorToken: PublicKey; feeVault: PublicKey; params: MarketParams;
+  tokenProgram?: PublicKey;
+}) {
+  const d = data(100, IX.CreateMarket);
+  const m = a.params;
+  [m.initPrice, m.exitWindow, m.maxStaleness, m.warmupSlots, m.imBps, m.mmBps, m.liqFeeBps,
+    m.tradeFeeBps, m.maxMoveBps, m.maxInsDrawBps, m.maxOi, m.minMm ?? 0n]
+    .forEach((v, i) => d.writeBigUInt64LE(v, 4 + 8 * i));
+  return ix(p, [
+    w(a.dex), w(a.market), r(a.mint), r(a.oracleAuth), r(a.creator, true),
+    w(a.creatorToken), w(a.feeVault), r(a.tokenProgram ?? TOKEN_PROGRAM_ID),
+  ], d);
+}
+
+/** op 3 role 0 with a new key: transfer market admin. */
+export function transferMarketAdmin(p: PublicKey, a: { market: PublicKey; admin: PublicKey; newAdmin: PublicKey }) {
+  return ix(p, [w(a.market), r(a.admin, true), r(a.newAdmin)], Buffer.from([IX.UpdateMarketAuth, MARKET_AUTH_ROLE.ADMIN]));
+}
+/** op 3 role 0 without a new key: burn market admin (irreversible). */
+export function burnMarketAdmin(p: PublicKey, a: { market: PublicKey; admin: PublicKey }) {
+  return ix(p, [w(a.market), r(a.admin, true)], Buffer.from([IX.UpdateMarketAuth, MARKET_AUTH_ROLE.ADMIN]));
+}
+/** op 3 role 1: rotate oracle authority. */
+export function rotateOracleAuth(p: PublicKey, a: { market: PublicKey; admin: PublicKey; newOracle: PublicKey }) {
+  return ix(p, [w(a.market), r(a.admin, true), r(a.newOracle)], Buffer.from([IX.UpdateMarketAuth, MARKET_AUTH_ROLE.ORACLE]));
+}
+
+/** op 4. |newPrice - mark| + fundingE6 must be <= mark * maxMoveBps; one update per slot. fundingSign 0 = longs pay. */
+export function updateOracle(p: PublicKey, a: { market: PublicKey; oracleAuth: PublicKey; price: bigint; fundingSign?: 0 | 1; fundingE6?: bigint }) {
+  const d = data(18, IX.UpdateOracle);
+  d.writeBigUInt64LE(a.price, 1);
+  d.writeUInt8(a.fundingSign ?? 0, 9);
+  d.writeBigUInt64LE(a.fundingE6 ?? 0n, 10);
+  return ix(p, [w(a.market), r(a.oracleAuth, true)], d);
+}
+
+/** op 5. `portfolio` must be a fresh PORTFOLIO_SIZE account owned by the program. */
+export function initPortfolio(p: PublicKey, a: { dex: PublicKey; portfolio: PublicKey; owner: PublicKey }) {
+  return ix(p, [w(a.dex), w(a.portfolio), r(a.owner, true)], Buffer.from([IX.InitPortfolio]));
+}
+
+/** op 6. Anyone (`depositor`) may fund any portfolio. */
+export function depositCollateral(p: PublicKey, v: VaultAccounts, a: { portfolio: PublicKey; depositor: PublicKey; sourceToken: PublicKey; amount: bigint }) {
+  const d = data(9, IX.DepositCollateral);
+  d.writeBigUInt64LE(a.amount, 1);
+  return ix(p, [w(v.dex), w(a.portfolio), r(a.depositor, true), w(a.sourceToken), r(v.mint), w(v.vault), r(tok(v))], d);
+}
+
+/** op 7. Requires every open leg refreshed in the same slot — wrap with `withLegRefresh`. */
+export function withdrawCollateral(p: PublicKey, v: VaultAccounts, a: { portfolio: PublicKey; owner: PublicKey; destToken: PublicKey; amount: bigint }) {
+  const d = data(9, IX.WithdrawCollateral);
+  d.writeBigUInt64LE(a.amount, 1);
+  return ix(p, [w(v.dex), w(a.portfolio), r(a.owner, true), w(a.destToken), r(v.mint), w(v.vault), r(tok(v))], d);
+}
+
+/** op 8. `receipt` is a fresh INS_RECEIPT_SIZE account (or existing receipt of `lp`). donate=true mints no shares. */
+export function depositInsurance(p: PublicKey, v: VaultAccounts, a: { market: PublicKey; receipt: PublicKey; lp: PublicKey; sourceToken: PublicKey; amount: bigint; donate?: boolean }) {
+  const d = data(10, IX.DepositInsurance);
+  d.writeBigUInt64LE(a.amount, 1);
+  d.writeUInt8(a.donate ? 1 : 0, 9);
+  return ix(p, [w(v.dex), w(a.market), w(a.receipt), r(a.lp, true), w(a.sourceToken), r(v.mint), w(v.vault), r(tok(v))], d);
+}
+
+/** op 9. Only when the market has zero OI. */
+export function withdrawInsurance(p: PublicKey, v: VaultAccounts, a: { market: PublicKey; receipt: PublicKey; lp: PublicKey; destToken: PublicKey; burnShares: bigint }) {
+  const d = data(9, IX.WithdrawInsurance);
+  d.writeBigUInt64LE(a.burnShares, 1);
+  return ix(p, [w(v.dex), w(a.market), w(a.receipt), r(a.lp, true), w(a.destToken), r(v.mint), w(v.vault), r(tok(v))], d);
+}
+
+/** op 10. Permissionless. forceHaircut realizes posPnl pro-rata even when R_m < P+_m. */
+export function refreshLeg(p: PublicKey, a: { dex: PublicKey; market: PublicKey; portfolio: PublicKey; forceHaircut?: boolean }) {
+  return ix(p, [w(a.dex), w(a.market), w(a.portfolio)], Buffer.from([IX.RefreshLeg, a.forceHaircut ? 1 : 0]));
+}
+
+/**
+ * op 11. Bilateral: both owners sign. mode OPEN = both increase (L long, S short);
+ * CLOSE = both reduce. execPrice 0 = at mark; otherwise within maxMoveBps of mark.
+ * OPEN requires every open leg of both portfolios refreshed this slot — wrap with `withLegRefresh`.
+ */
+export function trade(p: PublicKey, a: {
+  dex: PublicKey; market: PublicKey; longPortfolio: PublicKey; longOwner: PublicKey;
+  shortPortfolio: PublicKey; shortOwner: PublicKey; mode: number; qty: bigint; execPrice?: bigint;
+}) {
+  const d = data(18, IX.Trade);
+  d.writeUInt8(a.mode, 1);
+  d.writeBigUInt64LE(a.qty, 2);
+  d.writeBigUInt64LE(a.execPrice ?? 0n, 10);
+  return ix(p, [w(a.dex), w(a.market), w(a.longPortfolio), r(a.longOwner, true), w(a.shortPortfolio), r(a.shortOwner, true)], d);
+}
+export const tradeOpen = (p: PublicKey, a: Omit<Parameters<typeof trade>[1], "mode">) => trade(p, { ...a, mode: TRADE_MODE.OPEN });
+export const tradeClose = (p: PublicKey, a: Omit<Parameters<typeof trade>[1], "mode">) => trade(p, { ...a, mode: TRADE_MODE.CLOSE });
+
+/** op 12. Permissionless; fee goes to `liquidatorToken`. */
+export function liquidate(p: PublicKey, v: VaultAccounts, a: { market: PublicKey; portfolio: PublicKey; liquidatorToken: PublicKey }) {
+  return ix(p, [w(v.dex), w(a.market), w(a.portfolio), w(a.liquidatorToken), r(v.mint), w(v.vault), r(tok(v))], Buffer.from([IX.Liquidate]));
+}
+
+/** op 13. Permissionless; only when that side's OI is 0. */
+export function clearDeadLeg(p: PublicKey, a: { dex: PublicKey; market: PublicKey; portfolio: PublicKey }) {
+  return ix(p, [w(a.dex), w(a.market), w(a.portfolio)], Buffer.from([IX.ClearDeadLeg]));
+}
+
+/** op 14. Market admin anytime; anyone once oracle age > maxStaleness. */
+export function startWindDown(p: PublicKey, a: { market: PublicKey; caller: PublicKey }) {
+  return ix(p, [w(a.market), r(a.caller, true)], Buffer.from([IX.StartWindDown]));
+}
+
+/** op 15. Permissionless after windDownSlot + exitWindow. */
+export function forceClosePair(p: PublicKey, a: { dex: PublicKey; market: PublicKey; longPortfolio: PublicKey; shortPortfolio: PublicKey }) {
+  return ix(p, [w(a.dex), w(a.market), w(a.longPortfolio), w(a.shortPortfolio)], Buffer.from([IX.ForceClosePair]));
+}
+
+/** op 16. Permissionless once OI, raw basis and active legs are all 0. */
+export function resolveMarket(p: PublicKey, a: { market: PublicKey }) {
+  return ix(p, [w(a.market)], Buffer.from([IX.ResolveMarket]));
+}
+
+/** op 17. Permissionless; pays a flat leg's posPnl at the resolved ratio. */
+export function claimResolved(p: PublicKey, a: { dex: PublicKey; market: PublicKey; portfolio: PublicKey }) {
+  return ix(p, [w(a.dex), w(a.market), w(a.portfolio)], Buffer.from([IX.ClaimResolved]));
+}
+
+/** op 18. Permissionless once resolved and fully drained. */
+export function tombstoneMarket(p: PublicKey, a: { market: PublicKey }) {
+  return ix(p, [w(a.market)], Buffer.from([IX.TombstoneMarket]));
+}
+
+/** op 19. Empty Portfolio (owner), empty InsReceipt (owner), or Tombstoned Market (admin, or anyone if burned). */
+export function closeAccount(p: PublicKey, a: { account: PublicKey; authority: PublicKey; destination: PublicKey }) {
+  return ix(p, [w(a.account), r(a.authority, true), w(a.destination)], Buffer.from([IX.CloseAccount]));
+}
+
+// ================================================================= matcher
+/** matcher op 0. `cfg` = fresh MATCHER_CFG_SIZE account owned by the matcher; `lpPortfolio` = fresh PORTFOLIO_SIZE account owned by percolator. */
+export function matcherInit(m: PublicKey, a: {
+  cfg: PublicKey; owner: PublicKey; dex: PublicKey; lpPortfolio: PublicKey; percolator: PublicKey;
+  halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint;
+}) {
+  const [lpAuth, bump] = deriveLpAuth(m, a.cfg);
+  const d = data(28, MATCHER_IX.Init);
+  d.writeUInt8(bump, 1);
+  d.writeBigUInt64LE(a.halfSpreadBps, 4);
+  d.writeBigUInt64LE(a.impactBps, 12);
+  d.writeBigUInt64LE(a.maxFillQty, 20);
+  return ix(m, [w(a.cfg), r(a.owner, true), w(a.dex), w(a.lpPortfolio), r(lpAuth), r(a.percolator)], d);
+}
+
+/** matcher op 1. */
+export function matcherUpdate(m: PublicKey, a: { cfg: PublicKey; owner: PublicKey; paused: boolean; halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint }) {
+  const d = data(28, MATCHER_IX.Update);
+  d.writeUInt8(a.paused ? 1 : 0, 1);
+  d.writeBigUInt64LE(a.halfSpreadBps, 4);
+  d.writeBigUInt64LE(a.impactBps, 12);
+  d.writeBigUInt64LE(a.maxFillQty, 20);
+  return ix(m, [w(a.cfg), r(a.owner, true)], d);
+}
+
+/** matcher op 2. Single-signer taker fill against the LP portfolio. mode OPEN/CLOSE; limitPrice is the worst acceptable price. */
+export function matcherFill(m: PublicKey, a: {
+  cfg: PublicKey; dex: PublicKey; market: PublicKey; lpPortfolio: PublicKey;
+  takerPortfolio: PublicKey; taker: PublicKey; percolator: PublicKey;
+  mode: number; takerIsLong: boolean; qty: bigint; limitPrice: bigint;
+}) {
+  const [lpAuth] = deriveLpAuth(m, a.cfg);
+  const d = data(19, MATCHER_IX.Fill);
+  d.writeUInt8(a.mode, 1);
+  d.writeUInt8(a.takerIsLong ? 1 : 0, 2);
+  d.writeBigUInt64LE(a.qty, 3);
+  d.writeBigUInt64LE(a.limitPrice, 11);
+  return ix(m, [
+    r(a.cfg), w(a.dex), w(a.market), w(a.lpPortfolio), r(lpAuth), w(a.takerPortfolio), r(a.taker, true), r(a.percolator),
+  ], d);
+}
+
+/** matcher op 3. LP owner withdraws from the PDA-owned LP portfolio. */
+export function matcherWithdrawLp(m: PublicKey, v: VaultAccounts, a: { cfg: PublicKey; owner: PublicKey; lpPortfolio: PublicKey; destToken: PublicKey; percolator: PublicKey; amount: bigint }) {
+  const [lpAuth] = deriveLpAuth(m, a.cfg);
+  const d = data(9, MATCHER_IX.WithdrawLp);
+  d.writeBigUInt64LE(a.amount, 1);
+  return ix(m, [
+    r(a.cfg), r(a.owner, true), w(v.dex), w(a.lpPortfolio), r(lpAuth), w(a.destToken), r(v.mint), w(v.vault), r(tok(v)), r(a.percolator),
+  ], d);
+}
+
+// ================================================================= oracle adapter
+/** adapter op 0. `cfg` = fresh ADAPTER_CFG_SIZE account owned by the adapter. Create the market with oracleAuth = deriveOracleAuth(adapter, cfg). */
+export function adapterInit(o: PublicKey, a: {
+  cfg: PublicKey; admin: PublicKey; percolator: PublicKey; market: PublicKey; feed: PublicKey;
+  maxFeedAge: bigint; maxConfBps: bigint; fundingBpsPerStep: bigint;
+}) {
+  const [, bump] = deriveOracleAuth(o, a.cfg);
+  const d = data(28, ADAPTER_IX.Init);
+  d.writeUInt8(bump, 1);
+  d.writeBigUInt64LE(a.maxFeedAge, 4);
+  d.writeBigUInt64LE(a.maxConfBps, 12);
+  d.writeBigUInt64LE(a.fundingBpsPerStep, 20);
+  return ix(o, [w(a.cfg), r(a.admin, true), r(a.percolator), r(a.market), r(a.feed)], d);
+}
+
+/** adapter op 1. Permissionless crank: feed → clamped UpdateOracle CPI. */
+export function adapterCrank(o: PublicKey, a: { cfg: PublicKey; market: PublicKey; feed: PublicKey; percolator: PublicKey }) {
+  const [oracAuth] = deriveOracleAuth(o, a.cfg);
+  return ix(o, [r(a.cfg), w(a.market), r(a.feed), r(oracAuth), r(a.percolator)], Buffer.from([ADAPTER_IX.Crank]));
+}

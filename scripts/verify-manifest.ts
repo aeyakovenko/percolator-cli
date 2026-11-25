@@ -37,13 +37,27 @@ const M = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
 // 1. safety-critical immutables match the single source of truth
 for (const f of MANIFEST_SAFETY_FIELDS) {
   const want = (BOUNTY5_PARAMS as any)[f];
-  const got = M[f];
-  check(Number(got) === Number(want), `manifest.${f} = ${got} (expected ${want})`);
+  // Bounty-5 manifests carry these at top level; the Bounty-7 (marketauth layout)
+  // manifest nests them under `config`. Accept either, never both disagreeing.
+  const top = M[f];
+  const nested = M?.config?.[f];
+  const got = top ?? nested;
+  const where = top !== undefined ? `manifest.${f}` : `manifest.config.${f}`;
+  check(Number(got) === Number(want), `${where} = ${got} (expected ${want})`);
+  if (top !== undefined && nested !== undefined) {
+    check(Number(top) === Number(nested), `manifest.${f} (${top}) == manifest.config.${f} (${nested})`);
+  }
 }
 
 // 2. fee-redirect + insurance seed match
-check(Number(M?.fees?.feeRedirectToMarket0Bps) === BOUNTY5_PARAMS.feeRedirectToMarket0Bps,
-  `fees.feeRedirectToMarket0Bps = ${M?.fees?.feeRedirectToMarket0Bps} (expected ${BOUNTY5_PARAMS.feeRedirectToMarket0Bps})`);
+// Fee redirect to market 0 only exists for multi-asset markets. A single-asset
+// manifest (config.maxPortfolioAssets == 1, e.g. Bounty-7 STOXX/SOL) has nothing to
+// redirect; require the field everywhere else.
+const singleAsset = Number(M?.config?.maxPortfolioAssets) === 1;
+if (!singleAsset || M?.fees?.feeRedirectToMarket0Bps !== undefined) {
+  check(Number(M?.fees?.feeRedirectToMarket0Bps) === BOUNTY5_PARAMS.feeRedirectToMarket0Bps,
+    `fees.feeRedirectToMarket0Bps = ${M?.fees?.feeRedirectToMarket0Bps} (expected ${BOUNTY5_PARAMS.feeRedirectToMarket0Bps})`);
+}
 for (const d of (M.insurancePerDomain ?? [])) {
   check(Number(d.lamports) === BOUNTY5_PARAMS.insurancePerDomainLamports,
     `insurancePerDomain[${d.market}] = ${d.lamports} (expected ${BOUNTY5_PARAMS.insurancePerDomainLamports})`);

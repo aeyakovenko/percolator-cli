@@ -27,12 +27,9 @@ importers:
       '@switchboard-xyz/on-demand':
         specifier: ^3.10.1
         version: 3.10.1(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
-      commander:
-        specifier: ^12.1.0
-        version: 12.1.0
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
+      bs58:
+        specifier: ^4.0.1
+        version: 4.0.1
     devDependencies:
       '@types/node':
         specifier: ^20.17.10
