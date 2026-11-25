@@ -1,6 +1,0 @@
-{
-  "rpcUrl": "https://api.devnet.solana.com",
-  "programId": "2SSnp35m7FQ7cRLNKGdW5UzjYFF6RBUNq7d3m5mqNByp",
-  "wallet": "~/.config/solana/id.json",
-  "commitment": "confirmed"
-}

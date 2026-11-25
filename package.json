@@ -11,10 +11,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
-    "smoke": "tsx scripts/smoke-v16-bounty5.ts",
-    "test": "tsx tests/v16/devnet-smoke.ts",
-    "test:offline": "tsx scripts/verify-manifest.ts",
-    "test:lean": "tsx tests/lean/devnet-smoke.ts",
+    "test": "tsx tests/lean/devnet-smoke.ts",
     "lean:survey": "tsx scripts/lean-survey.ts"
   },
   "dependencies": {
@@ -43,6 +40,6 @@
   },
   "exports": {
     ".": "./dist/index.js",
-    "./lean": "./dist/lean.js"
+    "./lean": "./dist/index.js"
   }
 }
