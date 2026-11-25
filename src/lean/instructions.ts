@@ -271,22 +271,42 @@ export function matcherWithdrawLp(m: PublicKey, v: VaultAccounts, a: { cfg: Publ
 }
 
 // ================================================================= oracle adapter
-/** adapter op 0. `cfg` = fresh ADAPTER_CFG_SIZE account owned by the adapter. Create the market with oracleAuth = deriveOracleAuth(adapter, cfg). */
+/**
+ * adapter op 0 (f2b8b11). `cfg` = fresh ADAPTER_CFG_SIZE account owned by the adapter.
+ * Create the market with oracleAuth = deriveOracleAuth(adapter, cfg). `feedType`:
+ * 0=Custom FEED, 1=Pyth PriceUpdateV2, 2=Chainlink OCR2, 3=Switchboard. For a 2-leg
+ * composite (base/quote, e.g. STOXX/SOL) pass `quoteFeed`/`quoteFeedType`. Optional
+ * 32-byte `feedId`/`quoteFeedId` pin Pyth feed ids. maxFeedAge is seconds for Pyth,
+ * slots otherwise. The feed account owner(s) are pinned at init.
+ */
 export function adapterInit(o: PublicKey, a: {
   cfg: PublicKey; admin: PublicKey; percolator: PublicKey; market: PublicKey; feed: PublicKey;
-  maxFeedAge: bigint; maxConfBps: bigint; fundingBpsPerStep: bigint;
+  feedType: number; maxFeedAge: bigint; maxConfBps: bigint; fundingBpsPerStep: bigint;
+  feedId?: Buffer; quoteFeed?: PublicKey; quoteFeedType?: number; quoteFeedId?: Buffer;
 }) {
   const [, bump] = deriveOracleAuth(o, a.cfg);
-  const d = data(28, ADAPTER_IX.Init);
+  // size: 28 base; +32 if feedId (pins base); +32 more if quoteFeedId
+  let len = 28;
+  if (a.feedId) len = 60;
+  if (a.quoteFeedId) len = 92;
+  const d = data(len, ADAPTER_IX.Init);
   d.writeUInt8(bump, 1);
+  d.writeUInt8(a.feedType, 2);
+  d.writeUInt8(a.quoteFeedType ?? 0, 3);
   d.writeBigUInt64LE(a.maxFeedAge, 4);
   d.writeBigUInt64LE(a.maxConfBps, 12);
   d.writeBigUInt64LE(a.fundingBpsPerStep, 20);
-  return ix(o, [w(a.cfg), r(a.admin, true), r(a.percolator), r(a.market), r(a.feed)], d);
+  if (a.feedId) { if (a.feedId.length !== 32) throw new Error("feedId must be 32 bytes"); a.feedId.copy(d, 28); }
+  if (a.quoteFeedId) { if (a.quoteFeedId.length !== 32) throw new Error("quoteFeedId must be 32 bytes"); a.quoteFeedId.copy(d, 60); }
+  const keys = [w(a.cfg), r(a.admin, true), r(a.percolator), r(a.market), r(a.feed)];
+  if (a.quoteFeed) keys.push(r(a.quoteFeed)); // n>=6 → FLAG_HAS_QUOTE
+  return ix(o, keys, d);
 }
 
-/** adapter op 1. Permissionless crank: feed → clamped UpdateOracle CPI. */
-export function adapterCrank(o: PublicKey, a: { cfg: PublicKey; market: PublicKey; feed: PublicKey; percolator: PublicKey }) {
+/** adapter op 1 (f2b8b11). Permissionless crank: feed(s) → clamped UpdateOracle CPI. Pass `quoteFeed` for a composite adapter. */
+export function adapterCrank(o: PublicKey, a: { cfg: PublicKey; market: PublicKey; feed: PublicKey; percolator: PublicKey; quoteFeed?: PublicKey }) {
   const [oracAuth] = deriveOracleAuth(o, a.cfg);
-  return ix(o, [r(a.cfg), w(a.market), r(a.feed), r(oracAuth), r(a.percolator)], Buffer.from([ADAPTER_IX.Crank]));
+  const keys = [r(a.cfg), w(a.market), r(a.feed), r(oracAuth), r(a.percolator)];
+  if (a.quoteFeed) keys.push(r(a.quoteFeed));
+  return ix(o, keys, Buffer.from([ADAPTER_IX.Crank]));
 }

@@ -152,15 +152,21 @@ export function parseMatcherConfig(b: Buffer): MatcherConfig {
 }
 
 export interface AdapterConfig {
-  pdaBump: number; admin: PublicKey; percolator: PublicKey; market: PublicKey; feed: PublicKey;
+  pdaBump: number; feedType: number; quoteFeedType: number; flags: number;
+  admin: PublicKey; percolator: PublicKey; market: PublicKey; feed: PublicKey; feedOwner: PublicKey;
   maxFeedAge: bigint; maxConfBps: bigint; fundingBpsPerStep: bigint;
+  hasQuote: boolean; quoteFeed: PublicKey | null;
 }
 export function parseAdapterConfig(b: Buffer): AdapterConfig {
   expect(b, MAGIC.ADAPTER, ADAPTER_CFG_SIZE, "AdapterConfig");
   const O = AdapterOff;
+  const flags = u8(b, O.flags);
+  const hasQuote = (flags & 1) !== 0;
   return {
-    pdaBump: u8(b, O.pdaBump), admin: pk(b, O.admin), percolator: pk(b, O.percProg), market: pk(b, O.market),
-    feed: pk(b, O.feedAccount), maxFeedAge: u64(b, O.maxFeedAge), maxConfBps: u64(b, O.maxConfBps), fundingBpsPerStep: u64(b, O.fundingBpsPerStep),
+    pdaBump: u8(b, O.pdaBump), feedType: u8(b, O.feedType), quoteFeedType: u8(b, O.quoteFeedType), flags,
+    admin: pk(b, O.admin), percolator: pk(b, O.percProg), market: pk(b, O.market), feed: pk(b, O.feedAccount),
+    feedOwner: pk(b, O.feedOwner), maxFeedAge: u64(b, O.maxFeedAge), maxConfBps: u64(b, O.maxConfBps),
+    fundingBpsPerStep: u64(b, O.fundingBpsPerStep), hasQuote, quoteFeed: hasQuote ? pk(b, O.quoteFeed) : null,
   };
 }
 

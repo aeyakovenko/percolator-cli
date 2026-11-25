@@ -1,13 +1,13 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `91fc2ee` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `f2b8b11` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "e292ad5";
+export const LEAN_SOURCE_COMMIT = "f2b8b11";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
@@ -61,7 +61,7 @@ export const MARKET_SIZE = 352;
 export const PORTFOLIO_SIZE = 880;
 export const INS_RECEIPT_SIZE = 88;
 export const MATCHER_CFG_SIZE = 128;
-export const ADAPTER_CFG_SIZE = 160;
+export const ADAPTER_CFG_SIZE = 320;
 export const FEED_SIZE = 32;
 
 // ---------- offsets ----------
@@ -98,9 +98,14 @@ export const MatcherCfgOff = {
   halfSpreadBps: 104, impactBps: 112, maxFillQty: 120,
 } as const;
 
+// f2b8b11: native Pyth/Chainlink/Switchboard + 2-leg composite.
+export const ADAPTER_CFG_SIZE_V2 = 320;
+export const FEED_TYPE = { CUSTOM: 0, PYTH_V2: 1, CHAINLINK: 2, SWITCHBOARD: 3 } as const;
+export const ADAPTER_FLAG = { HAS_QUOTE: 1, PIN_FID: 2, PIN_QFID: 4 } as const;
 export const AdapterOff = {
-  magic: 0, pdaBump: 4, admin: 8, percProg: 40, market: 72, feedAccount: 104,
-  maxFeedAge: 136, maxConfBps: 144, fundingBpsPerStep: 152,
+  magic: 0, pdaBump: 4, feedType: 5, quoteFeedType: 6, flags: 7, admin: 8, percProg: 40,
+  market: 72, feedAccount: 104, maxFeedAge: 136, maxConfBps: 144, fundingBpsPerStep: 152,
+  feedOwner: 160, feedId: 192, quoteFeed: 224, quoteFeedOwner: 256, quoteFeedId: 288,
 } as const;
 
 export const FeedOff = { magic: 0, price: 8, conf: 16, publishSlot: 24 } as const;
