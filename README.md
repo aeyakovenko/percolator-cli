@@ -123,6 +123,11 @@ The market oracle updates permissionlessly: anyone can crank it
 
 ## Related Repositories
 
+**percolator-lean (current — the main version):**
+- [percolator-lean](https://github.com/aeyakovenko/percolator-lean) - Formally verified Lean 4 → sBPF perps DEX (core + matcher + oracle_adapter). The mainnet/devnet deployments and the bounty run on this.
+- [lean-svm](https://github.com/aeyakovenko/lean-svm) - Lean 4 → Solana sBPF compiler toolchain that builds percolator-lean.
+
+**Legacy v16 (Rust — kept only for the live mainnet Bounty-7 market):**
 - [percolator](https://github.com/aeyakovenko/percolator) - Risk engine library
 - [percolator-prog](https://github.com/aeyakovenko/percolator-prog) - Main Percolator program (Solana smart contract)
 - [percolator-match](https://github.com/aeyakovenko/percolator-match) - Passive LP matcher program (50bps spread)
