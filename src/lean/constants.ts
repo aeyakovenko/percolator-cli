@@ -7,7 +7,7 @@
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "f2b8b11";
+export const LEAN_SOURCE_COMMIT = "35cd13c";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
@@ -58,10 +58,10 @@ export const SIDE = { FLAT: 0, LONG: 1, SHORT: 2 } as const;
 // ---------- account sizes ----------
 export const DEX_SIZE = 200;
 export const MARKET_SIZE = 352;
-export const PORTFOLIO_SIZE = 880;
+export const PORTFOLIO_SIZE = 952;
 export const INS_RECEIPT_SIZE = 88;
 export const MATCHER_CFG_SIZE = 128;
-export const ADAPTER_CFG_SIZE = 320;
+export const ADAPTER_CFG_SIZE = 352;
 export const FEED_SIZE = 32;
 
 // ---------- offsets ----------
@@ -83,12 +83,12 @@ export const MktOff = {
 
 export const PflOff = {
   magic: 0, legCount: 4, portfolioId: 8, episode: 16, dex: 24, owner: 56, capital: 88,
-  totalMm: 96, totalIm: 104, headerSize: 112, legStride: 96,
+  totalMm: 96, totalIm: 104, totalReservedMm: 112, headerSize: 120, legStride: 104,
 } as const;
 
 export const LegOff = {
   active: 0, side: 1, marketId: 8, market: 16, rawBasis: 48, entryK: 56, posPnl: 64,
-  cachedMm: 72, cachedIm: 80, lastRefreshSlot: 88,
+  cachedMm: 72, cachedIm: 80, lastRefreshSlot: 88, reservedMm: 96,
 } as const;
 
 export const InsOff = { magic: 0, marketId: 8, owner: 16, market: 48, shares: 80 } as const;
@@ -99,13 +99,14 @@ export const MatcherCfgOff = {
 } as const;
 
 // f2b8b11: native Pyth/Chainlink/Switchboard + 2-leg composite.
-export const ADAPTER_CFG_SIZE_V2 = 320;
+export const ADAPTER_CFG_SIZE_V2 = 352;
 export const FEED_TYPE = { CUSTOM: 0, PYTH_V2: 1, CHAINLINK: 2, SWITCHBOARD: 3 } as const;
-export const ADAPTER_FLAG = { HAS_QUOTE: 1, PIN_FID: 2, PIN_QFID: 4 } as const;
+export const ADAPTER_FLAG = { HAS_QUOTE: 1, PIN_FID: 2, PIN_QFID: 4, HYBRID_AH: 8 } as const;
 export const AdapterOff = {
   magic: 0, pdaBump: 4, feedType: 5, quoteFeedType: 6, flags: 7, admin: 8, percProg: 40,
   market: 72, feedAccount: 104, maxFeedAge: 136, maxConfBps: 144, fundingBpsPerStep: 152,
   feedOwner: 160, feedId: 192, quoteFeed: 224, quoteFeedOwner: 256, quoteFeedId: 288,
+  ewmaAlphaBps: 320, ewmaPrice: 328, ewmaMaxDevBps: 336, lastEwmaSlot: 344,
 } as const;
 
 export const FeedOff = { magic: 0, price: 8, conf: 16, publishSlot: 24 } as const;
@@ -119,7 +120,7 @@ export const IX = {
   TombstoneMarket: 18, CloseAccount: 19,
 } as const;
 export const MATCHER_IX = { Init: 0, Update: 1, Fill: 2, WithdrawLp: 3 } as const;
-export const ADAPTER_IX = { Init: 0, Crank: 1 } as const;
+export const ADAPTER_IX = { Init: 0, Crank: 1, InitEwma: 2, PushEwmaMark: 3 } as const;
 
 export const TRADE_MODE = { OPEN: 0, CLOSE: 1 } as const;
 export const MARKET_AUTH_ROLE = { ADMIN: 0, ORACLE: 1 } as const;

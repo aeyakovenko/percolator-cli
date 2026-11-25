@@ -2,17 +2,17 @@
   "network": "devnet",
   "source": {
     "repo": "percolator-lean",
-    "commit": "f2b8b11",
+    "commit": "35cd13c",
     "compiler": "lean-svm 1a7b89d",
-    "note": "Deployed = f2b8b11 (builds, proofs close, A0 fixed, native Pyth/Chainlink/Switchboard + 2-leg composite oracles). NOTE: percolator-lean working tree has newer UNCOMMITTED oracle changes (OracleAdapter.lean) not deployed."
+    "note": "Deployed = 35cd13c (builds, proofs close, 11/11 suites). Adds reservedMm anti-shielding firewall + EWMA/Hybrid After-Hours oracle. All of A0/A1/A2 + native Pyth/Chainlink/Switchboard/composite/EWMA verified on devnet this session."
   },
   "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "programs": {
     "percolator": {
       "id": "GD43BhWwAjiZLs56juEkacSKkY3TVCTbD7cG7HHDYKdA",
       "elf": "percolator.so",
-      "size": 72240,
-      "sha256": "3887d79a82c31f6e335791298a9ec378481b4453be1ab1b5601befcf6fb4490e"
+      "size": 73224,
+      "sha256": "6e539f050c45e69eec4ee23147f656016d070fc1450c8fd931d773d4ab447c2f"
     },
     "matcher": {
       "id": "9NqBGzLYY5d8v426voAT3VqJUprJX6fwyGJ2a8P4A22N",
@@ -23,14 +23,14 @@
     "oracleAdapter": {
       "id": "5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2",
       "elf": "oracle_adapter.so",
-      "size": 17664,
-      "sha256": "f13b1b54f05599aba137ed5b75c4220b736d83fe6544b065480e20780fad666a"
+      "size": 20920,
+      "sha256": "dbc9aaa71388d3aa4114bbb7d649fcaf8f526bbe6e273cae1371cfa68e7896e5"
     },
     "mockFeed": {
       "id": "9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx",
       "note": "test-only writable FEED account program (lean-devnet/mock-feed), not part of percolator-lean"
     }
   },
-  "abiNote": "Core percolator offsets + 20 opcodes unchanged from 2dc4d21. f2b8b11 adds MAX_STALENESS=9000 / MAX_EXIT_WINDOW=216000 bounds on CreateMarket, a Liquidate takeover mode, and a new 320-byte OracleAdapter config with feedType/flags/composite (src/lean updated to match).",
+  "abiNote": "Core offsets+opcodes unchanged EXCEPT Portfolio grew (size 952, header 120, legStride 104, +reservedMm/+totalReservedMm) and OracleAdapter config is 352B with EWMA fields + ops 2/3 (InitEwma/PushEwmaMark). src/lean updated to match. Adapter crank now requires cfg writable (EWMA write).",
   "verify": "solana program dump -u devnet <id> out.so && head -c <.text size> out.so | sha256sum"
 }

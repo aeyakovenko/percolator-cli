@@ -96,11 +96,11 @@ export const isMarketActive = (m: Market) => m.status === STATUS.ACTIVE;
 export interface Leg {
   index: number; side: number; sideName: "flat" | "long" | "short";
   marketId: bigint; market: PublicKey;
-  rawBasis: bigint; entryK: bigint; posPnl: bigint; cachedMm: bigint; cachedIm: bigint; lastRefreshSlot: bigint;
+  rawBasis: bigint; entryK: bigint; posPnl: bigint; cachedMm: bigint; cachedIm: bigint; lastRefreshSlot: bigint; reservedMm: bigint;
 }
 export interface Portfolio {
   legCount: number; portfolioId: bigint; episode: bigint; dex: PublicKey; owner: PublicKey;
-  capital: bigint; totalMm: bigint; totalIm: bigint;
+  capital: bigint; totalMm: bigint; totalIm: bigint; totalReservedMm: bigint;
   /** active leg slots only */
   legs: Leg[];
 }
@@ -118,12 +118,12 @@ export function parsePortfolio(b: Buffer): Portfolio {
       marketId: u64(b, base + LegOff.marketId), market: pk(b, base + LegOff.market),
       rawBasis: u64(b, base + LegOff.rawBasis), entryK: u64(b, base + LegOff.entryK), posPnl: u64(b, base + LegOff.posPnl),
       cachedMm: u64(b, base + LegOff.cachedMm), cachedIm: u64(b, base + LegOff.cachedIm),
-      lastRefreshSlot: u64(b, base + LegOff.lastRefreshSlot),
+      lastRefreshSlot: u64(b, base + LegOff.lastRefreshSlot), reservedMm: u64(b, base + LegOff.reservedMm),
     });
   }
   return {
     legCount: u8(b, O.legCount), portfolioId: u64(b, O.portfolioId), episode: u64(b, O.episode),
-    dex: pk(b, O.dex), owner: pk(b, O.owner), capital: u64(b, O.capital), totalMm: u64(b, O.totalMm), totalIm: u64(b, O.totalIm),
+    dex: pk(b, O.dex), owner: pk(b, O.owner), capital: u64(b, O.capital), totalMm: u64(b, O.totalMm), totalIm: u64(b, O.totalIm), totalReservedMm: u64(b, O.totalReservedMm),
     legs,
   };
 }
@@ -156,6 +156,7 @@ export interface AdapterConfig {
   admin: PublicKey; percolator: PublicKey; market: PublicKey; feed: PublicKey; feedOwner: PublicKey;
   maxFeedAge: bigint; maxConfBps: bigint; fundingBpsPerStep: bigint;
   hasQuote: boolean; quoteFeed: PublicKey | null;
+  hybridAfterHours: boolean; ewmaAlphaBps: bigint; ewmaPrice: bigint; ewmaMaxDevBps: bigint; lastEwmaSlot: bigint;
 }
 export function parseAdapterConfig(b: Buffer): AdapterConfig {
   expect(b, MAGIC.ADAPTER, ADAPTER_CFG_SIZE, "AdapterConfig");
@@ -167,6 +168,7 @@ export function parseAdapterConfig(b: Buffer): AdapterConfig {
     admin: pk(b, O.admin), percolator: pk(b, O.percProg), market: pk(b, O.market), feed: pk(b, O.feedAccount),
     feedOwner: pk(b, O.feedOwner), maxFeedAge: u64(b, O.maxFeedAge), maxConfBps: u64(b, O.maxConfBps),
     fundingBpsPerStep: u64(b, O.fundingBpsPerStep), hasQuote, quoteFeed: hasQuote ? pk(b, O.quoteFeed) : null,
+    hybridAfterHours: (flags & 8) !== 0, ewmaAlphaBps: u64(b, O.ewmaAlphaBps), ewmaPrice: u64(b, O.ewmaPrice), ewmaMaxDevBps: u64(b, O.ewmaMaxDevBps), lastEwmaSlot: u64(b, O.lastEwmaSlot),
   };
 }
 

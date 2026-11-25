@@ -306,7 +306,25 @@ export function adapterInit(o: PublicKey, a: {
 /** adapter op 1 (f2b8b11). Permissionless crank: feed(s) → clamped UpdateOracle CPI. Pass `quoteFeed` for a composite adapter. */
 export function adapterCrank(o: PublicKey, a: { cfg: PublicKey; market: PublicKey; feed: PublicKey; percolator: PublicKey; quoteFeed?: PublicKey }) {
   const [oracAuth] = deriveOracleAuth(o, a.cfg);
-  const keys = [r(a.cfg), w(a.market), r(a.feed), r(oracAuth), r(a.percolator)];
+  // cfg is writable: with EWMA enabled the crank updates ewmaPrice/lastEwmaSlot on it.
+  const keys = [w(a.cfg), w(a.market), r(a.feed), r(oracAuth), r(a.percolator)];
   if (a.quoteFeed) keys.push(r(a.quoteFeed));
   return ix(o, keys, Buffer.from([ADAPTER_IX.Crank]));
+}
+
+/** adapter op 2 (f3b9fb9). One-shot immutable EWMA / Hybrid After-Hours config. alphaBps 1..10000 (0=pass-through, needs hybrid); initEwma 0 seeds on first crank. */
+export function adapterInitEwma(o: PublicKey, a: { cfg: PublicKey; admin: PublicKey; hybridAfterHours: boolean; alphaBps: bigint; maxDevBps: bigint; initEwma: bigint }) {
+  const d = data(26, ADAPTER_IX.InitEwma);
+  d.writeUInt8(a.hybridAfterHours ? 1 : 0, 1);
+  d.writeBigUInt64LE(a.alphaBps, 2);
+  d.writeBigUInt64LE(a.maxDevBps, 10);
+  d.writeBigUInt64LE(a.initEwma, 18);
+  return ix(o, [w(a.cfg), r(a.admin, true)], d);
+}
+
+/** adapter op 3 (f3b9fb9). Admin nudges the carried EWMA base mark (after-hours), clamped ±ewmaMaxDevBps/slot. */
+export function adapterPushEwmaMark(o: PublicKey, a: { cfg: PublicKey; admin: PublicKey; markE6: bigint }) {
+  const d = data(9, ADAPTER_IX.PushEwmaMark);
+  d.writeBigUInt64LE(a.markE6, 1);
+  return ix(o, [w(a.cfg), r(a.admin, true)], d);
 }

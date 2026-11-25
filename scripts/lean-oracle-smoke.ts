@@ -17,8 +17,8 @@ import bs58 from "bs58";
 import * as fs from "fs";
 import {
   LEAN_DEVNET, DEX_SIZE, MARKET_SIZE, ADAPTER_CFG_SIZE, POS_SCALE, FEED_TYPE,
-  assertDevnet, deriveOracleAuth, initDex, createMarket, adapterInit, adapterCrank,
-  parseDex, parseMarket, parseAdapterConfig, type MarketParams, type VaultAccounts,
+  assertDevnet, deriveOracleAuth, initDex, createMarket, adapterInit, adapterCrank, adapterInitEwma, adapterInitEwma,
+  parseDex, parseMarket, parseAdapterConfig, ADAPTER_FLAG, type MarketParams, type VaultAccounts,
 } from "../src/lean/index.js";
 
 const conn = new Connection(process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com", "confirmed");
@@ -95,7 +95,11 @@ async function main() {
     ok(ac.feedType === FEED_TYPE.PYTH_V2 && ac.feed.equals(sol.addr) && !ac.hasQuote, "adapter inited: PythV2, feed pinned, no quote");
     await send([adapterCrank(O, { cfg, market: mkt, feed: sol.addr, percolator: P })]);
     const mk = await mktOf(mkt);
-    ok(mk.markPrice === target, `crank moved mark to real Pyth SOL price: got ${Number(mk.markPrice) / 1e6}, want ${Number(target) / 1e6}`);
+    const live = (await findPyth(FEED_ID.SOL)).priceE6; // re-read (feed is live, moves each slot)
+    const maxStep = init + (init * 400n) / 10_000n;
+    ok(mk.markPrice > init && mk.markPrice <= maxStep + 1n, `crank moved mark UP toward live SOL (init=${Number(init)/1e6} -> mark=${Number(mk.markPrice)/1e6}, clamp<=${Number(maxStep)/1e6})`);
+    const tol = live / 100n; // within 1% of the live price (it moved since setup)
+    ok(mk.markPrice >= live - tol && mk.markPrice <= live + tol, `mark tracks live Pyth SOL ${Number(live)/1e6} (±1%)`);
   }
 
   // ---- 2. 2-leg composite ratio: BTC/USD ÷ SOL/USD = BTC/SOL (same shape as legacy STOXX/SOL)
@@ -113,9 +117,35 @@ async function main() {
     ok(ac.hasQuote && ac.quoteFeed?.equals(sol.addr) === true, "adapter inited: composite with quote feed pinned");
     await send([adapterCrank(O, { cfg, market: mkt, feed: btc.addr, percolator: P, quoteFeed: sol.addr })]);
     const mk = await mktOf(mkt);
-    // allow ±1 E6 rounding on the ratio
-    const diff = mk.markPrice > ratio ? mk.markPrice - ratio : ratio - mk.markPrice;
-    ok(diff <= 1n, `composite crank: mark=${Number(mk.markPrice) / 1e6} BTC/SOL vs computed ${Number(ratio) / 1e6} (±1)`);
+    const b2 = (await findPyth(FEED_ID.BTC)).priceE6, s2 = (await findPyth(FEED_ID.SOL)).priceE6;
+    const liveRatio = (b2 * POS_SCALE) / s2;
+    const tol = liveRatio / 100n;
+    ok(mk.markPrice > init && mk.markPrice >= liveRatio - tol && mk.markPrice <= liveRatio + tol, `composite mark tracks live BTC/SOL ${Number(liveRatio)/1e6} (mark=${Number(mk.markPrice)/1e6}, ±1%)`);
+  }
+
+  // ---- 3. EWMA smoothing (seed + blend) on real Pyth SOL/USD
+  console.log("== 3. EWMA smoothing (alpha=50%, hybrid AH) ==");
+  {
+    const spot = (await findPyth(FEED_ID.SOL)).priceE6;
+    const seed = spot - spot / 20n; // seed 5% below spot
+    const init = seed - seed / 100n;
+    const cfg = await newAcc(O, ADAPTER_CFG_SIZE);
+    const [oracPda] = deriveOracleAuth(O, cfg);
+    const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 400n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+    const mkt = await newAcc(P, MARKET_SIZE);
+    await send([createMarket(P, { dex, market: mkt, mint, oracleAuth: oracPda, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);
+    await send([adapterInit(O, { cfg, admin: funder.publicKey, percolator: P, market: mkt, feed: sol.addr, feedType: FEED_TYPE.PYTH_V2, maxFeedAge: bigAge, maxConfBps: 500n, fundingBpsPerStep: 0n, feedId: Buffer.from(FEED_ID.SOL, "hex") })]);
+    await send([adapterInitEwma(O, { cfg, admin: funder.publicKey, hybridAfterHours: true, alphaBps: 5000n, maxDevBps: 500n, initEwma: seed })]);
+    const ac0 = parseAdapterConfig(Buffer.from((await conn.getAccountInfo(cfg))!.data));
+    ok(ac0.hybridAfterHours && ac0.ewmaAlphaBps === 5000n && ac0.ewmaPrice === seed, `EWMA inited: hybridAH, alpha=50%, seeded=${Number(ac0.ewmaPrice)/1e6}`);
+    await send([adapterCrank(O, { cfg, market: mkt, feed: sol.addr, percolator: P })]);
+    const ac1 = parseAdapterConfig(Buffer.from((await conn.getAccountInfo(cfg))!.data));
+    // EWMA blend of seed and spot with alpha 50%: strictly between seed and spot (convex, no overshoot)
+    const blended = ac1.ewmaPrice;
+    ok(blended > seed && blended < spot, `EWMA blended toward spot: seed=${Number(seed)/1e6} -> ewma=${Number(blended)/1e6} -> spot=${Number(spot)/1e6} (convex)`);
+    const expect = (seed * 5000n + spot * 5000n) / 10000n;
+    const dd = blended > expect ? blended - expect : expect - blended;
+    ok(dd <= 1n, `EWMA exact 50/50 blend: ewma=${Number(blended)/1e6} vs computed ${Number(expect)/1e6} (±1)`);
   }
 
   console.log(`\n${pass} passed, ${fail.length} failed`);
