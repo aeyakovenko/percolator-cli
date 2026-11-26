@@ -1,5 +1,5 @@
 /**
- * percolator-lean v2 account parsers (pinned to `2dc4d21`, offsets from constants.ts).
+ * percolator-lean v2 account parsers (pinned to `d591ab9`, offsets from constants.ts).
  */
 import { PublicKey } from "@solana/web3.js";
 import {
@@ -183,9 +183,12 @@ export interface InvariantReport { ok: boolean; problems: string[] }
 /**
  * Off-chain check of the conservation invariants the LiteSVM suite asserts:
  *   V == SPL balance, C+I+R+S == V, Σ pfl.capital == C, Σ m.insurance == I, Σ m.realizedPool == R,
- *   Σ m.feeSurplus == S, per market oiLong == oiShort <= min(maxOi, rawBasis) and adl <= ADL_ONE,
+ *   per market oiLong == oiShort <= min(maxOi, rawBasis) and adl <= ADL_ONE,
  *   per portfolio Σ leg.cachedMm/Im == totalMm/Im and active legs == legCount.
- *   Mirrors assert_dex_invariants in percolator-lean/svm-runner (2dc4d21).
+ *   Follows assert_dex_invariants in percolator-lean/svm-runner (d591ab9), except fee
+ *   surplus: this check requires Σ m.feeSurplus == dex.totalSurplus, while the runner
+ *   only requires Σ m.feeSurplus <= dex.totalSurplus. Market.feeSurplus is not updated
+ *   when dust is credited to dex.totalSurplus.
  * Pass every market and portfolio of the DEX (e.g. from discover.ts) for the sum checks to apply.
  */
 export function checkDexInvariants(dex: Dex, vaultTokenBalance: bigint, markets: Market[], portfolios: Portfolio[]): InvariantReport {

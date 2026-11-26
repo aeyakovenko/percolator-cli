@@ -1,5 +1,5 @@
 /**
- * Real-oracle smoke for percolator-lean f2b8b11 on devnet: drives the native Pyth
+ * Real-oracle smoke for percolator-lean d591ab9 on devnet: drives the native Pyth
  * PriceUpdateV2 parser + 2-leg composite ratio through the oracle_adapter, against
  * REAL on-chain Pyth accounts, and verifies the market mark converges to the parsed
  * price via a permissionless crank.

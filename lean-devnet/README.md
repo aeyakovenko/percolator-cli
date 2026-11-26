@@ -18,8 +18,8 @@ are in `../lean-devnet.json`; the TS client is `src/lean/` (import
 SOLANA_RPC_URL=https://api.devnet.solana.com ./runner/target/release/lean-devnet-runner percolator.so matcher.so oracle_adapter.so
 # skip the fuzzer
 LEAN_SKIP_FUZZ=1 ./runner/target/release/lean-devnet-runner ...
-# TS client smoke (every encoder) and read-only invariant survey
-pnpm test:lean
+# TS client smoke (percolator 0-19, matcher 0-3, adapter 0-1) and read-only invariant survey
+pnpm test
 pnpm lean:survey
 ```
 
@@ -45,6 +45,7 @@ The runner refuses a mainnet RPC URL; the TS scripts check the devnet genesis ha
   those instructions.
 - **Same-slot oracle spam (5a)** is tested as a single transaction with
   two updates, asserting `Custom(126)` on instruction 1.
-- **Vault pre-funding** sends 890,880 lamports (the rent-exempt minimum).
-  LiteSVM sends 1, which a real cluster rejects.
+- **Vault pre-funding** sends 890,880 lamports (rent-exempt minimum for a 0-byte
+  account). LiteSVM sends 1, which a real cluster rejects. InitDex still requires
+  the 165-byte token account to end at 2,039,280 lamports.
 - **Dropped transactions** are rebuilt with a fresh blockhash and resent.
