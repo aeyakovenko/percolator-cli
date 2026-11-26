@@ -1,20 +1,20 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `fb67248` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `161ed3c` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "fb67248";
+export const LEAN_SOURCE_COMMIT = "161ed3c";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
-  percolator: new PublicKey("48U3t4hHSTWwfVV7AMrCGNijVfSqtvvZ59QpT1XroMi9"),
+  percolator: new PublicKey("6N6BJuwLhoNTYGPSToS48PKkuK78STHd7M3G5FUmdQBq"),
   matcher: new PublicKey("GikE53f9pz2y31RZSgRTsa6LRcWSmqFpLEdawoHQbQ3J"),
   oracleAdapter: new PublicKey("5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2"),
-  rewardModule: new PublicKey("12Ciaj4XAaj6ug7CQesCwQjZu937C4SC8oD9fxkH8XEF"),
+  rewardModule: new PublicKey("37VP2WnJuPurgv9hCnVjpTufZ5E9RdXDh37BfdqZHXG6"),
   /** test-only writable FEED account program (lean-devnet/mock-feed) */
   mockFeed: new PublicKey("9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx"),
 } as const;

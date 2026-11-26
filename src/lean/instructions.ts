@@ -7,7 +7,7 @@
  */
 import { PublicKey, TransactionInstruction, AccountMeta } from "@solana/web3.js";
 import {
-  IX, MATCHER_IX, ADAPTER_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
+  IX, MATCHER_IX, ADAPTER_IX, REWARD_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
   SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE,
 } from "./constants.js";
 
@@ -341,4 +341,29 @@ export function adapterPushEwmaMark(o: PublicKey, a: { cfg: PublicKey; admin: Pu
   const d = data(9, ADAPTER_IX.PushEwmaMark);
   d.writeBigUInt64LE(a.markE6, 1);
   return ix(o, [w(a.cfg), r(a.admin, true)], d);
+}
+
+// ================================================================= reward module (161ed3c)
+/** reward op 0 (InitReward). One-shot bind of a RewardCfg to a market's buy-and-burn.
+ *  cfg = fresh REWARD_CFG_SIZE account owned by the reward program; quoteVault/targetEscrow(/burnSink
+ *  for burnMode=1) = SPL token accounts owned by the rewm PDA, amount 0. mktAdmin signs (== mkt.marketAdmin). */
+export function rewardInit(rm: PublicKey, a: {
+  cfg: PublicKey; mktAdmin: PublicKey; percolator: PublicKey; dex: PublicKey; market: PublicKey;
+  quoteMint: PublicKey; quoteVault: PublicKey; targetMint: PublicKey; targetEscrow: PublicKey;
+  burnSink?: PublicKey; burnMode: 0 | 1; epochSlots: bigint; minBatchQuote: bigint; reserveRateE6: bigint;
+  quoteTokProg?: PublicKey; targetTokProg?: PublicKey;
+}): TransactionInstruction {
+  const [rewAuth] = deriveRewAuth(rm, a.cfg);
+  const d = data(28, REWARD_IX.InitReward);
+  d.writeUInt8(a.burnMode, 2);
+  d.writeBigUInt64LE(a.epochSlots, 4);
+  d.writeBigUInt64LE(a.minBatchQuote, 12);
+  d.writeBigUInt64LE(a.reserveRateE6, 20);
+  const keys: AccountMeta[] = [
+    w(a.cfg), r(a.mktAdmin, true), r(a.percolator), r(a.dex), r(a.market), r(rewAuth),
+    r(a.quoteMint), w(a.quoteVault), r(a.quoteTokProg ?? TOKEN_PROGRAM_ID),
+    r(a.targetMint), w(a.targetEscrow), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
+  ];
+  if (a.burnMode === 1) keys.push(w(a.burnSink ?? a.targetEscrow));
+  return ix(rm, keys, d);
 }
