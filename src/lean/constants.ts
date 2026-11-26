@@ -1,20 +1,20 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `ee69211` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `fb67248` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "ee69211";
+export const LEAN_SOURCE_COMMIT = "fb67248";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
-  percolator: new PublicKey("39s2z4htCNXBmCjs4NRb5Bm13EWAqNVd1qNmP5T4u7et"),
+  percolator: new PublicKey("48U3t4hHSTWwfVV7AMrCGNijVfSqtvvZ59QpT1XroMi9"),
   matcher: new PublicKey("GikE53f9pz2y31RZSgRTsa6LRcWSmqFpLEdawoHQbQ3J"),
   oracleAdapter: new PublicKey("5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2"),
-  rewardModule: new PublicKey("2YNZPoKAKG5MGcCYMUSnk5Ub3ohnsJDYv9zPQMwA5EYx"),
+  rewardModule: new PublicKey("12Ciaj4XAaj6ug7CQesCwQjZu937C4SC8oD9fxkH8XEF"),
   /** test-only writable FEED account program (lean-devnet/mock-feed) */
   mockFeed: new PublicKey("9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx"),
 } as const;
@@ -153,7 +153,7 @@ export const EpochOff = {
 } as const;
 export const MAGIC_REWARD = 0x4d574552; // "REWM"
 
-export const TRADE_MODE = { OPEN: 0, CLOSE: 1 } as const;
+export const TRADE_MODE = { OPEN: 0, CLOSE: 1, FLIP: 4 } as const; // fb67248: mode 4 = atomic position flip (tradeNettedCore)
 export const MARKET_AUTH_ROLE = { ADMIN: 0, ORACLE: 1 } as const;
 
 // ---------- custom error codes ----------
