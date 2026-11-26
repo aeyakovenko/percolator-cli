@@ -17,8 +17,10 @@ async function tick() {
     if (!info) { console.log(`${t()} market account not found`); return; }
     const m = parseMarket(Buffer.from(info.data));
     const vault = (await conn.getTokenAccountBalance(VAULT, "confirmed")).value.uiAmountString;
+    // Change key excludes mark (cranks drift it harmlessly) — alert only on OI/insurance/vault/status.
+    const key = `${m.oiLong}|${m.oiShort}|${m.insurance}|${vault}|${m.statusName}`;
     const snap = `OI long=${u(m.oiLong)} short=${u(m.oiShort)} | insurance=${u(m.insurance)} | vault=${vault} USDC | mark=$${u(m.markPrice)} | status=${m.statusName}`;
-    if (snap !== last) { console.log(`${t()} ${last === "" ? "[baseline] " : "[CHANGE] "}${snap}`); last = snap; }
+    if (key !== last) { console.log(`${t()} ${last === "" ? "[baseline] " : "[CHANGE] "}${snap}`); last = key; }
   } catch (e) { console.log(`${t()} poll error: ${String((e as Error).message ?? e).slice(0, 80)}`); }
 }
 (async () => { for (;;) { await tick(); await new Promise(r => setTimeout(r, 30_000)); } })();
