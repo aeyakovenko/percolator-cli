@@ -8,7 +8,7 @@
 import { PublicKey, TransactionInstruction, AccountMeta } from "@solana/web3.js";
 import {
   IX, MATCHER_IX, ADAPTER_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
-  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE,
+  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE, COLLATERAL_DECIMALS,
 } from "./constants.js";
 
 const w = (pubkey: PublicKey, isSigner = false): AccountMeta => ({ pubkey, isSigner, isWritable: true });
@@ -43,12 +43,15 @@ export interface VaultAccounts {
 const tok = (v: VaultAccounts) => v.tokenProgram ?? TOKEN_PROGRAM_ID;
 
 // ================================================================= percolator core
-/** op 0. `dex` must be a fresh DEX_SIZE account owned by the program. Admin pays vault rent top-up. */
+/** op 0. `dex` must be a fresh DEX_SIZE account owned by the program. Admin pays vault rent top-up. `decimals` must equal COLLATERAL_DECIMALS (6) — see the README's "Collateral note". */
 export function initDex(p: PublicKey, a: {
   dex: PublicKey; admin: PublicKey; mint: PublicKey; feeVault: PublicKey;
   decimals: number; createFee: bigint; rentLamports?: bigint;
   vaultBump?: number; vault?: PublicKey; tokenProgram?: PublicKey; systemProgram?: PublicKey;
 }): TransactionInstruction {
+    if (a.decimals !== COLLATERAL_DECIMALS) {
+          throw new Error(`initDex: collateral mint must have ${COLLATERAL_DECIMALS} decimals (e.g. USDC), got ${a.decimals}`);
+    }
   const [vault, bump] = a.vault && a.vaultBump !== undefined ? [a.vault, a.vaultBump] : deriveDexVault(p, a.dex);
   const d = data(20, IX.InitDex);
   d.writeUInt8(bump, 1);
