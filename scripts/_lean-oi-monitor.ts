@@ -26,7 +26,8 @@ async function tick() {
     const vCap = await cap(VAULT_PFL), uCap = await cap(USER_LONG);
     // key = the 3 prizes exactly (insurance + both prize portfolios' capital) + status. Fires only on a
     // real prize move; the hunter's own deposits/withdrawals/trades no longer generate noise.
-    const key = `${insurance}|${vCap}|${uCap}|${status}`;
+    const c = (x: bigint) => (x < 0n ? -1n : x / 10_000n).toString(); // round to 0.01 USDC — ignore sub-cent dust
+    const key = `${c(insurance)}|${c(vCap)}|${c(uCap)}|${status}`;
     const snap = `insurance=$${u(insurance)} | vaultPfl=$${vCap < 0n ? "CLOSED" : u(vCap)} | userLong=$${uCap < 0n ? "CLOSED" : u(uCap)} | status=${status} | mark=$${u(b.readBigUInt64LE(112))}`;
     if (key !== last) { console.log(`${t()} ${last === "" ? "[baseline] " : "[CHANGE] "}${snap}`); last = key; }
   } catch (e) { console.log(`${t()} poll error: ${String((e as Error).message ?? e).slice(0, 80)}`); }
