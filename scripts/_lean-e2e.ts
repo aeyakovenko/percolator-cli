@@ -12,7 +12,7 @@ import {
 
 const conn = new Connection(process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com", "confirmed");
 const P = new PublicKey(process.env.LEAN_PROG ?? LEAN_DEVNET.percolator.toBase58());
-const RM = LEAN_DEVNET.rewardModule;
+const RM = process.env.LEAN_REWARD ? new PublicKey(process.env.LEAN_REWARD) : LEAN_DEVNET.rewardModule;
 const funder = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))));
 let pass = 0; const fail: string[] = [];
 const ok = (c: boolean, m: string) => { if (c) { pass++; console.log(`  ✓ ${m}`); } else { fail.push(m); console.log(`  ✗ ${m}`); } };
