@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "test": "tsx tests/lean/devnet-smoke.ts",
+    "test:guards": "tsx tests/lean/insurance-window-cap.test.ts",
     "lean:survey": "tsx scripts/lean-survey.ts"
   },
   "dependencies": {
