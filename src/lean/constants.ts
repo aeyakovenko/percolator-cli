@@ -44,6 +44,10 @@ export const MIN_FIRST_INS_DEPOSIT = 1_000_000n;
 export const MAX_LEGS = 8;
 /** InitDex: minimum lamports the vault PDA must end up with (165-byte token account) */
 export const SPL_TOKEN_ACCOUNT_RENT = 2_039_280n;
+/** InitDex: the DEX stores token base units directly as its E6 accounting, so the
+ * collateral mint must have exactly this many decimals (e.g. USDC, not 9-decimal
+  * wSOL) — see the "Collateral note" in README.md. Enforced client-side in initDex(). */
+export const COLLATERAL_DECIMALS = 6;
 
 // ---------- magics (u32 LE at offset 0) ----------
 export const MAGIC = {
