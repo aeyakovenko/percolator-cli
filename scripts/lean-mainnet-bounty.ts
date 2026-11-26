@@ -52,7 +52,7 @@ async function main() {
 
   // DEX (USDC collateral)
   const dex = await newAcc(P, DEX_SIZE);
-  await send([initDex(P, { dex, admin: funder.publicKey, mint: USDC, feeVault: usdcAta, decimals: 6, createFee: 0n })]);
+  await send([initDex(P, { dex, admin: funder.publicKey, mint: USDC, feeVault: usdcAta, decimals: 6, createFee: 0n, allowFreeze: 1 })]); // a056eee: USDC has a freeze authority
   const d = parseDex(Buffer.from((await conn.getAccountInfo(dex))!.data));
   const V: VaultAccounts = { dex, mint: USDC, vault: d.vault };
   const [vault] = deriveDexVault(P, dex);
@@ -62,7 +62,7 @@ async function main() {
   const cfg = await newAcc(O, ADAPTER_CFG_SIZE);
   const [oracPda] = deriveOracleAuth(O, cfg);
   const init = feed.e6 - feed.e6 / 100n;
-  const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 400n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+  const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 2000n, mmBps: 1000n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 200n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
   const mkt = await newAcc(P, MARKET_SIZE);
   await send([createMarket(P, { dex, market: mkt, mint: USDC, oracleAuth: oracPda, creator: funder.publicKey, creatorToken: usdcAta, feeVault: usdcAta, params })]);
   await send([adapterInit(O, { cfg, admin: funder.publicKey, percolator: P, market: mkt, feed: feed.addr, feedType: FEED_TYPE.PYTH_V2, maxFeedAge: 600n, maxConfBps: 500n, fundingBpsPerStep: 0n, feedId: Buffer.from(SOL_FEED, "hex") })]);

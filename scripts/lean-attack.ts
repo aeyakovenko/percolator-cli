@@ -105,7 +105,7 @@ async function main() {
 
   const params: MarketParams = {
     initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 600n, warmupSlots: 0n,
-    imBps: 1000n, mmBps: 500n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 400n,
+    imBps: 1000n, mmBps: 500n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n,
     maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n,
   };
   const oracle = Keypair.generate();

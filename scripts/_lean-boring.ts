@@ -32,7 +32,7 @@ async function main() {
   await send([initDex(P, { dex, admin: funder.publicKey, mint, feeVault, decimals: 6, createFee: 0n })]);
   const V: VaultAccounts = { dex, mint, vault: deriveDexVault(P, dex)[0] };
   const oracle = Keypair.generate();
-  const params: MarketParams = { initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 400n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+  const params: MarketParams = { initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
   const mkt = await newAcc(P, MARKET_SIZE);
   await send([createMarket(P, { dex, market: mkt, mint, oracleAuth: oracle.publicKey, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);
   const oA = Keypair.generate(), oB = Keypair.generate();
@@ -59,15 +59,15 @@ async function main() {
   a = await pf(pA);
   ok(a.legs.length === 1 && a.legs[0].rawBasis === 4n * POS_SCALE, "PARTIAL CLOSE: rawBasis 6 -> 4 (still long)");
 
-  // price +$4 -> $104, refresh: A long gains 4*$4 = $16 realized
+  // price +$1 -> $101 (a056eee maxMove=100bps), refresh: A long gains 4*$1 = $4 realized
   await waitSlot();
-  await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price: 104n * POS_SCALE })], [oracle]);
+  await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price: 101n * POS_SCALE })], [oracle]);
   await send([refreshLeg(P, { dex, market: mkt, portfolio: pB })]); // loser (short) first
   await send([refreshLeg(P, { dex, market: mkt, portfolio: pA })]);
   const capAfterGain = (await pf(pA)).capital;
-  ok(Math.abs(U(capAfterGain) - 316) <= 0.5, `REALIZE: A capital 300 -> ~316 (+$16 long profit) — got ${U(capAfterGain)}`);
+  ok(Math.abs(U(capAfterGain) - 304) <= 0.5, `REALIZE: A capital 300 -> ~304 (+$4 long profit) — got ${U(capAfterGain)}`);
 
-  // FULL CLOSE remaining 4 @ $104 -> flat, OI 0
+  // FULL CLOSE remaining 4 @ $101 -> flat, OI 0
   await send([trd(4n * POS_SCALE, TRADE_MODE.CLOSE)], [oA, oB], false);
   a = await pf(pA);
   ok(a.legs.length === 0, "FULL CLOSE: A flat (no active legs)");

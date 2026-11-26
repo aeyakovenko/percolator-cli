@@ -17,7 +17,7 @@ async function main(){
   const dex=(await newAcc(P,DEX_SIZE)).publicKey;
   await send([initDex(P,{dex,admin:funder.publicKey,mint,feeVault,decimals:6,createFee:0n})]);
   const V:VaultAccounts={dex,mint,vault:deriveDexVault(P,dex)[0]};
-  const params:MarketParams={initPrice:100n*POS_SCALE,exitWindow:10n,maxStaleness:9000n,warmupSlots:0n,imBps:1000n,mmBps:500n,liqFeeBps:100n,tradeFeeBps:0n,maxMoveBps:400n,maxInsDrawBps:2500n,maxOi:1_000_000n*POS_SCALE,minMm:0n};
+  const params:MarketParams={initPrice:100n*POS_SCALE,exitWindow:10n,maxStaleness:9000n,warmupSlots:0n,imBps:1000n,mmBps:500n,liqFeeBps:50n,tradeFeeBps:0n,maxMoveBps:100n,maxInsDrawBps:2500n,maxOi:1_000_000n*POS_SCALE,minMm:0n};
   const mkt=(await newAcc(P,MARKET_SIZE)).publicKey;
   await send([createMarket(P,{dex,market:mkt,mint,oracleAuth:Keypair.generate().publicKey,creator:funder.publicKey,creatorToken:fTok,feeVault,params})]);
   // victim seeds 70

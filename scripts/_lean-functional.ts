@@ -30,7 +30,7 @@ async function main() {
   const V: VaultAccounts = { dex, mint, vault: deriveDexVault(P, dex)[0] };
   const oracle = Keypair.generate();
   // high maxStaleness; mm/im 500/1000; maxMove 400 (4%/update); start $100
-  const params: MarketParams = { initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 400n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+  const params: MarketParams = { initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
   const mkt = await newAcc(P, MARKET_SIZE);
   await send([createMarket(P, { dex, market: mkt, mint, oracleAuth: oracle.publicKey, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);
 
@@ -45,24 +45,24 @@ async function main() {
   const capL0 = await cap(pL), capS0 = await cap(pS);
   console.log(`opened Long5/Short5 @ $100: L.cap=${Number(capL0) / 1e6} S.cap=${Number(capS0) / 1e6}`);
 
-  // price +4% -> $104. settle loser (short) first so its loss backs the winner's realization.
+  // price +1% -> $101 (a056eee maxMove=100bps). settle loser (short) first so its loss backs the winner.
   await waitSlot();
-  await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price: 104n * POS_SCALE })], [oracle]);
+  await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price: 101n * POS_SCALE })], [oracle]);
   await send([refreshLeg(P, { dex, market: mkt, portfolio: pS })]);
   await send([refreshLeg(P, { dex, market: mkt, portfolio: pL })]);
   const capL1 = await cap(pL), capS1 = await cap(pS);
   const longGain = Number(capL1 - capL0) / 1e6, shortLoss = Number(capS0 - capS1) / 1e6;
-  console.log(`after +4% ($100->$104): L.cap=${Number(capL1) / 1e6} (Δ+${longGain}) S.cap=${Number(capS1) / 1e6} (Δ-${shortLoss})`);
-  // expected PnL = qty(5) * Δprice($4) = $20
-  ok(Math.abs(longGain - 20) <= 1, `LONG profits ~$20 on +4% (qty 5 * $4) — got +$${longGain}`);
-  ok(Math.abs(shortLoss - 20) <= 1, `SHORT loses ~$20 (matching) — got -$${shortLoss}`);
+  console.log(`after +1% ($100->$101): L.cap=${Number(capL1) / 1e6} (Δ+${longGain}) S.cap=${Number(capS1) / 1e6} (Δ-${shortLoss})`);
+  // expected PnL = qty(5) * Δprice($1) = $5
+  ok(Math.abs(longGain - 5) <= 0.5, `LONG profits ~$5 on +1% (qty 5 * $1) — got +$${longGain}`);
+  ok(Math.abs(shortLoss - 5) <= 0.5, `SHORT loses ~$5 (matching) — got -$${shortLoss}`);
   ok(Math.abs(longGain - shortLoss) <= 0.01, `zero-sum: long gain == short loss`);
 
-  // keep pushing price up 4%/step; the SHORT (loser) should become liquidatable before the long
-  let price = 104n * POS_SCALE, liqd = false;
-  for (let i = 0; i < 12 && !liqd; i++) {
+  // keep pushing price up 1%/step; the SHORT (loser) should become liquidatable before the long
+  let price = 101n * POS_SCALE, liqd = false;
+  for (let i = 0; i < 40 && !liqd; i++) {
     await waitSlot();
-    price = (price * 104n) / 100n;
+    price = (price * 101n) / 100n;
     await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price })], [oracle]);
     await send([refreshLeg(P, { dex, market: mkt, portfolio: pS })]).catch(() => {});
     // short liquidatable?

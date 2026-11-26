@@ -22,7 +22,7 @@ async function tick() {
     const rOI = (x: bigint) => (x / 10000n).toString();
     // insurance coarsened to whole-USDC in the key (sustained grind in progress) — vault stays
     // EXACT so any real withdrawal (realized drain) fires immediately.
-    const key = `${rOI(m.oiLong)}|${rOI(m.oiShort)}|${m.insurance / 1_000_000n}|${vault}|${m.statusName}`;
+    const key = `${rOI(m.oiLong)}|${rOI(m.oiShort)}|${m.insurance / 5_000_000n}|${vault}|${m.statusName}`;
     const snap = `OI long=${u(m.oiLong)} short=${u(m.oiShort)} | insurance=${u(m.insurance)} | vault=${vault} USDC | mark=$${u(m.markPrice)} | status=${m.statusName}`;
     if (key !== last) { console.log(`${t()} ${last === "" ? "[baseline] " : "[CHANGE] "}${snap}`); last = key; }
   } catch (e) { console.log(`${t()} poll error: ${String((e as Error).message ?? e).slice(0, 80)}`); }

@@ -35,7 +35,7 @@ async function main() {
   const V: VaultAccounts = { dex, mint, vault: d.vault };
   const cfg = await newAcc(O, ADAPTER_CFG_SIZE);
   const [oracPda] = deriveOracleAuth(O, cfg);
-  const params: MarketParams = { initPrice: f.e6 - f.e6 / 100n, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 400n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+  const params: MarketParams = { initPrice: f.e6 - f.e6 / 100n, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 2000n, mmBps: 1000n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 200n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
   const market = await newAcc(P, MARKET_SIZE);
   await send([createMarket(P, { dex, market, mint, oracleAuth: oracPda, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);
   await send([adapterInit(O, { cfg, admin: funder.publicKey, percolator: P, market, feed: f.addr, feedType: FEED_TYPE.PYTH_V2, maxFeedAge: 600n, maxConfBps: 500n, fundingBpsPerStep: 0n, feedId: Buffer.from(SOL_FEED, "hex") })]);

@@ -96,7 +96,7 @@ async function main() {
   const [oracPda] = deriveOracleAuth(O, cfg);
   // seed init price from the live ratio so the market is usable immediately
   const bm = parseMarket; void bm;
-  const params: MarketParams = { initPrice: 850n * POS_SCALE, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 400n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+  const params: MarketParams = { initPrice: 850n * POS_SCALE, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
   const mkt = await newAcc(P, MARKET_SIZE);
   await send([createMarket(P, { dex, market: mkt, mint, oracleAuth: oracPda, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);
   await send([adapterInit(O, { cfg, admin: funder.publicKey, percolator: P, market: mkt, feed: btc, feedType: FEED_TYPE.PYTH_V2, maxFeedAge: 10_000_000n, maxConfBps: 500n, fundingBpsPerStep: 0n, feedId: Buffer.from(FEED.BTC, "hex"), quoteFeed: solF, quoteFeedType: FEED_TYPE.PYTH_V2, quoteFeedId: Buffer.from(FEED.SOL, "hex") })]);

@@ -35,7 +35,7 @@ async function main() {
   const V: VaultAccounts = { dex, mint, vault: deriveDexVault(P, dex)[0] };
   const oracle = Keypair.generate();
   // maxMove 400bps (4%) so funding up to $10/step at $100 fits the clamp budget
-  const params: MarketParams = { initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 400n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+  const params: MarketParams = { initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
   const mkt = await newAcc(P, MARKET_SIZE);
   await send([createMarket(P, { dex, market: mkt, mint, oracleAuth: oracle.publicKey, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);
 
@@ -48,29 +48,30 @@ async function main() {
   await send([trade(P, { dex, market: mkt, longPortfolio: pL, longOwner: oL.publicKey, shortPortfolio: pS, shortOwner: oS.publicKey, mode: TRADE_MODE.OPEN, qty: 5n * POS_SCALE })], [oL, oS], false);
   console.log(`opened Long5/Short5 @ $100`);
 
-  // --- Funding step 1: sign=0 (LONGS PAY SHORTS), price unchanged, fundE6 = $2 -> transfer = 5*$2 = $10 ---
+  // --- Funding step 1: sign=0 (LONGS PAY SHORTS), price unchanged, fundE6 = $1 -> transfer = 5*$1 = $5 ---
+  // (a056eee maxMove=100bps -> clamp budget at $100 is $1; funding must fit it.)
   let capL = await cap(pL), capS = await cap(pS);
   await waitSlot();
-  await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price: 100n * POS_SCALE, fundingSign: 0, fundingE6: 2n * POS_SCALE })], [oracle]);
+  await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price: 100n * POS_SCALE, fundingSign: 0, fundingE6: 1n * POS_SCALE })], [oracle]);
   await send([refreshLeg(P, { dex, market: mkt, portfolio: pL })]); // loser (long) first -> funds realizedPool
   await send([refreshLeg(P, { dex, market: mkt, portfolio: pS })]);
   let dL = Number((await cap(pL)) - capL) / 1e6, dS = Number((await cap(pS)) - capS) / 1e6;
-  console.log(`funding sign=0 fundE6=$2: L Δ=${dL}  S Δ=${dS}  (price unchanged $100)`);
-  ok(Math.abs(dL + 10) <= 0.01, `LONGS PAY: long -$10 (qty5 * $2) — got ${dL}`);
-  ok(Math.abs(dS - 10) <= 0.01, `shorts receive +$10 — got ${dS}`);
+  console.log(`funding sign=0 fundE6=$1: L Δ=${dL}  S Δ=${dS}  (price unchanged $100)`);
+  ok(Math.abs(dL + 5) <= 0.01, `LONGS PAY: long -$5 (qty5 * $1) — got ${dL}`);
+  ok(Math.abs(dS - 5) <= 0.01, `shorts receive +$5 — got ${dS}`);
   ok(Math.abs(dL + dS) <= 0.001, `zero-sum (long pays exactly what short receives)`);
   ok(await conserved(dex, V), `conservation V==SPL after funding step 1`);
 
-  // --- Funding step 2: sign=1 (SHORTS PAY LONGS), fundE6 = $1 -> transfer = 5*$1 = $5 ---
+  // --- Funding step 2: sign=1 (SHORTS PAY LONGS), fundE6 = $0.5 -> transfer = 5*$0.5 = $2.5 ---
   capL = await cap(pL); capS = await cap(pS);
   await waitSlot();
-  await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price: 100n * POS_SCALE, fundingSign: 1, fundingE6: 1n * POS_SCALE })], [oracle]);
+  await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price: 100n * POS_SCALE, fundingSign: 1, fundingE6: POS_SCALE / 2n })], [oracle]);
   await send([refreshLeg(P, { dex, market: mkt, portfolio: pS })]); // loser (short) first
   await send([refreshLeg(P, { dex, market: mkt, portfolio: pL })]);
   dL = Number((await cap(pL)) - capL) / 1e6; dS = Number((await cap(pS)) - capS) / 1e6;
-  console.log(`funding sign=1 fundE6=$1: L Δ=${dL}  S Δ=${dS}`);
-  ok(Math.abs(dL - 5) <= 0.01, `SHORTS PAY: long +$5 (direction flips) — got ${dL}`);
-  ok(Math.abs(dS + 5) <= 0.01, `shorts -$5 — got ${dS}`);
+  console.log(`funding sign=1 fundE6=$0.5: L Δ=${dL}  S Δ=${dS}`);
+  ok(Math.abs(dL - 2.5) <= 0.01, `SHORTS PAY: long +$2.5 (direction flips) — got ${dL}`);
+  ok(Math.abs(dS + 2.5) <= 0.01, `shorts -$2.5 — got ${dS}`);
   ok(await conserved(dex, V), `conservation V==SPL after funding step 2`);
 
   // --- Clamp: funding beyond maxMove budget must be rejected ---
@@ -78,7 +79,7 @@ async function main() {
   let clamped = false;
   try { await send([updateOracle(P, { market: mkt, oracleAuth: oracle.publicKey, price: 100n * POS_SCALE, fundingSign: 0, fundingE6: 50n * POS_SCALE })], [oracle]); }
   catch { clamped = true; }
-  ok(clamped, "funding > maxMove clamp budget ($50 > $10) is rejected (oracleClamp)");
+  ok(clamped, "funding > maxMove clamp budget ($50 > $1) is rejected (oracleClamp)");
 
   console.log(`\n${pass} passed, ${fail.length} failed`);
   if (fail.length) { console.log("FAILURES:\n  " + fail.join("\n  ")); process.exit(1); }
