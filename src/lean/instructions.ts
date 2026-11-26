@@ -353,8 +353,9 @@ export function rewardInit(rm: PublicKey, a: {
   burnSink?: PublicKey; burnMode: 0 | 1; epochSlots: bigint; minBatchQuote: bigint; reserveRateE6: bigint;
   quoteTokProg?: PublicKey; targetTokProg?: PublicKey;
 }): TransactionInstruction {
-  const [rewAuth] = deriveRewAuth(rm, a.cfg);
+  const [rewAuth, bump] = deriveRewAuth(rm, a.cfg);
   const d = data(28, REWARD_IX.InitReward);
+  d.writeUInt8(bump, 1); // InitReward reads the rewm-PDA bump from data byte 1
   d.writeUInt8(a.burnMode, 2);
   d.writeBigUInt64LE(a.epochSlots, 4);
   d.writeBigUInt64LE(a.minBatchQuote, 12);
@@ -366,4 +367,51 @@ export function rewardInit(rm: PublicKey, a: {
   ];
   if (a.burnMode === 1) keys.push(w(a.burnSink ?? a.targetEscrow));
   return ix(rm, keys, d);
+}
+
+/** reward op 1 (StartEpoch, permissionless): CPI-pulls market.rewardAccrued into a fresh epoch's quotePot. */
+export function rewardStartEpoch(rm: PublicKey, a: {
+  cfg: PublicKey; epochAcc: PublicKey; dex: PublicKey; market: PublicKey; quoteMint: PublicKey;
+  dexVault: PublicKey; quoteVault: PublicKey; percolator: PublicKey; quoteTokProg?: PublicKey;
+}): TransactionInstruction {
+  const [rewAuth] = deriveRewAuth(rm, a.cfg);
+  return ix(rm, [
+    w(a.cfg), w(a.epochAcc), w(a.dex), w(a.market), r(rewAuth), r(a.quoteMint),
+    w(a.dexVault), w(a.quoteVault), r(a.quoteTokProg ?? TOKEN_PROGRAM_ID), r(a.percolator),
+  ], Buffer.from([REWARD_IX.StartEpoch]));
+}
+/** reward op 2 (SubmitBid, permissionless): bidder escrows `amount` target tokens (wSOL) into the epoch. */
+export function rewardSubmitBid(rm: PublicKey, a: {
+  cfg: PublicKey; epochAcc: PublicKey; bidReceipt: PublicKey; bidder: PublicKey; bidderTargetTok: PublicKey;
+  targetEscrow: PublicKey; targetMint: PublicKey; amount: bigint; targetTokProg?: PublicKey;
+}): TransactionInstruction {
+  const d = data(9, REWARD_IX.SubmitBid);
+  d.writeBigUInt64LE(a.amount, 1);
+  return ix(rm, [
+    w(a.cfg), w(a.epochAcc), w(a.bidReceipt), r(a.bidder, true), w(a.bidderTargetTok),
+    w(a.targetEscrow), r(a.targetMint), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
+  ], d);
+}
+/** reward op 3 (SettleEpoch, permissionless): clears xy=k, burns escrowed target (burnMode=1 -> dead-sink). */
+export function rewardSettleEpoch(rm: PublicKey, a: {
+  cfg: PublicKey; epochAcc: PublicKey; targetEscrow: PublicKey; targetMint: PublicKey;
+  burnSink?: PublicKey; burnMode: 0 | 1; targetTokProg?: PublicKey;
+}): TransactionInstruction {
+  const [rewAuth] = deriveRewAuth(rm, a.cfg);
+  const keys: AccountMeta[] = [
+    w(a.cfg), w(a.epochAcc), r(rewAuth), w(a.targetEscrow), r(a.targetMint), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
+  ];
+  if (a.burnMode === 1) keys.push(w(a.burnSink ?? a.targetEscrow));
+  return ix(rm, keys, Buffer.from([REWARD_IX.SettleEpoch]));
+}
+/** reward op 4 (ClaimQuote): bidder claims their pro-rata quote (USDC) payout from a settled epoch. */
+export function rewardClaimQuote(rm: PublicKey, a: {
+  cfg: PublicKey; epochAcc: PublicKey; bidReceipt: PublicKey; bidder: PublicKey; quoteVault: PublicKey;
+  bidderQuoteTok: PublicKey; quoteMint: PublicKey; quoteTokProg?: PublicKey;
+}): TransactionInstruction {
+  const [rewAuth] = deriveRewAuth(rm, a.cfg);
+  return ix(rm, [
+    w(a.cfg), w(a.epochAcc), w(a.bidReceipt), w(a.bidder, true), r(rewAuth),
+    w(a.quoteVault), w(a.bidderQuoteTok), r(a.quoteMint), r(a.quoteTokProg ?? TOKEN_PROGRAM_ID),
+  ], Buffer.from([REWARD_IX.ClaimQuote]));
 }
