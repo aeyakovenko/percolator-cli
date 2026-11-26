@@ -46,13 +46,14 @@ const tok = (v: VaultAccounts) => v.tokenProgram ?? TOKEN_PROGRAM_ID;
 /** op 0. `dex` must be a fresh DEX_SIZE account owned by the program. Admin pays vault rent top-up. */
 export function initDex(p: PublicKey, a: {
   dex: PublicKey; admin: PublicKey; mint: PublicKey; feeVault: PublicKey;
-  decimals: number; createFee: bigint; rentLamports?: bigint;
+  decimals: number; createFee: bigint; rentLamports?: bigint; allowFreeze?: 0 | 1; // a056eee: 1 = allow a blessed freeze-authority mint (e.g. real USDC)
   vaultBump?: number; vault?: PublicKey; tokenProgram?: PublicKey; systemProgram?: PublicKey;
 }): TransactionInstruction {
   const [vault, bump] = a.vault && a.vaultBump !== undefined ? [a.vault, a.vaultBump] : deriveDexVault(p, a.dex);
   const d = data(20, IX.InitDex);
   d.writeUInt8(bump, 1);
   d.writeUInt8(a.decimals, 2);
+  d.writeUInt8(a.allowFreeze ?? 0, 3);
   d.writeBigUInt64LE(a.createFee, 4);
   d.writeBigUInt64LE(a.rentLamports ?? SPL_TOKEN_ACCOUNT_RENT, 12);
   return ix(p, [
@@ -76,10 +77,11 @@ export interface MarketParams {
   maxStaleness: bigint;    // slots
   warmupSlots: bigint;     // must be 0 for profit to realize at 2dc4d21
   imBps: bigint; mmBps: bigint; liqFeeBps: bigint; tradeFeeBps: bigint;
-  maxMoveBps: bigint;      // maxMove + liqFee <= mm < im <= 10000
+  maxMoveBps: bigint;      // a056eee: maxMoveBps<=2500, 4*mm+(mm^2+999)/1000+liqFee<=mmBps, mmBps+maxMove<=imBps
   maxInsDrawBps: bigint;
   maxOi: bigint;           // E6
   minMm?: bigint;          // E6 floor, default 0
+  maxFrontBps?: bigint;    // a056eee: bps of I_m usable for I_m-contained cross-PnL fronting (default 0); <= maxInsDrawBps
 }
 
 /** op 2. `market` must be a fresh MARKET_SIZE account owned by the program. Creator pays the DEX create fee in quote tokens. */
@@ -90,6 +92,7 @@ export function createMarket(p: PublicKey, a: {
 }) {
   const d = data(100, IX.CreateMarket);
   const m = a.params;
+  d.writeUInt16LE(Number(m.maxFrontBps ?? 0n), 2); // a056eee: maxFrontBps u16 at offset 2
   [m.initPrice, m.exitWindow, m.maxStaleness, m.warmupSlots, m.imBps, m.mmBps, m.liqFeeBps,
     m.tradeFeeBps, m.maxMoveBps, m.maxInsDrawBps, m.maxOi, m.minMm ?? 0n]
     .forEach((v, i) => d.writeBigUInt64LE(v, 4 + 8 * i));

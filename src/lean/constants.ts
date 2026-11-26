@@ -1,13 +1,13 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `813d5c8` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `a056eee` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "813d5c8";
+export const LEAN_SOURCE_COMMIT = "a056eee";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
@@ -77,16 +77,16 @@ export const FEED_SIZE = 32;
 
 // ---------- offsets ----------
 export const DexOff = {
-  magic: 0, version: 4, vaultBump: 5, decimals: 6, admin: 8, quoteMint: 40, vaultPda: 72,
+  magic: 0, version: 4, vaultBump: 5, decimals: 6, allowFreeze: 7, admin: 8, quoteMint: 40, vaultPda: 72,
   feeVault: 104, nextMarketId: 136, nextPortfolioId: 144, createFee: 152, vaultBalance: 160,
   totalCapital: 168, totalInsurance: 176, totalResidual: 184, totalSurplus: 192,
 } as const;
 
 export const MktOff = {
-  magic: 0, status: 4, marketId: 8, dex: 16, oracleAuth: 48, marketAdmin: 80, markPrice: 112,
+  magic: 0, status: 4, maxFrontBps: 6, marketId: 8, dex: 16, oracleAuth: 48, marketAdmin: 80, markPrice: 112,
   lastOracleSlot: 120, windDownSlot: 128, exitWindow: 136, maxStaleness: 144, warmupSlots: 152,
   imBps: 160, mmBps: 168, liqFeeBps: 176, tradeFeeBps: 184, maxMoveBps: 192, maxInsDrawBps: 200,
-  maxOi: 208, realizedPool: 216, insurance: 224, feeSurplus: 232, totalPosPnl: 240,
+  maxOi: 208, realizedPool: 216, insurance: 224, insFronted: 232, totalPosPnl: 240,
   totalInsShares: 248, oiLong: 256, oiShort: 264, rawBasisLong: 272, rawBasisShort: 280,
   adlLong: 288, adlShort: 296, kLong: 304, kShort: 312, resolvedNum: 320, resolvedDen: 328,
   activeLegs: 336, minMm: 344,
@@ -128,7 +128,7 @@ export const IX = {
   InitPortfolio: 5, DepositCollateral: 6, WithdrawCollateral: 7, DepositInsurance: 8,
   WithdrawInsurance: 9, RefreshLeg: 10, Trade: 11, Liquidate: 12, ClearDeadLeg: 13,
   StartWindDown: 14, ForceClosePair: 15, ResolveMarket: 16, ClaimResolved: 17,
-  TombstoneMarket: 18, CloseAccount: 19,
+  TombstoneMarket: 18, CloseAccount: 19, SweepSurplus: 20,
 } as const;
 export const MATCHER_IX = { Init: 0, Update: 1, Fill: 2, WithdrawLp: 3 } as const;
 export const ADAPTER_IX = { Init: 0, Crank: 1, InitEwma: 2, PushEwmaMark: 3 } as const;

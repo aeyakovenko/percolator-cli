@@ -37,7 +37,7 @@ export function accountKind(b: Buffer): "dex" | "market" | "portfolio" | "insRec
 
 // ---------------------------------------------------------------- Dex
 export interface Dex {
-  version: number; vaultBump: number; decimals: number;
+  version: number; vaultBump: number; decimals: number; allowFreeze: number;
   admin: PublicKey; quoteMint: PublicKey; vault: PublicKey; feeVault: PublicKey;
   nextMarketId: bigint; nextPortfolioId: bigint; createFee: bigint;
   vaultBalance: bigint; totalCapital: bigint; totalInsurance: bigint; totalResidual: bigint; totalSurplus: bigint;
@@ -46,7 +46,7 @@ export function parseDex(b: Buffer): Dex {
   expect(b, MAGIC.DEX, DEX_SIZE, "Dex");
   const O = DexOff;
   return {
-    version: u8(b, O.version), vaultBump: u8(b, O.vaultBump), decimals: u8(b, O.decimals),
+    version: u8(b, O.version), vaultBump: u8(b, O.vaultBump), decimals: u8(b, O.decimals), allowFreeze: u8(b, O.allowFreeze),
     admin: pk(b, O.admin), quoteMint: pk(b, O.quoteMint), vault: pk(b, O.vaultPda), feeVault: pk(b, O.feeVault),
     nextMarketId: u64(b, O.nextMarketId), nextPortfolioId: u64(b, O.nextPortfolioId), createFee: u64(b, O.createFee),
     vaultBalance: u64(b, O.vaultBalance), totalCapital: u64(b, O.totalCapital), totalInsurance: u64(b, O.totalInsurance),
@@ -62,7 +62,7 @@ export interface Market {
   exitWindow: bigint; maxStaleness: bigint; warmupSlots: bigint;
   imBps: bigint; mmBps: bigint; liqFeeBps: bigint; tradeFeeBps: bigint; maxMoveBps: bigint;
   maxInsDrawBps: bigint; maxOi: bigint; minMm: bigint;
-  realizedPool: bigint; insurance: bigint; feeSurplus: bigint; totalPosPnl: bigint; totalInsShares: bigint;
+  realizedPool: bigint; insurance: bigint; insFronted: bigint; maxFrontBps: bigint; totalPosPnl: bigint; totalInsShares: bigint;
   oiLong: bigint; oiShort: bigint; rawBasisLong: bigint; rawBasisShort: bigint;
   adlLong: bigint; adlShort: bigint;
   /** raw cumulative K (biased by K_ZERO) */
@@ -81,7 +81,8 @@ export function parseMarket(b: Buffer): Market {
     exitWindow: u64(b, O.exitWindow), maxStaleness: u64(b, O.maxStaleness), warmupSlots: u64(b, O.warmupSlots),
     imBps: u64(b, O.imBps), mmBps: u64(b, O.mmBps), liqFeeBps: u64(b, O.liqFeeBps), tradeFeeBps: u64(b, O.tradeFeeBps),
     maxMoveBps: u64(b, O.maxMoveBps), maxInsDrawBps: u64(b, O.maxInsDrawBps), maxOi: u64(b, O.maxOi), minMm: u64(b, O.minMm),
-    realizedPool: u64(b, O.realizedPool), insurance: u64(b, O.insurance), feeSurplus: u64(b, O.feeSurplus),
+    realizedPool: u64(b, O.realizedPool), insurance: u64(b, O.insurance), insFronted: u64(b, O.insFronted),
+    maxFrontBps: BigInt(b.readUInt16LE(O.maxFrontBps)),
     totalPosPnl: u64(b, O.totalPosPnl), totalInsShares: u64(b, O.totalInsShares),
     oiLong: u64(b, O.oiLong), oiShort: u64(b, O.oiShort), rawBasisLong: u64(b, O.rawBasisLong), rawBasisShort: u64(b, O.rawBasisShort),
     adlLong: u64(b, O.adlLong), adlShort: u64(b, O.adlShort), kLong: u64(b, O.kLong), kShort: u64(b, O.kShort),
@@ -201,8 +202,7 @@ export function checkDexInvariants(dex: Dex, vaultTokenBalance: bigint, markets:
   need(sumIns === dex.totalInsurance, `Σinsurance ${sumIns} != I ${dex.totalInsurance}`);
   const sumR = markets.reduce((a, m) => a + m.realizedPool, 0n);
   need(sumR === dex.totalResidual, `ΣrealizedPool ${sumR} != R ${dex.totalResidual}`);
-  const sumS = markets.reduce((a, m) => a + m.feeSurplus, 0n);
-  need(sumS === dex.totalSurplus, `ΣfeeSurplus ${sumS} != S ${dex.totalSurplus}`);
+  // a056eee: per-market feeSurplus(232) became insFronted (F_m); S_tot is swept separately, no per-market sum to assert.
   for (const m of markets) {
     const id = `market ${m.marketId}`;
     need(m.oiLong === m.oiShort, `${id}: oiLong ${m.oiLong} != oiShort ${m.oiShort}`);
