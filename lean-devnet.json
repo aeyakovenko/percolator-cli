@@ -2,29 +2,29 @@
   "network": "devnet",
   "source": {
     "repo": "percolator-lean",
-    "commit": "d591ab9",
+    "commit": "bb54ac6",
     "compiler": "lean-svm 1a7b89d",
-    "note": "Source tip d591ab9. Program ABI is IDENTICAL to 35cd13c (d591ab9 changes only INVARIANTS.md/README/TraceProofs.lean/svm-runner tests \u2014 Program/Matcher/OracleAdapter/Layout.lean unchanged), so the deployed 35cd13c bytes still represent the current program logic; no redeploy needed. CI green on 35cd13c: feature smoke 43/43, attack 70/0, oracle (Pyth+composite+EWMA), bounty-validate GO."
+    "note": "bb54ac6: account-reuse/reinjection exploit FIXED (CloseAccount zeroes full data + MAGIC_CLOSED sentinel; exact-size checks). Exploit blocked on devnet (scripts/_lean-exploit.ts)."
   },
   "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "programs": {
     "percolator": {
       "id": "GD43BhWwAjiZLs56juEkacSKkY3TVCTbD7cG7HHDYKdA",
       "elf": "percolator.so",
-      "size": 73224,
-      "sha256": "c6dc8329207c8a0f874b4c1ceb1c48a5529d031453b7c1e9ce6f5808bca436d1"
+      "size": 66112,
+      "sha256": "287345ebfcadce62c16e698217883c348e13c4d0367197aee5a06281ba1e6ff1"
     },
     "matcher": {
       "id": "9NqBGzLYY5d8v426voAT3VqJUprJX6fwyGJ2a8P4A22N",
       "elf": "matcher.so",
-      "size": 8744,
-      "sha256": "9d79d159d48c14ff0894ef0727b3e3d6b4f9134cd04c635c18aa9eb7d33d4f54"
+      "size": 8680,
+      "sha256": "3a9ddae732093eeacdf21a342fa590192dc9ba5a21d8f69a2c806e870ff2cf98"
     },
     "oracleAdapter": {
       "id": "5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2",
       "elf": "oracle_adapter.so",
-      "size": 20920,
-      "sha256": "4a49d55819d2c5343cdf33663a544b8ac3fae6b9b57d0ac4f36a5094f30a8d1a"
+      "size": 18544,
+      "sha256": "4b298f9bd57ecce2e81ce9b7788591b439d2eb5f117e1733211ecace0087f25d"
     },
     "mockFeed": {
       "id": "9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx",

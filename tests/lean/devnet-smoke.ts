@@ -1,5 +1,5 @@
 /**
- * Devnet smoke for the percolator-lean v2 TS client (src/lean, pinned to `d591ab9`).
+ * Devnet smoke for the percolator-lean v2 TS client (src/lean, pinned to `e1e4404`).
  *
  * Exercises percolator ops 0-19, matcher ops 0-3, and oracle_adapter ops 0-1
  * (Init and Crank) against the deployed devnet programs, through a full market
@@ -134,7 +134,7 @@ async function main() {
   const dex = dexKp.publicKey;
   const [vault] = deriveDexVault(P, dex);
   {
-    // At d591ab9 InitDex has no explicit PDA check: the runtime rejects the signed
+    // At e1e4404 InitDex has no explicit PDA check: the runtime rejects the signed
     // allocate/assign CPI when the bump is wrong, so this aborts without a custom code.
     const bad = initDex(P, { dex, admin: funder.publicKey, mint, feeVault, decimals: 6, createFee: POS_SCALE, vault, vaultBump: (deriveDexVault(P, dex)[1] + 255) % 256 });
     const tx = new Transaction().add(bad);

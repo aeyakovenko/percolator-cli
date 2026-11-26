@@ -100,31 +100,33 @@ Runnable end-to-end flow (create market → positions → cross-margin → match
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE market (70 USDC prize)
+## Bug bounty — LIVE (round 2, 70 USDC prize) on the FIXED build
 
-**Break the live market and keep the insurance fund.** Winning = draining the
-market's insurance pot, or otherwise violating conservation (`V == SPL vault
-balance`) to extract more value than you put in.
+> **Round 1 (2026-11-26) was claimed** — the 70 USDC was drained via an insurance
+> account-reuse/reinjection bug (`InitPortfolio` → `CloseAccount` → `DepositInsurance`,
+> where a reused account's stale bytes at offset 80 became the InsReceipt `shares`).
+> It is **fixed** in percolator-lean `bb54ac6` (CloseAccount now zeroes the full account
+> data and stamps a `MAGIC_CLOSED` sentinel; exact-size checks). The fix is verified on
+> devnet — the exploit now fails (`scripts/_lean-exploit.ts` → BLOCKED) — and the mainnet
+> programs were upgraded to the byte-identical build.
+
+**Break this live market and keep the insurance fund.** Winning = draining the insurance
+pot or otherwise violating conservation (`V == SPL vault balance`).
 
 | | Mainnet address |
 |---|---|
-| DEX | `6nxbqVQREBwW2ESc1sJyPaUH9yZ7MgKE53fQh3Fm1CkH` |
-| Market (SOL/USD) | `76oGDQbQW3MEteg2uQqf31PyTmFZp8ujZTyGu3kfFSwq` |
-| Vault (holds the prize) | `8MqHSrm6v6ccJVQunjnLqfBBWoAhVGrqUV4hdSH9F8i9` |
+| DEX | `CedQKVmmHuta5QcqRNkA96smV33LYtQBHo9wc1YcmFq3` |
+| Market (SOL/USD) | `BhYaG2JYRHGrLpWs85TroedmkcG7toX1Ly5YbG1FDZHH` |
+| Vault (holds the prize) | `6k2H4GiRDGa7o9X8Ai99sGkPQGAvrAW7gVbKkAKuH2Fk` |
 | Collateral | USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| Oracle | Pyth SOL/USD via `oracle_adapter` (cfg `DZhXmSK9PD9Jszt2WDTYWABAVrdkxp3WkuNYAHPEnuQH`) |
+| Oracle | Pyth SOL/USD via `oracle_adapter` (cfg `4P2D6KUS7AcpfDniZrFJvNbw55Mh3qxo95pMW1CE5KZL`) |
 | **Prize** | **70 USDC** (insurance pot) |
 
-These are also in [`lean-mainnet.json`](lean-mainnet.json) under `bountyMarket`.
+Also in [`lean-mainnet.json`](lean-mainnet.json) under `bountyMarket`. The old (drained,
+tombstoned) round-1 market `76oGDQ…` is closed — do not use it.
 
-**How to play:**
-1. Point the `percolator-cli/lean` client at a mainnet RPC and `LEAN_MAINNET`.
-2. Create a portfolio on the DEX, deposit USDC collateral, and trade the market
-   (bilateral `trade`, or `matcherFill` against a matcher) — see the examples above.
-3. Find a way to extract more USDC from the vault than you deposited — drain the
-   70 USDC insurance or break `V == SPL`. If you pull it out on-chain, it's yours.
-4. The attack harnesses `scripts/lean-attack.ts` and `scripts/lean-bounty-validate.ts`
-   show the attacks already tried (all rejected); a winning exploit is one they miss.
-
-The oracle updates permissionlessly: anyone can crank it (`oracle_adapter` op 1)
-against the live Pyth SOL/USD feed.
+**How to play:** point the `percolator-cli/lean` client at a mainnet RPC + `LEAN_MAINNET`,
+create a portfolio, deposit USDC, trade (bilateral `trade` or `matcherFill`), and find a
+way to extract more USDC than you put in. The attack harnesses `scripts/lean-attack.ts`,
+`scripts/lean-bounty-validate.ts` and `scripts/_lean-exploit.ts` show what's already been
+tried. The oracle is cranked permissionlessly against the live Pyth SOL/USD feed.

@@ -109,7 +109,7 @@ async function main() {
   console.log("== build a matcher + single-signer taker fill ==");
   const mcfg = await newAcc(M, MATCHER_CFG_SIZE);
   const lpPfl = await newAcc(P, PORTFOLIO_SIZE);
-  await send([matcherInit(M, { cfg: mcfg, owner: funder.publicKey, dex, lpPortfolio: lpPfl, percolator: P, halfSpreadBps: 50n, impactBps: 20n, maxFillQty: 10n * POS_SCALE })]);
+  await send([matcherInit(M, { cfg: mcfg, owner: funder.publicKey, dex, lpPortfolio: lpPfl, percolator: P, market: mkt, halfSpreadBps: 50n, impactBps: 20n, maxFillQty: 10n * POS_SCALE })]);
   const mc = parseMatcherConfig(Buffer.from((await R(() => conn.getAccountInfo(mcfg))!)!.data));
   ok(mc.lpPortfolio.equals(lpPfl), "matcher built (user-owned config + PDA-owned LP portfolio)");
   await send([depositCollateral(P, V, { portfolio: lpPfl, depositor: funder.publicKey, sourceToken: fTok, amount: 500n * POS_SCALE })]);

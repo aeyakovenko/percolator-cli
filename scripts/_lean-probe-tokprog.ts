@@ -1,5 +1,5 @@
 /**
- * Probe: does percolator-lean (d591ab9, devnet) validate the token program on deposit?
+ * Probe: does percolator-lean (e1e4404, devnet) validate the token program on deposit?
  * Creates one fresh portfolio on an existing smoke DEX (real tx), then SIMULATES
  * DepositCollateral / DepositInsurance with tokenProgram = SPL Noop. Nothing that
  * would credit capital is ever sent. Devnet only.

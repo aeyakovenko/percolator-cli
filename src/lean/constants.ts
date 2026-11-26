@@ -1,13 +1,13 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `d591ab9` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `e1e4404` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "d591ab9";
+export const LEAN_SOURCE_COMMIT = "e1e4404";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
@@ -39,6 +39,8 @@ export const MAX_PRICE = 1_000_000_000_000n;
 export const MAX_OI = 10_000_000_000_000n;
 export const MAX_CREATE_FEE = 10_000_000_000n;
 export const MIN_EXIT_WINDOW = 10n;
+/** e1e4404: first insurance LP deposit to a market must be >= 1.0 quote unit (anti-inflation). */
+export const MIN_FIRST_INS_DEPOSIT = 1_000_000n;
 export const MAX_LEGS = 8;
 /** InitDex: minimum lamports the vault PDA must end up with (165-byte token account) */
 export const SPL_TOKEN_ACCOUNT_RENT = 2_039_280n;
@@ -69,7 +71,7 @@ export const DEX_SIZE = 200;
 export const MARKET_SIZE = 352;
 export const PORTFOLIO_SIZE = 952;
 export const INS_RECEIPT_SIZE = 88;
-export const MATCHER_CFG_SIZE = 128;
+export const MATCHER_CFG_SIZE = 160;
 export const ADAPTER_CFG_SIZE = 352;
 export const FEED_SIZE = 32;
 
@@ -104,10 +106,10 @@ export const InsOff = { magic: 0, marketId: 8, owner: 16, market: 48, shares: 80
 
 export const MatcherCfgOff = {
   magic: 0, pdaBump: 4, paused: 5, owner: 8, percProg: 40, lpPortfolio: 72,
-  halfSpreadBps: 104, impactBps: 112, maxFillQty: 120,
+  halfSpreadBps: 104, impactBps: 112, maxFillQty: 120, market: 128, // e1e4404: pinned Market (32)
 } as const;
 
-// d591ab9: native Pyth/Chainlink/Switchboard + 2-leg composite.
+// e1e4404: native Pyth/Chainlink/Switchboard + 2-leg composite.
 export const ADAPTER_CFG_SIZE_V2 = 352;
 export const FEED_TYPE = { CUSTOM: 0, PYTH_V2: 1, CHAINLINK: 2, SWITCHBOARD: 3 } as const;
 export const ADAPTER_FLAG = { HAS_QUOTE: 1, PIN_FID: 2, PIN_QFID: 4, HYBRID_AH: 8 } as const;
@@ -147,6 +149,7 @@ export const LEAN_ERRORS: Record<number, string> = {
   // matcher
   200: "matcher.paused", 201: "matcher.qtyTooLarge", 202: "matcher.slippage",
   203: "matcher.progMismatch", 204: "matcher.pflMismatch",
+  205: "matcher.mktMismatch", 206: "matcher.invalidMode",
   // oracle adapter
   300: "adapter.feedStale", 301: "adapter.feedWideConf", 302: "adapter.feedMismatch",
   303: "adapter.progMismatch", 304: "adapter.badFeedFormat", 305: "adapter.badFeedId",

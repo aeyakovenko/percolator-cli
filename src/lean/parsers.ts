@@ -1,5 +1,5 @@
 /**
- * percolator-lean v2 account parsers (pinned to `d591ab9`, offsets from constants.ts).
+ * percolator-lean v2 account parsers (pinned to `e1e4404`, offsets from constants.ts).
  */
 import { PublicKey } from "@solana/web3.js";
 import {
@@ -140,7 +140,7 @@ export function parseInsReceipt(b: Buffer): InsReceipt {
 // ---------------------------------------------------------------- matcher / adapter / feed
 export interface MatcherConfig {
   pdaBump: number; paused: boolean; owner: PublicKey; percolator: PublicKey; lpPortfolio: PublicKey;
-  halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint;
+  halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint; market: PublicKey;
 }
 export function parseMatcherConfig(b: Buffer): MatcherConfig {
   expect(b, MAGIC.MATCHER, MATCHER_CFG_SIZE, "MatcherConfig");
@@ -148,6 +148,7 @@ export function parseMatcherConfig(b: Buffer): MatcherConfig {
   return {
     pdaBump: u8(b, O.pdaBump), paused: u8(b, O.paused) !== 0, owner: pk(b, O.owner), percolator: pk(b, O.percProg),
     lpPortfolio: pk(b, O.lpPortfolio), halfSpreadBps: u64(b, O.halfSpreadBps), impactBps: u64(b, O.impactBps), maxFillQty: u64(b, O.maxFillQty),
+    market: pk(b, O.market),
   };
 }
 
@@ -185,7 +186,7 @@ export interface InvariantReport { ok: boolean; problems: string[] }
  *   V == SPL balance, C+I+R+S == V, Σ pfl.capital == C, Σ m.insurance == I, Σ m.realizedPool == R,
  *   per market oiLong == oiShort <= min(maxOi, rawBasis) and adl <= ADL_ONE,
  *   per portfolio Σ leg.cachedMm/Im == totalMm/Im and active legs == legCount.
- *   Follows assert_dex_invariants in percolator-lean/svm-runner (d591ab9), except fee
+ *   Follows assert_dex_invariants in percolator-lean/svm-runner (e1e4404), except fee
  *   surplus: this check requires Σ m.feeSurplus == dex.totalSurplus, while the runner
  *   only requires Σ m.feeSurplus <= dex.totalSurplus. Market.feeSurplus is not updated
  *   when dust is credited to dex.totalSurplus.
