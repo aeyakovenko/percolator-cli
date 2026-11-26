@@ -5,7 +5,7 @@ import { PublicKey } from "@solana/web3.js";
 import {
   MAGIC, DexOff, MktOff, PflOff, LegOff, InsOff, MatcherCfgOff, AdapterOff, FeedOff,
   DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, MATCHER_CFG_SIZE, ADAPTER_CFG_SIZE,
-  FEED_SIZE, MAX_LEGS, SIDE, STATUS, K_ZERO, ADL_ONE,
+  FEED_SIZE, MAX_LEGS, SIDE, STATUS, K_ZERO, ADL_ONE, ADAPTER_FLAG,
 } from "./constants.js";
 
 const u8 = (b: Buffer, o: number) => b.readUInt8(o);
@@ -153,24 +153,34 @@ export function parseMatcherConfig(b: Buffer): MatcherConfig {
 }
 
 export interface AdapterConfig {
-  pdaBump: number; feedType: number; quoteFeedType: number; flags: number;
-  admin: PublicKey; percolator: PublicKey; market: PublicKey; feed: PublicKey; feedOwner: PublicKey;
-  maxFeedAge: bigint; maxConfBps: bigint; fundingBpsPerStep: bigint;
-  hasQuote: boolean; quoteFeed: PublicKey | null;
-  hybridAfterHours: boolean; ewmaAlphaBps: bigint; ewmaPrice: bigint; ewmaMaxDevBps: bigint; lastEwmaSlot: bigint;
+    pdaBump: number; feedType: number; quoteFeedType: number; flags: number;
+    admin: PublicKey; percolator: PublicKey; market: PublicKey; feed: PublicKey; feedOwner: PublicKey;
+    maxFeedAge: bigint; maxConfBps: bigint; fundingBpsPerStep: bigint;
+    hasQuote: boolean; quoteFeed: PublicKey | null; quoteFeedOwner: PublicKey | null;
+    /** Set when the adapter was pinned to this exact Pyth feed id at init (flags & PIN_FID). */
+    feedId: Buffer | null;
+    /** Set when the quote leg was pinned to this exact Pyth feed id at init (flags & PIN_QFID). */
+    quoteFeedId: Buffer | null;
+    hybridAfterHours: boolean; ewmaAlphaBps: bigint; ewmaPrice: bigint; ewmaMaxDevBps: bigint; lastEwmaSlot: bigint;
 }
 export function parseAdapterConfig(b: Buffer): AdapterConfig {
-  expect(b, MAGIC.ADAPTER, ADAPTER_CFG_SIZE, "AdapterConfig");
-  const O = AdapterOff;
-  const flags = u8(b, O.flags);
-  const hasQuote = (flags & 1) !== 0;
-  return {
-    pdaBump: u8(b, O.pdaBump), feedType: u8(b, O.feedType), quoteFeedType: u8(b, O.quoteFeedType), flags,
-    admin: pk(b, O.admin), percolator: pk(b, O.percProg), market: pk(b, O.market), feed: pk(b, O.feedAccount),
-    feedOwner: pk(b, O.feedOwner), maxFeedAge: u64(b, O.maxFeedAge), maxConfBps: u64(b, O.maxConfBps),
-    fundingBpsPerStep: u64(b, O.fundingBpsPerStep), hasQuote, quoteFeed: hasQuote ? pk(b, O.quoteFeed) : null,
-    hybridAfterHours: (flags & 8) !== 0, ewmaAlphaBps: u64(b, O.ewmaAlphaBps), ewmaPrice: u64(b, O.ewmaPrice), ewmaMaxDevBps: u64(b, O.ewmaMaxDevBps), lastEwmaSlot: u64(b, O.lastEwmaSlot),
-  };
+    expect(b, MAGIC.ADAPTER, ADAPTER_CFG_SIZE, "AdapterConfig");
+    const O = AdapterOff;
+    const flags = u8(b, O.flags);
+    const hasQuote = (flags & ADAPTER_FLAG.HAS_QUOTE) !== 0;
+    const pinFid = (flags & ADAPTER_FLAG.PIN_FID) !== 0;
+    const pinQfid = (flags & ADAPTER_FLAG.PIN_QFID) !== 0;
+    return {
+          pdaBump: u8(b, O.pdaBump), feedType: u8(b, O.feedType), quoteFeedType: u8(b, O.quoteFeedType), flags,
+          admin: pk(b, O.admin), percolator: pk(b, O.percProg), market: pk(b, O.market), feed: pk(b, O.feedAccount),
+          feedOwner: pk(b, O.feedOwner), maxFeedAge: u64(b, O.maxFeedAge), maxConfBps: u64(b, O.maxConfBps),
+          fundingBpsPerStep: u64(b, O.fundingBpsPerStep), hasQuote, quoteFeed: hasQuote ? pk(b, O.quoteFeed) : null,
+          quoteFeedOwner: hasQuote ? pk(b, O.quoteFeedOwner) : null,
+          feedId: pinFid ? Buffer.from(b.subarray(O.feedId, O.feedId + 32)) : null,
+          quoteFeedId: pinQfid ? Buffer.from(b.subarray(O.quoteFeedId, O.quoteFeedId + 32)) : null,
+          hybridAfterHours: (flags & ADAPTER_FLAG.HYBRID_AH) !== 0, ewmaAlphaBps: u64(b, O.ewmaAlphaBps), ewmaPrice: u64(b, O.ewmaPrice), ewmaMaxDevBps: u64(b, O.ewmaMaxDevBps), lastEwmaSlot: u64(b, O.lastEwmaSlot),
+    };
+}
 }
 
 export interface Feed { price: bigint; conf: bigint; publishSlot: bigint }
