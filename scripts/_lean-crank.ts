@@ -33,7 +33,9 @@ async function main() {
     const m = parseMarket(Buffer.from((await conn.getAccountInfo(MARKET))!.data));
     const slot = BigInt(await conn.getSlot("confirmed"));
     const age = slot >= m.lastOracleSlot ? slot - m.lastOracleSlot : 0n;
-    const threshold = (m.maxStaleness * 3n) / 4n; // crank once age passes 75% of the window
+    // Crank once age passes 1/3 of the window. With a 10-min cron (~1500 slots), worst-case
+    // gap = maxStaleness/3 + 1500 <= maxStaleness/2, so every staleness window has >= 2 cranks.
+    const threshold = m.maxStaleness / 3n;
     if (m.statusName !== "Active") { console.log(`market status=${m.statusName}; skip`); process.exit(0); }
     if (age < threshold) { console.log(`fresh: age=${age}/${m.maxStaleness} slots (< ${threshold}); skip`); process.exit(0); }
     console.log(`stale-ish: age=${age}/${m.maxStaleness} slots (>= ${threshold}); cranking`);
