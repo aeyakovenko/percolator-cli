@@ -8,9 +8,13 @@ const STATUS_NAMES = ["Active", "WindDown", "Resolved", "Tombstoned"];
 const key = fs.readFileSync(`${process.env.HOME}/.helius`, "utf8").trim();
 const conn = new Connection(`https://mainnet.helius-rpc.com/?api-key=${key}`, "confirmed");
 const MARKET = new PublicKey("DgY3EytkRP93usRPCnW65dsp7ZL4UW2CEL9JneJjoqWb");
-const VAULT = new PublicKey("6SJSaHYmJgpU6G68vzEy9UeP44oYnxFscwJ1NA9vFs9b");
+// The 3 prize surfaces — watch these, NOT the DEX-vault total (hunters cycle their own collateral,
+// which is noise). Theft = a prize actually shrinking: insurance, or either prize portfolio's capital.
+const VAULT_PFL = new PublicKey("DdJ7fuDLLcnvsMMBaiz2bFH2okkPATkwj45wuX39n88b"); // prize 2 (loose collateral)
+const USER_LONG = new PublicKey("8zJmB4Qc5HThhDp884iGrP2zymBhVU2vJ2vAPankLXzg"); // prize 3 (long position)
 const u = (n: bigint) => (Number(n) / 1e6).toString();
 const t = () => new Date().toISOString().slice(11, 19);
+const cap = async (p: PublicKey) => { const i = await conn.getAccountInfo(p, "confirmed"); return i ? Buffer.from(i.data).readBigUInt64LE(88) : -1n; };
 
 let last = "";
 async function tick() {
@@ -18,19 +22,12 @@ async function tick() {
     const info = await conn.getAccountInfo(MARKET, "confirmed");
     if (!info) { console.log(`${t()} market account not found`); return; }
     const b = Buffer.from(info.data);
-    const m = {
-      statusName: STATUS_NAMES[b.readUInt8(4)] ?? `?${b.readUInt8(4)}`,
-      markPrice: b.readBigUInt64LE(112), insurance: b.readBigUInt64LE(224),
-      oiLong: b.readBigUInt64LE(256), oiShort: b.readBigUInt64LE(264),
-    };
-    const vault = (await conn.getTokenAccountBalance(VAULT, "confirmed")).value.uiAmountString;
-    // Change key excludes mark (cranks drift it harmlessly) and rounds OI to 0.01-unit
-    // (funding settlement drifts OI by ~1e-6 each crank) — alert only on real position/insurance/vault/status moves.
-    const rOI = (x: bigint) => (x / 10000n).toString();
-    // insurance coarsened to whole-USDC in the key (sustained grind in progress) — vault stays
-    // EXACT so any real withdrawal (realized drain) fires immediately.
-    const key = `${rOI(m.oiLong)}|${rOI(m.oiShort)}|${m.insurance / 5_000_000n}|${vault}|${m.statusName}`;
-    const snap = `OI long=${u(m.oiLong)} short=${u(m.oiShort)} | insurance=${u(m.insurance)} | vault=${vault} USDC | mark=$${u(m.markPrice)} | status=${m.statusName}`;
+    const insurance = b.readBigUInt64LE(224), status = STATUS_NAMES[b.readUInt8(4)] ?? `?${b.readUInt8(4)}`;
+    const vCap = await cap(VAULT_PFL), uCap = await cap(USER_LONG);
+    // key = the 3 prizes exactly (insurance + both prize portfolios' capital) + status. Fires only on a
+    // real prize move; the hunter's own deposits/withdrawals/trades no longer generate noise.
+    const key = `${insurance}|${vCap}|${uCap}|${status}`;
+    const snap = `insurance=$${u(insurance)} | vaultPfl=$${vCap < 0n ? "CLOSED" : u(vCap)} | userLong=$${uCap < 0n ? "CLOSED" : u(uCap)} | status=${status} | mark=$${u(b.readBigUInt64LE(112))}`;
     if (key !== last) { console.log(`${t()} ${last === "" ? "[baseline] " : "[CHANGE] "}${snap}`); last = key; }
   } catch (e) { console.log(`${t()} poll error: ${String((e as Error).message ?? e).slice(0, 80)}`); }
 }
