@@ -1,7 +1,9 @@
 /** Poll the live mainnet bounty market; print a line whenever OI or the insurance prize changes. */
 import { Connection, PublicKey } from "@solana/web3.js";
 import * as fs from "fs";
-import { parseMarket } from "../src/lean/index.js";
+// NOTE: read raw offsets (not parseMarket) so this works on BOTH the old 352B mainnet market and
+// the new 400B ee69211 layout — status@4/mark@112/insurance@224/OI@256,264 are identical in both.
+const STATUS_NAMES = ["Active", "WindDown", "Resolved", "Tombstoned"];
 
 const key = fs.readFileSync(`${process.env.HOME}/.helius`, "utf8").trim();
 const conn = new Connection(`https://mainnet.helius-rpc.com/?api-key=${key}`, "confirmed");
@@ -15,7 +17,12 @@ async function tick() {
   try {
     const info = await conn.getAccountInfo(MARKET, "confirmed");
     if (!info) { console.log(`${t()} market account not found`); return; }
-    const m = parseMarket(Buffer.from(info.data));
+    const b = Buffer.from(info.data);
+    const m = {
+      statusName: STATUS_NAMES[b.readUInt8(4)] ?? `?${b.readUInt8(4)}`,
+      markPrice: b.readBigUInt64LE(112), insurance: b.readBigUInt64LE(224),
+      oiLong: b.readBigUInt64LE(256), oiShort: b.readBigUInt64LE(264),
+    };
     const vault = (await conn.getTokenAccountBalance(VAULT, "confirmed")).value.uiAmountString;
     // Change key excludes mark (cranks drift it harmlessly) and rounds OI to 0.01-unit
     // (funding settlement drifts OI by ~1e-6 each crank) — alert only on real position/insurance/vault/status moves.
