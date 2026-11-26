@@ -26,7 +26,18 @@ async function send(ix: TransactionInstruction) {
 const mark = async () => (await parseMarket(Buffer.from((await conn.getAccountInfo(MARKET))!.data))).markPrice;
 
 async function main() {
-  const rounds = parseInt(process.argv[2] ?? "3");
+  const lazy = process.argv.includes("lazy");
+  const rounds = parseInt(process.argv.find(a => /^\d+$/.test(a)) ?? "3");
+  // LAZY: only crank when the market oracle is within 1/4 of its staleness window of expiring.
+  if (lazy) {
+    const m = parseMarket(Buffer.from((await conn.getAccountInfo(MARKET))!.data));
+    const slot = BigInt(await conn.getSlot("confirmed"));
+    const age = slot >= m.lastOracleSlot ? slot - m.lastOracleSlot : 0n;
+    const threshold = (m.maxStaleness * 3n) / 4n; // crank once age passes 75% of the window
+    if (m.statusName !== "Active") { console.log(`market status=${m.statusName}; skip`); process.exit(0); }
+    if (age < threshold) { console.log(`fresh: age=${age}/${m.maxStaleness} slots (< ${threshold}); skip`); process.exit(0); }
+    console.log(`stale-ish: age=${age}/${m.maxStaleness} slots (>= ${threshold}); cranking`);
+  }
   const f = await freshFeed();
   console.log(`feed ${f.addr.toBase58()} = $${u(f.e6)} (age ${f.age}s) | mark before = $${u(await mark())}`);
   for (let i = 0; i < rounds; i++) {
