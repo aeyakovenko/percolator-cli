@@ -8,7 +8,7 @@
 import { PublicKey, TransactionInstruction, AccountMeta } from "@solana/web3.js";
 import {
   IX, MATCHER_IX, ADAPTER_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
-  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE,
+  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE, BPS_DEN,
 } from "./constants.js";
 
 const w = (pubkey: PublicKey, isSigner = false): AccountMeta => ({ pubkey, isSigner, isWritable: true });
@@ -315,7 +315,12 @@ export function adapterCrank(o: PublicKey, a: { cfg: PublicKey; market: PublicKe
 
 /** adapter op 2 (f3b9fb9). One-shot immutable EWMA / Hybrid After-Hours config. alphaBps 1..10000 (0=pass-through, needs hybrid); initEwma 0 seeds on first crank. */
 export function adapterInitEwma(o: PublicKey, a: { cfg: PublicKey; admin: PublicKey; hybridAfterHours: boolean; alphaBps: bigint; maxDevBps: bigint; initEwma: bigint }) {
-  const d = data(26, ADAPTER_IX.InitEwma);
+  if (a.alphaBps === 0n) {
+        if (!a.hybridAfterHours) throw new Error("adapterInitEwma: alphaBps=0 (pass-through) requires hybridAfterHours=true");
+  } else if (a.alphaBps < 1n || a.alphaBps > BPS_DEN) {
+        throw new Error(`adapterInitEwma: alphaBps must be 0 or in 1..${BPS_DEN}, got ${a.alphaBps}`);
+  }
+    const d = data(26, ADAPTER_IX.InitEwma);
   d.writeUInt8(a.hybridAfterHours ? 1 : 0, 1);
   d.writeBigUInt64LE(a.alphaBps, 2);
   d.writeBigUInt64LE(a.maxDevBps, 10);
