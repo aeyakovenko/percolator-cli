@@ -20,7 +20,9 @@ async function tick() {
     // Change key excludes mark (cranks drift it harmlessly) and rounds OI to 0.01-unit
     // (funding settlement drifts OI by ~1e-6 each crank) — alert only on real position/insurance/vault/status moves.
     const rOI = (x: bigint) => (x / 10000n).toString();
-    const key = `${rOI(m.oiLong)}|${rOI(m.oiShort)}|${m.insurance}|${vault}|${m.statusName}`;
+    // insurance coarsened to whole-USDC in the key (sustained grind in progress) — vault stays
+    // EXACT so any real withdrawal (realized drain) fires immediately.
+    const key = `${rOI(m.oiLong)}|${rOI(m.oiShort)}|${m.insurance / 1_000_000n}|${vault}|${m.statusName}`;
     const snap = `OI long=${u(m.oiLong)} short=${u(m.oiShort)} | insurance=${u(m.insurance)} | vault=${vault} USDC | mark=$${u(m.markPrice)} | status=${m.statusName}`;
     if (key !== last) { console.log(`${t()} ${last === "" ? "[baseline] " : "[CHANGE] "}${snap}`); last = key; }
   } catch (e) { console.log(`${t()} poll error: ${String((e as Error).message ?? e).slice(0, 80)}`); }
