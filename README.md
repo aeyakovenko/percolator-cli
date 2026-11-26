@@ -35,15 +35,18 @@ pnpm build
 
 ## Deployments
 
-| Program | Mainnet | Devnet |
+Current build: percolator-lean `161ed3c`. **Round-3 (LIVE)** runs on fresh mainnet ids;
+round-2 programs (`GVV4HC…`) are **deprecated and left as-is**.
+
+| Program | Mainnet (round-3, `161ed3c`) | Devnet (`161ed3c`) |
 |---|---|---|
-| `percolator` (core DEX) | `GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm` | `GD43BhWwAjiZLs56juEkacSKkY3TVCTbD7cG7HHDYKdA` |
-| `matcher` (passive-LP AMM) | `EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR` | `9NqBGzLYY5d8v426voAT3VqJUprJX6fwyGJ2a8P4A22N` |
+| `percolator` (core DEX) | `6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q` | `6N6BJuwLhoNTYGPSToS48PKkuK78STHd7M3G5FUmdQBq` |
+| `reward_module` (wSOL buy-and-burn) | `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw` | `37VP2WnJuPurgv9hCnVjpTufZ5E9RdXDh37BfdqZHXG6` |
+| `matcher` (passive-LP / PropAMM) | `EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR` | `GikE53f9pz2y31RZSgRTsa6LRcWSmqFpLEdawoHQbQ3J` |
 | `oracle_adapter` | `B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN` | `5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2` |
 
-Deployed bytes are byte-identical to the devnet-validated `35cd13c` build
-(core `c6dc8329…`, matcher `9d79d159…`, adapter `4a49d558…`). Upgrade authority:
-`A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK`. The ids are also exported as
+Deprecated round-2 percolator: `GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm`.
+Upgrade authority: `A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK`. The ids are exported as
 `LEAN_MAINNET` / `LEAN_DEVNET` in [`src/lean/constants.ts`](src/lean/constants.ts) —
 the same client talks to either cluster.
 
@@ -100,33 +103,38 @@ Runnable end-to-end flow (create market → positions → cross-margin → match
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE (round 2, 70 USDC prize) on the FIXED build
+## Bug bounty — LIVE (round 3, ~$69 on BTC/USD) on percolator-lean `161ed3c`
 
-> **Round 1 (2026-11-26) was claimed** — the 70 USDC was drained via an insurance
-> account-reuse/reinjection bug (`InitPortfolio` → `CloseAccount` → `DepositInsurance`,
-> where a reused account's stale bytes at offset 80 became the InsReceipt `shares`).
-> It is **fixed** in percolator-lean `bb54ac6` (CloseAccount now zeroes the full account
-> data and stamps a `MAGIC_CLOSED` sentinel; exact-size checks). The fix is verified on
-> devnet — the exploit now fails (`scripts/_lean-exploit.ts` → BLOCKED) — and the mainnet
-> programs were upgraded to the byte-identical build.
+> **History.** Round 1 was claimed via an insurance account-reuse bug (fixed in `bb54ac6`).
+> Round 2 (SOL/USD, 70 USDC) was claimed via a **cross-margin + hostile-oracle insurance drain**
+> — a throwaway market with an attacker-controlled oracle, cross-margined against the honest prize
+> market, bled its insurance through shared capital. Fixed from `a056eee` on (structural
+> cross-market isolation; "user capital, insurance and realized pools are 100% untouchable"),
+> verified on devnet (`scripts/_lean-xmargin-drain.ts` → BLOCKED). The round-2 market
+> (`CedQKV…` / `BhYaG2…`) is **deprecated and left as-is** (do not use it).
 
-**Break this live market and keep the insurance fund.** Winning = draining the insurance
-pot or otherwise violating conservation (`V == SPL vault balance`).
+**Round 3** runs on brand-new mainnet programs (`161ed3c`) with three independent prize surfaces on
+a BTC/USD market. Winning = extracting more than you put in, or violating conservation
+(`V == SPL == C + I + R + S + totalRewards`).
 
 | | Mainnet address |
 |---|---|
-| DEX | `CedQKVmmHuta5QcqRNkA96smV33LYtQBHo9wc1YcmFq3` |
-| Market (SOL/USD) | `BhYaG2JYRHGrLpWs85TroedmkcG7toX1Ly5YbG1FDZHH` |
-| Vault (holds the prize) | `6k2H4GiRDGa7o9X8Ai99sGkPQGAvrAW7gVbKkAKuH2Fk` |
+| percolator | `6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q` |
+| reward_module | `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw` |
+| DEX | `HqEbFccTn82RgLwD6NBLhtGmwX84XfYcgrqBEVnaTUFB` |
+| Market (BTC/USD) | `DgY3EytkRP93usRPCnW65dsp7ZL4UW2CEL9JneJjoqWb` |
 | Collateral | USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| Oracle | Pyth SOL/USD via `oracle_adapter` (cfg `4P2D6KUS7AcpfDniZrFJvNbw55Mh3qxo95pMW1CE5KZL`) |
-| **Prize** | **70 USDC** (insurance pot) |
+| Reward (wSOL buy-and-burn) | cfg `71fBkQmB8LGnX8ReU34obcpftcy9FonqWMPpaZnqGBkh` |
+| **Prize 1 — insurance** | **$23** (market insurance pot) |
+| **Prize 2 — vault portfolio** | **$23** loose collateral — `DdJ7fuDLLcnvsMMBaiz2bFH2okkPATkwj45wuX39n88b` |
+| **Prize 3 — user long** | **~$23** (0.003 BTC long) — `8zJmB4Qc5HThhDp884iGrP2zymBhVU2vJ2vAPankLXzg` |
 
-Also in [`lean-mainnet.json`](lean-mainnet.json) under `bountyMarket`. The old (drained,
-tombstoned) round-1 market `76oGDQ…` is closed — do not use it.
+Also in [`lean-mainnet-r3.json`](lean-mainnet-r3.json). The market charges a **2 bps** trade fee,
+100% routed to a **wSOL buy-and-burn** reward module (permissionless `StartEpoch`/`SubmitBid`/
+`SettleEpoch`/`ClaimQuote`). The BTC oracle is operator-pushed (lazily cranked).
 
 **How to play:** point the `percolator-cli/lean` client at a mainnet RPC + `LEAN_MAINNET`,
-create a portfolio, deposit USDC, trade (bilateral `trade` or `matcherFill`), and find a
-way to extract more USDC than you put in. The attack harnesses `scripts/lean-attack.ts`,
-`scripts/lean-bounty-validate.ts` and `scripts/_lean-exploit.ts` show what's already been
-tried. The oracle is cranked permissionlessly against the live Pyth SOL/USD feed.
+create a portfolio, deposit USDC, trade, and find a way to drain the insurance, steal the vault
+portfolio's collateral or the user long, or break the reward auction. The harnesses
+`scripts/lean-attack.ts`, `scripts/_lean-exploit.ts`, `scripts/_lean-xmargin-drain.ts` and
+`scripts/_lean-e2e.ts` show what has already been tried and the normal-case flows.

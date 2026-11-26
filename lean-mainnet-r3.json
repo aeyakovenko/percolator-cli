@@ -1,0 +1,20 @@
+{
+  "commit": "161ed3c",
+  "percolator": "6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q",
+  "rewardModule": "D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw",
+  "usdc": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "dex": "HqEbFccTn82RgLwD6NBLhtGmwX84XfYcgrqBEVnaTUFB",
+  "market": "DgY3EytkRP93usRPCnW65dsp7ZL4UW2CEL9JneJjoqWb",
+  "oracleAuth": "BWWhuRsHSEbsB8DFwEesfE7o22QCd1Gx8PLwnfnbprcz",
+  "feeVault": "7oKhb4iy9pHVtkAwkf2mHnQh2Dd2UpAhdRtBxpnyKB8m",
+  "rewardCfg": "71fBkQmB8LGnX8ReU34obcpftcy9FonqWMPpaZnqGBkh",
+  "rewAuth": "HtMhgP5EwU8ZDoQ93A6zzbBmQWu5LpfJCaPmGeB1Un5S",
+  "quoteVault": "Fd95SSW2ERdTqm3yWf6v8D3YzED5SG4AyVYRhKuHP6xZ",
+  "targetEscrow": "FEU2L8HrQVfujfiW6wGZdVKecso3nwkvkcGHTyGwxHKE",
+  "burnSink": "9A7suGiuSbuxh1Xg92psQYULcEPr4fnaTPRRv4QRDMZ3",
+  "prizes": {
+    "insurance": "DgY3EytkRP93usRPCnW65dsp7ZL4UW2CEL9JneJjoqWb",
+    "vaultPortfolio": "DdJ7fuDLLcnvsMMBaiz2bFH2okkPATkwj45wuX39n88b",
+    "userLong": "8zJmB4Qc5HThhDp884iGrP2zymBhVU2vJ2vAPankLXzg"
+  }
+}

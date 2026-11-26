@@ -23,7 +23,9 @@ export const LEAN_DEVNET = {
 // Byte-identical to the devnet-validated 35cd13c build (core c6dc8329, matcher
 // 9d79d159, adapter 4a49d558). Upgrade authority: A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK.
 export const LEAN_MAINNET = {
-  percolator: new PublicKey("GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm"),
+  // ROUND-3 (161ed3c), fresh ids. Round-2 (GVV4HC…) is DEPRECATED but left running.
+  percolator: new PublicKey("6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q"),
+  rewardModule: new PublicKey("D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw"),
   matcher: new PublicKey("EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR"),
   oracleAdapter: new PublicKey("B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN"),
 } as const;

@@ -7,8 +7,8 @@ const STATUS_NAMES = ["Active", "WindDown", "Resolved", "Tombstoned"];
 
 const key = fs.readFileSync(`${process.env.HOME}/.helius`, "utf8").trim();
 const conn = new Connection(`https://mainnet.helius-rpc.com/?api-key=${key}`, "confirmed");
-const MARKET = new PublicKey("BhYaG2JYRHGrLpWs85TroedmkcG7toX1Ly5YbG1FDZHH");
-const VAULT = new PublicKey("6k2H4GiRDGa7o9X8Ai99sGkPQGAvrAW7gVbKkAKuH2Fk");
+const MARKET = new PublicKey("DgY3EytkRP93usRPCnW65dsp7ZL4UW2CEL9JneJjoqWb");
+const VAULT = new PublicKey("6SJSaHYmJgpU6G68vzEy9UeP44oYnxFscwJ1NA9vFs9b");
 const u = (n: bigint) => (Number(n) / 1e6).toString();
 const t = () => new Date().toISOString().slice(11, 19);
 

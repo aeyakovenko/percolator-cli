@@ -25,11 +25,11 @@
       "sha256": "4b298f9bd57ecce2e81ce9b7788591b439d2eb5f117e1733211ecace0087f25d"
     }
   },
-  "collateralNote": "DEX collateral must be a 6-decimal USD-style token (USDC), not 9-decimal wSOL — the program stores token base units directly as E6 accounting.",
+  "collateralNote": "DEX collateral must be a 6-decimal USD-style token (USDC), not 9-decimal wSOL \u2014 the program stores token base units directly as E6 accounting.",
   "verified": "scripts/lean-mainnet-verify.ts (7/7 on mainnet): create market via live Pyth SOL/USD, open positions, cross-margin, build matcher + single-signer fill, conservation.",
   "retiredBounty": {
     "status": "RETIRED/CLAIMED 2026-11-26",
-    "reason": "insurance share account-reuse/reinjection exploit; 70 USDC drained by J82YD5pP…",
+    "reason": "insurance share account-reuse/reinjection exploit; 70 USDC drained by J82YD5pP\u2026",
     "drainTx": "44B4ucXWSXYvVZwiVPvZN2aYxNwJNPDkqYo8Romsz3UipTTrNUqPAkewzTZP4ctRUq9p7tacmhRjKRyTJ3Zf7M9K",
     "oldMarket": "76oGDQbQW3MEteg2uQqf31PyTmFZp8ujZTyGu3kfFSwq (tombstoned+closed)",
     "oldDex": "6nxbqVQREBwW2ESc1sJyPaUH9yZ7MgKE53fQh3Fm1CkH",
@@ -45,5 +45,6 @@
     "oracle": "Pyth SOL/USD 7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE",
     "insuranceUsdc": 70,
     "note": "Break it & keep the USDC: drain the insurance / violate V==SPL."
-  }
+  },
+  "status": "DEPRECATED \u2014 superseded by round-3 (lean-mainnet-r3.json); left running, do not use"
 }
