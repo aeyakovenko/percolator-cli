@@ -9,8 +9,8 @@ const conn = new Connection(`https://mainnet.helius-rpc.com/?api-key=${key}`, "c
 const P = LEAN_MAINNET.percolator, O = LEAN_MAINNET.oracleAdapter;
 const RECEIVER = new PublicKey("rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ");
 const SOL_FEED = "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d";
-const CFG = new PublicKey("DZhXmSK9PD9Jszt2WDTYWABAVrdkxp3WkuNYAHPEnuQH");
-const MARKET = new PublicKey("76oGDQbQW3MEteg2uQqf31PyTmFZp8ujZTyGu3kfFSwq");
+const CFG = new PublicKey("4P2D6KUS7AcpfDniZrFJvNbw55Mh3qxo95pMW1CE5KZL");
+const MARKET = new PublicKey("BhYaG2JYRHGrLpWs85TroedmkcG7toX1Ly5YbG1FDZHH");
 const funder = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))));
 const u = (n: bigint) => (Number(n) / 1e6).toFixed(4);
 

@@ -2,8 +2,8 @@
   "network": "mainnet-beta",
   "source": {
     "repo": "percolator-lean",
-    "commit": "35cd13c",
-    "note": "bytes byte-identical to the devnet-validated 35cd13c build (= d591ab9 program ABI; d591ab9 adds only proofs/docs/tests)"
+    "commit": "bb54ac6",
+    "note": "bb54ac6: account-reuse/reinjection exploit FIXED (CloseAccount zeroes full data + MAGIC_CLOSED sentinel; exact-size checks). Exploit blocked on devnet (scripts/_lean-exploit.ts)."
   },
   "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "upgradeable": true,
@@ -11,28 +11,39 @@
   "programs": {
     "percolator": {
       "id": "GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm",
-      "size": 73224,
-      "sha256": "c6dc8329207c8a0f874b4c1ceb1c48a5529d031453b7c1e9ce6f5808bca436d1"
+      "size": 66112,
+      "sha256": "287345ebfcadce62c16e698217883c348e13c4d0367197aee5a06281ba1e6ff1"
     },
     "matcher": {
       "id": "EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR",
-      "size": 8744,
-      "sha256": "9d79d159d48c14ff0894ef0727b3e3d6b4f9134cd04c635c18aa9eb7d33d4f54"
+      "size": 8680,
+      "sha256": "3a9ddae732093eeacdf21a342fa590192dc9ba5a21d8f69a2c806e870ff2cf98"
     },
     "oracleAdapter": {
       "id": "B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN",
-      "size": 20920,
-      "sha256": "4a49d55819d2c5343cdf33663a544b8ac3fae6b9b57d0ac4f36a5094f30a8d1a"
+      "size": 18544,
+      "sha256": "4b298f9bd57ecce2e81ce9b7788591b439d2eb5f117e1733211ecace0087f25d"
     }
   },
-  "collateralNote": "DEX collateral must be a 6-decimal USD-style token (USDC), not 9-decimal wSOL \u2014 the program stores token base units directly as E6 accounting.",
+  "collateralNote": "DEX collateral must be a 6-decimal USD-style token (USDC), not 9-decimal wSOL — the program stores token base units directly as E6 accounting.",
   "verified": "scripts/lean-mainnet-verify.ts (7/7 on mainnet): create market via live Pyth SOL/USD, open positions, cross-margin, build matcher + single-signer fill, conservation.",
   "retiredBounty": {
     "status": "RETIRED/CLAIMED 2026-11-26",
-    "reason": "insurance share account-reuse/reinjection exploit; 70 USDC drained by J82YD5pP\u2026",
+    "reason": "insurance share account-reuse/reinjection exploit; 70 USDC drained by J82YD5pP…",
     "drainTx": "44B4ucXWSXYvVZwiVPvZN2aYxNwJNPDkqYo8Romsz3UipTTrNUqPAkewzTZP4ctRUq9p7tacmhRjKRyTJ3Zf7M9K",
     "oldMarket": "76oGDQbQW3MEteg2uQqf31PyTmFZp8ujZTyGu3kfFSwq (tombstoned+closed)",
     "oldDex": "6nxbqVQREBwW2ESc1sJyPaUH9yZ7MgKE53fQh3Fm1CkH",
     "note": "Do not use. A fixed build + fresh market will replace this."
+  },
+  "bountyMarket": {
+    "dex": "CedQKVmmHuta5QcqRNkA96smV33LYtQBHo9wc1YcmFq3",
+    "market": "BhYaG2JYRHGrLpWs85TroedmkcG7toX1Ly5YbG1FDZHH",
+    "vault": "6k2H4GiRDGa7o9X8Ai99sGkPQGAvrAW7gVbKkAKuH2Fk",
+    "adapterCfg": "4P2D6KUS7AcpfDniZrFJvNbw55Mh3qxo95pMW1CE5KZL",
+    "insReceipt": "HRwLbjSzNMJipYrjafBUPgbtmx72tCF6R5UoGQyPAJZ9",
+    "collateral": "USDC EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "oracle": "Pyth SOL/USD 7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE",
+    "insuranceUsdc": 70,
+    "note": "Break it & keep the USDC: drain the insurance / violate V==SPL."
   }
 }

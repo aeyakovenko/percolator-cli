@@ -5,8 +5,8 @@ import { parseMarket } from "../src/lean/index.js";
 
 const key = fs.readFileSync(`${process.env.HOME}/.helius`, "utf8").trim();
 const conn = new Connection(`https://mainnet.helius-rpc.com/?api-key=${key}`, "confirmed");
-const MARKET = new PublicKey("76oGDQbQW3MEteg2uQqf31PyTmFZp8ujZTyGu3kfFSwq");
-const VAULT = new PublicKey("8MqHSrm6v6ccJVQunjnLqfBBWoAhVGrqUV4hdSH9F8i9");
+const MARKET = new PublicKey("BhYaG2JYRHGrLpWs85TroedmkcG7toX1Ly5YbG1FDZHH");
+const VAULT = new PublicKey("6k2H4GiRDGa7o9X8Ai99sGkPQGAvrAW7gVbKkAKuH2Fk");
 const u = (n: bigint) => (Number(n) / 1e6).toString();
 const t = () => new Date().toISOString().slice(11, 19);
 
