@@ -29,6 +29,9 @@ export function deriveDexVault(programId: PublicKey, dex: PublicKey): [PublicKey
 export function deriveLpAuth(matcherProgram: PublicKey, matcherCfg: PublicKey): [PublicKey, number] {
   return PublicKey.findProgramAddressSync([SEED.LP_AUTH, matcherCfg.toBuffer()], matcherProgram);
 }
+export function deriveRewAuth(rewardProgram: PublicKey, rewardCfg: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([SEED.REW_AUTH, rewardCfg.toBuffer()], rewardProgram);
+}
 export function deriveOracleAuth(adapterProgram: PublicKey, adapterCfg: PublicKey): [PublicKey, number] {
   return PublicKey.findProgramAddressSync([SEED.ORACLE_AUTH, adapterCfg.toBuffer()], adapterProgram);
 }
@@ -82,6 +85,8 @@ export interface MarketParams {
   maxOi: bigint;           // E6
   minMm?: bigint;          // E6 floor, default 0
   maxFrontBps?: bigint;    // a056eee: bps of I_m usable for I_m-contained cross-PnL fronting (default 0); <= maxInsDrawBps
+  rewardBps?: bigint;      // ee69211: bps of trade fee routed to this market's reward module (default 0); <= 10000
+  rewardRecipient?: PublicKey; // ee69211: reward-module auth PDA = deriveRewAuth(rewardProg, rewardCfg); required iff rewardBps>0
 }
 
 /** op 2. `market` must be a fresh MARKET_SIZE account owned by the program. Creator pays the DEX create fee in quote tokens. */
@@ -90,12 +95,17 @@ export function createMarket(p: PublicKey, a: {
   creator: PublicKey; creatorToken: PublicKey; feeVault: PublicKey; params: MarketParams;
   tokenProgram?: PublicKey;
 }) {
-  const d = data(100, IX.CreateMarket);
   const m = a.params;
+  const useReward = (m.rewardBps ?? 0n) > 0n;
+  const d = data(useReward ? 140 : 100, IX.CreateMarket); // ee69211: +rewardBps@100 +rewardRecipient@108
   d.writeUInt16LE(Number(m.maxFrontBps ?? 0n), 2); // a056eee: maxFrontBps u16 at offset 2
   [m.initPrice, m.exitWindow, m.maxStaleness, m.warmupSlots, m.imBps, m.mmBps, m.liqFeeBps,
     m.tradeFeeBps, m.maxMoveBps, m.maxInsDrawBps, m.maxOi, m.minMm ?? 0n]
     .forEach((v, i) => d.writeBigUInt64LE(v, 4 + 8 * i));
+  if (useReward) {
+    d.writeBigUInt64LE(m.rewardBps ?? 0n, 100);
+    (m.rewardRecipient ?? PublicKey.default).toBuffer().copy(d, 108);
+  }
   return ix(p, [
     w(a.dex), w(a.market), r(a.mint), r(a.oracleAuth), r(a.creator, true),
     w(a.creatorToken), w(a.feeVault), r(a.tokenProgram ?? TOKEN_PROGRAM_ID),

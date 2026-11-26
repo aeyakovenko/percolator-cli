@@ -40,7 +40,7 @@ export interface Dex {
   version: number; vaultBump: number; decimals: number; allowFreeze: number;
   admin: PublicKey; quoteMint: PublicKey; vault: PublicKey; feeVault: PublicKey;
   nextMarketId: bigint; nextPortfolioId: bigint; createFee: bigint;
-  vaultBalance: bigint; totalCapital: bigint; totalInsurance: bigint; totalResidual: bigint; totalSurplus: bigint;
+  vaultBalance: bigint; totalCapital: bigint; totalInsurance: bigint; totalResidual: bigint; totalSurplus: bigint; totalRewards: bigint;
 }
 export function parseDex(b: Buffer): Dex {
   expect(b, MAGIC.DEX, DEX_SIZE, "Dex");
@@ -50,7 +50,7 @@ export function parseDex(b: Buffer): Dex {
     admin: pk(b, O.admin), quoteMint: pk(b, O.quoteMint), vault: pk(b, O.vaultPda), feeVault: pk(b, O.feeVault),
     nextMarketId: u64(b, O.nextMarketId), nextPortfolioId: u64(b, O.nextPortfolioId), createFee: u64(b, O.createFee),
     vaultBalance: u64(b, O.vaultBalance), totalCapital: u64(b, O.totalCapital), totalInsurance: u64(b, O.totalInsurance),
-    totalResidual: u64(b, O.totalResidual), totalSurplus: u64(b, O.totalSurplus),
+    totalResidual: u64(b, O.totalResidual), totalSurplus: u64(b, O.totalSurplus), totalRewards: u64(b, O.totalRewards),
   };
 }
 
@@ -67,7 +67,7 @@ export interface Market {
   adlLong: bigint; adlShort: bigint;
   /** raw cumulative K (biased by K_ZERO) */
   kLong: bigint; kShort: bigint;
-  resolvedNum: bigint; resolvedDen: bigint; activeLegs: bigint;
+  resolvedNum: bigint; resolvedDen: bigint; activeLegs: bigint; rewardBps: bigint; rewardAccrued: bigint; rewardRecipient: PublicKey;
 }
 const STATUS_NAMES = ["Active", "WindDown", "Resolved", "Tombstoned"];
 export function parseMarket(b: Buffer): Market {
@@ -87,6 +87,7 @@ export function parseMarket(b: Buffer): Market {
     oiLong: u64(b, O.oiLong), oiShort: u64(b, O.oiShort), rawBasisLong: u64(b, O.rawBasisLong), rawBasisShort: u64(b, O.rawBasisShort),
     adlLong: u64(b, O.adlLong), adlShort: u64(b, O.adlShort), kLong: u64(b, O.kLong), kShort: u64(b, O.kShort),
     resolvedNum: u64(b, O.resolvedNum), resolvedDen: u64(b, O.resolvedDen), activeLegs: u64(b, O.activeLegs),
+    rewardBps: u64(b, O.rewardBps), rewardAccrued: u64(b, O.rewardAccrued), rewardRecipient: pk(b, O.rewardRecipient),
   };
 }
 /** Signed K relative to K_ZERO. */
@@ -97,11 +98,11 @@ export const isMarketActive = (m: Market) => m.status === STATUS.ACTIVE;
 export interface Leg {
   index: number; side: number; sideName: "flat" | "long" | "short";
   marketId: bigint; market: PublicKey;
-  rawBasis: bigint; entryK: bigint; posPnl: bigint; cachedMm: bigint; cachedIm: bigint; lastRefreshSlot: bigint; reservedMm: bigint;
+  rawBasis: bigint; entryK: bigint; posPnl: bigint; cachedMm: bigint; cachedIm: bigint; lastRefreshSlot: bigint;
 }
 export interface Portfolio {
-  legCount: number; portfolioId: bigint; episode: bigint; dex: PublicKey; owner: PublicKey;
-  capital: bigint; totalMm: bigint; totalIm: bigint; totalReservedMm: bigint;
+  legCount: number; portfolioId: bigint; dex: PublicKey; owner: PublicKey;
+  capital: bigint; totalMm: bigint; totalIm: bigint; matcherCtx: PublicKey;
   /** active leg slots only */
   legs: Leg[];
 }
@@ -119,12 +120,12 @@ export function parsePortfolio(b: Buffer): Portfolio {
       marketId: u64(b, base + LegOff.marketId), market: pk(b, base + LegOff.market),
       rawBasis: u64(b, base + LegOff.rawBasis), entryK: u64(b, base + LegOff.entryK), posPnl: u64(b, base + LegOff.posPnl),
       cachedMm: u64(b, base + LegOff.cachedMm), cachedIm: u64(b, base + LegOff.cachedIm),
-      lastRefreshSlot: u64(b, base + LegOff.lastRefreshSlot), reservedMm: u64(b, base + LegOff.reservedMm),
+      lastRefreshSlot: u64(b, base + LegOff.lastRefreshSlot),
     });
   }
   return {
-    legCount: u8(b, O.legCount), portfolioId: u64(b, O.portfolioId), episode: u64(b, O.episode),
-    dex: pk(b, O.dex), owner: pk(b, O.owner), capital: u64(b, O.capital), totalMm: u64(b, O.totalMm), totalIm: u64(b, O.totalIm), totalReservedMm: u64(b, O.totalReservedMm),
+    legCount: u8(b, O.legCount), portfolioId: u64(b, O.portfolioId),
+    dex: pk(b, O.dex), owner: pk(b, O.owner), capital: u64(b, O.capital), totalMm: u64(b, O.totalMm), totalIm: u64(b, O.totalIm), matcherCtx: pk(b, O.matcherCtx),
     legs,
   };
 }
@@ -194,8 +195,10 @@ export function checkDexInvariants(dex: Dex, vaultTokenBalance: bigint, markets:
   const problems: string[] = [];
   const need = (c: boolean, m: string) => { if (!c) problems.push(m); };
   need(dex.vaultBalance === vaultTokenBalance, `V ${dex.vaultBalance} != SPL ${vaultTokenBalance}`);
-  const sum = dex.totalCapital + dex.totalInsurance + dex.totalResidual + dex.totalSurplus;
-  need(sum === dex.vaultBalance, `C+I+R+S ${sum} != V ${dex.vaultBalance}`);
+  const sum = dex.totalCapital + dex.totalInsurance + dex.totalResidual + dex.totalSurplus + dex.totalRewards;
+  need(sum === dex.vaultBalance, `C+I+R+S+Rew ${sum} != V ${dex.vaultBalance}`);
+  const sumRew = markets.reduce((a, m) => a + m.rewardAccrued, 0n);
+  need(sumRew === dex.totalRewards, `ΣrewardAccrued ${sumRew} != totalRewards ${dex.totalRewards}`);
   const sumCap = portfolios.reduce((a, p) => a + p.capital, 0n);
   need(sumCap === dex.totalCapital, `Σcapital ${sumCap} != C ${dex.totalCapital}`);
   const sumIns = markets.reduce((a, m) => a + m.insurance, 0n);
