@@ -1,7 +1,7 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `f2b8b11` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `d591ab9` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
@@ -107,7 +107,7 @@ export const MatcherCfgOff = {
   halfSpreadBps: 104, impactBps: 112, maxFillQty: 120,
 } as const;
 
-// f2b8b11: native Pyth/Chainlink/Switchboard + 2-leg composite.
+// d591ab9: native Pyth/Chainlink/Switchboard + 2-leg composite.
 export const ADAPTER_CFG_SIZE_V2 = 352;
 export const FEED_TYPE = { CUSTOM: 0, PYTH_V2: 1, CHAINLINK: 2, SWITCHBOARD: 3 } as const;
 export const ADAPTER_FLAG = { HAS_QUOTE: 1, PIN_FID: 2, PIN_QFID: 4, HYBRID_AH: 8 } as const;
@@ -149,7 +149,8 @@ export const LEAN_ERRORS: Record<number, string> = {
   203: "matcher.progMismatch", 204: "matcher.pflMismatch",
   // oracle adapter
   300: "adapter.feedStale", 301: "adapter.feedWideConf", 302: "adapter.feedMismatch",
-  303: "adapter.progMismatch",
+  303: "adapter.progMismatch", 304: "adapter.badFeedFormat", 305: "adapter.badFeedId",
+  306: "adapter.ewmaDevExceeded", 307: "adapter.ewmaNotEnabled", 308: "adapter.ewmaSameSlot",
 };
 
 /** Map a custom program error number to its name ("custom:<n>" if unknown). */

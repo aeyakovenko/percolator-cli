@@ -1,6 +1,7 @@
 /**
- * Cluster guard: the operator wallet holds mainnet SOL, and the lean programs are
- * devnet-only. Every signing lean script must call `assertDevnet` before sending.
+ * Cluster guard: the operator wallet holds mainnet SOL. The lean programs are
+ * deployed on devnet and mainnet; every signing script in this repo must call
+ * `assertDevnet` before sending so it does not sign on mainnet.
  */
 import { Connection } from "@solana/web3.js";
 

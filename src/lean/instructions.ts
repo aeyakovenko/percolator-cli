@@ -1,7 +1,7 @@
 /**
  * percolator-lean v2 instruction builders (percolator core + matcher + oracle_adapter).
  *
- * PINNED to percolator-lean `2dc4d21`. Data layouts and account orders mirror the
+ * PINNED to percolator-lean `d591ab9`. Data layouts and account orders mirror the
  * `ix_*` builders in percolator-lean/svm-runner/src/main.rs at that commit (verified
  * end-to-end on devnet by lean-devnet/runner) and the Lean handlers.
  */
@@ -74,7 +74,7 @@ export interface MarketParams {
   initPrice: bigint;       // E6
   exitWindow: bigint;      // slots, >= MIN_EXIT_WINDOW
   maxStaleness: bigint;    // slots
-  warmupSlots: bigint;     // must be 0 for profit to realize at 2dc4d21
+  warmupSlots: bigint;     // must be 0 for profit to realize at d591ab9
   imBps: bigint; mmBps: bigint; liqFeeBps: bigint; tradeFeeBps: bigint;
   maxMoveBps: bigint;      // maxMove + liqFee <= mm < im <= 10000
   maxInsDrawBps: bigint;
@@ -272,7 +272,7 @@ export function matcherWithdrawLp(m: PublicKey, v: VaultAccounts, a: { cfg: Publ
 
 // ================================================================= oracle adapter
 /**
- * adapter op 0 (f2b8b11). `cfg` = fresh ADAPTER_CFG_SIZE account owned by the adapter.
+ * adapter op 0 (d591ab9). `cfg` = fresh ADAPTER_CFG_SIZE account owned by the adapter.
  * Create the market with oracleAuth = deriveOracleAuth(adapter, cfg). `feedType`:
  * 0=Custom FEED, 1=Pyth PriceUpdateV2, 2=Chainlink OCR2, 3=Switchboard. For a 2-leg
  * composite (base/quote, e.g. STOXX/SOL) pass `quoteFeed`/`quoteFeedType`. Optional
@@ -303,7 +303,7 @@ export function adapterInit(o: PublicKey, a: {
   return ix(o, keys, d);
 }
 
-/** adapter op 1 (f2b8b11). Permissionless crank: feed(s) → clamped UpdateOracle CPI. Pass `quoteFeed` for a composite adapter. */
+/** adapter op 1 (d591ab9). Permissionless crank: feed(s) → clamped UpdateOracle CPI. Pass `quoteFeed` for a composite adapter. */
 export function adapterCrank(o: PublicKey, a: { cfg: PublicKey; market: PublicKey; feed: PublicKey; percolator: PublicKey; quoteFeed?: PublicKey }) {
   const [oracAuth] = deriveOracleAuth(o, a.cfg);
   // cfg is writable: with EWMA enabled the crank updates ewmaPrice/lastEwmaSlot on it.
@@ -312,7 +312,7 @@ export function adapterCrank(o: PublicKey, a: { cfg: PublicKey; market: PublicKe
   return ix(o, keys, Buffer.from([ADAPTER_IX.Crank]));
 }
 
-/** adapter op 2 (f3b9fb9). One-shot immutable EWMA / Hybrid After-Hours config. alphaBps 1..10000 (0=pass-through, needs hybrid); initEwma 0 seeds on first crank. */
+/** adapter op 2 (d591ab9). One-shot immutable EWMA / Hybrid After-Hours config. alphaBps 1..10000 (0=pass-through, needs hybrid); initEwma 0 seeds on first crank. */
 export function adapterInitEwma(o: PublicKey, a: { cfg: PublicKey; admin: PublicKey; hybridAfterHours: boolean; alphaBps: bigint; maxDevBps: bigint; initEwma: bigint }) {
   const d = data(26, ADAPTER_IX.InitEwma);
   d.writeUInt8(a.hybridAfterHours ? 1 : 0, 1);
@@ -322,7 +322,7 @@ export function adapterInitEwma(o: PublicKey, a: { cfg: PublicKey; admin: Public
   return ix(o, [w(a.cfg), r(a.admin, true)], d);
 }
 
-/** adapter op 3 (f3b9fb9). Admin nudges the carried EWMA base mark (after-hours), clamped ±ewmaMaxDevBps/slot. */
+/** adapter op 3 (d591ab9). Admin nudges the carried EWMA base mark (after-hours), clamped ±ewmaMaxDevBps/slot. */
 export function adapterPushEwmaMark(o: PublicKey, a: { cfg: PublicKey; admin: PublicKey; markE6: bigint }) {
   const d = data(9, ADAPTER_IX.PushEwmaMark);
   d.writeBigUInt64LE(a.markE6, 1);

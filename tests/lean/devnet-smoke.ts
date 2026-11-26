@@ -1,13 +1,14 @@
 /**
- * Devnet smoke for the percolator-lean v2 TS client (src/lean, pinned to `2dc4d21`).
+ * Devnet smoke for the percolator-lean v2 TS client (src/lean, pinned to `d591ab9`).
  *
- * Exercises EVERY encoder against the deployed devnet programs — all 20 percolator ops,
- * matcher ops 0-3, oracle_adapter ops 0-1 — through a full market lifecycle, plus the
- * parsers, discovery, withLegRefresh bundler and checkDexInvariants. Success paths are
+ * Exercises percolator ops 0-19, matcher ops 0-3, and oracle_adapter ops 0-1
+ * (Init and Crank) against the deployed devnet programs, through a full market
+ * lifecycle, plus the parsers, discovery, withLegRefresh bundler and checkDexInvariants.
+ * Adapter ops 2-3 (InitEwma, PushEwmaMark) are not covered. Success paths are
  * really sent; expected rejections are simulated and asserted against the SPECIFIC
  * custom error code.
  *
- *   pnpm test:lean                     (SOLANA_RPC_URL defaults to public devnet)
+ *   pnpm test                          (SOLANA_RPC_URL defaults to public devnet)
  *
  * Refuses to run against anything but devnet (genesis-hash check). Spends ~0.1 devnet SOL.
  */
@@ -133,7 +134,7 @@ async function main() {
   const dex = dexKp.publicKey;
   const [vault] = deriveDexVault(P, dex);
   {
-    // At 2dc4d21 InitDex has no explicit PDA check: the runtime rejects the signed
+    // At d591ab9 InitDex has no explicit PDA check: the runtime rejects the signed
     // allocate/assign CPI when the bump is wrong, so this aborts without a custom code.
     const bad = initDex(P, { dex, admin: funder.publicKey, mint, feeVault, decimals: 6, createFee: POS_SCALE, vault, vaultBump: (deriveDexVault(P, dex)[1] + 255) % 256 });
     const tx = new Transaction().add(bad);

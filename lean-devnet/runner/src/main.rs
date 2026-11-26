@@ -17,7 +17,9 @@ const SYSTEM_PROGRAM_ID: Address =
     Address::from_str_const("11111111111111111111111111111111");
 const SPL_TOKEN_RENT_MIN: u64 = 2_039_280;
 
-// Exact v2 layout constants matching Percolator/Layout.lean
+// Dex, market, and insurance sizes match Percolator/Layout.lean (d591ab9).
+// Portfolio size, header, and stride below are the older layout (880 / 112 / 96).
+// Current Layout.lean is 952 bytes, header 120, stride 104.
 const DEX_SIZE: usize = 200;
 const MKT_SIZE: usize = 352;
 const PFL_SIZE: usize = 880;
@@ -253,7 +255,7 @@ fn assert_dex_invariants(
 }
 
 // ============================================================================
-// Instruction Builders (19 Unified v2 Instructions)
+// Instruction Builders (20 Unified v2 Instructions)
 // ============================================================================
 
 fn ix_init_dex(
