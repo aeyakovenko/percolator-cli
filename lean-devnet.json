@@ -2,29 +2,30 @@
   "network": "devnet",
   "source": {
     "repo": "percolator-lean",
-    "commit": "bb54ac6",
+    "commit": "a056eee",
     "compiler": "lean-svm 1a7b89d",
-    "note": "bb54ac6: account-reuse/reinjection exploit FIXED (CloseAccount zeroes full data + MAGIC_CLOSED sentinel; exact-size checks). Exploit blocked on devnet (scripts/_lean-exploit.ts)."
+    "note": "a056eee: cross-margin insurance-isolation fix (Bug 1B shielded-insurance-drain) \u2014 a self-oracle market can no longer reach another market's insurance via shared cross-margin; plus allowFreeze opt-in (real USDC), tighter margin bound (4*maxMove+(maxMove^2+999)/1000+liqFee<=mm, mm+maxMove<=im, maxMove<=2500), SweepSurplus. percolator+adapter upgraded on devnet; validated: functional/funding/boring/rehearsal/attack + round-1 exploit blocked."
   },
   "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "programs": {
     "percolator": {
       "id": "GD43BhWwAjiZLs56juEkacSKkY3TVCTbD7cG7HHDYKdA",
       "elf": "percolator.so",
-      "size": 66112,
-      "sha256": "287345ebfcadce62c16e698217883c348e13c4d0367197aee5a06281ba1e6ff1"
+      "size": 74112,
+      "sha256": "73af51c63d721014d82c353d081df049273266f2bb2f2a87e3fd2e4ad0d800c9"
     },
     "matcher": {
       "id": "9NqBGzLYY5d8v426voAT3VqJUprJX6fwyGJ2a8P4A22N",
       "elf": "matcher.so",
       "size": 8680,
-      "sha256": "3a9ddae732093eeacdf21a342fa590192dc9ba5a21d8f69a2c806e870ff2cf98"
+      "sha256": "3a9ddae732093eeacdf21a342fa590192dc9ba5a21d8f69a2c806e870ff2cf98",
+      "note": "NOT yet upgraded to a056eee on devnet \u2014 programdata extend blocked (9272 > 8752 allocated); redeploy to a larger buffer before build-your-own-matcher round-3 testing."
     },
     "oracleAdapter": {
       "id": "5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2",
       "elf": "oracle_adapter.so",
-      "size": 18544,
-      "sha256": "4b298f9bd57ecce2e81ce9b7788591b439d2eb5f117e1733211ecace0087f25d"
+      "size": 19192,
+      "sha256": "831d476beb679b30fc14b809a262bab86957423a24a939ab5294ae011542dadc"
     },
     "mockFeed": {
       "id": "9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx",
