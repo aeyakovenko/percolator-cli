@@ -140,7 +140,7 @@ export function parseInsReceipt(b: Buffer): InsReceipt {
 // ---------------------------------------------------------------- matcher / adapter / feed
 export interface MatcherConfig {
   pdaBump: number; paused: boolean; owner: PublicKey; percolator: PublicKey; lpPortfolio: PublicKey;
-  halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint;
+  halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint; market: PublicKey;
 }
 export function parseMatcherConfig(b: Buffer): MatcherConfig {
   expect(b, MAGIC.MATCHER, MATCHER_CFG_SIZE, "MatcherConfig");
@@ -148,6 +148,7 @@ export function parseMatcherConfig(b: Buffer): MatcherConfig {
   return {
     pdaBump: u8(b, O.pdaBump), paused: u8(b, O.paused) !== 0, owner: pk(b, O.owner), percolator: pk(b, O.percProg),
     lpPortfolio: pk(b, O.lpPortfolio), halfSpreadBps: u64(b, O.halfSpreadBps), impactBps: u64(b, O.impactBps), maxFillQty: u64(b, O.maxFillQty),
+    market: pk(b, O.market),
   };
 }
 

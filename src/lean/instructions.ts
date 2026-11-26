@@ -222,6 +222,7 @@ export function closeAccount(p: PublicKey, a: { account: PublicKey; authority: P
 /** matcher op 0. `cfg` = fresh MATCHER_CFG_SIZE account owned by the matcher; `lpPortfolio` = fresh PORTFOLIO_SIZE account owned by percolator. */
 export function matcherInit(m: PublicKey, a: {
   cfg: PublicKey; owner: PublicKey; dex: PublicKey; lpPortfolio: PublicKey; percolator: PublicKey;
+  market: PublicKey; // e1e4404: MatcherConfig pins the Market it may fill against
   halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint;
 }) {
   const [lpAuth, bump] = deriveLpAuth(m, a.cfg);
@@ -230,7 +231,7 @@ export function matcherInit(m: PublicKey, a: {
   d.writeBigUInt64LE(a.halfSpreadBps, 4);
   d.writeBigUInt64LE(a.impactBps, 12);
   d.writeBigUInt64LE(a.maxFillQty, 20);
-  return ix(m, [w(a.cfg), r(a.owner, true), w(a.dex), w(a.lpPortfolio), r(lpAuth), r(a.percolator)], d);
+  return ix(m, [w(a.cfg), r(a.owner, true), w(a.dex), w(a.lpPortfolio), r(lpAuth), r(a.percolator), r(a.market)], d);
 }
 
 /** matcher op 1. */
