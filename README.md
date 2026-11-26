@@ -100,31 +100,15 @@ Runnable end-to-end flow (create market → positions → cross-margin → match
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE market (70 USDC prize)
+## Bug bounty — RETIRED (first round CLAIMED)
 
-**Break the live market and keep the insurance fund.** Winning = draining the
-market's insurance pot, or otherwise violating conservation (`V == SPL vault
-balance`) to extract more value than you put in.
-
-| | Mainnet address |
-|---|---|
-| DEX | `6nxbqVQREBwW2ESc1sJyPaUH9yZ7MgKE53fQh3Fm1CkH` |
-| Market (SOL/USD) | `76oGDQbQW3MEteg2uQqf31PyTmFZp8ujZTyGu3kfFSwq` |
-| Vault (holds the prize) | `8MqHSrm6v6ccJVQunjnLqfBBWoAhVGrqUV4hdSH9F8i9` |
-| Collateral | USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| Oracle | Pyth SOL/USD via `oracle_adapter` (cfg `DZhXmSK9PD9Jszt2WDTYWABAVrdkxp3WkuNYAHPEnuQH`) |
-| **Prize** | **70 USDC** (insurance pot) |
-
-These are also in [`lean-mainnet.json`](lean-mainnet.json) under `bountyMarket`.
-
-**How to play:**
-1. Point the `percolator-cli/lean` client at a mainnet RPC and `LEAN_MAINNET`.
-2. Create a portfolio on the DEX, deposit USDC collateral, and trade the market
-   (bilateral `trade`, or `matcherFill` against a matcher) — see the examples above.
-3. Find a way to extract more USDC from the vault than you deposited — drain the
-   70 USDC insurance or break `V == SPL`. If you pull it out on-chain, it's yours.
-4. The attack harnesses `scripts/lean-attack.ts` and `scripts/lean-bounty-validate.ts`
-   show the attacks already tried (all rejected); a winning exploit is one they miss.
-
-The oracle updates permissionlessly: anyone can crank it (`oracle_adapter` op 1)
-against the live Pyth SOL/USD feed.
+> **Round 1 was drained on 2026-11-26** — the full 70 USDC insurance prize was
+> extracted via an insurance-share **account-reuse / reinjection** bug
+> (`InitPortfolio` → `CloseAccount` → `DepositInsurance`, where a reused account's
+> stale bytes at offset 80 became the InsReceipt `shares`). Full forensics, the
+> exact transactions, and the fix are tracked in the maintainers' notes. The old
+> market (`76oGDQ…`) has been retired/wound down and is empty.
+>
+> A fixed build will be re-deployed and a fresh prize seeded. This section will be
+> updated with the new live market once the fix lands and is re-verified on devnet.
+> **Do not deposit into the old market.**
