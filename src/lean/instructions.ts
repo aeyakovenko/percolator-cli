@@ -98,6 +98,9 @@ export function createMarket(p: PublicKey, a: {
   tokenProgram?: PublicKey;
 }) {
   const m = a.params;
+  if (m.liqFeeBps < 0n || m.liqFeeBps > m.mmBps) {
+    throw new RangeError("createMarket: liqFeeBps must be between 0 and mmBps");
+  }
   const useReward = (m.rewardBps ?? 0n) > 0n;
   const d = data(useReward ? 140 : 100, IX.CreateMarket); // ee69211: +rewardBps@100 +rewardRecipient@108
   d.writeUInt16LE(Number(m.maxFrontBps ?? 0n), 2); // a056eee: maxFrontBps u16 at offset 2
@@ -170,9 +173,14 @@ export function withdrawInsurance(p: PublicKey, v: VaultAccounts, a: { market: P
   return ix(p, [w(v.dex), w(a.market), w(a.receipt), r(a.lp, true), w(a.destToken), r(v.mint), w(v.vault), r(tok(v))], d);
 }
 
-/** op 10. Permissionless. forceHaircut realizes posPnl pro-rata even when R_m < P+_m. */
-export function refreshLeg(p: PublicKey, a: { dex: PublicKey; market: PublicKey; portfolio: PublicKey; forceHaircut?: boolean }) {
-  return ix(p, [w(a.dex), w(a.market), w(a.portfolio)], Buffer.from([IX.RefreshLeg, a.forceHaircut ? 1 : 0]));
+/** op 10. Permissionless by default. A forced haircut is restricted to flat legs and requires the portfolio owner's signature. */
+export function refreshLeg(p: PublicKey, a: { dex: PublicKey; market: PublicKey; portfolio: PublicKey; forceHaircut?: boolean; owner?: PublicKey }) {
+  const keys = [w(a.dex), w(a.market), w(a.portfolio)];
+  if (a.forceHaircut) {
+    if (!a.owner) throw new Error("refreshLeg: forceHaircut requires the portfolio owner");
+    keys.push(r(a.owner, true));
+  }
+  return ix(p, keys, Buffer.from([IX.RefreshLeg, a.forceHaircut ? 1 : 0]));
 }
 
 /**
@@ -371,6 +379,13 @@ export function adapterPushEwmaMark(o: PublicKey, a: { cfg: PublicKey; admin: Pu
 }
 
 // ================================================================= reward module (161ed3c)
+function rewardBurnSink(a: { burnSink?: PublicKey; targetEscrow: PublicKey; quoteVault?: PublicKey }): AccountMeta {
+  if (!a.burnSink || a.burnSink.equals(a.targetEscrow) || a.quoteVault?.equals(a.burnSink)) {
+    throw new Error("reward: burnMode=1 requires a distinct burnSink account");
+  }
+  return w(a.burnSink);
+}
+
 /** reward op 0 (InitReward). One-shot bind of a RewardCfg to a market's buy-and-burn.
  *  cfg = fresh REWARD_CFG_SIZE account owned by the reward program; quoteVault/targetEscrow(/burnSink
  *  for burnMode=1) = SPL token accounts owned by the rewm PDA, amount 0. mktAdmin signs (== mkt.marketAdmin). */
@@ -392,7 +407,7 @@ export function rewardInit(rm: PublicKey, a: {
     r(a.quoteMint), w(a.quoteVault), r(a.quoteTokProg ?? TOKEN_PROGRAM_ID),
     r(a.targetMint), w(a.targetEscrow), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
   ];
-  if (a.burnMode === 1) keys.push(w(a.burnSink ?? a.targetEscrow));
+  if (a.burnMode === 1) keys.push(rewardBurnSink(a));
   return ix(rm, keys, d);
 }
 
@@ -415,20 +430,21 @@ export function rewardSubmitBid(rm: PublicKey, a: {
   const d = data(9, REWARD_IX.SubmitBid);
   d.writeBigUInt64LE(a.amount, 1);
   return ix(rm, [
-    w(a.cfg), w(a.epochAcc), w(a.bidReceipt), r(a.bidder, true), w(a.bidderTargetTok),
+    r(a.cfg), w(a.epochAcc), w(a.bidReceipt), r(a.bidder, true), w(a.bidderTargetTok),
     w(a.targetEscrow), r(a.targetMint), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
   ], d);
 }
-/** reward op 3 (SettleEpoch, permissionless): clears xy=k, burns escrowed target (burnMode=1 -> dead-sink). */
+/** reward op 3 (SettleEpoch, permissionless): burns escrowed target supply in mode 0 or transfers it to a distinct burnSink in mode 1. */
 export function rewardSettleEpoch(rm: PublicKey, a: {
   cfg: PublicKey; epochAcc: PublicKey; targetEscrow: PublicKey; targetMint: PublicKey;
   burnSink?: PublicKey; burnMode: 0 | 1; targetTokProg?: PublicKey;
 }): TransactionInstruction {
   const [rewAuth] = deriveRewAuth(rm, a.cfg);
   const keys: AccountMeta[] = [
-    w(a.cfg), w(a.epochAcc), r(rewAuth), w(a.targetEscrow), r(a.targetMint), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
+    w(a.cfg), w(a.epochAcc), r(rewAuth), w(a.targetEscrow),
+    a.burnMode === 0 ? w(a.targetMint) : r(a.targetMint), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
   ];
-  if (a.burnMode === 1) keys.push(w(a.burnSink ?? a.targetEscrow));
+  if (a.burnMode === 1) keys.push(rewardBurnSink(a));
   return ix(rm, keys, Buffer.from([REWARD_IX.SettleEpoch]));
 }
 /** reward op 4 (ClaimQuote): bidder claims their pro-rata quote (USDC) payout from a settled epoch. */

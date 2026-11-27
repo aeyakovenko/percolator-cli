@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "test": "tsx tests/lean/devnet-smoke.ts",
+    "test:unit": "node --import tsx --test tests/lean/*.test.ts",
     "lean:survey": "tsx scripts/lean-survey.ts"
   },
   "dependencies": {
