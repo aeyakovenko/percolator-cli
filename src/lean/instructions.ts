@@ -8,7 +8,7 @@
 import { PublicKey, TransactionInstruction, AccountMeta } from "@solana/web3.js";
 import {
   IX, MATCHER_IX, ADAPTER_IX, REWARD_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
-  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE,
+  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE, COLLATERAL_DECIMALS,
 } from "./constants.js";
 
 const w = (pubkey: PublicKey, isSigner = false): AccountMeta => ({ pubkey, isSigner, isWritable: true });
@@ -52,6 +52,8 @@ export function initDex(p: PublicKey, a: {
   decimals: number; createFee: bigint; rentLamports?: bigint; allowFreeze?: 0 | 1; // a056eee: 1 = allow a blessed freeze-authority mint (e.g. real USDC)
   vaultBump?: number; vault?: PublicKey; tokenProgram?: PublicKey; systemProgram?: PublicKey;
 }): TransactionInstruction {
+  if (a.decimals !== COLLATERAL_DECIMALS)
+    throw new Error(`initDex: collateral must be ${COLLATERAL_DECIMALS}-decimal (the DEX stores E6 accounting as raw token base units); got decimals=${a.decimals}`);
   const [vault, bump] = a.vault && a.vaultBump !== undefined ? [a.vault, a.vaultBump] : deriveDexVault(p, a.dex);
   const d = data(20, IX.InitDex);
   d.writeUInt8(bump, 1);
@@ -328,6 +330,10 @@ export function adapterCrank(o: PublicKey, a: { cfg: PublicKey; market: PublicKe
 
 /** adapter op 2 (f3b9fb9). One-shot immutable EWMA / Hybrid After-Hours config. alphaBps 1..10000 (0=pass-through, needs hybrid); initEwma 0 seeds on first crank. */
 export function adapterInitEwma(o: PublicKey, a: { cfg: PublicKey; admin: PublicKey; hybridAfterHours: boolean; alphaBps: bigint; maxDevBps: bigint; initEwma: bigint }) {
+  if (a.alphaBps < 0n || a.alphaBps > 10000n)
+    throw new RangeError(`adapterInitEwma: alphaBps must be in 0..10000, got ${a.alphaBps}`);
+  if (a.alphaBps === 0n && !a.hybridAfterHours)
+    throw new Error("adapterInitEwma: alphaBps=0 (pass-through) only makes sense with hybridAfterHours=true");
   const d = data(26, ADAPTER_IX.InitEwma);
   d.writeUInt8(a.hybridAfterHours ? 1 : 0, 1);
   d.writeBigUInt64LE(a.alphaBps, 2);

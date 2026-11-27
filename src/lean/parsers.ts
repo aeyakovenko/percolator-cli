@@ -156,9 +156,9 @@ export function parseMatcherConfig(b: Buffer): MatcherConfig {
 
 export interface AdapterConfig {
   pdaBump: number; feedType: number; quoteFeedType: number; flags: number;
-  admin: PublicKey; percolator: PublicKey; market: PublicKey; feed: PublicKey; feedOwner: PublicKey;
+  admin: PublicKey; percolator: PublicKey; market: PublicKey; feed: PublicKey; feedOwner: PublicKey; feedId: Buffer;
   maxFeedAge: bigint; maxConfBps: bigint; fundingBpsPerStep: bigint;
-  hasQuote: boolean; quoteFeed: PublicKey | null;
+  hasQuote: boolean; quoteFeed: PublicKey | null; quoteFeedOwner: PublicKey | null; quoteFeedId: Buffer | null;
   hybridAfterHours: boolean; ewmaAlphaBps: bigint; ewmaPrice: bigint; ewmaMaxDevBps: bigint; lastEwmaSlot: bigint;
 }
 export function parseAdapterConfig(b: Buffer): AdapterConfig {
@@ -169,8 +169,10 @@ export function parseAdapterConfig(b: Buffer): AdapterConfig {
   return {
     pdaBump: u8(b, O.pdaBump), feedType: u8(b, O.feedType), quoteFeedType: u8(b, O.quoteFeedType), flags,
     admin: pk(b, O.admin), percolator: pk(b, O.percProg), market: pk(b, O.market), feed: pk(b, O.feedAccount),
-    feedOwner: pk(b, O.feedOwner), maxFeedAge: u64(b, O.maxFeedAge), maxConfBps: u64(b, O.maxConfBps),
+    feedOwner: pk(b, O.feedOwner), feedId: Buffer.from(b.subarray(O.feedId, O.feedId + 32)),
+    maxFeedAge: u64(b, O.maxFeedAge), maxConfBps: u64(b, O.maxConfBps),
     fundingBpsPerStep: u64(b, O.fundingBpsPerStep), hasQuote, quoteFeed: hasQuote ? pk(b, O.quoteFeed) : null,
+    quoteFeedOwner: hasQuote ? pk(b, O.quoteFeedOwner) : null, quoteFeedId: hasQuote ? Buffer.from(b.subarray(O.quoteFeedId, O.quoteFeedId + 32)) : null,
     hybridAfterHours: (flags & 8) !== 0, ewmaAlphaBps: u64(b, O.ewmaAlphaBps), ewmaPrice: u64(b, O.ewmaPrice), ewmaMaxDevBps: u64(b, O.ewmaMaxDevBps), lastEwmaSlot: u64(b, O.lastEwmaSlot),
   };
 }

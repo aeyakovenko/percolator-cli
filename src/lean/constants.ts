@@ -71,6 +71,9 @@ export const STATUS = { ACTIVE: 0, WINDDOWN: 1, RESOLVED: 2, TOMBSTONED: 3 } as 
 export const SIDE = { FLAT: 0, LONG: 1, SHORT: 2 } as const;
 
 // ---------- account sizes ----------
+// The DEX keeps its E6 accounting as raw token base units, so collateral must be a
+// 6-decimal USD-style token (e.g. USDC); any other decimals silently breaks conservation.
+export const COLLATERAL_DECIMALS = 6;
 export const DEX_SIZE = 208;
 export const MARKET_SIZE = 400;
 export const PORTFOLIO_SIZE = 976;
