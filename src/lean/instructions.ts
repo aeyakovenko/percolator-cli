@@ -193,9 +193,27 @@ export function trade(p: PublicKey, a: {
 export const tradeOpen = (p: PublicKey, a: Omit<Parameters<typeof trade>[1], "mode">) => trade(p, { ...a, mode: TRADE_MODE.OPEN });
 export const tradeClose = (p: PublicKey, a: Omit<Parameters<typeof trade>[1], "mode">) => trade(p, { ...a, mode: TRADE_MODE.CLOSE });
 
-/** op 12. Permissionless; fee goes to `liquidatorToken`. */
-export function liquidate(p: PublicKey, v: VaultAccounts, a: { market: PublicKey; portfolio: PublicKey; liquidatorToken: PublicKey }) {
-  return ix(p, [w(v.dex), w(a.market), w(a.portfolio), w(a.liquidatorToken), r(v.mint), w(v.vault), r(tok(v))], Buffer.from([IX.Liquidate]));
+/** op 12. Permissionless; fee goes to `liquidatorToken`. Supports optional `mode` (0=ADL/normal, 1=takeover) and `reqQty` (0=full). */
+export function liquidate(p: PublicKey, v: VaultAccounts, a: {
+  market: PublicKey; portfolio: PublicKey; liquidatorToken: PublicKey;
+  mode?: number; reqQty?: bigint; liqPortfolio?: PublicKey; liqOwner?: PublicKey;
+}) {
+  const mode = a.mode ?? 0;
+  const reqQty = a.reqQty ?? 0n;
+  const keys = [w(v.dex), w(a.market), w(a.portfolio), w(a.liquidatorToken), r(v.mint), w(v.vault), r(tok(v))];
+  if (mode === 1) {
+    if (!a.liqPortfolio || !a.liqOwner) {
+      throw new Error("liquidate: mode=1 (takeover) requires liqPortfolio and liqOwner");
+    }
+    keys.push(w(a.liqPortfolio), r(a.liqOwner, true));
+  }
+  if (a.mode === undefined && a.reqQty === undefined) {
+    return ix(p, keys, Buffer.from([IX.Liquidate]));
+  }
+  const d = data(10, IX.Liquidate);
+  d.writeUInt8(mode, 1);
+  d.writeBigUInt64LE(reqQty, 2);
+  return ix(p, keys, d);
 }
 
 /** op 13. Permissionless; only when that side's OI is 0. */
@@ -302,6 +320,9 @@ export function adapterInit(o: PublicKey, a: {
 }) {
   const [, bump] = deriveOracleAuth(o, a.cfg);
   // size: 28 base; +32 if feedId (pins base); +32 more if quoteFeedId
+  if (a.quoteFeedId && !a.feedId) {
+    throw new Error("adapterInit: quoteFeedId requires feedId (cannot leave base feedId all-zero)");
+  }
   let len = 28;
   if (a.feedId) len = 60;
   if (a.quoteFeedId) len = 92;

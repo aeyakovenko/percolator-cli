@@ -15,7 +15,7 @@
  * alone; refreshing those could fail and take the whole transaction down.
  */
 import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
-import { IX, MATCHER_IX, LEAN_DEVNET, SIDE, STATUS } from "./constants.js";
+import { IX, MATCHER_IX, LEAN_DEVNET, LEAN_MAINNET, SIDE, STATUS } from "./constants.js";
 import { accountKind, parsePortfolio, parseMarket, openLegs } from "./parsers.js";
 import { refreshLeg } from "./instructions.js";
 
@@ -26,16 +26,31 @@ export interface RefreshOptions {
 
 function needsFreshLegs(ix: TransactionInstruction, perc: PublicKey, matcher: PublicKey): boolean {
   const op = ix.data[0];
-  if (ix.programId.equals(perc)) return op === IX.Trade || op === IX.WithdrawCollateral;
+  if (ix.programId.equals(perc)) {
+    return op === IX.Trade || op === IX.WithdrawCollateral || op === IX.Liquidate || op === IX.TradeWithMatcher;
+  }
   if (ix.programId.equals(matcher)) return op === MATCHER_IX.Fill || op === MATCHER_IX.WithdrawLp;
   return false;
+}
+
+function inferPrograms(ixs: TransactionInstruction[], opts: RefreshOptions): { perc: PublicKey; matcher: PublicKey } {
+  if (opts.percolator && opts.matcher) return { perc: opts.percolator, matcher: opts.matcher };
+  const hasMain = ixs.some((ix) => ix.programId.equals(LEAN_MAINNET.percolator) || ix.programId.equals(LEAN_MAINNET.matcher));
+  const hasDev = ixs.some((ix) => ix.programId.equals(LEAN_DEVNET.percolator) || ix.programId.equals(LEAN_DEVNET.matcher));
+  if (!opts.percolator && hasMain && hasDev) {
+    throw new Error("withLegRefresh: ambiguous cluster (both mainnet and devnet program IDs present); pass opts.percolator explicitly");
+  }
+  const defaults = hasMain && !hasDev ? LEAN_MAINNET : LEAN_DEVNET;
+  return {
+    perc: opts.percolator ?? defaults.percolator,
+    matcher: opts.matcher ?? defaults.matcher,
+  };
 }
 
 export async function withLegRefresh(
   conn: Connection, ixs: TransactionInstruction[], opts: RefreshOptions = {},
 ): Promise<{ instructions: TransactionInstruction[]; added: number }> {
-  const perc = opts.percolator ?? LEAN_DEVNET.percolator;
-  const matcher = opts.matcher ?? LEAN_DEVNET.matcher;
+  const { perc, matcher } = inferPrograms(ixs, opts);
 
   const candidates = new Map<string, PublicKey>();
   for (const ix of ixs) {

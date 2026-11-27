@@ -15,22 +15,22 @@ const pk = (b: Buffer, o: number) => new PublicKey(b.subarray(o, o + 32));
 const isZeroKey = (b: Buffer, o: number) => b.subarray(o, o + 32).every((x) => x === 0);
 
 function expect(b: Buffer, magic: number, size: number, what: string) {
-  if (b.length < size) throw new Error(`${what}: data too small (${b.length} < ${size})`);
+  if (b.length !== size) throw new Error(`${what}: bad size (${b.length} !== ${size})`);
   const m = u32(b, 0);
   if (m !== magic) throw new Error(`${what}: bad magic 0x${m.toString(16)}`);
 }
 
-/** Which percolator-lean account type a buffer holds (by magic), or null. */
+/** Which percolator-lean account type a buffer holds (strict magic + exact size), or null. */
 export function accountKind(b: Buffer): "dex" | "market" | "portfolio" | "insReceipt" | "matcherCfg" | "adapterCfg" | "feed" | null {
   if (b.length < 4) return null;
   switch (u32(b, 0)) {
-    case MAGIC.DEX: return "dex";
-    case MAGIC.MARKET: return "market";
-    case MAGIC.PORTFOLIO: return "portfolio";
-    case MAGIC.INSURANCE: return "insReceipt";
-    case MAGIC.MATCHER: return "matcherCfg";
-    case MAGIC.ADAPTER: return "adapterCfg";
-    case MAGIC.FEED: return "feed";
+    case MAGIC.DEX: return b.length === DEX_SIZE ? "dex" : null;
+    case MAGIC.MARKET: return b.length === MARKET_SIZE ? "market" : null;
+    case MAGIC.PORTFOLIO: return b.length === PORTFOLIO_SIZE ? "portfolio" : null;
+    case MAGIC.INSURANCE: return b.length === INS_RECEIPT_SIZE ? "insReceipt" : null;
+    case MAGIC.MATCHER: return b.length === MATCHER_CFG_SIZE ? "matcherCfg" : null;
+    case MAGIC.ADAPTER: return b.length === ADAPTER_CFG_SIZE ? "adapterCfg" : null;
+    case MAGIC.FEED: return b.length === FEED_SIZE ? "feed" : null;
     default: return null;
   }
 }
@@ -193,7 +193,9 @@ export interface InvariantReport { ok: boolean; problems: string[] }
  *   Mirrors assert_dex_invariants in percolator-lean/svm-runner (2dc4d21).
  * Pass every market and portfolio of the DEX (e.g. from discover.ts) for the sum checks to apply.
  */
-export function checkDexInvariants(dex: Dex, vaultTokenBalance: bigint, markets: Market[], portfolios: Portfolio[]): InvariantReport {
+export function checkDexInvariants(
+  dex: Dex, vaultTokenBalance: bigint, markets: Market[], portfolios: Portfolio[], receipts?: InsReceipt[],
+): InvariantReport {
   const problems: string[] = [];
   const need = (c: boolean, m: string) => { if (!c) problems.push(m); };
   need(dex.vaultBalance === vaultTokenBalance, `V ${dex.vaultBalance} != SPL ${vaultTokenBalance}`);
@@ -201,8 +203,8 @@ export function checkDexInvariants(dex: Dex, vaultTokenBalance: bigint, markets:
   need(sum === dex.vaultBalance, `C+I+R+S+Rew ${sum} != V ${dex.vaultBalance}`);
   const sumRew = markets.reduce((a, m) => a + m.rewardAccrued, 0n);
   need(sumRew === dex.totalRewards, `ΣrewardAccrued ${sumRew} != totalRewards ${dex.totalRewards}`);
-  const sumCap = portfolios.reduce((a, p) => a + p.capital, 0n);
-  need(sumCap === dex.totalCapital, `Σcapital ${sumCap} != C ${dex.totalCapital}`);
+  const sumCap = portfolios.reduce((a, p) => a + p.capital + p.totalLockedMm, 0n);
+  need(sumCap === dex.totalCapital, `Σ(capital+lockedMm) ${sumCap} != C ${dex.totalCapital}`);
   const sumIns = markets.reduce((a, m) => a + m.insurance, 0n);
   need(sumIns === dex.totalInsurance, `Σinsurance ${sumIns} != I ${dex.totalInsurance}`);
   const sumR = markets.reduce((a, m) => a + m.realizedPool, 0n);
@@ -215,12 +217,18 @@ export function checkDexInvariants(dex: Dex, vaultTokenBalance: bigint, markets:
     need(m.oiLong <= m.rawBasisLong, `${id}: oiLong ${m.oiLong} > rawBasisLong ${m.rawBasisLong}`);
     need(m.oiShort <= m.rawBasisShort, `${id}: oiShort ${m.oiShort} > rawBasisShort ${m.rawBasisShort}`);
     need(m.adlLong <= ADL_ONE && m.adlShort <= ADL_ONE, `${id}: adl > ADL_ONE`);
+    if (receipts) {
+      const mShares = receipts.filter((r) => r.marketId === m.marketId).reduce((a, r) => a + r.shares, 0n);
+      need(mShares <= m.totalInsShares, `${id}: Σreceipt.shares ${mShares} > totalInsShares ${m.totalInsShares}`);
+    }
   }
   for (const p of portfolios) {
     const mm = p.legs.reduce((a, l) => a + l.cachedMm, 0n);
     const im = p.legs.reduce((a, l) => a + l.cachedIm, 0n);
+    const lck = p.legs.reduce((a, l) => a + l.lockedMm, 0n);
     need(mm === p.totalMm, `portfolio ${p.portfolioId}: Σmm ${mm} != totalMm ${p.totalMm}`);
     need(im === p.totalIm, `portfolio ${p.portfolioId}: Σim ${im} != totalIm ${p.totalIm}`);
+    need(lck === p.totalLockedMm, `portfolio ${p.portfolioId}: ΣlockedMm ${lck} != totalLockedMm ${p.totalLockedMm}`);
     need(p.legs.length === p.legCount, `portfolio ${p.portfolioId}: active legs ${p.legs.length} != legCount ${p.legCount}`);
   }
   return { ok: problems.length === 0, problems };

@@ -49,21 +49,41 @@ export const discoverPortfolios = (conn: Connection, programId: PublicKey, opts:
     ...(opts.owner ? [keyFilter(PflOff.owner, opts.owner)] : []),
   ], parsePortfolio);
 
-export const discoverInsReceipts = (conn: Connection, programId: PublicKey, opts: { market?: PublicKey; owner?: PublicKey } = {}) =>
-  scan<InsReceipt>(conn, programId, INS_RECEIPT_SIZE, MAGIC.INSURANCE, [
+export async function discoverInsReceipts(
+  conn: Connection, programId: PublicKey, opts: { market?: PublicKey; owner?: PublicKey } = {},
+): Promise<Row<InsReceipt>[]> {
+  const extra: GetProgramAccountsFilter[] = [
     ...(opts.market ? [keyFilter(InsOff.market, opts.market)] : []),
     ...(opts.owner ? [keyFilter(InsOff.owner, opts.owner)] : []),
-  ], parseInsReceipt);
+  ];
+  // Scan by magic (without hiding wrong-sized INSR accounts) and strictly parse exact 88B receipts.
+  const res = await conn.getProgramAccounts(programId, {
+    commitment: "confirmed",
+    filters: [magicFilter(MAGIC.INSURANCE), ...extra],
+  });
+  const rows: Row<InsReceipt>[] = [];
+  for (const { pubkey, account } of res) {
+    try {
+      rows.push({ address: pubkey, lamports: account.lamports, data: parseInsReceipt(Buffer.from(account.data)) });
+    } catch (e) {
+      console.warn(`bad INSR account ${pubkey.toBase58()} (${account.data.length}B): ${(e as Error).message}`);
+    }
+  }
+  return rows;
+}
 
-/** Every market and portfolio of one DEX, plus its vault token balance — the inputs to checkDexInvariants. */
+/** Every market, portfolio, and insurance receipt of one DEX, plus its vault token balance — the inputs to checkDexInvariants. */
 export async function snapshotDex(conn: Connection, programId: PublicKey, dexAddress: PublicKey) {
   const info = await conn.getAccountInfo(dexAddress, "confirmed");
   if (!info) throw new Error(`dex ${dexAddress.toBase58()} not found`);
   const dex = parseDex(Buffer.from(info.data));
-  const [markets, portfolios, vaultBal] = await Promise.all([
+  const [markets, portfolios, allReceipts, vaultBal] = await Promise.all([
     discoverMarkets(conn, programId, { dex: dexAddress }),
     discoverPortfolios(conn, programId, { dex: dexAddress }),
+    discoverInsReceipts(conn, programId),
     conn.getTokenAccountBalance(dex.vault, "confirmed"),
   ]);
-  return { dex, markets, portfolios, vaultTokenBalance: BigInt(vaultBal.value.amount) };
+  const marketSet = new Set(markets.map((m) => m.address.toBase58()));
+  const receipts = allReceipts.filter((r) => marketSet.has(r.data.market.toBase58()));
+  return { dex, markets, portfolios, receipts, vaultTokenBalance: BigInt(vaultBal.value.amount) };
 }
