@@ -119,8 +119,16 @@ Read-only invariant survey of every DEX: `pnpm lean:survey`.
 > (`CedQKV…` / `BhYaG2…`) is **deprecated and left as-is** (do not use it).
 
 **Round 3** runs on mainnet programs (`e189ef2`, upgraded in place) with three independent prize surfaces on
-a BTC/USD market. Winning = extracting more than you put in, or violating conservation
-(`V == SPL == C + I + R + S + totalRewards`).
+a BTC/USD market. Winning = actually extracting more than you put in **from the live mainnet
+deployment**, or violating conservation (`V == SPL == C + I + R + S + totalRewards`) on mainnet.
+
+> **Rules — this is a live capture-the-flag, not a report-for-payout program.**
+> - **To claim the bounty you must actually execute the attack on mainnet**, against the addresses below.
+> - **The only prize is what your attack actually captures on-chain.** Nothing is paid out on top of
+>   that, and nothing is paid for reports, write-ups, PoCs, or devnet / localnet / LiteSVM reproductions.
+> - Fixes can land at any time. If a bug is patched before you execute it on mainnet, there is nothing
+>   to capture.
+> - Bug reports are still welcome as issues, but they are not paid.
 
 | | Mainnet address |
 |---|---|
