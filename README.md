@@ -38,7 +38,7 @@ pnpm build
 Current build: percolator-lean `b8a2a61`. **Round-3 (LIVE, b8a2a61)** runs on mainnet ids (upgraded in place);
 round-2 programs (`GVV4HC…`) are **deprecated and left as-is**.
 
-| Program | Mainnet (round-3, `161ed3c`) | Devnet (`161ed3c`) |
+| Program | Mainnet (`b8a2a61`) | Devnet (`b8a2a61`) |
 |---|---|---|
 | `percolator` (core DEX) | `6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q` | `6N6BJuwLhoNTYGPSToS48PKkuK78STHd7M3G5FUmdQBq` |
 | `reward_module` (wSOL buy-and-burn) | `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw` | `37VP2WnJuPurgv9hCnVjpTufZ5E9RdXDh37BfdqZHXG6` |
@@ -57,11 +57,16 @@ the same client talks to either cluster.
 ## What the program does
 
 Permissionless multi-market cross-margin perps: anyone can create a market, provide
-insurance, build their own matcher (passive-LP AMM), open positions (bilateral or
-single-signer against a matcher), and cross-margin a portfolio across markets on
-shared capital. Oracles are read natively from Pyth (`PriceUpdateV2`), Chainlink
-(OCR2), or Switchboard (On-Demand), with optional 2-leg composite ratios and EWMA /
-Hybrid After-Hours smoothing, all cranked permissionlessly via `oracle_adapter`.
+insurance, build their own matcher (passive-LP AMM / CPI-out PropAMM), open positions
+(bilateral, single-signer against a matcher, or an atomic flip), and cross-margin a
+portfolio across markets on shared capital — with a **per-leg `lockedMm` firewall** so
+one market can never raid another's isolated margin or insurance. A market can route a
+share of its trade fees to an external **`reward_module`**: a permissionless per-market
+Gavel xy=k batch **buy-and-burn** (`StartEpoch`/`SubmitBid`/`SettleEpoch`/`ClaimQuote`),
+e.g. BTC/USD fees → wSOL burn. Oracles are read natively from Pyth (`PriceUpdateV2`),
+Chainlink (OCR2), or Switchboard (On-Demand), with optional 2-leg composite ratios and
+EWMA / Hybrid After-Hours smoothing, all cranked permissionlessly via `oracle_adapter`.
+Fund-safety invariant: `V == SPL vault balance == C + I + R + S + totalRewards`.
 
 All of these flows are verified on the live mainnet program by
 [`scripts/lean-mainnet-verify.ts`](scripts/lean-mainnet-verify.ts) (7/7), and the
@@ -113,7 +118,7 @@ Read-only invariant survey of every DEX: `pnpm lean:survey`.
 > verified on devnet (`scripts/_lean-xmargin-drain.ts` → BLOCKED). The round-2 market
 > (`CedQKV…` / `BhYaG2…`) is **deprecated and left as-is** (do not use it).
 
-**Round 3** runs on brand-new mainnet programs (`161ed3c`) with three independent prize surfaces on
+**Round 3** runs on mainnet programs (`b8a2a61`, upgraded in place) with three independent prize surfaces on
 a BTC/USD market. Winning = extracting more than you put in, or violating conservation
 (`V == SPL == C + I + R + S + totalRewards`).
 
