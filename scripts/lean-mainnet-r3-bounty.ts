@@ -60,18 +60,20 @@ async function main() {
   // PRIZE 1 insurance $23
   const rIns = (await newAcc(P, INS_RECEIPT_SIZE)).publicKey;
   await send([depositInsurance(P, V, { market: mkt, receipt: rIns, lp: funder.publicKey, sourceToken: fTok, amount: 23n * POS_SCALE })]);
-  // PRIZE 2 vault portfolio $23
-  const oV = Keypair.generate(); const pflV = (await newAcc(P, PORTFOLIO_SIZE)).publicKey;
-  await send([initPortfolio(P, { dex, portfolio: pflV, owner: oV.publicKey })], [oV]);
+  // PRIZE 2+3 portfolios are owned by OUR funder key (the key on this box) so they're always
+  // recoverable/migratable — a hunter still wins via an exploit that bypasses owner auth.
+  const O = funder.publicKey;
+  const pflV = (await newAcc(P, PORTFOLIO_SIZE)).publicKey;
+  await send([initPortfolio(P, { dex, portfolio: pflV, owner: O })]);
   await send([depositCollateral(P, V, { portfolio: pflV, depositor: funder.publicKey, sourceToken: fTok, amount: 23n * POS_SCALE })]);
-  // PRIZE 3 user long $23 (vs operator counterparty short, ~$25)
-  const oU = Keypair.generate(); const pflU = (await newAcc(P, PORTFOLIO_SIZE)).publicKey;
-  const oC = Keypair.generate(); const pflC = (await newAcc(P, PORTFOLIO_SIZE)).publicKey;
-  await send([initPortfolio(P, { dex, portfolio: pflU, owner: oU.publicKey })], [oU]);
-  await send([initPortfolio(P, { dex, portfolio: pflC, owner: oC.publicKey })], [oC]);
+  // PRIZE 3 user long $23 (vs funder-owned counterparty short, ~$25)
+  const pflU = (await newAcc(P, PORTFOLIO_SIZE)).publicKey;
+  const pflC = (await newAcc(P, PORTFOLIO_SIZE)).publicKey;
+  await send([initPortfolio(P, { dex, portfolio: pflU, owner: O })]);
+  await send([initPortfolio(P, { dex, portfolio: pflC, owner: O })]);
   await send([depositCollateral(P, V, { portfolio: pflU, depositor: funder.publicKey, sourceToken: fTok, amount: 23n * POS_SCALE })]);
   await send([depositCollateral(P, V, { portfolio: pflC, depositor: funder.publicKey, sourceToken: fTok, amount: 25n * POS_SCALE })]);
-  await send([trade(P, { dex, market: mkt, longPortfolio: pflU, longOwner: oU.publicKey, shortPortfolio: pflC, shortOwner: oC.publicKey, mode: TRADE_MODE.OPEN, qty: 3000n })], [oU, oC], false); // 0.003 BTC
+  await send([trade(P, { dex, market: mkt, longPortfolio: pflU, longOwner: O, shortPortfolio: pflC, shortOwner: O, mode: TRADE_MODE.OPEN, qty: 3000n })], [], false); // 0.003 BTC, funder signs both
 
   const d = parseDex(Buffer.from((await conn.getAccountInfo(dex))!.data));
   const m = parseMarket(Buffer.from((await conn.getAccountInfo(mkt))!.data));
@@ -85,7 +87,7 @@ async function main() {
   console.log(`reward cfg ${cfg.publicKey.toBase58()} rewAuth ${rewAuth.toBase58()} (wSOL dead-sink); quoteVault ${quoteVault.toBase58()} burnSink ${burnSink.toBase58()}`);
   console.log(`PRIZE1 insurance $${U(m.insurance)} | PRIZE2 vault pfl $${U(pv.capital)} ${pflV.toBase58()} | PRIZE3 user long $${U(pu.capital)} (${pu.legs[0] ? Number(pu.legs[0].rawBasis)/1e6 : 0} BTC) ${pflU.toBase58()}`);
   console.log(`conservation V==SPL==C+I+R+S+Rew: ${d.vaultBalance === spl && d.vaultBalance === d.totalCapital + d.totalInsurance + d.totalResidual + d.totalSurplus + d.totalRewards}`);
-  fs.writeFileSync("lean-mainnet-r3.json", JSON.stringify({ commit: "161ed3c", percolator: P.toBase58(), rewardModule: RM.toBase58(), usdc: USDC.toBase58(),
+  fs.writeFileSync("lean-mainnet-r3.json", JSON.stringify({ commit: "b8a2a61", insReceipt: rIns.toBase58(), ownersKey: "funder/id.json", percolator: P.toBase58(), rewardModule: RM.toBase58(), usdc: USDC.toBase58(),
     dex: dex.toBase58(), market: mkt.toBase58(), oracleAuth: oracle.publicKey.toBase58(), feeVault: feeVault.toBase58(),
     rewardCfg: cfg.publicKey.toBase58(), rewAuth: rewAuth.toBase58(), quoteVault: quoteVault.toBase58(), targetEscrow: targetEscrow.toBase58(), burnSink: burnSink.toBase58(),
     prizes: { insurance: mkt.toBase58(), vaultPortfolio: pflV.toBase58(), userLong: pflU.toBase58() } }, null, 2));

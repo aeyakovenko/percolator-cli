@@ -7,11 +7,11 @@ const STATUS_NAMES = ["Active", "WindDown", "Resolved", "Tombstoned"];
 
 const key = fs.readFileSync(`${process.env.HOME}/.helius`, "utf8").trim();
 const conn = new Connection(`https://mainnet.helius-rpc.com/?api-key=${key}`, "confirmed");
-const MARKET = new PublicKey("DgY3EytkRP93usRPCnW65dsp7ZL4UW2CEL9JneJjoqWb");
+const MARKET = new PublicKey("9JWceeR4k9mworx5QqvvjxSc7xF7PRYjQE3Ng4QYs5Ej");
 // The 3 prize surfaces — watch these, NOT the DEX-vault total (hunters cycle their own collateral,
 // which is noise). Theft = a prize actually shrinking: insurance, or either prize portfolio's capital.
-const VAULT_PFL = new PublicKey("DdJ7fuDLLcnvsMMBaiz2bFH2okkPATkwj45wuX39n88b"); // prize 2 (loose collateral)
-const USER_LONG = new PublicKey("8zJmB4Qc5HThhDp884iGrP2zymBhVU2vJ2vAPankLXzg"); // prize 3 (long position)
+const VAULT_PFL = new PublicKey("2YYTS9t2mV2ZSfmXxqNZV6TLQEHwqsHSSSPqJQNrHw4t"); // prize 2 (loose collateral)
+const USER_LONG = new PublicKey("DtNXawKjnbmAB57qoo2fzamBnQqhuRgmTPmFDZy8ewMj"); // prize 3 (long position)
 const u = (n: bigint) => (Number(n) / 1e6).toString();
 const t = () => new Date().toISOString().slice(11, 19);
 const cap = async (p: PublicKey) => { const i = await conn.getAccountInfo(p, "confirmed"); return i ? Buffer.from(i.data).readBigUInt64LE(88) : -1n; };

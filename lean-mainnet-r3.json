@@ -1,20 +1,22 @@
 {
-  "commit": "161ed3c",
+  "commit": "b8a2a61",
+  "insReceipt": "3kdSfuY59Dq9tNheF7dsABkt1GYn8ZLaqXaz6iGsgJdj",
+  "ownersKey": "funder/id.json",
   "percolator": "6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q",
   "rewardModule": "D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw",
   "usdc": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-  "dex": "HqEbFccTn82RgLwD6NBLhtGmwX84XfYcgrqBEVnaTUFB",
-  "market": "DgY3EytkRP93usRPCnW65dsp7ZL4UW2CEL9JneJjoqWb",
-  "oracleAuth": "BWWhuRsHSEbsB8DFwEesfE7o22QCd1Gx8PLwnfnbprcz",
-  "feeVault": "7oKhb4iy9pHVtkAwkf2mHnQh2Dd2UpAhdRtBxpnyKB8m",
-  "rewardCfg": "71fBkQmB8LGnX8ReU34obcpftcy9FonqWMPpaZnqGBkh",
-  "rewAuth": "HtMhgP5EwU8ZDoQ93A6zzbBmQWu5LpfJCaPmGeB1Un5S",
-  "quoteVault": "Fd95SSW2ERdTqm3yWf6v8D3YzED5SG4AyVYRhKuHP6xZ",
-  "targetEscrow": "FEU2L8HrQVfujfiW6wGZdVKecso3nwkvkcGHTyGwxHKE",
-  "burnSink": "9A7suGiuSbuxh1Xg92psQYULcEPr4fnaTPRRv4QRDMZ3",
+  "dex": "Ef9p9J2dRBb5aGzPiBG2cxqTCvT3DvcDUYNULBUPTiHh",
+  "market": "9JWceeR4k9mworx5QqvvjxSc7xF7PRYjQE3Ng4QYs5Ej",
+  "oracleAuth": "AGBYhhsNwcXhBi6U9rBsDnzG6ThyVD7wYpi6ZqMbrD3X",
+  "feeVault": "AGi7vqN7g7p67A4uqr6LT5mAx8CuKZiHtVJotckNQ6NJ",
+  "rewardCfg": "gBfHSSUefHoAM1q92MPENeernKmRxZFDPpxSqmLVkEg",
+  "rewAuth": "Gqiy36DHEX8Tik2fbAdwGD9m4CWDkLGNcxaGrSR58HTM",
+  "quoteVault": "NQHnCAbknY9CKDADzk5YYYKES3XpNpzzuzLZnZ5iTxy",
+  "targetEscrow": "2D7AtHsyaztgutiE2soVqticGUTvUWXB1ZbpN4etrRg1",
+  "burnSink": "9EfqhhLmkRmqo89rh7eW6mN38VKrLoa9imfu3TLCnv49",
   "prizes": {
-    "insurance": "DgY3EytkRP93usRPCnW65dsp7ZL4UW2CEL9JneJjoqWb",
-    "vaultPortfolio": "DdJ7fuDLLcnvsMMBaiz2bFH2okkPATkwj45wuX39n88b",
-    "userLong": "8zJmB4Qc5HThhDp884iGrP2zymBhVU2vJ2vAPankLXzg"
+    "insurance": "9JWceeR4k9mworx5QqvvjxSc7xF7PRYjQE3Ng4QYs5Ej",
+    "vaultPortfolio": "2YYTS9t2mV2ZSfmXxqNZV6TLQEHwqsHSSSPqJQNrHw4t",
+    "userLong": "DtNXawKjnbmAB57qoo2fzamBnQqhuRgmTPmFDZy8ewMj"
   }
 }

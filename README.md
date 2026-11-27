@@ -35,7 +35,7 @@ pnpm build
 
 ## Deployments
 
-Current build: percolator-lean `161ed3c`. **Round-3 (LIVE)** runs on fresh mainnet ids;
+Current build: percolator-lean `b8a2a61`. **Round-3 (LIVE, b8a2a61)** runs on mainnet ids (upgraded in place);
 round-2 programs (`GVV4HC…`) are **deprecated and left as-is**.
 
 | Program | Mainnet (round-3, `161ed3c`) | Devnet (`161ed3c`) |
@@ -103,7 +103,7 @@ Runnable end-to-end flow (create market → positions → cross-margin → match
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE (round 3, ~$69 on BTC/USD) on percolator-lean `161ed3c`
+## Bug bounty — LIVE (round 3, ~$69 on BTC/USD) on percolator-lean `b8a2a61`
 
 > **History.** Round 1 was claimed via an insurance account-reuse bug (fixed in `bb54ac6`).
 > Round 2 (SOL/USD, 70 USDC) was claimed via a **cross-margin + hostile-oracle insurance drain**
@@ -121,13 +121,13 @@ a BTC/USD market. Winning = extracting more than you put in, or violating conser
 |---|---|
 | percolator | `6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q` |
 | reward_module | `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw` |
-| DEX | `HqEbFccTn82RgLwD6NBLhtGmwX84XfYcgrqBEVnaTUFB` |
-| Market (BTC/USD) | `DgY3EytkRP93usRPCnW65dsp7ZL4UW2CEL9JneJjoqWb` |
+| DEX | `Ef9p9J2dRBb5aGzPiBG2cxqTCvT3DvcDUYNULBUPTiHh` |
+| Market (BTC/USD) | `9JWceeR4k9mworx5QqvvjxSc7xF7PRYjQE3Ng4QYs5Ej` |
 | Collateral | USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| Reward (wSOL buy-and-burn) | cfg `71fBkQmB8LGnX8ReU34obcpftcy9FonqWMPpaZnqGBkh` |
+| Reward (wSOL buy-and-burn) | cfg `gBfHSSUefHoAM1q92MPENeernKmRxZFDPpxSqmLVkEg` |
 | **Prize 1 — insurance** | **$23** (market insurance pot) |
-| **Prize 2 — vault portfolio** | **$23** loose collateral — `DdJ7fuDLLcnvsMMBaiz2bFH2okkPATkwj45wuX39n88b` |
-| **Prize 3 — user long** | **~$23** (0.003 BTC long) — `8zJmB4Qc5HThhDp884iGrP2zymBhVU2vJ2vAPankLXzg` |
+| **Prize 2 — vault portfolio** | **$23** loose collateral — `2YYTS9t2mV2ZSfmXxqNZV6TLQEHwqsHSSSPqJQNrHw4t` |
+| **Prize 3 — user long** | **~$23** (0.003 BTC long) — `DtNXawKjnbmAB57qoo2fzamBnQqhuRgmTPmFDZy8ewMj` |
 
 Also in [`lean-mainnet-r3.json`](lean-mainnet-r3.json). The market charges a **2 bps** trade fee,
 100% routed to a **wSOL buy-and-burn** reward module (permissionless `StartEpoch`/`SubmitBid`/
