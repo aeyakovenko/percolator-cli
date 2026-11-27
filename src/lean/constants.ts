@@ -1,27 +1,28 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `b8a2a61` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `e189ef2` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "b8a2a61";
+export const LEAN_SOURCE_COMMIT = "e189ef2";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
-  percolator: new PublicKey("6N6BJuwLhoNTYGPSToS48PKkuK78STHd7M3G5FUmdQBq"),
-  matcher: new PublicKey("GikE53f9pz2y31RZSgRTsa6LRcWSmqFpLEdawoHQbQ3J"),
-  oracleAdapter: new PublicKey("5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2"),
-  rewardModule: new PublicKey("37VP2WnJuPurgv9hCnVjpTufZ5E9RdXDh37BfdqZHXG6"),
+  // e189ef2 (deployed via Agave CLI 4.4.1, 2026-11-27) — validation deployment.
+  percolator: new PublicKey("4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM"),
+  matcher: new PublicKey("2HQtUrH1u4KnPGABxyVNNmXo9SJ3zQg9otz6wyfJMJip"),
+  oracleAdapter: new PublicKey("BkyW7iLvAWuyEozvnGAwgks4dyuTNm7Xnybd6DwQLu2x"),
+  rewardModule: new PublicKey("4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi"),
   /** test-only writable FEED account program (lean-devnet/mock-feed) */
   mockFeed: new PublicKey("9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx"),
 } as const;
 
 // ---------- deployed programs (mainnet-beta) ----------
-// Byte-identical to the devnet-validated 35cd13c build (core c6dc8329, matcher
-// 9d79d159, adapter 4a49d558). Upgrade authority: A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK.
+// Mainnet upgraded IN PLACE to e189ef2 (2026-11-27) via Agave CLI 4.4.1; devnet-validated.
+// Upgrade authority: A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK.
 export const LEAN_MAINNET = {
   // ROUND-3 (161ed3c), fresh ids. Round-2 (GVV4HC…) is DEPRECATED but left running.
   percolator: new PublicKey("6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q"),
@@ -102,12 +103,12 @@ export const MktOff = {
   activeLegs: 336, minMm: 344, rewardBps: 352, rewardAccrued: 360, rewardRecipient: 368,
 } as const;
 
-export const PflOff = { // b8a2a61: 976B (+totalLockedMm@16; legStride 104 with per-leg lockedMm firewall)
+export const PflOff = { // e189ef2: 976B (+totalLockedMm@16; legStride 104 with per-leg lockedMm firewall)
   magic: 0, legCount: 4, portfolioId: 8, totalLockedMm: 16, dex: 24, owner: 56, capital: 88,
   totalMm: 96, totalIm: 104, matcherCtx: 112, headerSize: 144, legStride: 104,
 } as const;
 
-export const LegOff = { // b8a2a61: 104B stride (+per-leg lockedMm@96 isolated-MM firewall)
+export const LegOff = { // e189ef2: 104B stride (+per-leg lockedMm@96 isolated-MM firewall)
   active: 0, side: 1, marketId: 8, market: 16, rawBasis: 48, entryK: 56, posPnl: 64,
   cachedMm: 72, cachedIm: 80, lastRefreshSlot: 88, lockedMm: 96,
 } as const;

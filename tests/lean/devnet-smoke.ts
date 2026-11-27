@@ -155,7 +155,7 @@ async function main() {
   console.log("T2 CreateMarket / DepositInsurance");
   const params: MarketParams = {
     initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 600n, warmupSlots: 0n,
-    imBps: 1000n, mmBps: 500n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 400n,
+    imBps: 1000n, mmBps: 600n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n,
     maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n,
   };
   const m1Kp = await newProgramAccount(P, MARKET_SIZE);
@@ -205,7 +205,7 @@ async function main() {
   await send("WithdrawCollateral", bundled.instructions, [traderA]);
   covered.add("RefreshLeg");
 
-  await send("UpdateOracle", [updateOracle(P, { market: m1, oracleAuth: oracle1.publicKey, price: 99n * POS_SCALE, fundingSign: 0, fundingE6: 10_000n })], [oracle1]);
+  await send("UpdateOracle", [updateOracle(P, { market: m1, oracleAuth: oracle1.publicKey, price: 99_500_000n, fundingSign: 0, fundingE6: 10_000n })], [oracle1]);
   await waitSlots(1);
   await expectErr("UpdateOracle same-slot spam", [
     updateOracle(P, { market: m1, oracleAuth: oracle1.publicKey, price: 99n * POS_SCALE }),

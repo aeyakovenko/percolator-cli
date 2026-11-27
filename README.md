@@ -35,15 +35,15 @@ pnpm build
 
 ## Deployments
 
-Current build: percolator-lean `b8a2a61`. **Round-3 (LIVE, b8a2a61)** runs on mainnet ids (upgraded in place);
+Current build: percolator-lean `e189ef2`. **Round-3 (LIVE, e189ef2)** runs on mainnet ids (upgraded in place);
 round-2 programs (`GVV4HC…`) are **deprecated and left as-is**.
 
-| Program | Mainnet (`b8a2a61`) | Devnet (`b8a2a61`) |
+| Program | Mainnet (`e189ef2`) | Devnet (`e189ef2`) |
 |---|---|---|
-| `percolator` (core DEX) | `6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q` | `6N6BJuwLhoNTYGPSToS48PKkuK78STHd7M3G5FUmdQBq` |
-| `reward_module` (wSOL buy-and-burn) | `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw` | `37VP2WnJuPurgv9hCnVjpTufZ5E9RdXDh37BfdqZHXG6` |
-| `matcher` (passive-LP / PropAMM) | `EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR` | `GikE53f9pz2y31RZSgRTsa6LRcWSmqFpLEdawoHQbQ3J` |
-| `oracle_adapter` | `B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN` | `5PasXKLBKCAhTPJ2WxPjQxJYbxVnMZY7ZNiQpEVUZ5K2` |
+| `percolator` (core DEX) | `6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q` | `4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM` |
+| `reward_module` (wSOL buy-and-burn) | `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw` | `4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi` |
+| `matcher` (passive-LP / PropAMM) | `EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR` | `2HQtUrH1u4KnPGABxyVNNmXo9SJ3zQg9otz6wyfJMJip` |
+| `oracle_adapter` | `B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN` | `BkyW7iLvAWuyEozvnGAwgks4dyuTNm7Xnybd6DwQLu2x` |
 
 Deprecated round-2 percolator: `GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm`.
 Upgrade authority: `A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK`. The ids are exported as
@@ -108,7 +108,7 @@ Runnable end-to-end flow (create market → positions → cross-margin → match
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE (round 3, ~$69 on BTC/USD) on percolator-lean `b8a2a61`
+## Bug bounty — LIVE (round 3, ~$69 on BTC/USD) on percolator-lean `e189ef2`
 
 > **History.** Round 1 was claimed via an insurance account-reuse bug (fixed in `bb54ac6`).
 > Round 2 (SOL/USD, 70 USDC) was claimed via a **cross-margin + hostile-oracle insurance drain**
@@ -118,7 +118,7 @@ Read-only invariant survey of every DEX: `pnpm lean:survey`.
 > verified on devnet (`scripts/_lean-xmargin-drain.ts` → BLOCKED). The round-2 market
 > (`CedQKV…` / `BhYaG2…`) is **deprecated and left as-is** (do not use it).
 
-**Round 3** runs on mainnet programs (`b8a2a61`, upgraded in place) with three independent prize surfaces on
+**Round 3** runs on mainnet programs (`e189ef2`, upgraded in place) with three independent prize surfaces on
 a BTC/USD market. Winning = extracting more than you put in, or violating conservation
 (`V == SPL == C + I + R + S + totalRewards`).
 
