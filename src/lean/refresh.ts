@@ -74,15 +74,41 @@ export async function withLegRefresh(
       seen.add(`${ix.keys[1].pubkey.toBase58()}:${ix.keys[2].pubkey.toBase58()}`);
     }
     if (needsFreshLegs(ix, perc, matcher)) {
-      for (const k of ix.keys) {
-        const p = portfolios.get(k.pubkey.toBase58());
-        if (!p) continue;
-        for (const leg of openLegs(p)) {
-          const tag = `${leg.market.toBase58()}:${k.pubkey.toBase58()}`;
-          if (seen.has(tag)) continue;
-          seen.add(tag);
-          out.push(refreshLeg(perc, { dex: p.dex, market: leg.market, portfolio: k.pubkey }));
-          added++;
+      const isLiquidate = ix.programId.equals(perc) && ix.data[0] === IX.Liquidate;
+      if (isLiquidate) {
+        // Never auto-refresh the liquidated victim portfolio: `handleLiquidate` settles the
+        // target leg itself (with `allowBankrupt = true`), and calling `RefreshLeg` on a bankrupt
+        // leg rejects with `insufficientMargin` (107). Callers may supply explicit `RefreshLeg`
+        // instructions beforehand for other legs of a solvent multi-leg victim.
+        // For mode=1 takeovers (`keys[7]` = liqPortfolio), refresh only the liquidator's OTHER
+        // open legs (excluding the target market `keys[1]`, which `handleLiquidate` settles).
+        const isTakeover = ix.data.length >= 2 && ix.data[1] === 1 && ix.keys.length >= 8;
+        const targetMkt = ix.keys[1]?.pubkey;
+        if (isTakeover && targetMkt) {
+          const liqPflKey = ix.keys[7].pubkey;
+          const liqPfl = portfolios.get(liqPflKey.toBase58());
+          if (liqPfl) {
+            for (const leg of openLegs(liqPfl)) {
+              if (leg.market.equals(targetMkt)) continue;
+              const tag = `${leg.market.toBase58()}:${liqPflKey.toBase58()}`;
+              if (seen.has(tag)) continue;
+              seen.add(tag);
+              out.push(refreshLeg(perc, { dex: liqPfl.dex, market: leg.market, portfolio: liqPflKey }));
+              added++;
+            }
+          }
+        }
+      } else {
+        for (const k of ix.keys) {
+          const p = portfolios.get(k.pubkey.toBase58());
+          if (!p) continue;
+          for (const leg of openLegs(p)) {
+            const tag = `${leg.market.toBase58()}:${k.pubkey.toBase58()}`;
+            if (seen.has(tag)) continue;
+            seen.add(tag);
+            out.push(refreshLeg(perc, { dex: p.dex, market: leg.market, portfolio: k.pubkey }));
+            added++;
+          }
         }
       }
     }
@@ -101,9 +127,9 @@ export async function withLegRefresh(
 export async function realizeFlatLegs(
   conn: Connection, portfolio: PublicKey, opts: RefreshOptions = {},
 ): Promise<TransactionInstruction[]> {
-  const perc = opts.percolator ?? LEAN_DEVNET.percolator;
   const info = await conn.getAccountInfo(portfolio, "confirmed");
   if (!info) throw new Error(`portfolio ${portfolio.toBase58()} not found`);
+  const perc = opts.percolator ?? info.owner;
   const p = parsePortfolio(Buffer.from(info.data));
   const flat = p.legs.filter((l) => l.side === SIDE.FLAT && l.posPnl > 0n);
   if (!flat.length) return [];

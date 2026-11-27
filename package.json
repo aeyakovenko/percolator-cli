@@ -11,6 +11,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
+    "test:unit": "tsx --test tests/lean/pr115-regressions.test.ts",
     "test": "tsx tests/lean/devnet-smoke.ts",
     "lean:survey": "tsx scripts/lean-survey.ts"
   },
