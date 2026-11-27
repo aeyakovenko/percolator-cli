@@ -16,7 +16,7 @@ const u = (n: bigint) => (Number(n) / 1e6).toString();
 const t = () => new Date().toISOString().slice(11, 19);
 const cap = async (p: PublicKey) => { const i = await conn.getAccountInfo(p, "confirmed"); return i ? Buffer.from(i.data).readBigUInt64LE(88) : -1n; };
 
-let last = "";
+let last = ""; let errStreak = 0;
 async function tick() {
   try {
     const info = await conn.getAccountInfo(MARKET, "confirmed");
@@ -24,12 +24,13 @@ async function tick() {
     const b = Buffer.from(info.data);
     const insurance = b.readBigUInt64LE(224), status = STATUS_NAMES[b.readUInt8(4)] ?? `?${b.readUInt8(4)}`;
     const vCap = await cap(VAULT_PFL), uCap = await cap(USER_LONG);
+    errStreak = 0;
     // key = the 3 prizes exactly (insurance + both prize portfolios' capital) + status. Fires only on a
     // real prize move; the hunter's own deposits/withdrawals/trades no longer generate noise.
     const c = (x: bigint) => (x < 0n ? -1n : x / 10_000n).toString(); // round to 0.01 USDC — ignore sub-cent dust
     const key = `${c(insurance)}|${c(vCap)}|${c(uCap)}|${status}`;
     const snap = `insurance=$${u(insurance)} | vaultPfl=$${vCap < 0n ? "CLOSED" : u(vCap)} | userLong=$${uCap < 0n ? "CLOSED" : u(uCap)} | status=${status} | mark=$${u(b.readBigUInt64LE(112))}`;
     if (key !== last) { console.log(`${t()} ${last === "" ? "[baseline] " : "[CHANGE] "}${snap}`); last = key; }
-  } catch (e) { console.log(`${t()} poll error: ${String((e as Error).message ?? e).slice(0, 80)}`); }
+  } catch (e) { errStreak++; if (errStreak >= 4) console.log(`${t()} poll error x${errStreak} (persistent): ${String((e as Error).message ?? e).slice(0, 70)}`); } // ignore transient single hiccups
 }
 (async () => { for (;;) { await tick(); await new Promise(r => setTimeout(r, 30_000)); } })();
