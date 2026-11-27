@@ -69,7 +69,7 @@ async function main() {
   // --- gap confirmations (cheap, simulation)
   console.log("== confirm claimed gaps ==");
   const warmupMkt = await newAcc(P, MARKET_SIZE);
-  const base: MarketParams = { initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 5000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+  const base: MarketParams = { initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 5000n, warmupSlots: 0n, imBps: 1000n, mmBps: 600n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
   await reject("CreateMarket warmupSlots>0 (anti-flash gone)", dex, [createMarket(P, { dex, market: warmupMkt, mint, oracleAuth: funder.publicKey, creator: funder.publicKey, creatorToken: fTok, feeVault, params: { ...base, warmupSlots: 10n } })], [], 103);
 
   const oracle = Keypair.generate();

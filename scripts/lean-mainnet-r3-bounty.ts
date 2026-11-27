@@ -47,7 +47,7 @@ async function main() {
   fs.writeFileSync(`${process.env.HOME}/.config/solana/lean-mainnet-r3-oracle.json`, JSON.stringify(Array.from(oracle.secretKey)));
 
   const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n,
-    imBps: 1000n, mmBps: 500n, liqFeeBps: 50n, tradeFeeBps: 2n, maxMoveBps: 100n, maxInsDrawBps: 2500n,
+    imBps: 1000n, mmBps: 600n, liqFeeBps: 50n, tradeFeeBps: 2n, maxMoveBps: 100n, maxInsDrawBps: 2500n,
     maxOi: 1_000_000n * POS_SCALE, minMm: 0n, rewardBps: 10000n, rewardRecipient: rewAuth };
   const mkt = (await newAcc(P, MARKET_SIZE)).publicKey;
   await send([createMarket(P, { dex, market: mkt, mint: USDC, oracleAuth: oracle.publicKey, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);

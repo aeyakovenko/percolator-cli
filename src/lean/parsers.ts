@@ -98,10 +98,10 @@ export const isMarketActive = (m: Market) => m.status === STATUS.ACTIVE;
 export interface Leg {
   index: number; side: number; sideName: "flat" | "long" | "short";
   marketId: bigint; market: PublicKey;
-  rawBasis: bigint; entryK: bigint; posPnl: bigint; cachedMm: bigint; cachedIm: bigint; lastRefreshSlot: bigint;
+  rawBasis: bigint; entryK: bigint; posPnl: bigint; cachedMm: bigint; cachedIm: bigint; lastRefreshSlot: bigint; lockedMm: bigint;
 }
 export interface Portfolio {
-  legCount: number; portfolioId: bigint; dex: PublicKey; owner: PublicKey;
+  legCount: number; portfolioId: bigint; totalLockedMm: bigint; dex: PublicKey; owner: PublicKey;
   capital: bigint; totalMm: bigint; totalIm: bigint; matcherCtx: PublicKey;
   /** active leg slots only */
   legs: Leg[];
@@ -120,11 +120,11 @@ export function parsePortfolio(b: Buffer): Portfolio {
       marketId: u64(b, base + LegOff.marketId), market: pk(b, base + LegOff.market),
       rawBasis: u64(b, base + LegOff.rawBasis), entryK: u64(b, base + LegOff.entryK), posPnl: u64(b, base + LegOff.posPnl),
       cachedMm: u64(b, base + LegOff.cachedMm), cachedIm: u64(b, base + LegOff.cachedIm),
-      lastRefreshSlot: u64(b, base + LegOff.lastRefreshSlot),
+      lastRefreshSlot: u64(b, base + LegOff.lastRefreshSlot), lockedMm: u64(b, base + LegOff.lockedMm),
     });
   }
   return {
-    legCount: u8(b, O.legCount), portfolioId: u64(b, O.portfolioId),
+    legCount: u8(b, O.legCount), portfolioId: u64(b, O.portfolioId), totalLockedMm: u64(b, O.totalLockedMm),
     dex: pk(b, O.dex), owner: pk(b, O.owner), capital: u64(b, O.capital), totalMm: u64(b, O.totalMm), totalIm: u64(b, O.totalIm), matcherCtx: pk(b, O.matcherCtx),
     legs,
   };

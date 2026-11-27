@@ -1,13 +1,13 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `161ed3c` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `b8a2a61` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "161ed3c";
+export const LEAN_SOURCE_COMMIT = "b8a2a61";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
@@ -73,7 +73,7 @@ export const SIDE = { FLAT: 0, LONG: 1, SHORT: 2 } as const;
 // ---------- account sizes ----------
 export const DEX_SIZE = 208;
 export const MARKET_SIZE = 400;
-export const PORTFOLIO_SIZE = 912;
+export const PORTFOLIO_SIZE = 976;
 export const INS_RECEIPT_SIZE = 88;
 export const MATCHER_CFG_SIZE = 160;
 export const ADAPTER_CFG_SIZE = 352;
@@ -99,14 +99,14 @@ export const MktOff = {
   activeLegs: 336, minMm: 344, rewardBps: 352, rewardAccrued: 360, rewardRecipient: 368,
 } as const;
 
-export const PflOff = { // ee69211: 912B (episode + per-leg reservedMm removed; +32B matcherCtx)
-  magic: 0, legCount: 4, portfolioId: 8, dex: 24, owner: 56, capital: 88,
-  totalMm: 96, totalIm: 104, matcherCtx: 112, headerSize: 144, legStride: 96,
+export const PflOff = { // b8a2a61: 976B (+totalLockedMm@16; legStride 104 with per-leg lockedMm firewall)
+  magic: 0, legCount: 4, portfolioId: 8, totalLockedMm: 16, dex: 24, owner: 56, capital: 88,
+  totalMm: 96, totalIm: 104, matcherCtx: 112, headerSize: 144, legStride: 104,
 } as const;
 
-export const LegOff = { // ee69211: 96B stride (reservedMm removed)
+export const LegOff = { // b8a2a61: 104B stride (+per-leg lockedMm@96 isolated-MM firewall)
   active: 0, side: 1, marketId: 8, market: 16, rawBasis: 48, entryK: 56, posPnl: 64,
-  cachedMm: 72, cachedIm: 80, lastRefreshSlot: 88,
+  cachedMm: 72, cachedIm: 80, lastRefreshSlot: 88, lockedMm: 96,
 } as const;
 
 export const InsOff = { magic: 0, marketId: 8, owner: 16, market: 48, shares: 80 } as const;

@@ -33,7 +33,7 @@ async function main() {
   const [rewAuth] = deriveRewAuth(RM, fakeCfg);
   const oracle = Keypair.generate();
   const params: MarketParams = { initPrice: 100n * POS_SCALE, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n,
-    imBps: 1000n, mmBps: 500n, liqFeeBps: 50n, tradeFeeBps: 100n, maxMoveBps: 100n, maxInsDrawBps: 2500n,
+    imBps: 1000n, mmBps: 600n, liqFeeBps: 50n, tradeFeeBps: 100n, maxMoveBps: 100n, maxInsDrawBps: 2500n,
     maxOi: 1_000_000n * POS_SCALE, minMm: 0n, rewardBps: 5000n, rewardRecipient: rewAuth };
   const mkt = await newAcc(P, MARKET_SIZE);
   await send([createMarket(P, { dex, market: mkt, mint, oracleAuth: oracle.publicKey, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);

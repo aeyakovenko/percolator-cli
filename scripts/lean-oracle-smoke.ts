@@ -87,7 +87,7 @@ async function main() {
     const init = target - target / 100n; // 1% below → one 4% crank lands exactly on target
     const cfg = await newAcc(O, ADAPTER_CFG_SIZE);
     const [oracPda] = deriveOracleAuth(O, cfg);
-    const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 2000n, mmBps: 1000n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 200n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+    const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 600n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
     const mkt = await newAcc(P, MARKET_SIZE);
     await send([createMarket(P, { dex, market: mkt, mint, oracleAuth: oracPda, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);
     await send([adapterInit(O, { cfg, admin: funder.publicKey, percolator: P, market: mkt, feed: sol.addr, feedType: FEED_TYPE.PYTH_V2, maxFeedAge: bigAge, maxConfBps: 500n, fundingBpsPerStep: 0n, feedId: Buffer.from(FEED_ID.SOL, "hex") })]);
@@ -109,7 +109,7 @@ async function main() {
     const init = ratio - ratio / 100n;
     const cfg = await newAcc(O, ADAPTER_CFG_SIZE);
     const [oracPda] = deriveOracleAuth(O, cfg);
-    const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 2000n, mmBps: 1000n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 200n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+    const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 600n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
     const mkt = await newAcc(P, MARKET_SIZE);
     await send([createMarket(P, { dex, market: mkt, mint, oracleAuth: oracPda, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);
     await send([adapterInit(O, { cfg, admin: funder.publicKey, percolator: P, market: mkt, feed: btc.addr, feedType: FEED_TYPE.PYTH_V2, maxFeedAge: bigAge, maxConfBps: 500n, fundingBpsPerStep: 0n, feedId: Buffer.from(FEED_ID.BTC, "hex"), quoteFeed: sol.addr, quoteFeedType: FEED_TYPE.PYTH_V2, quoteFeedId: Buffer.from(FEED_ID.SOL, "hex") })]);
@@ -131,7 +131,7 @@ async function main() {
     const init = seed - seed / 100n;
     const cfg = await newAcc(O, ADAPTER_CFG_SIZE);
     const [oracPda] = deriveOracleAuth(O, cfg);
-    const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 2000n, mmBps: 1000n, liqFeeBps: 100n, tradeFeeBps: 0n, maxMoveBps: 200n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
+    const params: MarketParams = { initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 600n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n };
     const mkt = await newAcc(P, MARKET_SIZE);
     await send([createMarket(P, { dex, market: mkt, mint, oracleAuth: oracPda, creator: funder.publicKey, creatorToken: fTok, feeVault, params })]);
     await send([adapterInit(O, { cfg, admin: funder.publicKey, percolator: P, market: mkt, feed: sol.addr, feedType: FEED_TYPE.PYTH_V2, maxFeedAge: bigAge, maxConfBps: 500n, fundingBpsPerStep: 0n, feedId: Buffer.from(FEED_ID.SOL, "hex") })]);

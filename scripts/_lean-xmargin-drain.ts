@@ -19,7 +19,7 @@ async function newAcc(o: PublicKey, sz: number) { const kp = Keypair.generate();
 const insOf = async (m: PublicKey) => parseMarket(Buffer.from((await conn.getAccountInfo(m))!.data)).insurance;
 async function waitSlot() { const s = await conn.getSlot("confirmed"); while ((await conn.getSlot("confirmed")) <= s) await sleep(300); }
 const P6 = (n: bigint) => Number(n) / 1e6;
-const params = (init: bigint): MarketParams => ({ initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 500n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n });
+const params = (init: bigint): MarketParams => ({ initPrice: init, exitWindow: 10n, maxStaleness: 9000n, warmupSlots: 0n, imBps: 1000n, mmBps: 600n, liqFeeBps: 50n, tradeFeeBps: 0n, maxMoveBps: 100n, maxInsDrawBps: 2500n, maxOi: 1_000_000n * POS_SCALE, minMm: 0n });
 
 async function main() {
   const mint = await createMint(conn, funder, funder.publicKey, null, 6);
