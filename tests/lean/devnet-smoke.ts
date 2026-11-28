@@ -207,9 +207,13 @@ async function main() {
 
   await send("UpdateOracle", [updateOracle(P, { market: m1, oracleAuth: oracle1.publicKey, price: 99_500_000n, fundingSign: 0, fundingE6: 10_000n })], [oracle1]);
   await waitSlots(1);
+  // Same-slot rate limit: the FIRST UpdateOracle in a tx lands (small move, well inside the dt==1 half-step
+  // clamp of maxMoveBps — 887ba02's Program.lean:912 halves the band when curSlot==lastSlot+1), the SECOND in
+  // the same slot is rejected oracleSameSlot (126) before any clamp check (Program.lean:886). (Using 99.0→98.0
+  // here would make the FIRST move 50 bps, which the halved 49.75-bps band rejects as oracleClamp first.)
   await expectErr("UpdateOracle same-slot spam", [
-    updateOracle(P, { market: m1, oracleAuth: oracle1.publicKey, price: 99n * POS_SCALE }),
-    updateOracle(P, { market: m1, oracleAuth: oracle1.publicKey, price: 98n * POS_SCALE }),
+    updateOracle(P, { market: m1, oracleAuth: oracle1.publicKey, price: 99_400_000n }),
+    updateOracle(P, { market: m1, oracleAuth: oracle1.publicKey, price: 99_300_000n }),
   ], [oracle1], 126);
   await send("RefreshLeg", [refreshLeg(P, { dex, market: m1, portfolio: pA }), refreshLeg(P, { dex, market: m1, portfolio: pB })]);
   // 35cd13c Liquidate requires ALL legs fresh; pA's ETH leg is stale here, so either
@@ -278,7 +282,10 @@ async function main() {
   await expectErr("adapter.Crank wide confidence", [adapterCrank(O, { cfg: adpKp.publicKey, market: m2, feed, percolator: P })], [], 301);
   await writeFeed(102n * POS_SCALE, 50_000n);
   await send("adapter.Crank", [adapterCrank(O, { cfg: adpKp.publicKey, market: m2, feed, percolator: P })]);
-  ok(parseMarket(await acct(m2)).markPrice === 102n * POS_SCALE, "adapter crank moved M2 mark to 102 (within clamp)");
+  // M2 is LOADED (its T3 long/short is still open), so the adapter's one-slot step is CLAMPED to maxMoveBps:
+  // feed 102 vs mark 100 is a 2% move, but maxMoveBps=100 (1%/step) caps it to 101 (OracleAdapter.lean computeCrankStep
+  // -> percolator oracle clamp). It converges to the feed over successive cranks; a single crank cannot jump 2%.
+  ok(parseMarket(await acct(m2)).markPrice === 101n * POS_SCALE, "adapter crank stepped M2 mark 100 -> 101 (maxMoveBps 1%/step clamp; feed 102)");
 
   // ---- T6 authority ops
   console.log("T6 RotateOracle / TransferAdmin / BurnAdmin");
