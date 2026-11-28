@@ -11,12 +11,17 @@
  * needs them (skipping legs already refreshed earlier in the same list).
  *
  * `TradeWithMatcher` (op 23): the LP portfolio's legs are refreshed too, so a taker can trade against a
- * multi-market PropAMM LP without knowing the LP's current inventory. In addition the Market account of
- * every refreshed leg that is not one of the traded markets is appended to the instruction as a trailing
- * read-only account. The deployed 887ba02 program does not need them (proven harmless on devnet: the first
- * is just forwarded to the matcher as its ignored `extraAcc`), but the next program revision (uncommitted
- * percolator-lean working tree at the time of writing: `verifyLegMktFresh`) looks every open leg's Market
- * up among the instruction's accounts and rejects with stalePortfolioLeg (122) when it is missing.
+ * multi-market PropAMM LP without knowing the LP's current inventory.
+ *
+ * TRAILING LEG MARKETS (percolator-lean 8774e86 `verifyLegMktFresh`): since 8774e86 the program re-verifies every
+ * open leg LIVE against its Market account (entryK == K_side, post-oracle flag, cachedMm coherent) and therefore
+ * looks each open leg's Market up among the instruction's accounts; a Market that is not there rejects with
+ * stalePortfolioLeg (122). `withLegRefresh` appends the missing ones as trailing read-only accounts:
+ *   - WithdrawCollateral: the Market of EVERY open leg of the portfolio (the instruction itself carries no market,
+ *     so even a single-leg portfolio needs one trailing account);
+ *   - Trade / TradeWithMatcher: the Markets of the OTHER open legs of both portfolios (not the traded markets);
+ *   - Liquidate: the Markets of the victim's OTHER open legs (+ the takeover liquidator's other legs in mode 1).
+ * 887ba02 ignores trailing accounts on these instructions (devnet-proven), so the same bundle works on both.
  *
  * Only legs that are active AND non-flat are refreshed — exactly what the program
  * checks. Flat legs that still carry posPnl (e.g. on a resolved market) are left
@@ -53,6 +58,27 @@ function inferPrograms(ixs: TransactionInstruction[], opts: RefreshOptions): { p
     perc: opts.percolator ?? defaults.percolator,
     matcher: opts.matcher ?? defaults.matcher,
   };
+}
+
+/**
+ * Append `markets` to `ix` as trailing READ-ONLY accounts, skipping any key the instruction already carries (a
+ * duplicate could not be found by the program's trailing scan anyway, and TradeWithMatcher rejects a duplicate
+ * first trailing account with aliasedAccounts 109). Returns `ix` itself when there is nothing to add.
+ * Use it directly when you build your own RefreshLeg bundle instead of calling `withLegRefresh`.
+ */
+export function appendLegMarkets(ix: TransactionInstruction, markets: PublicKey[]): TransactionInstruction {
+  const present = new Set(ix.keys.map((k) => k.pubkey.toBase58()));
+  const add: PublicKey[] = [];
+  for (const mk of markets) {
+    if (present.has(mk.toBase58())) continue;
+    present.add(mk.toBase58());
+    add.push(mk);
+  }
+  if (!add.length) return ix;
+  return new TransactionInstruction({
+    programId: ix.programId, data: ix.data,
+    keys: [...ix.keys, ...add.map((pubkey) => ({ pubkey, isSigner: false, isWritable: false }))],
+  });
 }
 
 export async function withLegRefresh(
@@ -93,6 +119,9 @@ export async function withLegRefresh(
         // open legs (excluding the target market `keys[1]`, which `handleLiquidate` settles).
         const isTakeover = ix.data.length >= 2 && ix.data[1] === 1 && ix.keys.length >= 8;
         const targetMkt = ix.keys[1]?.pubkey;
+        // 8774e86: the Markets of the victim's (and takeover liquidator's) OTHER open legs must ride along.
+        const liqPfls = [ix.keys[2]?.pubkey, ...(isTakeover ? [ix.keys[7].pubkey] : [])].filter(Boolean) as PublicKey[];
+        ix = appendLegMarkets(ix, liqPfls.flatMap((k) => openLegs(portfolios.get(k.toBase58()) ?? { legs: [] } as any).map((l) => l.market)));
         if (isTakeover && targetMkt) {
           const liqPflKey = ix.keys[7].pubkey;
           const liqPfl = portfolios.get(liqPflKey.toBase58());
@@ -108,18 +137,13 @@ export async function withLegRefresh(
           }
         }
       } else {
-        // TradeWithMatcher: also carry every open leg's Market IN the instruction (forward-compat, see header).
-        const isMatcherTrade = ix.programId.equals(perc) && ix.data[0] === IX.TradeWithMatcher;
-        const present = new Set(ix.keys.map((k) => k.pubkey.toBase58()));
+        // Carry every open leg's Market IN the instruction (8774e86 verifyLegMktFresh, see header).
         const trailing: PublicKey[] = [];
         for (const k of ix.keys) {
           const p = portfolios.get(k.pubkey.toBase58());
           if (!p) continue;
           for (const leg of openLegs(p)) {
-            if (isMatcherTrade && !present.has(leg.market.toBase58())) {
-              present.add(leg.market.toBase58());
-              trailing.push(leg.market);
-            }
+            trailing.push(leg.market);
             const tag = `${leg.market.toBase58()}:${k.pubkey.toBase58()}`;
             if (seen.has(tag)) continue;
             seen.add(tag);
@@ -127,12 +151,7 @@ export async function withLegRefresh(
             added++;
           }
         }
-        if (trailing.length) {
-          ix = new TransactionInstruction({
-            programId: ix.programId, data: ix.data,
-            keys: [...ix.keys, ...trailing.map((pubkey) => ({ pubkey, isSigner: false, isWritable: false }))],
-          });
-        }
+        if (ix.programId.equals(perc)) ix = appendLegMarkets(ix, trailing);
       }
     }
     out.push(ix);

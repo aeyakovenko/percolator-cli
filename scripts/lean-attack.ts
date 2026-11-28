@@ -35,7 +35,7 @@ import {
 const RPC = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
 const ROUNDS = parseInt(process.argv[2] ?? "40");
 const conn = new Connection(RPC, "confirmed");
-const P = LEAN_DEVNET.percolator;
+const P = new PublicKey(process.env.LEAN_PROG ?? LEAN_DEVNET.percolator.toBase58()); // env override (default unchanged)
 const NOOP = new PublicKey("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
 const TOKEN_2022 = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 const funder = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(
@@ -47,7 +47,7 @@ const ok = (c: boolean, m: string) => { if (c) { pass++; } else { fail.push(m); 
 const rnd = (n: number) => Math.floor(Math.random() * n);
 
 async function sendOk(ixs: TransactionInstruction[], signers: Keypair[], refresh = false): Promise<string> {
-  const list = refresh ? (await withLegRefresh(conn, ixs)).instructions : ixs;
+  const list = refresh ? (await withLegRefresh(conn, ixs, { percolator: P })).instructions : ixs;
   return sendAndConfirmTransaction(conn, new Transaction().add(...list), [funder, ...signers], { commitment: "confirmed" });
 }
 
