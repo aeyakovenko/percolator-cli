@@ -1,6 +1,6 @@
 /** Post-upgrade check: withdraw from a portfolio WITH an open leg (prize-3 long), then re-deposit the same amount. */
 import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 import * as fs from "fs";
 import { withdrawCollateral, depositCollateral, withLegRefresh, deriveDexVault, parsePortfolio, type VaultAccounts } from "../src/lean/index.js";
 const conn = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
@@ -19,13 +19,14 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
   const sim = await conn.simulateTransaction(tx0, [f]);
   const err = JSON.stringify(sim.value.err);
   console.log(`${err.includes('"Custom":122') ? "OK  " : "FAIL"} old client shape (no trailing market) rejected: ${err}`);
+  const w0 = (await getAccount(conn, tok, "confirmed")).amount;
   const { instructions } = await withLegRefresh(conn, [raw], { programId: P } as any);
   const s1 = await sendAndConfirmTransaction(conn, new Transaction().add(...instructions), [f], { commitment: "confirmed" });
   await sleep(2500);
-  const p1: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(PF))!.data));
-  console.log(`${p0.capital - p1.capital === AMT ? "OK  " : "FAIL"} withdrew $0.01 from the open-leg portfolio with the fixed client ${s1.slice(0, 12)}`);
+  const w1 = (await getAccount(conn, tok, "confirmed")).amount;   // wallet delta (the refresh may realize PnL into capital)
+  console.log(`${w1 - w0 === AMT ? "OK  " : "FAIL"} withdrew $0.01 from the open-leg portfolio with the fixed client ${s1.slice(0, 12)}`);
   const s2 = await sendAndConfirmTransaction(conn, new Transaction().add(depositCollateral(P, V, { portfolio: PF, depositor: f.publicKey, sourceToken: tok, amount: AMT })), [f], { commitment: "confirmed" });
   await sleep(2500);
-  const p2: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(PF))!.data));
-  console.log(`${p2.capital === p0.capital ? "OK  " : "FAIL"} re-deposited $0.01 (capital back to $${Number(p2.capital) / 1e6}) ${s2.slice(0, 12)}`);
+  const w2 = (await getAccount(conn, tok, "confirmed")).amount;
+  console.log(`${w1 - w2 === AMT ? "OK  " : "FAIL"} re-deposited $0.01 into the open-leg portfolio ${s2.slice(0, 12)}`);
 })().catch(e => { console.error("ERR", String(e).replace(/api-key=[^ "&]*/g, "***").slice(0, 400)); process.exit(1); });

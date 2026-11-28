@@ -131,7 +131,9 @@ async function main() {
 
   console.log("== INSURANCE drain surface ==");
   await attack("withdraw insurance w/o shares", [withdrawInsurance(P, V, { market: mkt, receipt: ins, lp: attacker.publicKey, destToken: atkTok, burnShares: 100n * POS_SCALE })], [attacker], 111);
-  await attack("withdraw insurance while OI>0", [withdrawInsurance(P, V, { market: mkt, receipt: ins, lp: funder.publicKey, destToken: fTok, burnShares: 1n })], [], 118);
+  // 55c167f (#117): with OI > 0 the owner CAN withdraw once 160 slots have passed since its last deposit; this receipt
+  // was just deposited, so the anti-JIT cooldown still rejects it with nonzeroOi (118).
+  await attack("withdraw insurance while OI>0 within the 160-slot deposit cooldown", [withdrawInsurance(P, V, { market: mkt, receipt: ins, lp: funder.publicKey, destToken: fTok, burnShares: 1n })], [], 118);
 
   console.log("== ORACLE surface ==");
   // direct UpdateOracle by a non-authority (oracle auth is the adapter PDA, not a keypair)
