@@ -2,19 +2,42 @@
   "network": "devnet",
   "source": {
     "repo": "percolator-lean",
-    "commit": "e189ef2",
+    "commit": "71d38f0",
     "compiler": "lean-svm 587ab09 (sBPF v3)",
     "deployCli": "Agave 4.4.1 (solana-cli 2.1.0 cannot deploy v3 ELFs)",
-    "note": "e189ef2: fix #107/#109/#110/#111/#100 (liquidation zombie-leg + RefreshLeg-before-Liquidate deadlock + self-made-market unliquidatable + mode=1 dust over-close) + HL 13-mode LimitMatcher, zero ABI change. Validated on devnet: functional (conservation OK), xmargin-drain BLOCKED, round-1 exploit BLOCKED, lean-attack 70/70, e2e reward 9/9, LiteSVM 17/17."
+    "note": "71d38f0 (on top of e189ef2/cebf973/45648f5): Pure-ADL bankruptcy ($0 direct insurance draw; closes #113 self-trade drain), ramp-paused fronting, unclamped mode=1 outage exits, OI=0 instant snap, liqFeeBps<=mmBps (PR #10), dt==1 half-step oracle pacing. Zero ABI change. Devnet: functional conservation OK, xmargin BLOCKED, exploit BLOCKED, lean-attack 70/70, e2e 9/9, LiteSVM 17/17 (incl. t24 #113=0 draw, t25 12h outage, t26 UX matrix)."
   },
   "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "programs": {
-    "percolator":    { "id": "4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM", "elf": "percolator.so",     "size": 93144 },
-    "matcher":       { "id": "2HQtUrH1u4KnPGABxyVNNmXo9SJ3zQg9otz6wyfJMJip", "elf": "matcher.so",        "size": 6200 },
-    "oracleAdapter": { "id": "BkyW7iLvAWuyEozvnGAwgks4dyuTNm7Xnybd6DwQLu2x", "elf": "oracle_adapter.so", "size": 18920 },
-    "rewardModule":  { "id": "4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi", "elf": "reward_module.so",  "size": 20584 },
-    "limitMatcher":  { "id": "5UZW2tpuBGgX3KxoyGFSXE4Qs2aBhrEFQsVUarTtfMMp", "elf": "limit_matcher.so",  "size": 13488 },
-    "mockFeed":      { "id": "9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx", "note": "test-only writable FEED account program (unchanged, reused)" }
+    "percolator": {
+      "id": "4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM",
+      "elf": "percolator.so",
+      "size": 93512
+    },
+    "matcher": {
+      "id": "2HQtUrH1u4KnPGABxyVNNmXo9SJ3zQg9otz6wyfJMJip",
+      "elf": "matcher.so",
+      "size": 6200
+    },
+    "oracleAdapter": {
+      "id": "BkyW7iLvAWuyEozvnGAwgks4dyuTNm7Xnybd6DwQLu2x",
+      "elf": "oracle_adapter.so",
+      "size": 19224
+    },
+    "rewardModule": {
+      "id": "4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi",
+      "elf": "reward_module.so",
+      "size": 20584
+    },
+    "limitMatcher": {
+      "id": "5UZW2tpuBGgX3KxoyGFSXE4Qs2aBhrEFQsVUarTtfMMp",
+      "elf": "limit_matcher.so",
+      "size": 13592
+    },
+    "mockFeed": {
+      "id": "9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx",
+      "note": "test-only writable FEED account program (unchanged, reused)"
+    }
   },
   "abiNote": "Core offsets+opcodes unchanged from b8a2a61 (Portfolio 976B, leg stride 104). src/lean (LEAN_DEVNET) points here.",
   "verify": "~/.local/agave-latest/bin/solana program dump -u devnet <id> out.so"
