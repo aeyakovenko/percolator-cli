@@ -1,17 +1,17 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `71d38f0` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `a31a1f8` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "71d38f0";
+export const LEAN_SOURCE_COMMIT = "a31a1f8";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
-  // 71d38f0 (deployed via Agave CLI 4.4.1, 2026-11-27) — validation deployment.
+  // a31a1f8 (deployed via Agave CLI 4.4.1, 2026-11-27) — validation deployment.
   percolator: new PublicKey("4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM"),
   matcher: new PublicKey("2HQtUrH1u4KnPGABxyVNNmXo9SJ3zQg9otz6wyfJMJip"),
   oracleAdapter: new PublicKey("BkyW7iLvAWuyEozvnGAwgks4dyuTNm7Xnybd6DwQLu2x"),
@@ -21,7 +21,7 @@ export const LEAN_DEVNET = {
 } as const;
 
 // ---------- deployed programs (mainnet-beta) ----------
-// Mainnet upgraded IN PLACE to 71d38f0 (2026-11-28) via Agave CLI 4.4.1; devnet-validated.
+// Mainnet upgraded IN PLACE to a31a1f8 (2026-11-28) via Agave CLI 4.4.1; devnet-validated.
 // Upgrade authority: A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK.
 export const LEAN_MAINNET = {
   // ROUND-3 (161ed3c), fresh ids. Round-2 (GVV4HC…) is DEPRECATED but left running.
@@ -103,12 +103,12 @@ export const MktOff = {
   activeLegs: 336, minMm: 344, rewardBps: 352, rewardAccrued: 360, rewardRecipient: 368,
 } as const;
 
-export const PflOff = { // 71d38f0: 976B (+totalLockedMm@16; legStride 104 with per-leg lockedMm firewall)
+export const PflOff = { // a31a1f8: 976B (+totalLockedMm@16; legStride 104 with per-leg lockedMm firewall)
   magic: 0, legCount: 4, portfolioId: 8, totalLockedMm: 16, dex: 24, owner: 56, capital: 88,
   totalMm: 96, totalIm: 104, matcherCtx: 112, headerSize: 144, legStride: 104,
 } as const;
 
-export const LegOff = { // 71d38f0: 104B stride (+per-leg lockedMm@96 isolated-MM firewall)
+export const LegOff = { // a31a1f8: 104B stride (+per-leg lockedMm@96 isolated-MM firewall)
   active: 0, side: 1, marketId: 8, market: 16, rawBasis: 48, entryK: 56, posPnl: 64,
   cachedMm: 72, cachedIm: 80, lastRefreshSlot: 88, lockedMm: 96,
 } as const;

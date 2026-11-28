@@ -35,10 +35,10 @@ pnpm build
 
 ## Deployments
 
-Current build: percolator-lean `71d38f0`. **Round-3 (LIVE, 71d38f0)** runs on mainnet ids (upgraded in place);
+Current build: percolator-lean `a31a1f8`. **Round-3 (LIVE, a31a1f8)** runs on mainnet ids (upgraded in place);
 round-2 programs (`GVV4HC…`) are **deprecated and left as-is**.
 
-| Program | Mainnet (`71d38f0`) | Devnet (`71d38f0`) |
+| Program | Mainnet (`a31a1f8`) | Devnet (`a31a1f8`) |
 |---|---|---|
 | `percolator` (core DEX) | `6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q` | `4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM` |
 | `reward_module` (wSOL buy-and-burn) | `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw` | `4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi` |
@@ -108,7 +108,7 @@ Runnable end-to-end flow (create market → positions → cross-margin → match
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE (round 3, ~$69 on BTC/USD) on percolator-lean `71d38f0`
+## Bug bounty — LIVE (round 3, ~$69 on BTC/USD) on percolator-lean `a31a1f8`
 
 > **History.** Round 1 was claimed via an insurance account-reuse bug (fixed in `bb54ac6`).
 > Round 2 (SOL/USD, 70 USDC) was claimed via a **cross-margin + hostile-oracle insurance drain**
@@ -118,7 +118,7 @@ Read-only invariant survey of every DEX: `pnpm lean:survey`.
 > verified on devnet (`scripts/_lean-xmargin-drain.ts` → BLOCKED). The round-2 market
 > (`CedQKV…` / `BhYaG2…`) is **deprecated and left as-is** (do not use it).
 
-**Round 3** runs on mainnet programs (`71d38f0`, upgraded in place) with three independent prize surfaces on
+**Round 3** runs on mainnet programs (`a31a1f8`, upgraded in place) with three independent prize surfaces on
 a BTC/USD market. Winning = actually extracting more than you put in **from the live mainnet
 deployment**, or violating conservation (`V == SPL == C + I + R + S + totalRewards`) on mainnet.
 
