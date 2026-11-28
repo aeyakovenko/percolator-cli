@@ -1,0 +1,40 @@
+=== upgrade-proof UNWIND stage "deficit3" on 6jwVm11JK3nZdDx48SUi91K1xsGnSfxbQKdL1Lq7DrWn ===
+    MKT3: mark $89.648737 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+  OK   thin long is bankrupt at mark $80.288273
+    MKT3 latched: mark $80.288273 oi 500000/500000 raw 500000/1500000 adl 1000000000/333333333 R $9.046943 P+ $0.000000 ins $3.000000 fronted 0 shares 3000000 rew $0.053790 deficitMode 1 Active
+  OK   deficit mode latched with OI still open (oi 500000/500000)
+    winner (PnL escrowed): capital $297.564461 locked $2.408644 legs [short 1500000@m3 pnl 14040742]
+    while latched + stubborn holder: WithdrawInsurance -> 118 nonzeroOi; ClearDeadLeg(winner) -> 118 nonzeroOi; ForceClosePair (market Active) -> 101 invalidStatus; RefreshLeg forceHaircut(winner) -> 119 nonzeroState
+  OK   without the stubborn holder nobody can unlatch while the market is Active (insurance LP blocked, winner PnL escrowed)
+  OK   winner withdrew $247.564461 of free collateral while latched (only the escrowed PnL $14.040742 + margin wait)
+    StartWindDown by a stranger (oracle fresh) -> 105 oracleNotStale
+  OK   market admin started the wind-down
+    ForceClosePair during the exit window -> 117 exitWindowActive
+  OK   ForceClosePair simulates ok after the exit window
+    ForceClosePair round 1: oi 1/1 raw 1/3
+    ForceClosePair round 2: oi 0/0 raw 0/0
+    ForceClosePair round 3 -> 125 legNotFound (done)
+    MKT3 after ForceClosePair: mark $80.288273 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $13.727191 P+ $14.040742 ins $3.000000 fronted 0 shares 3000000 rew $0.053790 deficitMode 1 WindDown
+    stubborn: capital $95.310787 locked $0.000000 legs []
+    winner: capital $52.408644 locked $0.000000 legs [flat 0@m3 pnl 14040742]
+  OK   ForceClosePair x2 (permissionless, no owner signature) closed the stubborn long against the winner: OI 0
+  OK   winner short: withdrew ALL free capital $66.135835 to the owner's token account
+  OK   winner short: portfolio closed (CloseAccount, rent returned)
+    MKT3 after the winner realized: mark $80.288273 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $3.000000 fronted 0 shares 3000000 rew $0.053790 deficitMode 0 WindDown
+  OK   winner paid pro-rata and deficit mode cleared WITHOUT any action by the stubborn holder
+  OK   stubborn long (later, by its owner): withdrew ALL free capital $95.310787 to the owner's token account
+  OK   stubborn long (later, by its owner): portfolio closed (CloseAccount, rent returned)
+  OK   thin long: withdrew ALL free capital $0.000000 to the owner's token account
+  OK   thin long: portfolio closed (CloseAccount, rent returned)
+  OK   insurance LP withdrew $3.000000 of $3 from the wound-down market
+    MKT3 end: mark $80.288273 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.053790 deficitMode 0 WindDown
+    ClaimReward on the WindDown market -> ok
+    ResolveMarket -> ok
+    MKT3 resolved: mark $80.288273 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Resolved
+    deposits $409.064873 -> withdrawn $409.011083 (+ liquidation fee + reward fees)
+  OK   deficit3 end: conservation @slot 527356495 V=$1111.049776 C=$1084.962928 I=$25.060000 R=$0.000764 S=$0.000000 Rew=$1.026084 
+  FAIL nothing stranded: C=$1084.962928 I=$25.060000 (R=$0.000764 S=$0.000000 Rew=$1.026084)
+
+UNWIND deficit3: 16 ok, 1 failed
+FAILED:
+  nothing stranded: C=$1084.962928 I=$25.060000 (R=$0.000764 S=$0.000000 Rew=$1.026084)

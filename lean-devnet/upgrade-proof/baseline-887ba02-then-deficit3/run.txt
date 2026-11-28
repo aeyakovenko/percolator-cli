@@ -1,0 +1,13 @@
+deploy percolator <- /home/ubuntu/build-tree/staging/887ba02-mainnet/percolator.so (sha256 eabb460606bae8be…, 98208 B)
+Program Id: 6jwVm11JK3nZdDx48SUi91K1xsGnSfxbQKdL1Lq7DrWn
+SETUP: 5 ok, 0 failed
+PROBE [before]: 4 ok, 0 failed
+LIVE [before]: 28 ok, 0 failed, 1 notes
+deploy percolator <- /home/ubuntu/build-tree/staging/8774e86/percolator.so (sha256 cdf0b6b910727db5…, 91104 B)
+Program Id: 6jwVm11JK3nZdDx48SUi91K1xsGnSfxbQKdL1Lq7DrWn
+devnet 6jwVm11JK3nZdDx48SUi91K1xsGnSfxbQKdL1Lq7DrWn: on-chain sha256(first 91104 B) cdf0b6b910727db5… vs file cdf0b6b910727db5… => IDENTICAL (+ zero padding); last deploy slot 527355845; max len 160000
+deploy percolator <- /home/ubuntu/build-tree/staging/55c167f/percolator.so (sha256 18ebd75e6f698d21…, 91408 B)
+Program Id: 6jwVm11JK3nZdDx48SUi91K1xsGnSfxbQKdL1Lq7DrWn
+devnet 6jwVm11JK3nZdDx48SUi91K1xsGnSfxbQKdL1Lq7DrWn: on-chain sha256(first 91408 B) 18ebd75e6f698d21… vs file 18ebd75e6f698d21… => IDENTICAL (+ zero padding); last deploy slot 527355873; max len 160000
+UNWIND liq: 20 ok, 0 failed
+  nothing stranded: C=$1084.962928 I=$25.060000 (R=$0.000764 S=$0.000000 Rew=$1.026084)

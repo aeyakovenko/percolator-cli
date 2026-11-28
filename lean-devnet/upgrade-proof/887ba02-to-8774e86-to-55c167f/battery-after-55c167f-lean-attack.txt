@@ -1,1 +1,6 @@
 lean-attack — 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik via https://devnet.helius-rpc.com/?api-key=*** (40 fuzz rounds)
+== attacks (each must be rejected + leave conservation intact) ==
+== 40 randomized valid-op rounds (conservation checked each) ==
+
+70 checks passed, 0 failed (0 security) — spent 0.0382 SOL — dexA 4ZWB2gN5s1Bin8baqPTcfjZtCEiTud5uqpDazdkiKaiJ
+CLEAN — no theft, conservation held throughout.

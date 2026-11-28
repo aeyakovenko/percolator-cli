@@ -9,7 +9,7 @@ import { Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
   INS_RECEIPT_SIZE, PORTFOLIO_SIZE, POS_SCALE, TRADE_MODE, SIDE,
   initPortfolio, depositCollateral, withdrawCollateral, depositInsurance, withdrawInsurance, trade, liquidate, refreshLeg, closeAccount, clearDeadLeg,
-  updateOracle, tradeWithMatcherFresh, withLegRefresh, realizeFlatLegs, claimReward, startWindDown, resolveMarket, sweepSurplus,
+  updateOracle, forceClosePair, claimResolved, tradeWithMatcherFresh, withLegRefresh, realizeFlatLegs, claimReward, startWindDown, resolveMarket, sweepSurplus,
   setPortfolioMatcher, parseInsReceipt, deriveDexVault, openLegs, clampPush,
   type VaultAccounts,
 } from "../src/lean/index.js";
@@ -312,6 +312,138 @@ async function deficit2() {
   await conservation("deficit2 end");
 }
 
+/** Deficit mode with a NON-COOPERATIVE holder: after the bankruptcy latches deficit mode a bystander long simply
+ *  refuses to close. The winner cannot close bilaterally (needs the other signature), its PnL is escrowed and the
+ *  insurance LP is blocked. Escape path WITHOUT the bystander's signature: StartWindDown (market admin — or anyone once
+ *  the oracle is older than maxStaleness) -> wait exitWindow -> permissionless ForceClosePair -> ClearDeadLeg ->
+ *  RefreshLeg pays the winner pro-rata -> deficit clears -> insurance withdrawable. Every step is simulated first. */
+async function deficit3() {
+  const oracle3 = outKp("oracle3");
+  const mk0 = await showMkt("MKT3", MKT3);
+  if (mk0.statusName !== "Active") throw new Error("MKT3 is not Active");
+  const px0 = mk0.markPrice;
+  const mk = async (name: string, usd6: bigint) => {
+    const owner = Keypair.generate(); const k = await newAcc(PORTFOLIO_SIZE, P);
+    await send([initPortfolio(P, { dex: DEX, portfolio: k, owner: owner.publicKey })], [owner]);
+    await send([depositCollateral(P, V, { portfolio: k, depositor: O, sourceToken: FTOK, amount: usd6 })]);
+    return { name, k, owner, dep: usd6 };
+  };
+  const rc = await newAcc(INS_RECEIPT_SIZE, P);
+  await send([depositInsurance(P, V, { market: MKT3, receipt: rc, lp: O, sourceToken: FTOK, amount: 3n * POS_SCALE })]);
+  const mkNamed = async (name: string, key: string, usd6: bigint) => {   // owners persisted under OUT_DIR so a crashed run can still be drained
+    const owner = namedKp(key); const k = await newAcc(PORTFOLIO_SIZE, P);
+    await send([initPortfolio(P, { dex: DEX, portfolio: k, owner: owner.publicKey })], [owner]);
+    await send([depositCollateral(P, V, { portfolio: k, depositor: O, sourceToken: FTOK, amount: usd6 })]);
+    return { name, k, owner, dep: usd6 };
+  };
+  void mk;
+  const thin = await mkNamed("thin long", "d3thin", px0 / 10n + 100_000n), stub = await mkNamed("stubborn long", "d3stub", 100n * POS_SCALE), w = await mkNamed("winner short", "d3win", 300n * POS_SCALE);
+  await send([trade(P, { dex: DEX, market: MKT3, longPortfolio: thin.k, longOwner: thin.owner.publicKey, shortPortfolio: w.k, shortOwner: w.owner.publicKey, mode: TRADE_MODE.OPEN, qty: 1_000_000n })], [thin.owner, w.owner]);
+  await send([CU(), ...await fresh([trade(P, { dex: DEX, market: MKT3, longPortfolio: stub.k, longOwner: stub.owner.publicKey, shortPortfolio: w.k, shortOwner: w.owner.publicKey, mode: TRADE_MODE.OPEN, qty: 500_000n })])], [stub.owner, w.owner]);
+  let bankrupt = false;
+  for (let i = 0; i < 70 && !bankrupt; i++) {
+    const a = await mkt(MKT3); const slot = BigInt(await conn.getSlot("confirmed"));
+    await send([updateOracle(P, { market: MKT3, oracleAuth: oracle3.publicKey, price: clampPush(a.markPrice, px0 * 80n / 100n, a.maxMoveBps, slot - a.lastOracleSlot) })], [oracle3]);
+    await sleep(900);
+    const r = await sim([refreshLeg(P, { dex: DEX, market: MKT3, portfolio: thin.k })]);
+    if (!r.ok && r.code === 107) bankrupt = true;
+  }
+  ok(bankrupt, `thin long is bankrupt at mark $${U((await mkt(MKT3)).markPrice)}`);
+  await send([CU(), ...await fresh([liquidate(P, V, { market: MKT3, portfolio: thin.k, liquidatorToken: FTOK })])]);
+  const mk1 = await showMkt("MKT3 latched", MKT3);
+  ok(mk1.deficitMode === 1 && mk1.oiLong > 0n, `deficit mode latched with OI still open (oi ${mk1.oiLong}/${mk1.oiShort})`);
+  await send([refreshLeg(P, { dex: DEX, market: MKT3, portfolio: w.k })]);
+  const w1 = await showPfl("winner (PnL escrowed)", w.k);
+  // what the winner / the insurance LP can NOT do alone while the stubborn long stays open
+  const rIns = await sim([withdrawInsurance(P, V, { market: MKT3, receipt: rc, lp: O, destToken: FTOK, burnShares: 1n })]);
+  const rCd = await sim([clearDeadLeg(P, { dex: DEX, market: MKT3, portfolio: w.k })]);
+  const rFc0 = await sim([forceClosePair(P, { dex: DEX, market: MKT3, longPortfolio: stub.k, shortPortfolio: w.k })]);
+  const rFh = await sim([refreshLeg(P, { dex: DEX, market: MKT3, portfolio: w.k, forceHaircut: true, owner: w.owner.publicKey })]);
+  console.log(`    while latched + stubborn holder: WithdrawInsurance -> ${rIns.name}; ClearDeadLeg(winner) -> ${rCd.name}; ForceClosePair (market Active) -> ${rFc0.name}; RefreshLeg forceHaircut(winner) -> ${rFh.name}`);
+  ok(!rIns.ok && !rCd.ok && !rFc0.ok, "without the stubborn holder nobody can unlatch while the market is Active (insurance LP blocked, winner PnL escrowed)");
+  // principal is NOT stuck: the winner can take out its free collateral right now
+  const free = (await pfl(w.k)).capital; const b0 = await tokBal(FTOK);
+  const wAmt = free > 50n * POS_SCALE ? free - 50n * POS_SCALE : 0n;
+  if (wAmt > 0n) await send([CU(), ...await fresh([withdrawCollateral(P, V, { portfolio: w.k, owner: w.owner.publicKey, destToken: FTOK, amount: wAmt })])], [w.owner]);
+  ok((await tokBal(FTOK)) - b0 === wAmt, `winner withdrew $${U(wAmt)} of free collateral while latched (only the escrowed PnL $${U(w1.legs[0].posPnl)} + margin wait)`);
+  // ---- escape path: wind-down by the market admin, then PERMISSIONLESS ForceClosePair
+  const rWd = await sim([startWindDown(P, { market: MKT3, caller: Keypair.generate().publicKey })]);
+  console.log(`    StartWindDown by a stranger (oracle fresh) -> ${rWd.name}`);
+  await send([startWindDown(P, { market: MKT3, caller: O })]);
+  ok((await mkt(MKT3)).statusName === "WindDown", "market admin started the wind-down");
+  let fc = await sim([forceClosePair(P, { dex: DEX, market: MKT3, longPortfolio: stub.k, shortPortfolio: w.k })]);
+  console.log(`    ForceClosePair during the exit window -> ${fc.name}`);
+  for (let i = 0; i < 40 && !fc.ok; i++) { await sleep(1500); fc = await sim([forceClosePair(P, { dex: DEX, market: MKT3, longPortfolio: stub.k, shortPortfolio: w.k })]); }
+  ok(fc.ok, `ForceClosePair simulates ${fc.name} after the exit window`);
+  // signed by NOBODY but the fee payer. After an ADL the pair closes proportionally and can leave 1-unit rounding
+  // dust (observed: oi 1/1, raw 1/3) — ForceClosePair is simply repeated until the legs are gone.
+  let rounds = 0;
+  for (; rounds < 6; rounds++) {
+    const r = await sim([forceClosePair(P, { dex: DEX, market: MKT3, longPortfolio: stub.k, shortPortfolio: w.k })]);
+    if (!r.ok) { console.log(`    ForceClosePair round ${rounds + 1} -> ${r.name} (done)`); break; }
+    await send([CU(), forceClosePair(P, { dex: DEX, market: MKT3, longPortfolio: stub.k, shortPortfolio: w.k })]);
+    const a = await mkt(MKT3); console.log(`    ForceClosePair round ${rounds + 1}: oi ${a.oiLong}/${a.oiShort} raw ${a.rawBasisLong}/${a.rawBasisShort}`);
+  }
+  const mk2 = await showMkt("MKT3 after ForceClosePair", MKT3); await showPfl("stubborn", stub.k); const w2 = await showPfl("winner", w.k);
+  ok(mk2.oiLong === 0n && mk2.oiShort === 0n && mk2.rawBasisLong === 0n, `ForceClosePair x${rounds} (permissionless, no owner signature) closed the stubborn long against the winner: OI 0`);
+  const leg = w2.legs.find((l) => l.market.equals(MKT3));
+  if (leg && leg.rawBasis > 0n) { const cd = await sim([clearDeadLeg(P, { dex: DEX, market: MKT3, portfolio: w.k })]); console.log(`    ClearDeadLeg(winner remainder ${leg.rawBasis}) -> ${cd.name}`); if (cd.ok) await send([clearDeadLeg(P, { dex: DEX, market: MKT3, portfolio: w.k })]); else ok(false, `winner remainder cannot be cleared: ${cd.name}`); }
+  let out = wAmt;
+  out += await drain("winner short", w.k, w.owner);
+  const mk3 = await showMkt("MKT3 after the winner realized", MKT3);
+  ok(mk3.deficitMode === 0 && mk3.totalPosPnl === 0n, "winner paid pro-rata and deficit mode cleared WITHOUT any action by the stubborn holder");
+  // the stubborn holder's own money is still his: he (alone) can withdraw + close whenever he shows up
+  out += await drain("stubborn long (later, by its owner)", stub.k, stub.owner);
+  out += await drain("thin long", thin.k, thin.owner);
+  const sh = parseInsReceipt(await acct(rc)).shares; const b1 = await tokBal(FTOK);
+  await send([withdrawInsurance(P, V, { market: MKT3, receipt: rc, lp: O, destToken: FTOK, burnShares: sh })]);
+  ok((await tokBal(FTOK)) - b1 > 0n && (await mkt(MKT3)).insurance === 0n, `insurance LP withdrew $${U((await tokBal(FTOK)) - b1)} of $3 from the wound-down market`);
+  await send([closeAccount(P, { account: rc, authority: O, destination: O })]);
+  const mk4 = await showMkt("MKT3 end", MKT3);
+  if (mk4.rewardAccrued > 0n) { const rr = await sim([claimReward(P, V, { market: MKT3, rewardAuth: rew3.publicKey, destToken: FTOK })]); console.log(`    ClaimReward on the WindDown market -> ${rr.name}`); if (rr.ok) await send([claimReward(P, V, { market: MKT3, rewardAuth: rew3.publicKey, destToken: FTOK })], [rew3]); }
+  const rs = await sim([resolveMarket(P, { dex: DEX, market: MKT3 })]);
+  console.log(`    ResolveMarket -> ${rs.name}`);
+  if (rs.ok) { await send([resolveMarket(P, { dex: DEX, market: MKT3 })]); await showMkt("MKT3 resolved", MKT3); }
+  console.log(`    deposits $${U(thin.dep + stub.dep + w.dep)} -> withdrawn $${U(out)} (+ liquidation fee + reward fees)`);
+  const s = await conservation("deficit3 end");
+  // market-scoped (other markets of this DEX may still hold un-unwound state): the three portfolios are closed, no
+  // portfolio holds a leg on MKT3 and MKT3 keeps no insurance / realized pool / claims.
+  const mkE = s.markets.get(MKT3.toBase58())!;
+  const left = [...s.portfolios.values()].filter((p) => p.legs.some((l) => l.market.equals(MKT3))).length;
+  ok(left === 0 && mkE.insurance === 0n && mkE.totalPosPnl === 0n && mkE.realizedPool === 0n && !s.portfolios.has(w.k.toBase58()) && !s.portfolios.has(stub.k.toBase58()),
+    `nothing stranded on the wound-down market: ${left} legs left, insurance $${U(mkE.insurance)}, realizedPool $${U(mkE.realizedPool)}, claims $${U(mkE.totalPosPnl)}`);
+}
+
+/** A market that got RESOLVED while a winner still had an unrealized flat-leg claim and an insurance LP still held
+ *  shares: permissionless ClaimResolved pays the claim pro-rata into the portfolio's capital; the LP burns its shares. */
+async function resolved3() {
+  const a = await showMkt("MKT3", MKT3);
+  ok(a.statusName === "Resolved", "MKT3 is Resolved");
+  const s = await snapshot(P, DEX, V.vault);
+  for (const [k, p] of s.portfolios) {
+    const leg = p.legs.find((l) => l.market.equals(MKT3));
+    if (!leg) continue;
+    const r = await sim([claimResolved(P, { dex: DEX, market: MKT3, portfolio: new PublicKey(k) })]);
+    console.log(`    ClaimResolved(${k.slice(0, 8)}… flat leg posPnl $${U(leg.posPnl)}) -> ${r.name}`);
+    if (r.ok) {
+      await send([claimResolved(P, { dex: DEX, market: MKT3, portfolio: new PublicKey(k) })]);
+      const p1 = await pfl(new PublicKey(k));
+      ok(p1.legs.every((l) => !l.market.equals(MKT3)) && p1.capital > p.capital, `ClaimResolved (permissionless) paid the escrowed winner claim: capital $${U(p.capital)} -> $${U(p1.capital)} (+$${U(p1.capital - p.capital)} of $${U(leg.posPnl)} claimed, pro-rata R/P+), leg freed`);
+    } else ok(false, `ClaimResolved failed: ${r.name}`);
+  }
+  for (const [k, r] of s.receipts) {
+    if (!r.market.equals(MKT3) || r.shares === 0n) continue;
+    const b0 = await tokBal(FTOK);
+    const w = await sim([withdrawInsurance(P, V, { market: MKT3, receipt: new PublicKey(k), lp: r.owner, destToken: FTOK, burnShares: r.shares })]);
+    console.log(`    WithdrawInsurance on the Resolved market -> ${w.name}`);
+    if (w.ok) { await send([withdrawInsurance(P, V, { market: MKT3, receipt: new PublicKey(k), lp: r.owner, destToken: FTOK, burnShares: r.shares })]); ok((await tokBal(FTOK)) - b0 > 0n, `insurance LP withdrew $${U((await tokBal(FTOK)) - b0)} from the RESOLVED market`); }
+    else ok(false, `insurance LP cannot withdraw from the resolved market: ${w.name}`);
+  }
+  await showMkt("MKT3 end", MKT3);
+  const s1 = await conservation("resolved3 end");
+  for (const [k, p] of s1.portfolios) console.log(`    portfolio ${k}: capital $${U(p.capital)} legs ${p.legs.length} (withdrawable by its owner; plain flat withdraw)`);
+}
+
 async function pair() {
   await showPfl("userLong", pflU); await showPfl("cpty short", pflC);
   {
@@ -402,7 +534,7 @@ async function final() {
 async function main() {
   await guard();
   console.log(`=== upgrade-proof UNWIND stage "${STAGE}" on ${P.toBase58()} ===`);
-  const stages: Record<string, () => Promise<void>> = { settle, third, takerk, liq, pair, lp, insurance, deficit2, final };
+  const stages: Record<string, () => Promise<void>> = { settle, third, takerk, liq, pair, lp, insurance, deficit2, deficit3, resolved3, final };
   if (!stages[STAGE]) throw new Error(`stage: ${Object.keys(stages).join(" | ")}`);
   await stages[STAGE]();
   console.log(`\nUNWIND ${STAGE}: ${pass} ok, ${fails.length} failed${notes.length ? `, ${notes.length} notes` : ""}`);

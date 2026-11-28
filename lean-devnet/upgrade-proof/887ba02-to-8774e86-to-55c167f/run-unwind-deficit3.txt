@@ -1,0 +1,40 @@
+=== upgrade-proof UNWIND stage "deficit3" on 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik ===
+    MKT3: mark $80.288273 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+  OK   thin long is bankrupt at mark $71.905164
+    MKT3 latched: mark $71.905164 oi 500000/500000 raw 500000/1500000 adl 1000000000/333333333 R $8.112769 P+ $0.000000 ins $3.000000 fronted 0 shares 3000000 rew $0.048174 deficitMode 1 Active
+  OK   deficit mode latched with OI still open (oi 500000/500000)
+    winner (PnL escrowed): capital $297.818762 locked $2.157151 legs [short 1500000@m3 pnl 12574888]
+    while latched + stubborn holder: WithdrawInsurance -> 118 nonzeroOi; ClearDeadLeg(winner) -> 118 nonzeroOi; ForceClosePair (market Active) -> 101 invalidStatus; RefreshLeg forceHaircut(winner) -> 119 nonzeroState
+  OK   without the stubborn holder nobody can unlatch while the market is Active (insurance LP blocked, winner PnL escrowed)
+  OK   winner withdrew $247.818762 of free collateral while latched (only the escrowed PnL $12.574888 + margin wait)
+    StartWindDown by a stranger (oracle fresh) -> 105 oracleNotStale
+  OK   market admin started the wind-down
+    ForceClosePair during the exit window -> 117 exitWindowActive
+  OK   ForceClosePair simulates ok after the exit window
+    MKT3 after ForceClosePair: mark $71.905164 oi 1/1 raw 1/3 adl 1000000000/333333333 R $12.304399 P+ $12.574888 ins $3.000000 fronted 0 shares 3000000 rew $0.048174 deficitMode 1 WindDown
+    stubborn: capital $95.800336 locked $0.000005 legs [long 1@m3 pnl 0]
+    winner: capital $52.157151 locked $0.000000 legs [short 3@m3 pnl 12574888]
+  FAIL ForceClosePair (permissionless, no owner signature) closed the stubborn long against the winner: OI 0
+    ClearDeadLeg(winner remainder 3) -> 118 nonzeroOi
+  FAIL winner remainder cannot be cleared: 118 nonzeroOi
+  FAIL winner short: still has open legs short 3@m3
+    MKT3 after the winner realized: mark $71.905164 oi 1/1 raw 1/3 adl 1000000000/333333333 R $12.304399 P+ $12.574888 ins $3.000000 fronted 0 shares 3000000 rew $0.048174 deficitMode 1 WindDown
+  FAIL winner paid pro-rata and deficit mode cleared WITHOUT any action by the stubborn holder
+  FAIL stubborn long (later, by its owner): still has open legs long 1@m3
+  OK   thin long: withdrew ALL free capital $0.000000 to the owner's token account
+  OK   thin long: portfolio closed (CloseAccount, rent returned)
+ERR Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 1: custom program error: 0x76. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik invoke [1]",
+  "Program 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik consumed 630 of 202850 compute units",
+  "Program 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik failed: custom program error: 0x76"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at send (/home/ubuntu/percolator-cli/.claude/worktrees/agent-a89c20c489c7ac3ec/scripts/_lean-upgrade-lib.ts:81:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.deficit3 (/home/ubuntu/percolator-cli/.claude/worktrees/agent-a89c20c489c7ac3ec/scripts/_lean-upgrade-unwind.ts:384:3)
+    at async main (/home/ubuntu/percolator-cli/.claude/worktrees/agent-a89c20c489c7ac3ec/scripts/_lean-upgrade-unwind.ts:489:3)

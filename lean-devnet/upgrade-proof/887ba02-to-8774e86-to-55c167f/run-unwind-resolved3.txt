@@ -1,0 +1,13 @@
+=== upgrade-proof UNWIND stage "resolved3" on 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik ===
+    MKT3: mark $71.905164 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $12.304399 P+ $12.574888 ins $3.000000 fronted 0 shares 3000000 rew $0.048174 deficitMode 1 Resolved
+  OK   MKT3 is Resolved
+    ClaimResolved(6vm9x9BC… flat leg posPnl $12.574888) -> ok
+  OK   ClaimResolved (permissionless) paid the escrowed winner claim: capital $52.157151 -> $64.461550 (+$12.304399 of $12.574888 claimed, pro-rata R/P+), leg freed
+    WithdrawInsurance on the Resolved market -> ok
+  OK   insurance LP withdrew $3.000000 from the RESOLVED market
+    MKT3 end: mark $71.905164 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.048174 deficitMode 1 Resolved
+  OK   resolved3 end: conservation @slot 527355747 V=$160.310070 C=$160.261891 I=$0.000000 R=$0.000005 S=$0.000000 Rew=$0.048174 
+    portfolio XVi15v1SFJ9gYnpUT6gQSx1GHE63SoG8T6PxLqXfQ3u: capital $95.800341 legs 0 (withdrawable by its owner; plain flat withdraw)
+    portfolio 6vm9x9BCJe2RcHj9u92M9RJkjrTnogfnSHE4ZK2cwgdu: capital $64.461550 legs 0 (withdrawable by its owner; plain flat withdraw)
+
+UNWIND resolved3: 4 ok, 0 failed

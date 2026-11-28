@@ -1,1 +1,6 @@
 batteries [after-55c167f] on percolator 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik matcher 4W36LfnN9ZUqRdfpHE91aJbgv6dPaswaZn4GQSWky4t2
+[after-55c167f] lean-attack: exit 0 | 70 checks passed, 0 failed (0 security) — spent 0.0382 SOL — dexA 4ZWB2gN5s1Bin8baqPTcfjZtCEiTud5uqpDazdkiKaiJ CLEAN — no theft, conservation held throughout. 
+[after-55c167f] _lean-xmargin-drain: exit 0 | 
+[after-55c167f] _lean-exploit: exit 0 | BLOCKED ✅ — account reuse rejected (Simulation failed.  Message: Transaction simulation failed: Error processing Instruction 2…). Exploit fixed. 
+[after-55c167f] _lean-builtin-funding: exit 0 | 7 passed, 0 failed 
+[after-55c167f] _lean-propamm-devnet: exit 0 | 318 passed, 0 failed — dex FeX368p6U33XC7ovHzdrt6Xvz13HPMtPo7tCSxy3FEzS ctx 3shtPa7tysvJ84hb2UHVC67WpCrHNm8LAXohmJ3UsZb5 lpPortfolio 9dJwW3PKcRmT2f32KpPLiw6ku4tDmJkU4pGxB4BCft8E 

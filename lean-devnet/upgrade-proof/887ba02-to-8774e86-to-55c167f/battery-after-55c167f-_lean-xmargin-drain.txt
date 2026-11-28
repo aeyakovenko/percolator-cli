@@ -1,0 +1,7 @@
+HONEST market H insurance (prize) seeded = $50
+attacker pAtk: SHORT 8 on H + LONG 8 on A (cross-margin, $300 capital)
+liquidations executed on the attacker: 1 (A ended at $70.344781; last rejected attempts: {"A/1":"{\"InstructionError\":[0,{\"Custom\":125}]}","A/2":"{\"InstructionError\":[1,{\"Custom\":125}]}","A/2p":"{\"InstructionError\":[0,{\"Custom\":116}]}","H/1":"{\"InstructionError\":[0,{\"Custom\":116}]}","H/2":"{\"InstructionError\":[0,{\"Custom\":125}]}","H/2p":"{\"InstructionError\":[0,{\"Custom\":125}]}"})
+attacker end: capital $29.169642 locked $48 legs short 8000000 pnl 0
+
+HONEST insurance: start $50 -> end $50 | conservation V==SPL==C+I+R+S+Rew: true
+BLOCKED ✅ — honest market's insurance untouched through the cross-margin attack (isolation holds). Fixed.
