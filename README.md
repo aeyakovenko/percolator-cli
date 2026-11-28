@@ -89,11 +89,11 @@ fund-safety / conservation (`V == SPL vault balance`) surface by
 ## CLI examples (`percolator-cli/lean`)
 
 ```ts
-import { Connection, Keypair } from "@solana/web3.js";
+import { Connection, Keypair, SystemProgram, Transaction } from "@solana/web3.js";
 import {
-  LEAN_MAINNET, POS_SCALE, TRADE_MODE,
-  initDex, initPortfolio, depositCollateral, trade,
-  matcherInit, matcherFill, deriveDexVault, withLegRefresh,
+  LEAN_MAINNET, POS_SCALE, TRADE_MODE, PROP_CTX_SIZE,
+  trade, withLegRefresh,
+  propAmmInit, setPortfolioMatcher, tradeWithMatcherFresh,
 } from "percolator-cli/lean";
 
 const P = LEAN_MAINNET.percolator, M = LEAN_MAINNET.matcher;
@@ -107,16 +107,26 @@ trade(P, { dex, market, longPortfolio: pA, longOwner: ownerA.publicKey,
 // NOTE: a Trade/Withdraw needs every open leg refreshed in the same tx —
 // wrap with withLegRefresh(conn, [ix], { percolator: P }).
 
-// --- build your OWN matcher (passive-LP AMM) and let anyone take against it ---
-matcherInit(M, { cfg: matcherCfg, owner: lpOwner.publicKey, dex, lpPortfolio,
-                 percolator: P, halfSpreadBps: 50n, impactBps: 20n, maxFillQty: 10n * POS_SCALE });
-matcherFill(M, { cfg: matcherCfg, dex, market, lpPortfolio,
-                 takerPortfolio, taker: taker.publicKey, percolator: P,
-                 mode: TRADE_MODE.OPEN, takerIsLong: true, qty: POS_SCALE, limitPrice });
+// --- run a passive AMM vault (PropAMM) that anyone can trade against with ONE signature ---
+// 1. create the 272-byte ctx and init it in the SAME transaction (init is first-come), then bind it to the LP portfolio:
+new Transaction().add(
+  SystemProgram.createAccount({ fromPubkey: lp.publicKey, newAccountPubkey: ctx.publicKey,
+                                lamports: rent, space: PROP_CTX_SIZE, programId: M }),
+  propAmmInit(M, { ctx: ctx.publicKey, owner: lp.publicKey, allowedMarketIds: [marketId],
+                   halfSpreadBps: 20n, impactBps: 5n, maxFillQty: POS_SCALE / 10n }));
+setPortfolioMatcher(P, { portfolio: lpPortfolio, owner: lp.publicKey, matcherCtx: ctx.publicKey });
+// 2. a taker trades against it; the helper prepends the RefreshLegs the program requires for BOTH portfolios:
+const ixs = await tradeWithMatcherFresh(conn, P, {
+  dex, takerPortfolio, taker: taker.publicKey, lpPortfolio, matcherProgram: M, matcherCtx: ctx.publicKey,
+  legs: [{ market, mode: TRADE_MODE.NETTED, takerIsLong: true, maxQty: POS_SCALE, limitPrice }],
+});
+// NETTED (mode 4) is the always-available path; the vault may fill LESS than maxQty (it clamps to maxFillQty),
+// and it quotes buyers at >= mark and sellers at <= mark. The market's oracle must be fresh or trades revert (oracleStale).
 ```
 
-Runnable end-to-end flow (create market → positions → cross-margin → matcher):
-[`scripts/lean-mainnet-verify.ts`](scripts/lean-mainnet-verify.ts). Full feature
+Runnable end-to-end flows: market → positions → cross-margin → matcher
+([`scripts/lean-mainnet-verify.ts`](scripts/lean-mainnet-verify.ts)) and the AMM vault
+([`scripts/_lean-propamm-devnet.ts`](scripts/_lean-propamm-devnet.ts)). Full feature
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
@@ -158,7 +168,7 @@ than you put in **from the live mainnet deployment**, or violating conservation
 
 Also in [`lean-mainnet-r4.json`](lean-mainnet-r4.json). The market charges a **2 bps** trade fee,
 100% routed to a **wSOL buy-and-burn** reward module (permissionless `StartEpoch`/`SubmitBid`/
-`SettleEpoch`/`ClaimQuote`). The BTC oracle is operator-pushed (lazily cranked); each push also
+`SettleEpoch`/`ClaimQuote`). The BTC oracle is operator-pushed (a lazy keeper checks every 5 minutes and pushes only when needed); each push also
 steps the built-in funding.
 
 **How to play:** point the `percolator-cli/lean` client at a mainnet RPC + `LEAN_MAINNET`,
