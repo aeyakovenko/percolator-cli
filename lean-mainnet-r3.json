@@ -18,5 +18,6 @@
     "insurance": "9JWceeR4k9mworx5QqvvjxSc7xF7PRYjQE3Ng4QYs5Ej",
     "vaultPortfolio": "2YYTS9t2mV2ZSfmXxqNZV6TLQEHwqsHSSSPqJQNrHw4t",
     "userLong": "DtNXawKjnbmAB57qoo2fzamBnQqhuRgmTPmFDZy8ewMj"
-  }
+  },
+  "status": "DEPRECATED 2026-11-28: superseded by round 4 (lean-mainnet-r4.json). Program left running untouched for remaining position holders; funder positions closed out; insurance stays until OI=0. Use percolator-cli@5ba2b70 (400-byte Market client)."
 }

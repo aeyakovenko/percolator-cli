@@ -2,17 +2,17 @@
   "network": "devnet",
   "source": {
     "repo": "percolator-lean",
-    "commit": "a31a1f8",
+    "commit": "9b45ad1",
     "compiler": "lean-svm 587ab09 (sBPF v3)",
     "deployCli": "Agave 4.4.1 (solana-cli 2.1.0 cannot deploy v3 ELFs)",
-    "note": "a31a1f8 (on top of 71d38f0): PDD LoF/DoS hardening \u2014 fixes 4 live bugs (core/OracleAdapter/LimitMatcher) + direct SvmState & inductive proofs. Zero ABI change. Inherits 71d38f0 Pure-ADL bankruptcy (#113 -> $0 draw). Devnet: functional conservation OK, xmargin BLOCKED, exploit BLOCKED, lean-attack 70/70, e2e 9/9, LiteSVM 17/17."
+    "note": "9b45ad1: built-in HL/Binance funding engine (Market 400->416 B, fundingCfg@400, premiumEwma@408; ABI CHANGE), tamper-proof Pyth adapter wiring, all-role safety proofs. Devnet: functional conservation OK, external funding 8/8, built-in funding 7/7, xmargin BLOCKED, exploit BLOCKED, lean-attack 70/70, e2e 9/9, LiteSVM 17/17."
   },
   "upgradeAuthority": "A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK",
   "programs": {
     "percolator": {
       "id": "4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM",
       "elf": "percolator.so",
-      "size": 93952
+      "size": 96840
     },
     "matcher": {
       "id": "2HQtUrH1u4KnPGABxyVNNmXo9SJ3zQg9otz6wyfJMJip",
@@ -22,7 +22,7 @@
     "oracleAdapter": {
       "id": "BkyW7iLvAWuyEozvnGAwgks4dyuTNm7Xnybd6DwQLu2x",
       "elf": "oracle_adapter.so",
-      "size": 19352
+      "size": 19464
     },
     "rewardModule": {
       "id": "4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi",
@@ -39,6 +39,6 @@
       "note": "test-only writable FEED account program (unchanged, reused)"
     }
   },
-  "abiNote": "Core offsets+opcodes unchanged from b8a2a61 (Portfolio 976B, leg stride 104). src/lean (LEAN_DEVNET) points here.",
+  "abiNote": "Market = 416 B since 9b45ad1 (+fundingCfg@400 +premiumEwma@408); CreateMarket ix byte 28 = fundingCfg. Portfolio 976 B, leg stride 104 unchanged.",
   "verify": "~/.local/agave-latest/bin/solana program dump -u devnet <id> out.so"
 }

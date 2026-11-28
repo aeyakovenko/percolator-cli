@@ -7,11 +7,12 @@ const STATUS_NAMES = ["Active", "WindDown", "Resolved", "Tombstoned"];
 
 const key = fs.readFileSync(`${process.env.HOME}/.helius`, "utf8").trim();
 const conn = new Connection(`https://mainnet.helius-rpc.com/?api-key=${key}`, "confirmed");
-const MARKET = new PublicKey("9JWceeR4k9mworx5QqvvjxSc7xF7PRYjQE3Ng4QYs5Ej");
+const MANI = JSON.parse(fs.readFileSync(process.env.LEAN_MANIFEST ?? `${process.env.HOME}/percolator-cli/lean-mainnet-r4.json`, "utf8"));
+const MARKET = new PublicKey(MANI.market);
 // The 3 prize surfaces — watch these, NOT the DEX-vault total (hunters cycle their own collateral,
 // which is noise). Theft = a prize actually shrinking: insurance, or either prize portfolio's capital.
-const VAULT_PFL = new PublicKey("2YYTS9t2mV2ZSfmXxqNZV6TLQEHwqsHSSSPqJQNrHw4t"); // prize 2 (loose collateral)
-const USER_LONG = new PublicKey("DtNXawKjnbmAB57qoo2fzamBnQqhuRgmTPmFDZy8ewMj"); // prize 3 (long position)
+const VAULT_PFL = new PublicKey(MANI.prizes.vaultPortfolio); // prize 2 (loose collateral)
+const USER_LONG = new PublicKey(MANI.prizes.userLong); // prize 3 (long position)
 const u = (n: bigint) => (Number(n) / 1e6).toString();
 const t = () => new Date().toISOString().slice(11, 19);
 const cap = async (p: PublicKey) => { const i = await conn.getAccountInfo(p, "confirmed"); return i ? Buffer.from(i.data).readBigUInt64LE(88) : -1n; };

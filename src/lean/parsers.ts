@@ -5,7 +5,7 @@ import { PublicKey } from "@solana/web3.js";
 import {
   MAGIC, DexOff, MktOff, PflOff, LegOff, InsOff, MatcherCfgOff, AdapterOff, FeedOff,
   DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, MATCHER_CFG_SIZE, ADAPTER_CFG_SIZE,
-  FEED_SIZE, MAX_LEGS, SIDE, STATUS, K_ZERO, ADL_ONE,
+  FEED_SIZE, MAX_LEGS, SIDE, STATUS, K_ZERO, ADL_ONE, PREM_ZERO,
 } from "./constants.js";
 
 const u8 = (b: Buffer, o: number) => b.readUInt8(o);
@@ -68,8 +68,13 @@ export interface Market {
   /** raw cumulative K (biased by K_ZERO) */
   kLong: bigint; kShort: bigint;
   resolvedNum: bigint; resolvedDen: bigint; activeLegs: bigint; rewardBps: bigint; rewardAccrued: bigint; rewardRecipient: PublicKey;
+  /** 9b45ad1 built-in funding: packed cfg (0 = off), raw biased premium EWMA, and its signed E6 value (100 = 1 bps). */
+  fundingCfg: bigint; premiumEwma: bigint; premiumE6: bigint;
+  funding: { baseIntE6: number; deadbandE6: number; maxFund8hBps: number; decaySlots: number } | null;
 }
 const STATUS_NAMES = ["Active", "WindDown", "Resolved", "Tombstoned"];
+const fundingOf = (c: bigint) => c === 0n ? null : {
+  baseIntE6: Number(c & 0xffffn), deadbandE6: Number((c >> 16n) & 0xffffn), maxFund8hBps: Number((c >> 32n) & 0xffffn), decaySlots: Number((c >> 48n) & 0xffffn) };
 export function parseMarket(b: Buffer): Market {
   expect(b, MAGIC.MARKET, MARKET_SIZE, "Market");
   const O = MktOff;
@@ -88,6 +93,8 @@ export function parseMarket(b: Buffer): Market {
     adlLong: u64(b, O.adlLong), adlShort: u64(b, O.adlShort), kLong: u64(b, O.kLong), kShort: u64(b, O.kShort),
     resolvedNum: u64(b, O.resolvedNum), resolvedDen: u64(b, O.resolvedDen), activeLegs: u64(b, O.activeLegs),
     rewardBps: u64(b, O.rewardBps), rewardAccrued: u64(b, O.rewardAccrued), rewardRecipient: pk(b, O.rewardRecipient),
+    fundingCfg: u64(b, O.fundingCfg), premiumEwma: u64(b, O.premiumEwma), premiumE6: u64(b, O.premiumEwma) - PREM_ZERO,
+    funding: fundingOf(u64(b, O.fundingCfg)),
   };
 }
 /** Signed K relative to K_ZERO. */

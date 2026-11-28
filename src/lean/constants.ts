@@ -1,13 +1,13 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `a31a1f8` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `9b45ad1` (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "a31a1f8";
+export const LEAN_SOURCE_COMMIT = "9b45ad1";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
@@ -21,10 +21,17 @@ export const LEAN_DEVNET = {
 } as const;
 
 // ---------- deployed programs (mainnet-beta) ----------
-// Mainnet upgraded IN PLACE to a31a1f8 (2026-11-28) via Agave CLI 4.4.1; devnet-validated.
-// Upgrade authority: A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK.
+// ROUND 4 (9b45ad1, built-in HL/Binance funding, Market = 416 B): FRESH program ids, deployed 2026-11-28
+// via Agave CLI 4.4.1 (devnet-validated). Upgrade authority: A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK.
 export const LEAN_MAINNET = {
-  // ROUND-3 (161ed3c), fresh ids. Round-2 (GVV4HC…) is DEPRECATED but left running.
+  percolator: new PublicKey("EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB"),
+  rewardModule: new PublicKey("CH9WNijiS9p6bKfSEgpHXujAJuxUJ29rgynZuZst9Utv"),
+  matcher: new PublicKey("GVN3LTDVGRstkxSYzg2Jw8YoguyvgHBTpewK8mEwBBtp"),
+  oracleAdapter: new PublicKey("BTJX41YamU8Y74FCcUGMGbjxwamrc2artBUvViF9Tyoz"),
+} as const;
+/** ROUND 3 (DEPRECATED, a31a1f8, Market = 400 B): left running untouched for users who still hold
+ *  positions there. NOT compatible with this client's 416-byte Market layout — use percolator-cli@5ba2b70. */
+export const LEAN_MAINNET_R3 = {
   percolator: new PublicKey("6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q"),
   rewardModule: new PublicKey("D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw"),
   matcher: new PublicKey("EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR"),
@@ -76,7 +83,7 @@ export const SIDE = { FLAT: 0, LONG: 1, SHORT: 2 } as const;
 // 6-decimal USD-style token (e.g. USDC); any other decimals silently breaks conservation.
 export const COLLATERAL_DECIMALS = 6;
 export const DEX_SIZE = 208;
-export const MARKET_SIZE = 400;
+export const MARKET_SIZE = 416; // 9b45ad1: +fundingCfg@400 +premiumEwma@408 (built-in HL/Binance funding)
 export const PORTFOLIO_SIZE = 976;
 export const INS_RECEIPT_SIZE = 88;
 export const MATCHER_CFG_SIZE = 160;
@@ -95,13 +102,19 @@ export const DexOff = {
 
 export const MktOff = {
   magic: 0, status: 4, maxFrontBps: 6, marketId: 8, dex: 16, oracleAuth: 48, marketAdmin: 80, markPrice: 112,
-  lastOracleSlot: 120, windDownSlot: 128, exitWindow: 136, maxStaleness: 144, warmupSlots: 152,
+  lastOracleSlot: 120, windDownSlot: 128, exitWindow: 136, maxStaleness: 144, warmupSlots: 152, lastRampSlot: 152, // 45648f5: bytes 152..159 = lastRampSlot (legacy warmupSlots name kept)
   imBps: 160, mmBps: 168, liqFeeBps: 176, tradeFeeBps: 184, maxMoveBps: 192, maxInsDrawBps: 200,
   maxOi: 208, realizedPool: 216, insurance: 224, insFronted: 232, totalPosPnl: 240,
   totalInsShares: 248, oiLong: 256, oiShort: 264, rawBasisLong: 272, rawBasisShort: 280,
   adlLong: 288, adlShort: 296, kLong: 304, kShort: 312, resolvedNum: 320, resolvedDen: 328,
   activeLegs: 336, minMm: 344, rewardBps: 352, rewardAccrued: 360, rewardRecipient: 368,
+  fundingCfg: 400, premiumEwma: 408, // 9b45ad1
 } as const;
+/** 9b45ad1 built-in funding: 2^62-biased zero for the signed E6 premium EWMA; funding normalized per 8h. */
+export const PREM_ZERO = 1n << 62n;
+export const SLOTS_PER_8H = 72_000n;
+export const MAX_FUND_8H_BPS = 1_000n;
+export const MAX_FUND_DEADBAND_E6 = 50_000n;
 
 export const PflOff = { // a31a1f8: 976B (+totalLockedMm@16; legStride 104 with per-leg lockedMm firewall)
   magic: 0, legCount: 4, portfolioId: 8, totalLockedMm: 16, dex: 24, owner: 56, capital: 88,

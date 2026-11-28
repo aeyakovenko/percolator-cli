@@ -1,0 +1,33 @@
+{
+  "commit": "9b45ad1",
+  "round": 4,
+  "percolator": "EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB",
+  "rewardModule": "CH9WNijiS9p6bKfSEgpHXujAJuxUJ29rgynZuZst9Utv",
+  "matcher": "GVN3LTDVGRstkxSYzg2Jw8YoguyvgHBTpewK8mEwBBtp",
+  "oracleAdapter": "BTJX41YamU8Y74FCcUGMGbjxwamrc2artBUvViF9Tyoz",
+  "usdc": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "dex": "6ogqEo6qbCY5dmjkBQNXntoESE4HDHwKQGnushbPysFn",
+  "market": "4EWHoCLweWAbb1DZ2sUfLRLnL9xvNJEwhnekaV7qthAp",
+  "oracleAuth": "GidoyxeAwxEJNFf35QXosmQq8ZPm13csVBRmciAxGw7i",
+  "feeVault": "2tsVGZWb8J3mZLHP9xHkcGoJyhy3Vu4fQVs7utQEGcu7",
+  "fundingCfg": {
+    "baseIntE6": 100,
+    "deadbandE6": 500,
+    "maxFund8hBps": 100,
+    "decaySlots": 1440,
+    "packed": "405324395992842340"
+  },
+  "rewardCfg": "5CjsnHViXk6Nvj8hoGSW54W9YhggxzTggMsHitRxbAzx",
+  "rewAuth": "5sLxvxpiby1aCAYgten2XYv2CFM4eGXHpos9scsqPj2m",
+  "quoteVault": "EevSNcptzjhT7dxBgaLVTX4xFYzQn896aQApYkxMZwDL",
+  "targetEscrow": "9jawqiCjVmtvyp3SM2QFwgfpYrRBewPuCt7YrbQWAXR",
+  "burnSink": "4vHUQ56iuHCjYhcT99K6aU7MV6vtF8b8Bi3L2CoBJsE3",
+  "insReceipt": "9LzCRhTBJX4dWydKXE9qiXPzn6W6Hu81X1nckj2nvmeJ",
+  "ownersKey": "funder/id.json",
+  "counterpartyShort": "Afz1UwaeMBDCJzbm1aTXpvjVbDTo9r2Y76ae4MRnVbb1",
+  "prizes": {
+    "insurance": "4EWHoCLweWAbb1DZ2sUfLRLnL9xvNJEwhnekaV7qthAp",
+    "vaultPortfolio": "4oqFBi5VnGrUiwPEC8SZ9kJXHQi2QSucCBQE3TtGMMj7",
+    "userLong": "9vtoSvrhv5vw7qt6oUdBw835B4pejrmbjWmie3uz2RMh"
+  }
+}

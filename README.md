@@ -35,20 +35,29 @@ pnpm build
 
 ## Deployments
 
-Current build: percolator-lean `a31a1f8`. **Round-3 (LIVE, a31a1f8)** runs on mainnet ids (upgraded in place);
-round-2 programs (`GVV4HC…`) are **deprecated and left as-is**.
+Current build: percolator-lean `9b45ad1`. **Round 4 (LIVE, `9b45ad1`)** runs on **fresh mainnet program ids**:
+`9b45ad1` changed the ABI (Market grew 400 → 416 bytes for the built-in funding engine), so it could not be
+upgraded in place without stranding open positions. The **round-3 programs (`6NeT5…`, `a31a1f8`) are deprecated
+but left running untouched** so the users who still hold positions there can refresh and close them (its oracle
+keeps being cranked). Round-2 programs (`GVV4HC…`) are deprecated and left as-is.
 
-| Program | Mainnet (`a31a1f8`) | Devnet (`a31a1f8`) |
+| Program | Mainnet round 4 (`9b45ad1`) | Devnet (`9b45ad1`) |
 |---|---|---|
-| `percolator` (core DEX) | `6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q` | `4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM` |
-| `reward_module` (wSOL buy-and-burn) | `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw` | `4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi` |
-| `matcher` (passive-LP / PropAMM) | `EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR` | `2HQtUrH1u4KnPGABxyVNNmXo9SJ3zQg9otz6wyfJMJip` |
-| `oracle_adapter` | `B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN` | `BkyW7iLvAWuyEozvnGAwgks4dyuTNm7Xnybd6DwQLu2x` |
+| `percolator` (core DEX) | `EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB` | `4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM` |
+| `reward_module` (wSOL buy-and-burn) | `CH9WNijiS9p6bKfSEgpHXujAJuxUJ29rgynZuZst9Utv` | `4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi` |
+| `matcher` (passive-LP / PropAMM) | `GVN3LTDVGRstkxSYzg2Jw8YoguyvgHBTpewK8mEwBBtp` | `2HQtUrH1u4KnPGABxyVNNmXo9SJ3zQg9otz6wyfJMJip` |
+| `oracle_adapter` | `BTJX41YamU8Y74FCcUGMGbjxwamrc2artBUvViF9Tyoz` | `BkyW7iLvAWuyEozvnGAwgks4dyuTNm7Xnybd6DwQLu2x` |
 
-Deprecated round-2 percolator: `GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm`.
+Deprecated round-3 (`a31a1f8`, 400-byte Market) — exported as `LEAN_MAINNET_R3`: percolator
+`6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q`, reward `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw`,
+matcher `EFLgSpuiyXxHJHFAWCZtmzdcTXeHguiMSUyRHN3z3FDR`, adapter `B4v96XfX4df9NtPbHjYsLTYkrjccGqWt4nsgyPpJbCSN`.
+**This client (416-byte Market) cannot parse round-3 markets** — to manage a round-3 position use
+`percolator-cli@5ba2b70`. Deprecated round-2 percolator: `GVV4HCAohuWDTXRHUYLpFECvTUhCUF2qys36vQKtYJsm`.
+
 Upgrade authority: `A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK`. The ids are exported as
 `LEAN_MAINNET` / `LEAN_DEVNET` in [`src/lean/constants.ts`](src/lean/constants.ts) —
-the same client talks to either cluster.
+the same client talks to either cluster. Deploying these sBPF v3 binaries needs **Agave CLI ≥ 4.x**
+(solana-cli 2.1.0 rejects them with `ELF error: Offset or value is out of bounds`).
 
 > **Collateral note:** the DEX stores token base units directly as its E6 accounting,
 > so a market's collateral must be a **6-decimal USD-style token** (e.g. USDC) — not
@@ -66,6 +75,9 @@ Gavel xy=k batch **buy-and-burn** (`StartEpoch`/`SubmitBid`/`SettleEpoch`/`Claim
 e.g. BTC/USD fees → wSOL burn. Oracles are read natively from Pyth (`PriceUpdateV2`),
 Chainlink (OCR2), or Switchboard (On-Demand), with optional 2-leg composite ratios and
 EWMA / Hybrid After-Hours smoothing, all cranked permissionlessly via `oracle_adapter`.
+Since `9b45ad1` a market can enable a **built-in HL/Binance-style funding engine** (immutable `fundingCfg`:
+base interest, deadband, ±cap per 8h, premium-EWMA decay — build it with `packFundingCfg()`); funding then accrues
+trustlessly on every oracle update from the perp-vs-spot premium, and externally pushed funding is rejected.
 Fund-safety invariant: `V == SPL vault balance == C + I + R + S + totalRewards`.
 
 All of these flows are verified on the live mainnet program by
@@ -108,19 +120,21 @@ Runnable end-to-end flow (create market → positions → cross-margin → match
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE (round 3, ~$69 on BTC/USD) on percolator-lean `a31a1f8`
+## Bug bounty — LIVE (round 4, ~$69 on BTC/USD) on percolator-lean `9b45ad1`
 
 > **History.** Round 1 was claimed via an insurance account-reuse bug (fixed in `bb54ac6`).
 > Round 2 (SOL/USD, 70 USDC) was claimed via a **cross-margin + hostile-oracle insurance drain**
 > — a throwaway market with an attacker-controlled oracle, cross-margined against the honest prize
 > market, bled its insurance through shared capital. Fixed from `a056eee` on (structural
-> cross-market isolation; "user capital, insurance and realized pools are 100% untouchable"),
-> verified on devnet (`scripts/_lean-xmargin-drain.ts` → BLOCKED). The round-2 market
-> (`CedQKV…` / `BhYaG2…`) is **deprecated and left as-is** (do not use it).
+> cross-market isolation), verified on devnet (`scripts/_lean-xmargin-drain.ts` → BLOCKED).
+> Round 3 (BTC/USD, `6NeT5…` / market `9JWceeR4…`) ran through `e189ef2` → `71d38f0` → `a31a1f8` and was not
+> claimed; it was retired for round 4 when `9b45ad1` changed the ABI. Its market is **deprecated but still
+> live** for the users who hold positions there (its insurance stays in place until their OI reaches 0).
 
-**Round 3** runs on mainnet programs (`a31a1f8`, upgraded in place) with three independent prize surfaces on
-a BTC/USD market. Winning = actually extracting more than you put in **from the live mainnet
-deployment**, or violating conservation (`V == SPL == C + I + R + S + totalRewards`) on mainnet.
+**Round 4** runs on fresh mainnet programs (`9b45ad1`) with three independent prize surfaces on a BTC/USD market
+with **built-in funding** (+0.01%/8h base, ±0.05% deadband, ±1%/8h cap). Winning = actually extracting more
+than you put in **from the live mainnet deployment**, or violating conservation
+(`V == SPL == C + I + R + S + totalRewards`) on mainnet.
 
 > **Rules — this is a live capture-the-flag, not a report-for-payout program.**
 > - **To claim the bounty you must actually execute the attack on mainnet**, against the addresses below.
@@ -132,22 +146,24 @@ deployment**, or violating conservation (`V == SPL == C + I + R + S + totalRewar
 
 | | Mainnet address |
 |---|---|
-| percolator | `6NeT5VYzF2DAj8RcUJtLfgv21CR8WiehNpABFV1t4M3Q` |
-| reward_module | `D8V9aNXEPjgan1Kz4wjYrW5UJZzJWsGYsVJpa6NPtEMw` |
-| DEX | `Ef9p9J2dRBb5aGzPiBG2cxqTCvT3DvcDUYNULBUPTiHh` |
-| Market (BTC/USD) | `9JWceeR4k9mworx5QqvvjxSc7xF7PRYjQE3Ng4QYs5Ej` |
+| percolator | `EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB` |
+| reward_module | `CH9WNijiS9p6bKfSEgpHXujAJuxUJ29rgynZuZst9Utv` |
+| DEX | `6ogqEo6qbCY5dmjkBQNXntoESE4HDHwKQGnushbPysFn` |
+| Market (BTC/USD) | `4EWHoCLweWAbb1DZ2sUfLRLnL9xvNJEwhnekaV7qthAp` |
 | Collateral | USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| Reward (wSOL buy-and-burn) | cfg `gBfHSSUefHoAM1q92MPENeernKmRxZFDPpxSqmLVkEg` |
+| Reward (wSOL buy-and-burn) | cfg `5CjsnHViXk6Nvj8hoGSW54W9YhggxzTggMsHitRxbAzx` |
 | **Prize 1 — insurance** | **$23** (market insurance pot) |
-| **Prize 2 — vault portfolio** | **$23** loose collateral — `2YYTS9t2mV2ZSfmXxqNZV6TLQEHwqsHSSSPqJQNrHw4t` |
-| **Prize 3 — user long** | **~$23** (0.003 BTC long) — `DtNXawKjnbmAB57qoo2fzamBnQqhuRgmTPmFDZy8ewMj` |
+| **Prize 2 — vault portfolio** | **$23** loose collateral — `4oqFBi5VnGrUiwPEC8SZ9kJXHQi2QSucCBQE3TtGMMj7` |
+| **Prize 3 — user long** | **~$23** (0.003 BTC long) — `9vtoSvrhv5vw7qt6oUdBw835B4pejrmbjWmie3uz2RMh` |
 
-Also in [`lean-mainnet-r3.json`](lean-mainnet-r3.json). The market charges a **2 bps** trade fee,
+Also in [`lean-mainnet-r4.json`](lean-mainnet-r4.json). The market charges a **2 bps** trade fee,
 100% routed to a **wSOL buy-and-burn** reward module (permissionless `StartEpoch`/`SubmitBid`/
-`SettleEpoch`/`ClaimQuote`). The BTC oracle is operator-pushed (lazily cranked).
+`SettleEpoch`/`ClaimQuote`). The BTC oracle is operator-pushed (lazily cranked); each push also
+steps the built-in funding.
 
 **How to play:** point the `percolator-cli/lean` client at a mainnet RPC + `LEAN_MAINNET`,
 create a portfolio, deposit USDC, trade, and find a way to drain the insurance, steal the vault
-portfolio's collateral or the user long, or break the reward auction. The harnesses
-`scripts/lean-attack.ts`, `scripts/_lean-exploit.ts`, `scripts/_lean-xmargin-drain.ts` and
-`scripts/_lean-e2e.ts` show what has already been tried and the normal-case flows.
+portfolio's collateral or the user long, game the funding engine, or break the reward auction. The harnesses
+`scripts/lean-attack.ts`, `scripts/_lean-exploit.ts`, `scripts/_lean-xmargin-drain.ts`,
+`scripts/_lean-builtin-funding.ts` and `scripts/_lean-e2e.ts` show what has already been tried and the
+normal-case flows.

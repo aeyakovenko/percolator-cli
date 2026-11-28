@@ -8,7 +8,7 @@
 import { PublicKey, TransactionInstruction, AccountMeta } from "@solana/web3.js";
 import {
   IX, MATCHER_IX, ADAPTER_IX, REWARD_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
-  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE, COLLATERAL_DECIMALS,
+  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE, COLLATERAL_DECIMALS, MAX_FUND_8H_BPS, MAX_FUND_DEADBAND_E6,
 } from "./constants.js";
 
 const w = (pubkey: PublicKey, isSigner = false): AccountMeta => ({ pubkey, isSigner, isWritable: true });
@@ -80,7 +80,8 @@ export interface MarketParams {
   initPrice: bigint;       // E6
   exitWindow: bigint;      // slots, >= MIN_EXIT_WINDOW
   maxStaleness: bigint;    // slots
-  warmupSlots: bigint;     // must be 0 for profit to realize at 2dc4d21
+  warmupSlots?: bigint;    // LEGACY/ignored: removed on-chain (ix byte 28 is fundingCfg since 9b45ad1)
+  fundingCfg?: bigint;     // 9b45ad1: packed built-in HL/Binance funding (0 = off). Build with packFundingCfg().
   imBps: bigint; mmBps: bigint; liqFeeBps: bigint; tradeFeeBps: bigint;
   maxMoveBps: bigint;      // a056eee: maxMoveBps<=2500, 4*mm+(mm^2+999)/1000+liqFee<=mmBps, mmBps+maxMove<=imBps
   maxInsDrawBps: bigint;
@@ -89,6 +90,19 @@ export interface MarketParams {
   maxFrontBps?: bigint;    // a056eee: bps of I_m usable for I_m-contained cross-PnL fronting (default 0); <= maxInsDrawBps
   rewardBps?: bigint;      // ee69211: bps of trade fee routed to this market's reward module (default 0); <= 10000
   rewardRecipient?: PublicKey; // ee69211: reward-module auth PDA = deriveRewAuth(rewardProg, rewardCfg); required iff rewardBps>0
+}
+
+/** 9b45ad1: pack the immutable built-in funding config for CreateMarket (0 = disabled).
+ *  baseIntE6 (100 = +0.01%/8h) | deadbandE6 (500 = ±0.05%) | maxFund8hBps (100 = ±1%/8h) | decaySlots (premium EWMA decay).
+ *  On-chain guard: tradeFeeBps > 0 and max(maxFund8hBps, maxMoveBps) * decaySlots <= tradeFeeBps * SLOTS_PER_8H. */
+export function packFundingCfg(c: { baseIntE6: number; deadbandE6: number; maxFund8hBps: number; decaySlots: number }): bigint {
+  const u16 = (n: number, f: string) => { if (!Number.isInteger(n) || n < 0 || n > 0xffff) throw new RangeError(`packFundingCfg: ${f} must be u16, got ${n}`); return BigInt(n); };
+  const base = u16(c.baseIntE6, "baseIntE6"), db = u16(c.deadbandE6, "deadbandE6"), cap = u16(c.maxFund8hBps, "maxFund8hBps"), dec = u16(c.decaySlots, "decaySlots");
+  if (cap < 1n || cap > MAX_FUND_8H_BPS) throw new RangeError(`packFundingCfg: maxFund8hBps must be 1..${MAX_FUND_8H_BPS}`);
+  if (dec < 1n) throw new RangeError("packFundingCfg: decaySlots must be >= 1");
+  if (base > cap * 100n) throw new RangeError("packFundingCfg: baseIntE6 must be <= maxFund8hBps*100");
+  if (db > MAX_FUND_DEADBAND_E6) throw new RangeError(`packFundingCfg: deadbandE6 must be <= ${MAX_FUND_DEADBAND_E6}`);
+  return base | (db << 16n) | (cap << 32n) | (dec << 48n);
 }
 
 /** op 2. `market` must be a fresh MARKET_SIZE account owned by the program. Creator pays the DEX create fee in quote tokens. */
@@ -104,7 +118,7 @@ export function createMarket(p: PublicKey, a: {
   const useReward = (m.rewardBps ?? 0n) > 0n;
   const d = data(useReward ? 140 : 100, IX.CreateMarket); // ee69211: +rewardBps@100 +rewardRecipient@108
   d.writeUInt16LE(Number(m.maxFrontBps ?? 0n), 2); // a056eee: maxFrontBps u16 at offset 2
-  [m.initPrice, m.exitWindow, m.maxStaleness, m.warmupSlots, m.imBps, m.mmBps, m.liqFeeBps,
+  [m.initPrice, m.exitWindow, m.maxStaleness, m.fundingCfg ?? 0n, m.imBps, m.mmBps, m.liqFeeBps,
     m.tradeFeeBps, m.maxMoveBps, m.maxInsDrawBps, m.maxOi, m.minMm ?? 0n]
     .forEach((v, i) => d.writeBigUInt64LE(v, 4 + 8 * i));
   if (useReward) {

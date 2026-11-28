@@ -10,7 +10,7 @@ import { rewardStartEpoch, rewardSubmitBid, rewardSettleEpoch, rewardClaimQuote,
 
 const LIVE = process.argv.includes("--live");
 const conn = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
-const m = JSON.parse(fs.readFileSync("lean-mainnet-r3.json", "utf8"));
+const m = JSON.parse(fs.readFileSync(process.env.LEAN_MANIFEST ?? "lean-mainnet-r4.json", "utf8"));
 const RM = new PublicKey(m.rewardModule), P = new PublicKey(m.percolator), DEX = new PublicKey(m.dex), MKT = new PublicKey(m.market);
 const CFG = new PublicKey(m.rewardCfg), USDC = new PublicKey(m.usdc);
 const quoteVault = new PublicKey(m.quoteVault), targetEscrow = new PublicKey(m.targetEscrow), burnSink = new PublicKey(m.burnSink);
