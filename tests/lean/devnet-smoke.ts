@@ -2,7 +2,7 @@
  * Devnet smoke for the percolator-lean v2 TS client (src/lean, pinned to `2dc4d21`).
  *
  * Exercises EVERY encoder against the deployed devnet programs — all 20 percolator ops,
- * matcher ops 0-3, oracle_adapter ops 0-1 — through a full market lifecycle, plus the
+ * PropAMM matcher ops 0-1 + core SetPortfolioMatcher/TradeWithMatcher, oracle_adapter ops 0-1 — through a full market lifecycle, plus the
  * parsers, discovery, withLegRefresh bundler and checkDexInvariants. Success paths are
  * really sent; expected rejections are simulated and asserted against the SPECIFIC
  * custom error code.
@@ -18,15 +18,15 @@ import {
 import { createMint, createAccount, mintTo, getAccount } from "@solana/spl-token";
 import * as fs from "fs";
 import {
-  LEAN_DEVNET, DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, MATCHER_CFG_SIZE,
+  LEAN_DEVNET, DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, PROP_CTX_SIZE,
   ADAPTER_CFG_SIZE, MAGIC, POS_SCALE, STATUS, SIDE, TRADE_MODE, FEED_TYPE, leanErrorName,
   assertDevnet, deriveDexVault, deriveOracleAuth,
   initDex, updateCreateFee, createMarket, transferMarketAdmin, burnMarketAdmin, rotateOracleAuth,
   updateOracle, initPortfolio, depositCollateral, withdrawCollateral, depositInsurance,
   withdrawInsurance, refreshLeg, trade, liquidate, clearDeadLeg, startWindDown, forceClosePair,
   resolveMarket, claimResolved, tombstoneMarket, closeAccount,
-  matcherInit, matcherUpdate, matcherFill, matcherWithdrawLp, adapterInit, adapterCrank,
-  parseDex, parseMarket, parsePortfolio, parseInsReceipt, parseMatcherConfig, parseAdapterConfig,
+  propAmmInit, propAmmUpdate, setPortfolioMatcher, tradeWithMatcher, adapterInit, adapterCrank,
+  parseDex, parseMarket, parsePortfolio, parseInsReceipt, parsePropAmmCtx, parseAdapterConfig,
   openLegs, withLegRefresh, realizeFlatLegs, snapshotDex, checkDexInvariants, discoverPortfolios, discoverMarkets,
   type MarketParams, type VaultAccounts,
 } from "../../src/lean/index.js";
@@ -220,24 +220,46 @@ async function main() {
   ok(parseMarket(await acct(m1)).oiLong === 2n * POS_SCALE, "Trade(close) reduced M1 OI to 2");
   await invariants("after trading", dex);
 
-  // ---- T4 matcher
-  console.log("T4 Matcher Init / Update / Fill / WithdrawLp");
-  const cfg = (await newProgramAccount(M, MATCHER_CFG_SIZE)).publicKey;
+  // ---- T4 PropAMM matcher (887ba02: the matcher program is the 0-signer PropAMM; the LP owner keeps the portfolio)
+  console.log("T4 PropAMM Init / Update / SetPortfolioMatcher / TradeWithMatcher / LP withdraw");
+  const ctxKp = Keypair.generate();
+  const ctx = ctxKp.publicKey;
+  const m1Id = parseMarket(await acct(m1)).marketId;
+  // create + init the ctx in ONE transaction (init is first-come on an uninitialized ctx)
+  await send("matcher.Init", [
+    SystemProgram.createAccount({ fromPubkey: funder.publicKey, newAccountPubkey: ctx, lamports: await conn.getMinimumBalanceForRentExemption(PROP_CTX_SIZE), space: PROP_CTX_SIZE, programId: M }),
+    propAmmInit(M, { ctx, owner: funder.publicKey, halfSpreadBps: 40n, impactBps: 20n, maxFillQty: 10n * POS_SCALE, allowedMarketIds: [m1Id] }),
+  ], [ctxKp]);
+  await send("matcher.Update", [propAmmUpdate(M, { ctx, owner: funder.publicKey, paused: false, halfSpreadBps: 50n, impactBps: 20n, maxFillQty: 10n * POS_SCALE })]);
+  const pc = parsePropAmmCtx(await acct(ctx));
+  ok(pc.owner.equals(funder.publicKey) && !pc.paused && pc.halfSpreadBps === 50n && pc.allowedMarkets.length === 1 && pc.allowedMarkets[0] === m1Id, "parsePropAmmCtx");
   const lpPfl = (await newProgramAccount(P, PORTFOLIO_SIZE)).publicKey;
-  await send("matcher.Init", [matcherInit(M, { cfg, owner: funder.publicKey, dex, lpPortfolio: lpPfl, percolator: P, halfSpreadBps: 50n, impactBps: 20n, maxFillQty: 10n * POS_SCALE })]);
-  await send("matcher.Update", [matcherUpdate(M, { cfg, owner: funder.publicKey, paused: false, halfSpreadBps: 50n, impactBps: 20n, maxFillQty: 10n * POS_SCALE })]);
-  const mc = parseMatcherConfig(await acct(cfg));
-  ok(mc.lpPortfolio.equals(lpPfl) && !mc.paused && mc.halfSpreadBps === 50n, "parseMatcherConfig");
+  await send("InitPortfolio", [initPortfolio(P, { dex, portfolio: lpPfl, owner: funder.publicKey })]);
+  await send("SetPortfolioMatcher", [setPortfolioMatcher(P, { portfolio: lpPfl, owner: funder.publicKey, matcherCtx: ctx })]);
+  ok(parsePortfolio(await acct(lpPfl)).matcherCtx.equals(ctx), "SetPortfolioMatcher bound the ctx to the LP portfolio");
   await send("DepositCollateral(LP, 3rd-party depositor)", [depositCollateral(P, V, { portfolio: lpPfl, depositor: funder.publicKey, sourceToken: funderTok, amount: 500n * POS_SCALE })]);
-  const fill = (mode: number, limitPrice: bigint) => matcherFill(M, { cfg, dex, market: m1, lpPortfolio: lpPfl, takerPortfolio: pA, taker: traderA.publicKey, percolator: P, mode, takerIsLong: true, qty: POS_SCALE, limitPrice });
-  await expectErr("matcher.Fill slippage", [fill(TRADE_MODE.OPEN, 99n * POS_SCALE)], [traderA], 202, true);
-  const lpCap0 = parsePortfolio(await acct(lpPfl)).capital;
+  // T3's oracle move was a saturated ramp tick: the PropAMM refuses to quote (matcher.paused 200) for 150 slots after it.
+  const rampSlot = parseMarket(await acct(m1)).lastRampSlot;
+  if (rampSlot > 0n && BigInt(await conn.getSlot("confirmed")) <= rampSlot + 140n) {
+    await expectErr("matcher.Fill during ramp cooldown", [tradeWithMatcher(P, { dex, takerPortfolio: pA, taker: traderA.publicKey, lpPortfolio: lpPfl, matcherProgram: M, matcherCtx: ctx,
+      legs: [{ market: m1, mode: TRADE_MODE.OPEN, takerIsLong: true, maxQty: POS_SCALE }] })], [traderA], 200, true);
+  }
+  if (rampSlot > 0n) {
+    console.log("  (waiting out M1's 150-slot ramp cooldown)");
+    while (BigInt(await conn.getSlot("confirmed")) <= rampSlot + 152n) await sleep(2000);
+  }
+  // single-signer taker (traderA) trade against the LP portfolio; the LP owner does not sign the trade itself
+  const fill = (mode: number, limitPrice: bigint) => tradeWithMatcher(P, { dex, takerPortfolio: pA, taker: traderA.publicKey, lpPortfolio: lpPfl, matcherProgram: M, matcherCtx: ctx,
+    legs: [{ market: m1, mode, takerIsLong: true, maxQty: POS_SCALE, limitPrice }] });
+  await expectErr("matcher.Fill slippage", [fill(TRADE_MODE.OPEN, 99n * POS_SCALE)], [traderA], 130, true); // limit below the ask -> core execPriceClamp
+  const lpEq = async () => { const f = parsePortfolio(await acct(lpPfl)); return f.capital + f.totalLockedMm; };
+  const lpEq0 = await lpEq();
   await send("matcher.Fill(open)", [fill(TRADE_MODE.OPEN, 101n * POS_SCALE)], [traderA], true);
-  ok(parsePortfolio(await acct(lpPfl)).capital > lpCap0, "LP earned spread on taker open");
-  await send("matcher.Fill(close)", [fill(TRADE_MODE.CLOSE, 101n * POS_SCALE)], [traderA], true);
+  ok((await lpEq()) > lpEq0, "LP earned spread (net of its trade fee) on taker open");
+  await send("matcher.Fill(close)", [fill(TRADE_MODE.CLOSE, 1n)], [traderA], true); // taker SELLS at the bid (limit 1 = accept any bid)
   const funderBefore = await tokBal(funderTok);
-  await send("matcher.WithdrawLp", [matcherWithdrawLp(M, V, { cfg, owner: funder.publicKey, lpPortfolio: lpPfl, destToken: funderTok, percolator: P, amount: 10n * POS_SCALE })], [], true);
-  ok((await tokBal(funderTok)) - funderBefore === 10n * POS_SCALE, "WithdrawLp paid 10 to LP owner");
+  await send("matcher.WithdrawLp", [withdrawCollateral(P, V, { portfolio: lpPfl, owner: funder.publicKey, destToken: funderTok, amount: 10n * POS_SCALE })], [], true);
+  ok((await tokBal(funderTok)) - funderBefore === 10n * POS_SCALE, "LP owner withdrew 10 directly (WithdrawCollateral)");
 
   // ---- T5 oracle adapter (mock FEED account)
   console.log("T5 Adapter Init / Crank");
@@ -330,11 +352,11 @@ async function main() {
     "UpdateOracle", "InitPortfolio", "DepositCollateral", "WithdrawCollateral", "DepositInsurance", "WithdrawInsurance",
     "RefreshLeg", "Trade(open)", "Trade(close)", "Liquidate healthy", "ClearDeadLeg with live OI", "StartWindDown(admin)",
     "ForceClosePair", "ResolveMarket", "TombstoneMarket", "CloseAccount(portfolio)",
-    "matcher.Init", "matcher.Update", "matcher.Fill(open)", "matcher.WithdrawLp", "adapter.Init", "adapter.Crank",
+    "matcher.Init", "matcher.Update", "SetPortfolioMatcher", "matcher.Fill(open)", "matcher.Fill(close)", "matcher.WithdrawLp", "adapter.Init", "adapter.Crank",
   ];
   const claimCovered = covered.has("ClaimResolved") || covered.has("ClaimResolved without leg");
   const missing = required.filter((r) => !covered.has(r));
-  ok(missing.length === 0 && claimCovered, `encoder coverage: ${missing.length ? "missing " + missing.join(", ") : "all 20 core + 4 matcher + 2 adapter ops exercised"}`);
+  ok(missing.length === 0 && claimCovered, `encoder coverage: ${missing.length ? "missing " + missing.join(", ") : "all core ops + PropAMM + 2 adapter ops exercised"}`);
 
   const spent = (solStart - (await conn.getBalance(funder.publicKey))) / 1e9;
   console.log(`\n${passed} passed, ${failures.length} failed — spent ${spent.toFixed(4)} devnet SOL — dex ${dex.toBase58()}`);

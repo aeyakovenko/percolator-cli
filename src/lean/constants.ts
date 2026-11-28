@@ -62,7 +62,8 @@ export const MAGIC = {
   MARKET: 0x50544b4d,     // "MKTP"
   PORTFOLIO: 0x4f4c4650,  // "PFLO"
   INSURANCE: 0x52534e49,  // "INSR"
-  MATCHER: 0x4843544d,    // "MTCH"
+  MATCHER: 0x4843544d,    // "MTCH" (LEGACY 160-byte passive-matcher config; not produced by the 887ba02 matcher)
+  MRET: 0x5445524d,       // "MRET" — PropAMM ctx / MatcherReturn header (Layout.lean:50)
   ADAPTER: 0x5044414f,    // "OADP"
   FEED: 0x44454546,       // "FEED"
 } as const;
@@ -86,7 +87,10 @@ export const DEX_SIZE = 208;
 export const MARKET_SIZE = 416; // 9b45ad1: +fundingCfg@400 +premiumEwma@408 (built-in HL/Binance funding)
 export const PORTFOLIO_SIZE = 976;
 export const INS_RECEIPT_SIZE = 88;
+/** @deprecated LEGACY passive-matcher config (pre-PropAMM). The matcher deployed at 887ba02 uses PROP_CTX_SIZE. */
 export const MATCHER_CFG_SIZE = 160;
+/** PropAMM context account (Matcher.lean:38 `PropOff.size`). Fresh account owned by the matcher program. */
+export const PROP_CTX_SIZE = 272;
 export const ADAPTER_CFG_SIZE = 352;
 export const FEED_SIZE = 32;
 export const REWARD_CFG_SIZE = 400;
@@ -128,6 +132,14 @@ export const LegOff = { // a31a1f8: 104B stride (+per-leg lockedMm@96 isolated-M
 
 export const InsOff = { magic: 0, marketId: 8, owner: 16, market: 48, shares: 80 } as const;
 
+/** PropAMM ctx layout (Matcher.lean:31-50). Bytes 0..144 = MatcherReturn header + 8 quote slots (rewritten by every
+ *  quote), 144..208 = owner-mutable params, 201 + 208..272 = IMMUTABLE marketId allowlist. */
+export const PropOff = {
+  magic: 0, status: 4, seq: 8, quotesBase: 16, quoteStride: 16, owner: 144, halfSpreadBps: 176, impactBps: 184,
+  maxFillQty: 192, paused: 200, allowedCount: 201, allowedMarkets: 208,
+} as const;
+
+/** @deprecated LEGACY 160-byte passive-matcher config layout (pre-PropAMM). */
 export const MatcherCfgOff = {
   magic: 0, pdaBump: 4, paused: 5, owner: 8, percProg: 40, lpPortfolio: 72,
   halfSpreadBps: 104, impactBps: 112, maxFillQty: 120, market: 128, // e1e4404: pinned Market (32)
@@ -152,9 +164,12 @@ export const IX = {
   InitPortfolio: 5, DepositCollateral: 6, WithdrawCollateral: 7, DepositInsurance: 8,
   WithdrawInsurance: 9, RefreshLeg: 10, Trade: 11, Liquidate: 12, ClearDeadLeg: 13,
   StartWindDown: 14, ForceClosePair: 15, ResolveMarket: 16, ClaimResolved: 17,
-  TombstoneMarket: 18, CloseAccount: 19, SweepSurplus: 20, ClaimReward: 21, TradeWithMatcher: 23,
+  TombstoneMarket: 18, CloseAccount: 19, SweepSurplus: 20, ClaimReward: 21, SetPortfolioMatcher: 22, TradeWithMatcher: 23, // Layout.lean IxOp
 } as const;
+/** @deprecated LEGACY passive-matcher opcodes. At 887ba02 the matcher program is the PropAMM: use PROP_AMM_IX. */
 export const MATCHER_IX = { Init: 0, Update: 1, Fill: 2, WithdrawLp: 3 } as const;
+/** PropAMM matcher opcodes (Matcher.lean:339-346 dispatch). Quote (2) is the 0-signer CPI entrypoint. */
+export const PROP_AMM_IX = { Init: 0, Update: 1, Quote: 2 } as const;
 export const ADAPTER_IX = { Init: 0, Crank: 1, InitEwma: 2, PushEwmaMark: 3 } as const;
 export const REWARD_IX = { InitReward: 0, StartEpoch: 1, SubmitBid: 2, SettleEpoch: 3, ClaimQuote: 4 } as const;
 
@@ -170,9 +185,18 @@ export const EpochOff = {
   magic: 0, settled: 4, cfg: 8, epochId: 40, quotePot: 48, virtBids: 56, totalBids: 64,
   quotePaid: 72, startSlot: 80, endSlot: 88, claimedQuote: 96,
 } as const;
+/** BidReceipt layout (RewardModule.lean:121-128). */
+export const BidOff = { magic: 0, cfg: 8, epochAcc: 40, bidder: 72, epochId: 104, amount: 112 } as const;
 export const MAGIC_REWARD = 0x4d574552; // "REWM"
+export const MAGIC_EPOCH = 0x48435045;  // "EPCH" (RewardModule.lean:47)
+export const MAGIC_BID = 0x52444942;    // "BIDR" (RewardModule.lean:48)
+export const MAGIC_CLOSED = 0x44454144; // "DEAD" (Layout.lean:49; stamped on closed accounts incl. claimed BidReceipts)
 
-export const TRADE_MODE = { OPEN: 0, CLOSE: 1, FLIP: 4 } as const; // fb67248: mode 4 = atomic position flip (tradeNettedCore)
+/** 0 = open/increase, 1 = reduce, 4 = auto-netted buy/sell (reduce + hand-off + open + flip in one). With
+ *  TradeWithMatcher use FLIP/NETTED for "just buy/sell qty": OPEN/CLOSE fail (invalidSide/legNotFound) whenever the
+ *  LP's current inventory is on the wrong side. Modes 2/3 (position hand-off) are used internally by NETTED and are
+ *  rejected by TradeWithMatcher (Program.lean:2236); bilateral `trade` passes its mode byte through unfiltered. */
+export const TRADE_MODE = { OPEN: 0, CLOSE: 1, FLIP: 4, NETTED: 4 } as const; // fb67248: mode 4 = atomic position flip (tradeNettedCore)
 export const MARKET_AUTH_ROLE = { ADMIN: 0, ORACLE: 1 } as const;
 
 // ---------- custom error codes ----------
@@ -184,14 +208,20 @@ export const LEAN_ERRORS: Record<number, string> = {
   116: "positionHealthy", 117: "exitWindowActive", 118: "nonzeroOi", 119: "nonzeroState",
   120: "invalidTokenProg", 121: "invalidSide", 122: "stalePortfolioLeg", 123: "invalidInstruction",
   124: "portfolioFull", 125: "legNotFound", 126: "oracleSameSlot", 127: "dexMismatch",
-  128: "invalidVaultState", 129: "invalidSysProg", 130: "execPriceClamp",
-  // matcher
-  200: "matcher.paused", 201: "matcher.qtyTooLarge", 202: "matcher.slippage",
-  203: "matcher.progMismatch", 204: "matcher.pflMismatch",
-  205: "matcher.mktMismatch", 206: "matcher.invalidMode",
-  // oracle adapter
+  128: "invalidVaultState", 129: "invalidSysProg", 130: "execPriceClamp", 131: "invalidMatcher",
+  // PropAMM matcher (Matcher.lean:26-29). 200 is also returned while a market is in its 150-slot ramp cooldown.
+  // (The legacy passive matcher's 201..206 qtyTooLarge/slippage/... no longer exist: a taker limit-price miss is
+  //  core 130 execPriceClamp, and maxFillQty CLAMPS the fill instead of rejecting.)
+  200: "matcher.paused", 201: "matcher.marketNotAllowed",
+  // oracle adapter (OracleAdapter.lean:59-69)
   300: "adapter.feedStale", 301: "adapter.feedWideConf", 302: "adapter.feedMismatch",
-  303: "adapter.progMismatch",
+  303: "adapter.progMismatch", 304: "adapter.badFeedFormat", 305: "adapter.badFeedId",
+  306: "adapter.ewmaDevExceeded", 307: "adapter.ewmaNotEnabled", 308: "adapter.ewmaSameSlot",
+  // reward module (RewardModule.lean:60-74)
+  400: "reward.progMismatch", 401: "reward.dexMismatch", 402: "reward.mktMismatch", 403: "reward.mintMismatch",
+  404: "reward.sinkMismatch", 405: "reward.epochActive", 406: "reward.badBurnMode", 407: "reward.recipientBad",
+  408: "reward.belowMinBatch", 409: "reward.epochClosed", 410: "reward.epochNotEnded", 411: "reward.epochMismatch",
+  413: "reward.vaultMismatch",
 };
 
 /** Map a custom program error number to its name ("custom:<n>" if unknown). */

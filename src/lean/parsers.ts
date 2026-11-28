@@ -6,6 +6,8 @@ import {
   MAGIC, DexOff, MktOff, PflOff, LegOff, InsOff, MatcherCfgOff, AdapterOff, FeedOff,
   DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, MATCHER_CFG_SIZE, ADAPTER_CFG_SIZE,
   FEED_SIZE, MAX_LEGS, SIDE, STATUS, K_ZERO, ADL_ONE, PREM_ZERO,
+  PropOff, PROP_CTX_SIZE, RewOff, EpochOff, BidOff, REWARD_CFG_SIZE, EPOCH_SIZE, BIDDER_SIZE,
+  MAGIC_REWARD, MAGIC_EPOCH, MAGIC_BID, POS_SCALE, BPS_DEN, TRADE_MODE,
 } from "./constants.js";
 
 const u8 = (b: Buffer, o: number) => b.readUInt8(o);
@@ -21,7 +23,7 @@ function expect(b: Buffer, magic: number, size: number, what: string) {
 }
 
 /** Which percolator-lean account type a buffer holds (strict magic + exact size), or null. */
-export function accountKind(b: Buffer): "dex" | "market" | "portfolio" | "insReceipt" | "matcherCfg" | "adapterCfg" | "feed" | null {
+export function accountKind(b: Buffer): "dex" | "market" | "portfolio" | "insReceipt" | "matcherCfg" | "propAmmCtx" | "adapterCfg" | "feed" | "rewardCfg" | "epochState" | "bidReceipt" | null {
   if (b.length < 4) return null;
   switch (u32(b, 0)) {
     case MAGIC.DEX: return b.length === DEX_SIZE ? "dex" : null;
@@ -29,6 +31,10 @@ export function accountKind(b: Buffer): "dex" | "market" | "portfolio" | "insRec
     case MAGIC.PORTFOLIO: return b.length === PORTFOLIO_SIZE ? "portfolio" : null;
     case MAGIC.INSURANCE: return b.length === INS_RECEIPT_SIZE ? "insReceipt" : null;
     case MAGIC.MATCHER: return b.length === MATCHER_CFG_SIZE ? "matcherCfg" : null;
+    case MAGIC.MRET: return b.length === PROP_CTX_SIZE ? "propAmmCtx" : null;
+    case MAGIC_REWARD: return b.length === REWARD_CFG_SIZE ? "rewardCfg" : null;
+    case MAGIC_EPOCH: return b.length === EPOCH_SIZE ? "epochState" : null;
+    case MAGIC_BID: return b.length === BIDDER_SIZE ? "bidReceipt" : null;
     case MAGIC.ADAPTER: return b.length === ADAPTER_CFG_SIZE ? "adapterCfg" : null;
     case MAGIC.FEED: return b.length === FEED_SIZE ? "feed" : null;
     default: return null;
@@ -59,7 +65,11 @@ export interface Market {
   status: number; statusName: string; marketId: bigint; dex: PublicKey;
   oracleAuth: PublicKey; marketAdmin: PublicKey | null;
   markPrice: bigint; lastOracleSlot: bigint; windDownSlot: bigint;
-  exitWindow: bigint; maxStaleness: bigint; warmupSlots: bigint;
+  exitWindow: bigint; maxStaleness: bigint;
+  /** @deprecated legacy name of bytes 152..159 — same value as `lastRampSlot`. */
+  warmupSlots: bigint;
+  /** Slot of the last saturated oracle ramp tick / bankruptcy (0 = none). For 150 slots after it the PropAMM refuses to quote. */
+  lastRampSlot: bigint;
   imBps: bigint; mmBps: bigint; liqFeeBps: bigint; tradeFeeBps: bigint; maxMoveBps: bigint;
   maxInsDrawBps: bigint; maxOi: bigint; minMm: bigint;
   realizedPool: bigint; insurance: bigint; insFronted: bigint; maxFrontBps: bigint; totalPosPnl: bigint; totalInsShares: bigint;
@@ -83,7 +93,7 @@ export function parseMarket(b: Buffer): Market {
     status, statusName: STATUS_NAMES[status] ?? `?${status}`, marketId: u64(b, O.marketId), dex: pk(b, O.dex),
     oracleAuth: pk(b, O.oracleAuth), marketAdmin: isZeroKey(b, O.marketAdmin) ? null : pk(b, O.marketAdmin),
     markPrice: u64(b, O.markPrice), lastOracleSlot: u64(b, O.lastOracleSlot), windDownSlot: u64(b, O.windDownSlot),
-    exitWindow: u64(b, O.exitWindow), maxStaleness: u64(b, O.maxStaleness), warmupSlots: u64(b, O.warmupSlots),
+    exitWindow: u64(b, O.exitWindow), maxStaleness: u64(b, O.maxStaleness), warmupSlots: u64(b, O.warmupSlots), lastRampSlot: u64(b, O.lastRampSlot),
     imBps: u64(b, O.imBps), mmBps: u64(b, O.mmBps), liqFeeBps: u64(b, O.liqFeeBps), tradeFeeBps: u64(b, O.tradeFeeBps),
     maxMoveBps: u64(b, O.maxMoveBps), maxInsDrawBps: u64(b, O.maxInsDrawBps), maxOi: u64(b, O.maxOi), minMm: u64(b, O.minMm),
     realizedPool: u64(b, O.realizedPool), insurance: u64(b, O.insurance), insFronted: u64(b, O.insFronted),
@@ -146,11 +156,141 @@ export function parseInsReceipt(b: Buffer): InsReceipt {
   return { marketId: u64(b, InsOff.marketId), owner: pk(b, InsOff.owner), market: pk(b, InsOff.market), shares: u64(b, InsOff.shares) };
 }
 
+// ---------------------------------------------------------------- PropAMM ctx (Matcher.lean:31-50)
+export interface PropAmmQuoteSlot { execPrice: bigint; fillQty: bigint }
+export interface PropAmmCtx {
+  /** MatcherReturn header: status 0 = ok; seq = sequence number of the LAST quote written (core sends preSeq + 1). */
+  status: number; seq: bigint;
+  /** All 8 quote slots as last written (slot i = leg i of the most recent quote; stale beyond that quote's k). */
+  quotes: PropAmmQuoteSlot[];
+  owner: PublicKey; halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint; paused: boolean;
+  /** IMMUTABLE allowlist: the first `allowedCount` market ids. */
+  allowedCount: number; allowedMarkets: bigint[];
+}
+/** Parse a 272-byte PropAMM ctx ("MRET" header + 8 quote slots + owner params + immutable allowlist). */
+export function parsePropAmmCtx(b: Buffer): PropAmmCtx {
+  expect(b, MAGIC.MRET, PROP_CTX_SIZE, "PropAmmCtx");
+  const O = PropOff;
+  const allowedCount = u8(b, O.allowedCount);
+  if (allowedCount < 1 || allowedCount > MAX_LEGS) throw new Error(`PropAmmCtx: bad allowedCount ${allowedCount}`);
+  return {
+    status: u32(b, O.status), seq: u64(b, O.seq),
+    quotes: Array.from({ length: MAX_LEGS }, (_, i) => ({
+      execPrice: u64(b, O.quotesBase + i * O.quoteStride), fillQty: u64(b, O.quotesBase + i * O.quoteStride + 8) })),
+    owner: pk(b, O.owner), halfSpreadBps: u64(b, O.halfSpreadBps), impactBps: u64(b, O.impactBps),
+    maxFillQty: u64(b, O.maxFillQty), paused: u8(b, O.paused) !== 0,
+    allowedCount, allowedMarkets: Array.from({ length: allowedCount }, (_, i) => u64(b, O.allowedMarkets + i * 8)),
+  };
+}
+
+/** Thrown by `propAmmQuote` where the on-chain quote would fail; `code` is the program's custom error number. */
+export class PropAmmQuoteError extends Error {
+  constructor(public readonly code: number, message: string) { super(message); this.name = "PropAmmQuoteError"; }
+}
+export interface PropAmmQuoteLeg {
+  mode: number; takerIsLong: boolean; marketId: bigint; maxQty: bigint;
+  /** Market.markPrice and Market.maxMoveBps as they will be when the trade lands. */
+  markPrice: bigint; maxMoveBps: bigint;
+  /** Market is inside its 150-slot ramp cooldown (lastRampSlot != 0 && slot - lastRampSlot <= 150). */
+  isRamping?: boolean;
+}
+export interface PropAmmQuote { isBuy: boolean; execPrice: bigint; fillQty: bigint; effBps: bigint; hedged: boolean }
+const U64_MAX_Q = (1n << 64n) - 1n;
+/**
+ * Pure off-chain replica of PropAmmQuote (Matcher.lean:246-337) for a whole basket: what `tradeWithMatcher` will
+ * fill at for these legs given the ctx params and each market's mark/maxMoveBps.
+ *   fillQty   = min(maxQty, maxFillQty)                                   (CLAMP, never a reject)
+ *   effBps    = min(halfSpread' + floor(fillQty * impactBps / 1e6), maxMoveBps)
+ *   delta     = floor(mark * effBps / 10000)
+ *   execPrice = buy ? mark + delta : max(mark - delta, 1)                  (buy = ask >= mark, sell = bid <= mark)
+ *   halfSpread' = halfSpreadBps >> 1 when the basket has k >= 2 legs with BOTH a buy and a sell ("hedged").
+ * Throws PropAmmQuoteError(200) if paused / a leg is ramping, (201) if a leg's market is not allowlisted,
+ * (103) on a bad mode / zero qty / zero mark — the same codes the transaction would fail with.
+ */
+export function propAmmQuote(
+  ctx: Pick<PropAmmCtx, "halfSpreadBps" | "impactBps" | "maxFillQty" | "paused" | "allowedMarkets">, legs: PropAmmQuoteLeg[],
+): PropAmmQuote[] {
+  if (legs.length < 1 || legs.length > MAX_LEGS) throw new RangeError(`propAmmQuote: needs 1..${MAX_LEGS} legs, got ${legs.length}`);
+  if (ctx.paused) throw new PropAmmQuoteError(200, "PropAMM is paused");
+  const buy = (l: PropAmmQuoteLeg) => (l.mode !== TRADE_MODE.CLOSE && l.takerIsLong) || (l.mode === TRADE_MODE.CLOSE && !l.takerIsLong);
+  const hedged = legs.length >= 2 && legs.some(buy) && legs.some((l) => !buy(l));
+  const effHalf = hedged ? ctx.halfSpreadBps >> 1n : ctx.halfSpreadBps;
+  const fit = (v: bigint, what: string) => { if (v > U64_MAX_Q) throw new RangeError(`propAmmQuote: ${what} overflows u64 (the on-chain quote would fail)`); return v; };
+  return legs.map((l, i) => {
+    if (!(l.mode === TRADE_MODE.OPEN || l.mode === TRADE_MODE.CLOSE || l.mode === TRADE_MODE.NETTED) || l.maxQty <= 0n || l.markPrice <= 0n)
+      throw new PropAmmQuoteError(103, `leg ${i}: invalid mode/qty/mark`);
+    if (!ctx.allowedMarkets.includes(l.marketId)) throw new PropAmmQuoteError(201, `leg ${i}: market id ${l.marketId} is not in the PropAMM allowlist`);
+    if (l.isRamping) throw new PropAmmQuoteError(200, `leg ${i}: market ${l.marketId} is in its ramp cooldown (PropAMM does not quote)`);
+    const fillQty = l.maxQty < ctx.maxFillQty ? l.maxQty : ctx.maxFillQty;
+    const raw = fit(effHalf + fit((fillQty * ctx.impactBps) / POS_SCALE, "impact"), "spread");
+    const effBps = raw > l.maxMoveBps ? l.maxMoveBps : raw;
+    const delta = fit((l.markPrice * effBps) / BPS_DEN, "delta");
+    const isBuy = buy(l);
+    const execPrice = isBuy ? fit(l.markPrice + delta, "ask") : (l.markPrice > delta ? l.markPrice - delta : 1n);
+    return { isBuy, execPrice, fillQty, effBps, hedged };
+  });
+}
+
+// ---------------------------------------------------------------- reward module (RewardModule.lean:78-128)
+export interface RewardCfg {
+  pdaBump: number; burnMode: number; quoteDecimals: number; targetDecimals: number;
+  percolator: PublicKey; dex: PublicKey; market: PublicKey; quoteMint: PublicKey; quoteVault: PublicKey;
+  targetMint: PublicKey; targetEscrow: PublicKey; targetTokProg: PublicKey;
+  /** burnMode 1 dead-sink token account (zero key in burnMode 0). */
+  burnSinkTok: PublicKey;
+  /** Current epoch account, or null when no epoch is active (zero key). */
+  activeEpochAcc: PublicKey | null;
+  epochSlots: bigint; minBatchQuote: bigint; reserveRateE6: bigint; activeEpochId: bigint; activeQuote: bigint;
+  rolloverQuote: bigint; pendingClaims: bigint; totalQuoteSpent: bigint; totalTargetBurned: bigint;
+}
+export function parseRewardCfg(b: Buffer): RewardCfg {
+  expect(b, MAGIC_REWARD, REWARD_CFG_SIZE, "RewardCfg");
+  const O = RewOff;
+  return {
+    pdaBump: u8(b, O.pdaBump), burnMode: u8(b, O.burnMode), quoteDecimals: u8(b, O.quoteDecimals), targetDecimals: u8(b, O.targetDecimals),
+    percolator: pk(b, O.percProg), dex: pk(b, O.dex), market: pk(b, O.market), quoteMint: pk(b, O.quoteMint),
+    quoteVault: pk(b, O.quoteVault), targetMint: pk(b, O.targetMint), targetEscrow: pk(b, O.targetEscrow),
+    targetTokProg: pk(b, O.targetTokProg), burnSinkTok: pk(b, O.burnSinkTok),
+    activeEpochAcc: isZeroKey(b, O.activeEpochAcc) ? null : pk(b, O.activeEpochAcc),
+    epochSlots: u64(b, O.epochSlots), minBatchQuote: u64(b, O.minBatchQuote), reserveRateE6: u64(b, O.reserveRateE6),
+    activeEpochId: u64(b, O.activeEpochId), activeQuote: u64(b, O.activeQuote), rolloverQuote: u64(b, O.rolloverQuote),
+    pendingClaims: u64(b, O.pendingClaims), totalQuoteSpent: u64(b, O.totalQuoteSpent), totalTargetBurned: u64(b, O.totalTargetBurned),
+  };
+}
+
+export interface EpochState {
+  settled: boolean; cfg: PublicKey; epochId: bigint;
+  /** Q_e: quote pot auctioned this epoch. */ quotePot: bigint;
+  /** B_virt: virtual reserve bids. */ virtBids: bigint;
+  /** B_e: total target bid so far. */ totalBids: bigint;
+  /** floor(Q_e * B_e / (B_e + B_virt)), fixed at settle. */ quotePaid: bigint;
+  startSlot: bigint; endSlot: bigint; claimedQuote: bigint;
+}
+export function parseEpochState(b: Buffer): EpochState {
+  expect(b, MAGIC_EPOCH, EPOCH_SIZE, "EpochState");
+  const O = EpochOff;
+  return {
+    settled: u8(b, O.settled) !== 0, cfg: pk(b, O.cfg), epochId: u64(b, O.epochId), quotePot: u64(b, O.quotePot),
+    virtBids: u64(b, O.virtBids), totalBids: u64(b, O.totalBids), quotePaid: u64(b, O.quotePaid),
+    startSlot: u64(b, O.startSlot), endSlot: u64(b, O.endSlot), claimedQuote: u64(b, O.claimedQuote),
+  };
+}
+
+export interface BidReceipt { cfg: PublicKey; epochAcc: PublicKey; bidder: PublicKey; epochId: bigint; amount: bigint }
+/** Throws on a claimed receipt: ClaimQuote zeroes it and stamps the "DEAD" magic (MAGIC_CLOSED). */
+export function parseBidReceipt(b: Buffer): BidReceipt {
+  expect(b, MAGIC_BID, BIDDER_SIZE, "BidReceipt");
+  const O = BidOff;
+  return { cfg: pk(b, O.cfg), epochAcc: pk(b, O.epochAcc), bidder: pk(b, O.bidder), epochId: u64(b, O.epochId), amount: u64(b, O.amount) };
+}
+
 // ---------------------------------------------------------------- matcher / adapter / feed
+/** @deprecated LEGACY 160-byte passive-matcher config (pre-PropAMM). Use PropAmmCtx / parsePropAmmCtx. */
 export interface MatcherConfig {
   pdaBump: number; paused: boolean; owner: PublicKey; percolator: PublicKey; lpPortfolio: PublicKey;
   halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint; market: PublicKey;
 }
+/** @deprecated LEGACY (pre-PropAMM): the 887ba02 matcher never creates this account. Use parsePropAmmCtx. */
 export function parseMatcherConfig(b: Buffer): MatcherConfig {
   expect(b, MAGIC.MATCHER, MATCHER_CFG_SIZE, "MatcherConfig");
   const O = MatcherCfgOff;

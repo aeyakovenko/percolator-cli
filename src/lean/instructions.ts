@@ -4,11 +4,17 @@
  * PINNED to percolator-lean `2dc4d21`. Data layouts and account orders mirror the
  * `ix_*` builders in percolator-lean/svm-runner/src/main.rs at that commit (verified
  * end-to-end on devnet by lean-devnet/runner) and the Lean handlers.
+ *
+ * Core ops 20-23 (SweepSurplus, ClaimReward, SetPortfolioMatcher, TradeWithMatcher) and the PropAMM
+ * matcher ops (propAmm*) are derived clean-room from Percolator/Program.lean + Percolator/Matcher.lean
+ * at `887ba02` and proven on devnet by scripts/_lean-propamm-devnet.ts. Line numbers cited below refer to the
+ * COMMITTED files (`git show 887ba02:Percolator/<file>`), which is what is deployed — not to a dirty working tree.
  */
 import { PublicKey, TransactionInstruction, AccountMeta } from "@solana/web3.js";
 import {
-  IX, MATCHER_IX, ADAPTER_IX, REWARD_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
+  IX, MATCHER_IX, PROP_AMM_IX, ADAPTER_IX, REWARD_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
   SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE, COLLATERAL_DECIMALS, MAX_FUND_8H_BPS, MAX_FUND_DEADBAND_E6,
+  MAX_LEGS, BPS_DEN,
 } from "./constants.js";
 
 const w = (pubkey: PublicKey, isSigner = false): AccountMeta => ({ pubkey, isSigner, isWritable: true });
@@ -281,8 +287,251 @@ export function closeAccount(p: PublicKey, a: { account: PublicKey; authority: P
   return ix(p, [w(a.account), r(a.authority, true), w(a.destination)], Buffer.from([IX.CloseAccount]));
 }
 
-// ================================================================= matcher
-/** matcher op 0. `cfg` = fresh MATCHER_CFG_SIZE account owned by the matcher; `lpPortfolio` = fresh PORTFOLIO_SIZE account owned by percolator. */
+// ================================================================= core ops 20-23 (887ba02)
+const U64_MAX = (1n << 64n) - 1n;
+/** Throw unless `v` is a bigint in 0..2^64-1 (Buffer.writeBigUInt64LE would otherwise throw an opaque RangeError). */
+function reqU64(fn: string, name: string, v: bigint): bigint {
+  if (typeof v !== "bigint" || v < 0n || v > U64_MAX) throw new RangeError(`${fn}: ${name} must be a u64 bigint, got ${String(v)}`);
+  return v;
+}
+/** Throw if any two of the named accounts are the same key (the program rejects duplicates as aliasedAccounts 109). */
+function reqDistinct(fn: string, named: [string, PublicKey][]) {
+  const seen = new Map<string, string>();
+  for (const [name, key] of named) {
+    const b58 = key.toBase58();
+    const prev = seen.get(b58);
+    if (prev !== undefined) throw new Error(`${fn}: ${name} must be distinct from ${prev} (${b58})`);
+    seen.set(b58, name);
+  }
+}
+
+/**
+ * op 20 SweepSurplus (Program.lean:2061-2087). DEX admin sweeps protocol surplus S (only `Dex.totalSurplus`;
+ * C/I/R/rewards untouched) from the DEX vault to the DEX's pinned `feeVault` token account. At 887ba02 S only grows
+ * from resolved-market dust / orphan insurance (insurance of a RESOLVED market that has no LP shares, Program.lean:126-148).
+ * Accounts: dex(W), admin(S), mint, vault(W), feeVault(W), tokenProgram. Data (9 B): [20, amount:u64]; amount 0 = all.
+ * Rejects with invalidParams (103) when there is nothing to sweep or amount > S.
+ */
+export function sweepSurplus(p: PublicKey, v: VaultAccounts, a: { admin: PublicKey; feeVault: PublicKey; amount?: bigint }) {
+  const amount = reqU64("sweepSurplus", "amount", a.amount ?? 0n);
+  reqDistinct("sweepSurplus", [["dex", v.dex], ["admin", a.admin], ["mint", v.mint], ["vault", v.vault], ["feeVault", a.feeVault], ["tokenProgram", tok(v)]]);
+  const d = data(9, IX.SweepSurplus);
+  d.writeBigUInt64LE(amount, 1);
+  return ix(p, [w(v.dex), r(a.admin, true), r(v.mint), w(v.vault), w(a.feeVault), r(tok(v))], d);
+}
+
+/**
+ * op 21 ClaimReward (Program.lean:2089-2121). ONLY the market's immutable `rewardRecipient` may sign (normally the
+ * reward-module PDA via CPI — see rewardStartEpoch — but any key the market was created with works). Pays
+ * `market.rewardAccrued` from the DEX vault to `destToken`.
+ * Accounts: dex(W), market(W), rewardAuth(S), mint, vault(W), destToken(W), tokenProgram. Data (9 B): [21, amount:u64]; 0 = all.
+ */
+export function claimReward(p: PublicKey, v: VaultAccounts, a: { market: PublicKey; rewardAuth: PublicKey; destToken: PublicKey; amount?: bigint }) {
+  const amount = reqU64("claimReward", "amount", a.amount ?? 0n);
+  reqDistinct("claimReward", [["dex", v.dex], ["market", a.market], ["rewardAuth", a.rewardAuth], ["mint", v.mint], ["vault", v.vault], ["destToken", a.destToken], ["tokenProgram", tok(v)]]);
+  const d = data(9, IX.ClaimReward);
+  d.writeBigUInt64LE(amount, 1);
+  return ix(p, [w(v.dex), w(a.market), r(a.rewardAuth, true), r(v.mint), w(v.vault), w(a.destToken), r(tok(v))], d);
+}
+
+/**
+ * op 22 SetPortfolioMatcher (Program.lean:2123-2143). The portfolio OWNER binds an external matcher ctx (e.g. a
+ * PropAMM ctx) to their portfolio — after this ANYONE can trade against the portfolio through `tradeWithMatcher`
+ * at whatever price that ctx's program quotes, so only bind a ctx whose program AND owner you control/trust.
+ * Pass `matcherCtx: null` to revoke (stores the zero key). The owner keeps sole custody of withdrawals.
+ * Accounts: portfolio(W), owner(S), [matcherCtx]. Data: [22].
+ * NOTE: the program does not validate the ctx account at bind time (any key is stored verbatim).
+ */
+export function setPortfolioMatcher(p: PublicKey, a: { portfolio: PublicKey; owner: PublicKey; matcherCtx: PublicKey | null }) {
+  const keys = [w(a.portfolio), r(a.owner, true)];
+  if (a.matcherCtx) {
+    if (a.matcherCtx.equals(PublicKey.default)) throw new Error("setPortfolioMatcher: matcherCtx is the zero key; pass matcherCtx: null to unbind");
+    reqDistinct("setPortfolioMatcher", [["portfolio", a.portfolio], ["owner", a.owner], ["matcherCtx", a.matcherCtx]]);
+    keys.push(r(a.matcherCtx));
+  } else {
+    if (a.matcherCtx !== null) throw new Error("setPortfolioMatcher: matcherCtx is required (pass null explicitly to unbind)");
+    reqDistinct("setPortfolioMatcher", [["portfolio", a.portfolio], ["owner", a.owner]]);
+  }
+  return ix(p, keys, Buffer.from([IX.SetPortfolioMatcher]));
+}
+
+/** One market leg of a `tradeWithMatcher` basket. */
+export interface MatcherLeg {
+  market: PublicKey;
+  /** TRADE_MODE.OPEN (0), CLOSE (1) or NETTED/FLIP (4). Prefer NETTED: it reduces, hands off, opens and flips as needed. */
+  mode: number;
+  /** OPEN/NETTED: true = taker BUYS (goes long). CLOSE: true = taker currently HOLDS the long it is reducing (i.e. taker SELLS). */
+  takerIsLong: boolean;
+  /** Max base quantity (E6). The matcher may fill LESS (PropAMM clamps to its maxFillQty); there is no min-fill field. */
+  maxQty: bigint;
+  /** Worst acceptable exec price (E6): buys fill only at <= limit, sells only at >= limit (else execPriceClamp 130).
+   *  0 / omitted = NO limit (the fill is then only bounded by the market's maxMoveBps band around mark). */
+  limitPrice?: bigint;
+}
+/** True when the taker is economically buying on this leg (Program.lean:2282-2283 / Matcher.lean:290). */
+export const matcherLegIsBuy = (l: { mode: number; takerIsLong: boolean }) =>
+  (l.mode !== TRADE_MODE.CLOSE && l.takerIsLong) || (l.mode === TRADE_MODE.CLOSE && !l.takerIsLong);
+
+/**
+ * op 23 TradeWithMatcher (Program.lean:2310-2401). SINGLE-SIGNER taker trade against an LP portfolio whose owner
+ * bound `matcherCtx` with `setPortfolioMatcher` — the LP does NOT sign. Core CPIs the matcher program once with all
+ * k offers (0 signers, only `matcherCtx` writable), validates the returned (execPrice, fillQty) per leg and settles
+ * through the same tradeCore as `trade`.
+ *
+ * Accounts: dex(W), takerPortfolio(W), taker(S), lpPortfolio(W), matcherProgram, matcherCtx(W), market_0..k-1 (W),
+ *           then optional trailing read-only accounts (`extraAccounts`).
+ * Data (2 + 18k B): [23, k, (mode:u8, takerIsLong:u8, maxQty:u64, limitPrice:u64) x k].
+ *
+ * `extraAccounts`: the FIRST one is forwarded read-only to the matcher as its `extraAcc` (Program.lean:2386-2389;
+ * ignored by the PropAMM, the LimitMatcher wants the Instructions sysvar there); it must not duplicate an earlier
+ * account. Further trailing accounts are ignored at 887ba02.
+ *
+ * FRESHNESS: every OTHER open leg of the taker AND of the LP must have been refreshed (RefreshLeg) earlier in the
+ * same slot — i.e. in the same transaction — or the trade fails with stalePortfolioLeg (122); this includes the
+ * second leg of the taker's own basket when unwinding it. Wrap the instruction with `withLegRefresh`.
+ */
+export function tradeWithMatcher(p: PublicKey, a: {
+  dex: PublicKey; takerPortfolio: PublicKey; taker: PublicKey; lpPortfolio: PublicKey;
+  matcherProgram: PublicKey; matcherCtx: PublicKey; legs: MatcherLeg[]; extraAccounts?: PublicKey[];
+}) {
+  const fn = "tradeWithMatcher";
+  const k = a.legs?.length ?? 0;
+  if (k < 1 || k > MAX_LEGS) throw new RangeError(`${fn}: needs 1..${MAX_LEGS} legs, got ${k}`);
+  if (a.matcherProgram.equals(p)) throw new Error(`${fn}: matcherProgram must not be the percolator program itself`);
+  const extras = a.extraAccounts ?? [];
+  reqDistinct(fn, [
+    ["dex", a.dex], ["takerPortfolio", a.takerPortfolio], ["taker", a.taker], ["lpPortfolio", a.lpPortfolio],
+    ["matcherProgram", a.matcherProgram], ["matcherCtx", a.matcherCtx],
+    ...a.legs.map((l, i): [string, PublicKey] => [`legs[${i}].market`, l.market]),
+    ...extras.map((e, i): [string, PublicKey] => [`extraAccounts[${i}]`, e]),
+  ]);
+  const d = data(2 + 18 * k, IX.TradeWithMatcher);
+  d.writeUInt8(k, 1);
+  a.legs.forEach((l, i) => {
+    if (l.mode !== TRADE_MODE.OPEN && l.mode !== TRADE_MODE.CLOSE && l.mode !== TRADE_MODE.NETTED)
+      throw new RangeError(`${fn}: legs[${i}].mode must be 0 (open), 1 (close) or 4 (netted), got ${l.mode}`);
+    if (typeof l.takerIsLong !== "boolean") throw new TypeError(`${fn}: legs[${i}].takerIsLong must be a boolean`);
+    if (reqU64(fn, `legs[${i}].maxQty`, l.maxQty) === 0n) throw new RangeError(`${fn}: legs[${i}].maxQty must be > 0`);
+    const o = 2 + 18 * i;
+    d.writeUInt8(l.mode, o);
+    d.writeUInt8(l.takerIsLong ? 1 : 0, o + 1);
+    d.writeBigUInt64LE(l.maxQty, o + 2);
+    d.writeBigUInt64LE(reqU64(fn, `legs[${i}].limitPrice`, l.limitPrice ?? 0n), o + 10);
+  });
+  return ix(p, [
+    w(a.dex), w(a.takerPortfolio), r(a.taker, true), w(a.lpPortfolio), r(a.matcherProgram), w(a.matcherCtx),
+    ...a.legs.map((l) => w(l.market)), ...extras.map((e) => r(e)),
+  ], d);
+}
+
+// ================================================================= PropAMM matcher (Matcher.lean @ 887ba02)
+export interface PropAmmParams {
+  /** Half-spread in bps of mark, 0..10000. Must exceed the market's tradeFeeBps for the LP to net a profit (the LP pays the trade fee too). */
+  halfSpreadBps: bigint;
+  /** Extra bps per 1.0 base unit filled: impact = floor(fillQty * impactBps / 1e6). */
+  impactBps: bigint;
+  /** Per-leg fill cap (E6, > 0). Larger requests are PARTIALLY filled at this size, not rejected. */
+  maxFillQty: bigint;
+  /** true = every quote fails with matcher.paused (200) — opens AND closes. */
+  paused?: boolean;
+}
+function propAmmParamBytes(fn: string, op: number, len: number, a: PropAmmParams): Buffer {
+  reqU64(fn, "halfSpreadBps", a.halfSpreadBps); reqU64(fn, "impactBps", a.impactBps); reqU64(fn, "maxFillQty", a.maxFillQty);
+  if (a.halfSpreadBps > BPS_DEN) throw new RangeError(`${fn}: halfSpreadBps must be <= ${BPS_DEN}, got ${a.halfSpreadBps}`);
+  if (a.maxFillQty === 0n) throw new RangeError(`${fn}: maxFillQty must be > 0`);
+  if (a.paused !== undefined && typeof a.paused !== "boolean") throw new TypeError(`${fn}: paused must be a boolean`);
+  const d = data(len, op);
+  d.writeUInt8(a.paused ? 1 : 0, 1);
+  d.writeBigUInt64LE(a.halfSpreadBps, 4);
+  d.writeBigUInt64LE(a.impactBps, 12);
+  d.writeBigUInt64LE(a.maxFillQty, 20);
+  return d;
+}
+
+/**
+ * PropAMM op 0 InitPropAmm (Matcher.lean:190-221). `ctx` = fresh zeroed PROP_CTX_SIZE (272 B) account owned by the
+ * matcher program. Create it in the SAME transaction: init is first-come (any signer can claim an uninitialized ctx).
+ * `allowedMarketIds` = 1..8 `Market.marketId` values (NOT pubkeys; ids are per-DEX, so bind the ctx only to a
+ * portfolio of the intended DEX). The allowlist is IMMUTABLE; params/paused are owner-updatable.
+ * Accounts: ctx(W), owner(S). Data (28 + 8n B):
+ *   [0, paused:u8, n:u8, pad:u8, halfSpreadBps:u64 @4, impactBps:u64 @12, maxFillQty:u64 @20, marketId_i:u64 @28+8i].
+ */
+export function propAmmInit(m: PublicKey, a: { ctx: PublicKey; owner: PublicKey; allowedMarketIds: bigint[] } & PropAmmParams) {
+  const fn = "propAmmInit";
+  const n = a.allowedMarketIds?.length ?? 0;
+  if (n < 1 || n > MAX_LEGS) throw new RangeError(`${fn}: allowedMarketIds needs 1..${MAX_LEGS} market ids, got ${n}`);
+  reqDistinct(fn, [["ctx", a.ctx], ["owner", a.owner]]);
+  const d = propAmmParamBytes(fn, PROP_AMM_IX.Init, 28 + 8 * n, a);
+  d.writeUInt8(n, 2);
+  const seen = new Set<bigint>();
+  a.allowedMarketIds.forEach((id, i) => {
+    if (reqU64(fn, `allowedMarketIds[${i}]`, id) === 0n) throw new RangeError(`${fn}: allowedMarketIds[${i}] must be > 0 (market ids start at 1)`);
+    if (seen.has(id)) throw new Error(`${fn}: duplicate market id ${id} in allowedMarketIds`);
+    seen.add(id);
+    d.writeBigUInt64LE(id, 28 + 8 * i);
+  });
+  return ix(m, [w(a.ctx), r(a.owner, true)], d);
+}
+
+/**
+ * PropAMM op 1 UpdatePropAmm (Matcher.lean:223-244). Owner-gated (ownerMismatch 111 otherwise): replaces
+ * halfSpreadBps / impactBps / maxFillQty / paused. ALL four are overwritten — pass the current values for the ones
+ * you are not changing (`paused` defaults to false = quoting). The market allowlist cannot be changed.
+ * Accounts: ctx(W), owner(S). Data (28 B): [1, paused:u8, pad:u16, halfSpreadBps:u64 @4, impactBps:u64 @12, maxFillQty:u64 @20].
+ */
+export function propAmmUpdate(m: PublicKey, a: { ctx: PublicKey; owner: PublicKey } & PropAmmParams) {
+  reqDistinct("propAmmUpdate", [["ctx", a.ctx], ["owner", a.owner]]);
+  return ix(m, [w(a.ctx), r(a.owner, true)], propAmmParamBytes("propAmmUpdate", PROP_AMM_IX.Update, 28, a));
+}
+
+/** One offer of a raw PropAmmQuote request (what core serializes per leg, Program.lean:2243-2250; header 2371-2375). */
+export interface PropAmmOffer {
+  mode: number; takerIsLong: boolean; marketId: bigint; maxQty: bigint; limitPrice?: bigint;
+  markPrice: bigint; maxMoveBps: bigint; isRamping?: boolean;
+}
+/**
+ * PropAMM op 2 PropAmmQuote (Matcher.lean:310-337) — the RAW 0-signer entrypoint core CPIs into. It is
+ * permissionless (no signer, no caller check), so it can be SIMULATED as a quote/inspection call: after
+ * simulation the ctx holds [MRET, status 0, seq, (execPrice, fillQty) x k] (decode with parsePropAmmCtx).
+ * Sending it for real only overwrites the ctx header/quote slots; proven harmless on devnet (a stranger set
+ * seq = 2^64-1 and the next real fill still settled: core re-quotes with seq = preSeq + 1, wrapping, and never
+ * trusts stale slots). For an off-chain answer without any RPC use `propAmmQuote` in parsers.ts.
+ * Accounts: ctx(W). Data (32 + 48k B): [2, k, pad6, lpCapital:u64 @8, slot:u64 @16, seq:u64 @24,
+ *   (mode:u8, takerIsLong:u8, isRamping:u8, pad5, marketId:u64, maxQty:u64, limitPrice:u64, markPrice:u64, maxMoveBps:u64) x k].
+ */
+export function propAmmQuoteIx(m: PublicKey, a: { ctx: PublicKey; offers: PropAmmOffer[]; seq: bigint; lpCapital?: bigint; slot?: bigint }) {
+  const fn = "propAmmQuoteIx";
+  const k = a.offers?.length ?? 0;
+  if (k < 1 || k > MAX_LEGS) throw new RangeError(`${fn}: needs 1..${MAX_LEGS} offers, got ${k}`);
+  const d = data(32 + 48 * k, PROP_AMM_IX.Quote);
+  d.writeUInt8(k, 1);
+  d.writeBigUInt64LE(reqU64(fn, "lpCapital", a.lpCapital ?? 0n), 8);
+  d.writeBigUInt64LE(reqU64(fn, "slot", a.slot ?? 0n), 16);
+  d.writeBigUInt64LE(reqU64(fn, "seq", a.seq), 24);
+  a.offers.forEach((o, i) => {
+    if (o.mode !== TRADE_MODE.OPEN && o.mode !== TRADE_MODE.CLOSE && o.mode !== TRADE_MODE.NETTED)
+      throw new RangeError(`${fn}: offers[${i}].mode must be 0, 1 or 4, got ${o.mode}`);
+    if (reqU64(fn, `offers[${i}].maxQty`, o.maxQty) === 0n) throw new RangeError(`${fn}: offers[${i}].maxQty must be > 0`);
+    if (reqU64(fn, `offers[${i}].markPrice`, o.markPrice) === 0n) throw new RangeError(`${fn}: offers[${i}].markPrice must be > 0`);
+    const b = 32 + 48 * i;
+    d.writeUInt8(o.mode, b);
+    d.writeUInt8(o.takerIsLong ? 1 : 0, b + 1);
+    d.writeUInt8(o.isRamping ? 1 : 0, b + 2);
+    d.writeBigUInt64LE(reqU64(fn, `offers[${i}].marketId`, o.marketId), b + 8);
+    d.writeBigUInt64LE(o.maxQty, b + 16);
+    d.writeBigUInt64LE(reqU64(fn, `offers[${i}].limitPrice`, o.limitPrice ?? 0n), b + 24);
+    d.writeBigUInt64LE(o.markPrice, b + 32);
+    d.writeBigUInt64LE(reqU64(fn, `offers[${i}].maxMoveBps`, o.maxMoveBps), b + 40);
+  });
+  return ix(m, [w(a.ctx)], d);
+}
+
+// ================================================================= LEGACY passive matcher (pre-PropAMM, 160-byte config)
+// The matcher program deployed at 887ba02 (devnet 2HQtUr...; per the manifests mainnet r4 runs the same source) is the PropAMM above: its op 0/1 take
+// exactly [ctx, owner] and op 2 is the 0-signer quote, so the four builders below no longer match ANY deployed
+// program. They are kept only so old imports keep compiling.
+/** @deprecated LEGACY (pre-PropAMM) — does not match the 887ba02 matcher. Use `propAmmInit` + `setPortfolioMatcher`.
+ *  matcher op 0. `cfg` = fresh MATCHER_CFG_SIZE account owned by the matcher; `lpPortfolio` = fresh PORTFOLIO_SIZE account owned by percolator. */
 export function matcherInit(m: PublicKey, a: {
   cfg: PublicKey; owner: PublicKey; dex: PublicKey; lpPortfolio: PublicKey; percolator: PublicKey;
   market: PublicKey; // e1e4404: MatcherConfig pins the Market it may fill against
@@ -297,7 +546,7 @@ export function matcherInit(m: PublicKey, a: {
   return ix(m, [w(a.cfg), r(a.owner, true), w(a.dex), w(a.lpPortfolio), r(lpAuth), r(a.percolator), r(a.market)], d);
 }
 
-/** matcher op 1. */
+/** @deprecated LEGACY (pre-PropAMM) — use `propAmmUpdate`. matcher op 1. */
 export function matcherUpdate(m: PublicKey, a: { cfg: PublicKey; owner: PublicKey; paused: boolean; halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint }) {
   const d = data(28, MATCHER_IX.Update);
   d.writeUInt8(a.paused ? 1 : 0, 1);
@@ -307,7 +556,7 @@ export function matcherUpdate(m: PublicKey, a: { cfg: PublicKey; owner: PublicKe
   return ix(m, [w(a.cfg), r(a.owner, true)], d);
 }
 
-/** matcher op 2. Single-signer taker fill against the LP portfolio. mode OPEN/CLOSE; limitPrice is the worst acceptable price. */
+/** @deprecated LEGACY (pre-PropAMM) — use core `tradeWithMatcher`. matcher op 2. Single-signer taker fill against the LP portfolio. mode OPEN/CLOSE; limitPrice is the worst acceptable price. */
 export function matcherFill(m: PublicKey, a: {
   cfg: PublicKey; dex: PublicKey; market: PublicKey; lpPortfolio: PublicKey;
   takerPortfolio: PublicKey; taker: PublicKey; percolator: PublicKey;
@@ -324,7 +573,8 @@ export function matcherFill(m: PublicKey, a: {
   ], d);
 }
 
-/** matcher op 3. LP owner withdraws from the PDA-owned LP portfolio. */
+/** @deprecated LEGACY (pre-PropAMM) — the LP owner now holds the portfolio directly: use `withdrawCollateral`.
+ *  matcher op 3. LP owner withdraws from the PDA-owned LP portfolio. */
 export function matcherWithdrawLp(m: PublicKey, v: VaultAccounts, a: { cfg: PublicKey; owner: PublicKey; lpPortfolio: PublicKey; destToken: PublicKey; percolator: PublicKey; amount: bigint }) {
   const [lpAuth] = deriveLpAuth(m, a.cfg);
   const d = data(9, MATCHER_IX.WithdrawLp);

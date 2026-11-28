@@ -10,6 +10,14 @@
  * required RefreshLeg instructions inserted immediately before each instruction that
  * needs them (skipping legs already refreshed earlier in the same list).
  *
+ * `TradeWithMatcher` (op 23): the LP portfolio's legs are refreshed too, so a taker can trade against a
+ * multi-market PropAMM LP without knowing the LP's current inventory. In addition the Market account of
+ * every refreshed leg that is not one of the traded markets is appended to the instruction as a trailing
+ * read-only account. The deployed 887ba02 program does not need them (proven harmless on devnet: the first
+ * is just forwarded to the matcher as its ignored `extraAcc`), but the next program revision (uncommitted
+ * percolator-lean working tree at the time of writing: `verifyLegMktFresh`) looks every open leg's Market
+ * up among the instruction's accounts and rejects with stalePortfolioLeg (122) when it is missing.
+ *
  * Only legs that are active AND non-flat are refreshed — exactly what the program
  * checks. Flat legs that still carry posPnl (e.g. on a resolved market) are left
  * alone; refreshing those could fail and take the whole transaction down.
@@ -17,7 +25,7 @@
 import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { IX, MATCHER_IX, LEAN_DEVNET, LEAN_MAINNET, SIDE, STATUS } from "./constants.js";
 import { accountKind, parsePortfolio, parseMarket, openLegs } from "./parsers.js";
-import { refreshLeg } from "./instructions.js";
+import { refreshLeg, tradeWithMatcher } from "./instructions.js";
 
 export interface RefreshOptions {
   percolator?: PublicKey;
@@ -69,7 +77,8 @@ export async function withLegRefresh(
   const seen = new Set<string>(); // `${market}:${portfolio}`
   const out: TransactionInstruction[] = [];
   let added = 0;
-  for (const ix of ixs) {
+  for (const ixIn of ixs) {
+    let ix = ixIn;
     if (ix.programId.equals(perc) && ix.data[0] === IX.RefreshLeg && ix.keys.length >= 3) {
       seen.add(`${ix.keys[1].pubkey.toBase58()}:${ix.keys[2].pubkey.toBase58()}`);
     }
@@ -99,10 +108,18 @@ export async function withLegRefresh(
           }
         }
       } else {
+        // TradeWithMatcher: also carry every open leg's Market IN the instruction (forward-compat, see header).
+        const isMatcherTrade = ix.programId.equals(perc) && ix.data[0] === IX.TradeWithMatcher;
+        const present = new Set(ix.keys.map((k) => k.pubkey.toBase58()));
+        const trailing: PublicKey[] = [];
         for (const k of ix.keys) {
           const p = portfolios.get(k.pubkey.toBase58());
           if (!p) continue;
           for (const leg of openLegs(p)) {
+            if (isMatcherTrade && !present.has(leg.market.toBase58())) {
+              present.add(leg.market.toBase58());
+              trailing.push(leg.market);
+            }
             const tag = `${leg.market.toBase58()}:${k.pubkey.toBase58()}`;
             if (seen.has(tag)) continue;
             seen.add(tag);
@@ -110,11 +127,34 @@ export async function withLegRefresh(
             added++;
           }
         }
+        if (trailing.length) {
+          ix = new TransactionInstruction({
+            programId: ix.programId, data: ix.data,
+            keys: [...ix.keys, ...trailing.map((pubkey) => ({ pubkey, isSigner: false, isWritable: false }))],
+          });
+        }
       }
     }
     out.push(ix);
   }
   return { instructions: out, added };
+}
+
+/**
+ * ONE-CALL builder for a taker trade against a matcher-bound LP portfolio (e.g. the PropAMM passive vault):
+ * returns `[RefreshLeg..., TradeWithMatcher]` ready to put in a single transaction signed by the taker only.
+ * It reads the taker and LP portfolios and prepends a RefreshLeg for every open leg of BOTH (the program rejects
+ * with stalePortfolioLeg 122 if any other open leg of either was not refreshed in the same slot — the LP almost
+ * always holds inventory from earlier fills). Build it right before sending: the leg set is a snapshot, and if
+ * another fill changes the LP's legs in between, rebuild and retry.
+ * NOT covered here: the market's oracle must be fresh (age <= maxStaleness, else oracleStale 106) — push/crank the
+ * oracle first — and the PropAMM refuses to quote for 150 slots after a saturated oracle ramp tick (200).
+ */
+export async function tradeWithMatcherFresh(
+  conn: Connection, percolator: PublicKey, args: Parameters<typeof tradeWithMatcher>[1],
+): Promise<TransactionInstruction[]> {
+  const { instructions } = await withLegRefresh(conn, [tradeWithMatcher(percolator, args)], { percolator, matcher: args.matcherProgram });
+  return instructions;
 }
 
 /**
