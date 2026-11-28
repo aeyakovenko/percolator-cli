@@ -53,7 +53,7 @@ async function main() {
   console.log(`${LIVE ? "LIVE" : "DRY"}: round-4 AMM vault on market ${MKT.toBase58().slice(0, 8)}… (LP $${U(LP_FUND)}, halfSpread ${HALF_SPREAD_BPS}bps, maxFill ${Number(MAX_FILL) / 1e6} BTC)`);
   const fTok = await getAssociatedTokenAddress(USDC, funder.publicKey);
   const have = (await getAccount(conn, fTok)).amount;
-  const need = LP_FUND + TAKER_FUND + 100_000n;
+  const need = (m.ammVault ? 0n : LP_FUND) + TAKER_FUND + 100_000n;
   console.log(`wallet USDC $${U(have)} (need >= $${U(need)})`);
   if (have < need) throw new Error("not enough USDC");
   const mk0 = await snapshot("start");
@@ -93,7 +93,9 @@ async function main() {
   const trade = async (buy: boolean, limit: bigint | undefined, qty = TRADE_QTY) => {
     const ixs = await tradeWithMatcherFresh(conn, P, { dex: DEX, takerPortfolio: TP, taker: taker.publicKey, lpPortfolio: LPP, matcherProgram: M, matcherCtx: CTX,
       legs: [{ market: MKT, mode: TRADE_MODE.NETTED, takerIsLong: buy, maxQty: qty, limitPrice: limit }] });
-    return send(ixs, [taker]);   // ONLY the taker signs (the funder is just the fee payer)
+    const sig = await send(ixs, [taker]);   // ONLY the taker signs (the funder is just the fee payer)
+    await new Promise(r => setTimeout(r, 2500));   // let "confirmed" reads catch up (RPC read lag)
+    return sig;
   };
   const mark = async () => parseMarket(await acct(MKT)).markPrice;
   const legQty = (p: ReturnType<typeof parsePortfolio>) => { const l = p.legs.find(x => x.rawBasis > 0n); return l ? (l.side === 1 ? 1 : -1) * Number(l.rawBasis) : 0; };
@@ -104,14 +106,15 @@ async function main() {
   check(/0x82|130/.test(rej), `buy below the ask rejected by the slippage guard (130) — ${rej.slice(0, 60).replace(/\s+/g, " ")}`);
 
   for (const [name, firstBuy] of [["LONG round trip", true], ["SHORT round trip", false]] as const) {
+    const l0 = legQty(parsePortfolio(await acct(LPP)));                                        // vault may hold hunter inventory
     const mk = await mark(); const lim = (b: boolean) => b ? mk + mk / 50n : mk - mk / 50n;     // +/-2% guard
     await trade(firstBuy, lim(firstBuy));
     const t1 = parsePortfolio(await acct(TP)), l1 = parsePortfolio(await acct(LPP));
     check(legQty(t1) === (firstBuy ? 1 : -1) * Number(TRADE_QTY), `${name}: taker opened ${firstBuy ? "long" : "short"} ${Number(TRADE_QTY) / 1e6} BTC against the vault`);
-    check(legQty(l1) === (firstBuy ? -1 : 1) * Number(TRADE_QTY), `${name}: the vault took the other side (${firstBuy ? "short" : "long"})`);
+    check(legQty(l1) - l0 === (firstBuy ? -1 : 1) * Number(TRADE_QTY), `${name}: the vault took the other side (${firstBuy ? "short" : "long"})`);
     await trade(!firstBuy, lim(!firstBuy));
     const t2 = parsePortfolio(await acct(TP)), l2 = parsePortfolio(await acct(LPP));
-    check(legQty(t2) === 0 && legQty(l2) === 0, `${name}: closed — taker and vault both flat`);
+    check(legQty(t2) === 0 && legQty(l2) === l0, `${name}: closed — taker flat, vault back to its starting inventory (${l0})`);
   }
   const lp1 = lpValue(parsePortfolio(await acct(LPP)));
   console.log(`LP value $${U(lp0)} -> $${U(lp1)}  (${lp1 >= lp0 ? "+" : ""}${U(lp1 - lp0)} over 2 round trips)`);

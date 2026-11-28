@@ -1,0 +1,31 @@
+/** Post-upgrade check: withdraw from a portfolio WITH an open leg (prize-3 long), then re-deposit the same amount. */
+import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
+import * as fs from "fs";
+import { withdrawCollateral, depositCollateral, withLegRefresh, deriveDexVault, parsePortfolio, type VaultAccounts } from "../src/lean/index.js";
+const conn = new Connection(process.env.SOLANA_RPC_URL!, "confirmed");
+const m = JSON.parse(fs.readFileSync("lean-mainnet-r4.json", "utf8"));
+const P = new PublicKey(m.percolator), DEX = new PublicKey(m.dex), USDC = new PublicKey(m.usdc), PF = new PublicKey(m.prizes.userLong);
+const f = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))));
+const V: VaultAccounts = { dex: DEX, mint: USDC, vault: deriveDexVault(P, DEX)[0] };
+const AMT = 10_000n;
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+(async () => {
+  const tok = await getAssociatedTokenAddress(USDC, f.publicKey);
+  const p0: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(PF))!.data));
+  console.log(`prize-3 portfolio: capital $${Number(p0.capital) / 1e6}, open legs ${p0.legs.filter((l: any) => l.rawBasis > 0n).length}`);
+  const raw = withdrawCollateral(P, V, { portfolio: PF, owner: f.publicKey, destToken: tok, amount: AMT } as any);
+  const tx0 = new Transaction({ feePayer: f.publicKey, recentBlockhash: (await conn.getLatestBlockhash()).blockhash }).add(raw);
+  const sim = await conn.simulateTransaction(tx0, [f]);
+  const err = JSON.stringify(sim.value.err);
+  console.log(`${err.includes('"Custom":122') ? "OK  " : "FAIL"} old client shape (no trailing market) rejected: ${err}`);
+  const { instructions } = await withLegRefresh(conn, [raw], { programId: P } as any);
+  const s1 = await sendAndConfirmTransaction(conn, new Transaction().add(...instructions), [f], { commitment: "confirmed" });
+  await sleep(2500);
+  const p1: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(PF))!.data));
+  console.log(`${p0.capital - p1.capital === AMT ? "OK  " : "FAIL"} withdrew $0.01 from the open-leg portfolio with the fixed client ${s1.slice(0, 12)}`);
+  const s2 = await sendAndConfirmTransaction(conn, new Transaction().add(depositCollateral(P, V, { portfolio: PF, depositor: f.publicKey, sourceToken: tok, amount: AMT })), [f], { commitment: "confirmed" });
+  await sleep(2500);
+  const p2: any = parsePortfolio(Buffer.from((await conn.getAccountInfo(PF))!.data));
+  console.log(`${p2.capital === p0.capital ? "OK  " : "FAIL"} re-deposited $0.01 (capital back to $${Number(p2.capital) / 1e6}) ${s2.slice(0, 12)}`);
+})().catch(e => { console.error("ERR", String(e).replace(/api-key=[^ "&]*/g, "***").slice(0, 400)); process.exit(1); });

@@ -35,19 +35,28 @@ pnpm build
 
 ## Deployments
 
-**Deployed on mainnet: `887ba02`. Latest upstream: `b3a4971`** (2026-11-28) — its core `percolator.so` is the
-`8774e86` build; matcher / oracle_adapter / reward_module binaries are byte-identical to the deployed `887ba02` ones. The
-in-place mainnet upgrade of the core program to it is **pending a devnet proof that no existing account is stranded**.
-It will need a **client update**: non-flat portfolios must pass their other legs' markets as trailing accounts on
-withdraw / trade / liquidate — pull the new `percolator-cli/lean` when the upgrade lands (this README will say so).
+**Deployed on mainnet: `46969cd`** (= latest upstream at upgrade time, 2026-11-28; core `percolator.so` sha256 `cdf0b6b9…`,
+matcher / oracle_adapter / reward_module byte-identical to `887ba02`). Upgraded in place from `887ba02` after a devnet
+proof that every pre-existing account (multi-leg, AMM LP with inventory, insurance, rewards, liquidation + deficit
+mode) still unwinds to zero — no funds stranded. Next upstream commit `55c167f` (Issue #117, 0 ABI change) is being
+proven on devnet before it is deployed.
 
-Current build: percolator-lean `887ba02`. **Round 4 (LIVE, `887ba02`)** runs on **fresh mainnet program ids**
-(launched on `9b45ad1`, upgraded in place to `887ba02` — zero ABI change since): `9b45ad1` changed the ABI (Market grew 400 → 416 bytes for the built-in funding engine), so it could not be
+> **Client update required (hunters: `git pull`).** Since `8774e86` the program re-verifies every open leg against its
+> Market, so a portfolio with an open position must pass its legs' Market accounts as trailing read-only accounts on
+> **WithdrawCollateral** (even single-leg), multi-leg **Trade** and **Liquidate**. `withLegRefresh` / `tradeWithMatcherFresh`
+> do it automatically (`appendLegMarkets` if you build bundles yourself); without it the program returns **122**
+> (`stalePortfolioLeg`). Nothing is stranded — it only needs the extra accounts. New markets can no longer combine
+> funding with `rewardBps = 10000` (the live market is grandfathered). New: **deficit mode** — after a bankrupt
+> liquidation with an uncovered shortfall, new opens on that market are rejected (115) and winners' PnL is escrowed until
+> every leg is flat, then paid pro-rata.
+
+**Round 4 (LIVE, `46969cd`)** runs on **fresh mainnet program ids**
+(launched on `9b45ad1`, upgraded in place to `887ba02` and then `46969cd` — no account-layout change since): `9b45ad1` changed the ABI (Market grew 400 → 416 bytes for the built-in funding engine), so it could not be
 upgraded in place without stranding open positions. The **round-3 programs (`6NeT5…`, `a31a1f8`) are deprecated
 but left running untouched** so the users who still hold positions there can refresh and close them (its oracle
 keeps being cranked). Round-2 programs (`GVV4HC…`) are deprecated and left as-is.
 
-| Program | Mainnet round 4 (`887ba02`) | Devnet (`887ba02`) |
+| Program | Mainnet round 4 (`46969cd`) | Devnet (`887ba02`) |
 |---|---|---|
 | `percolator` (core DEX) | `EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB` | `4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM` |
 | `reward_module` (wSOL buy-and-burn) | `CH9WNijiS9p6bKfSEgpHXujAJuxUJ29rgynZuZst9Utv` | `4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi` |
@@ -136,7 +145,7 @@ Runnable end-to-end flows: market → positions → cross-margin → matcher
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE (round 4, ~$79 on BTC/USD) on percolator-lean `887ba02`
+## Bug bounty — LIVE (round 4, ~$79 on BTC/USD) on percolator-lean `46969cd`
 
 > **History.** Round 1 was claimed via an insurance account-reuse bug (fixed in `bb54ac6`).
 > Round 2 (SOL/USD, 70 USDC) was claimed via a **cross-margin + hostile-oracle insurance drain**
@@ -147,7 +156,7 @@ Read-only invariant survey of every DEX: `pnpm lean:survey`.
 > claimed; it was retired for round 4 when `9b45ad1` changed the ABI. Its market is **deprecated but still
 > live** for the users who hold positions there (its insurance stays in place until their OI reaches 0).
 
-**Round 4** runs on fresh mainnet programs (`887ba02`) with three independent prize surfaces on a BTC/USD market
+**Round 4** runs on fresh mainnet programs (`46969cd`) with three independent prize surfaces on a BTC/USD market
 with **built-in funding** (+0.01%/8h base, ±0.05% deadband, ±1%/8h cap). Winning = actually extracting more
 than you put in **from the live mainnet deployment**, or violating conservation
 (`V == SPL == C + I + R + S + totalRewards`) on mainnet.
