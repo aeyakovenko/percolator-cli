@@ -130,7 +130,7 @@ Runnable end-to-end flows: market → positions → cross-margin → matcher
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE (round 4, ~$69 on BTC/USD) on percolator-lean `887ba02`
+## Bug bounty — LIVE (round 4, ~$79 on BTC/USD) on percolator-lean `887ba02`
 
 > **History.** Round 1 was claimed via an insurance account-reuse bug (fixed in `bb54ac6`).
 > Round 2 (SOL/USD, 70 USDC) was claimed via a **cross-margin + hostile-oracle insurance drain**
@@ -181,3 +181,5 @@ portfolio's collateral or the user long, drain the AMM vault, game the funding e
 `scripts/lean-attack.ts`, `scripts/_lean-exploit.ts`, `scripts/_lean-xmargin-drain.ts`,
 `scripts/_lean-builtin-funding.ts` and `scripts/_lean-e2e.ts` show what has already been tried and the
 normal-case flows.
+
+**Next round (rehearsed on devnet):** see [ROUND5-REHEARSAL.md](ROUND5-REHEARSAL.md) — full setup, 36/36 normal-ops checks, and a 16-attack catalogue against the PropAMM vault (13 blocked, latency arbitrage bounded by 2× the effective half-spread, 2 informational: reduce-only closes at a stale mark, permissionless wind-down once stale).
