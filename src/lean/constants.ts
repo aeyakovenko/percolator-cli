@@ -16,6 +16,7 @@ export const LEAN_DEVNET = {
   matcher: new PublicKey("2HQtUrH1u4KnPGABxyVNNmXo9SJ3zQg9otz6wyfJMJip"),
   oracleAdapter: new PublicKey("BkyW7iLvAWuyEozvnGAwgks4dyuTNm7Xnybd6DwQLu2x"),
   rewardModule: new PublicKey("4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi"),
+  limitMatcher: new PublicKey("5UZW2tpuBGgX3KxoyGFSXE4Qs2aBhrEFQsVUarTtfMMp"),
   /** test-only writable FEED account program (lean-devnet/mock-feed) */
   mockFeed: new PublicKey("9EqYn4MUYC8q4FNcV3SAvYN9VuLsouLSYJxW1eEy7yNx"),
 } as const;
@@ -43,6 +44,8 @@ export const MAX_PRICE = 1_000_000_000_000n;
 export const MAX_OI = 10_000_000_000_000n;
 export const MAX_CREATE_FEE = 10_000_000_000n;
 export const MIN_EXIT_WINDOW = 10n;
+/** 71d38f0: slots after a saturated oracle ramp during which I_m fronting is paused. */
+export const RAMP_FRONT_COOLDOWN = 2n;
 /** e1e4404: first insurance LP deposit to a market must be >= 1.0 quote unit (anti-inflation). */
 export const MIN_FIRST_INS_DEPOSIT = 1_000_000n;
 export const MAX_LEGS = 8;
@@ -55,9 +58,14 @@ export const MAGIC = {
   MARKET: 0x50544b4d,     // "MKTP"
   PORTFOLIO: 0x4f4c4650,  // "PFLO"
   INSURANCE: 0x52534e49,  // "INSR"
-  MATCHER: 0x4843544d,    // "MTCH"
+  CLOSED: 0x44454144,     // "DEAD"
+  MRET: 0x5445524d,       // "MRET" (CPI-Out PropAMM / MatcherReturn header)
+  MATCHER: 0x4843544d,    // "MTCH" (legacy CPI-In matcher)
   ADAPTER: 0x5044414f,    // "OADP"
   FEED: 0x44454546,       // "FEED"
+  REWARD: 0x4d574552,     // "REWM"
+  EPOCH: 0x48435045,      // "EPCH"
+  BID: 0x52444942,        // "BIDR"
 } as const;
 
 // ---------- PDA seed tags (4 bytes) ----------
@@ -80,6 +88,7 @@ export const MARKET_SIZE = 400;
 export const PORTFOLIO_SIZE = 976;
 export const INS_RECEIPT_SIZE = 88;
 export const MATCHER_CFG_SIZE = 160;
+export const PROP_AMM_SIZE = 272;
 export const ADAPTER_CFG_SIZE = 352;
 export const FEED_SIZE = 32;
 export const REWARD_CFG_SIZE = 400;
@@ -95,7 +104,9 @@ export const DexOff = {
 
 export const MktOff = {
   magic: 0, status: 4, maxFrontBps: 6, marketId: 8, dex: 16, oracleAuth: 48, marketAdmin: 80, markPrice: 112,
-  lastOracleSlot: 120, windDownSlot: 128, exitWindow: 136, maxStaleness: 144, warmupSlots: 152,
+  lastOracleSlot: 120, windDownSlot: 128, exitWindow: 136, maxStaleness: 144, lastRampSlot: 152,
+  /** @deprecated 71d38f0 repurposed offset 152 as `lastRampSlot`; kept as alias for compatibility. */
+  warmupSlots: 152,
   imBps: 160, mmBps: 168, liqFeeBps: 176, tradeFeeBps: 184, maxMoveBps: 192, maxInsDrawBps: 200,
   maxOi: 208, realizedPool: 216, insurance: 224, insFronted: 232, totalPosPnl: 240,
   totalInsShares: 248, oiLong: 256, oiShort: 264, rawBasisLong: 272, rawBasisShort: 280,
@@ -120,6 +131,13 @@ export const MatcherCfgOff = {
   halfSpreadBps: 104, impactBps: 112, maxFillQty: 120, market: 128, // e1e4404: pinned Market (32)
 } as const;
 
+// e189ef2: 0-signer CPI-Out PropAMM context (272B, Matcher.lean)
+export const PropOff = {
+  magic: 0, status: 4, seq: 8, quotesBase: 16, owner: 144,
+  halfSpreadBps: 176, impactBps: 184, maxFillQty: 192,
+  paused: 200, allowedCount: 201, allowedMarkets: 208,
+} as const;
+
 // f2b8b11: native Pyth/Chainlink/Switchboard + 2-leg composite.
 export const ADAPTER_CFG_SIZE_V2 = 352;
 export const FEED_TYPE = { CUSTOM: 0, PYTH_V2: 1, CHAINLINK: 2, SWITCHBOARD: 3 } as const;
@@ -139,9 +157,11 @@ export const IX = {
   InitPortfolio: 5, DepositCollateral: 6, WithdrawCollateral: 7, DepositInsurance: 8,
   WithdrawInsurance: 9, RefreshLeg: 10, Trade: 11, Liquidate: 12, ClearDeadLeg: 13,
   StartWindDown: 14, ForceClosePair: 15, ResolveMarket: 16, ClaimResolved: 17,
-  TombstoneMarket: 18, CloseAccount: 19, SweepSurplus: 20, ClaimReward: 21, TradeWithMatcher: 23,
+  TombstoneMarket: 18, CloseAccount: 19, SweepSurplus: 20, ClaimReward: 21,
+  SetPortfolioMatcher: 22, TradeWithMatcher: 23,
 } as const;
 export const MATCHER_IX = { Init: 0, Update: 1, Fill: 2, WithdrawLp: 3 } as const;
+export const PROP_AMM_IX = { Init: 0, Update: 1, Quote: 2 } as const;
 export const ADAPTER_IX = { Init: 0, Crank: 1, InitEwma: 2, PushEwmaMark: 3 } as const;
 export const REWARD_IX = { InitReward: 0, StartEpoch: 1, SubmitBid: 2, SettleEpoch: 3, ClaimQuote: 4 } as const;
 
@@ -157,9 +177,12 @@ export const EpochOff = {
   magic: 0, settled: 4, cfg: 8, epochId: 40, quotePot: 48, virtBids: 56, totalBids: 64,
   quotePaid: 72, startSlot: 80, endSlot: 88, claimedQuote: 96,
 } as const;
+export const BidOff = {
+  magic: 0, cfg: 8, epochAcc: 40, bidder: 72, epochId: 104, amount: 112,
+} as const;
 export const MAGIC_REWARD = 0x4d574552; // "REWM"
 
-export const TRADE_MODE = { OPEN: 0, CLOSE: 1, FLIP: 4 } as const; // fb67248: mode 4 = atomic position flip (tradeNettedCore)
+export const TRADE_MODE = { OPEN: 0, CLOSE: 1, HANDOFF_LONG: 2, HANDOFF_SHORT: 3, FLIP: 4 } as const; // fb67248: mode 4 = atomic position flip (tradeNettedCore)
 export const MARKET_AUTH_ROLE = { ADMIN: 0, ORACLE: 1 } as const;
 
 // ---------- custom error codes ----------
@@ -171,14 +194,21 @@ export const LEAN_ERRORS: Record<number, string> = {
   116: "positionHealthy", 117: "exitWindowActive", 118: "nonzeroOi", 119: "nonzeroState",
   120: "invalidTokenProg", 121: "invalidSide", 122: "stalePortfolioLeg", 123: "invalidInstruction",
   124: "portfolioFull", 125: "legNotFound", 126: "oracleSameSlot", 127: "dexMismatch",
-  128: "invalidVaultState", 129: "invalidSysProg", 130: "execPriceClamp",
-  // matcher
-  200: "matcher.paused", 201: "matcher.qtyTooLarge", 202: "matcher.slippage",
+  128: "invalidVaultState", 129: "invalidSysProg", 130: "execPriceClamp", 131: "invalidMatcher",
+  // matcher (200-201 on e189ef2 PropAMM; 202-206 on legacy CPI-In matcher)
+  200: "matcher.paused", 201: "matcher.marketNotAllowed", 202: "matcher.slippage",
   203: "matcher.progMismatch", 204: "matcher.pflMismatch",
   205: "matcher.mktMismatch", 206: "matcher.invalidMode",
   // oracle adapter
   300: "adapter.feedStale", 301: "adapter.feedWideConf", 302: "adapter.feedMismatch",
-  303: "adapter.progMismatch",
+  303: "adapter.progMismatch", 304: "adapter.badFeedFormat", 305: "adapter.badFeedId",
+  306: "adapter.ewmaDevExceeded", 307: "adapter.ewmaNotEnabled", 308: "adapter.ewmaSameSlot",
+  // reward module
+  400: "reward.progMismatch", 401: "reward.dexMismatch", 402: "reward.mktMismatch",
+  403: "reward.mintMismatch", 404: "reward.sinkMismatch", 405: "reward.epochActive",
+  406: "reward.badBurnMode", 407: "reward.recipientBad", 408: "reward.belowMinBatch",
+  409: "reward.epochClosed", 410: "reward.epochNotEnded", 411: "reward.epochMismatch",
+  413: "reward.vaultMismatch",
 };
 
 /** Map a custom program error number to its name ("custom:<n>" if unknown). */

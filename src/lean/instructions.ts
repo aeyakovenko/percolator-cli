@@ -7,8 +7,8 @@
  */
 import { PublicKey, TransactionInstruction, AccountMeta } from "@solana/web3.js";
 import {
-  IX, MATCHER_IX, ADAPTER_IX, REWARD_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
-  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE, COLLATERAL_DECIMALS,
+  IX, MATCHER_IX, PROP_AMM_IX, ADAPTER_IX, REWARD_IX, SEED, TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
+  SPL_TOKEN_ACCOUNT_RENT, MARKET_AUTH_ROLE, TRADE_MODE, COLLATERAL_DECIMALS, MAX_LEGS, BPS_DEN,
 } from "./constants.js";
 
 const w = (pubkey: PublicKey, isSigner = false): AccountMeta => ({ pubkey, isSigner, isWritable: true });
@@ -80,7 +80,7 @@ export interface MarketParams {
   initPrice: bigint;       // E6
   exitWindow: bigint;      // slots, >= MIN_EXIT_WINDOW
   maxStaleness: bigint;    // slots
-  warmupSlots: bigint;     // must be 0 for profit to realize at 2dc4d21
+  warmupSlots?: bigint;    // reservedPad (must be 0 on-chain at 71d38f0; defaults to 0n)
   imBps: bigint; mmBps: bigint; liqFeeBps: bigint; tradeFeeBps: bigint;
   maxMoveBps: bigint;      // a056eee: maxMoveBps<=2500, 4*mm+(mm^2+999)/1000+liqFee<=mmBps, mmBps+maxMove<=imBps
   maxInsDrawBps: bigint;
@@ -101,15 +101,22 @@ export function createMarket(p: PublicKey, a: {
   if (m.liqFeeBps < 0n || m.liqFeeBps > m.mmBps) {
     throw new RangeError(`createMarket: liqFeeBps (${m.liqFeeBps}) must be in 0..mmBps (${m.mmBps})`);
   }
-  const useReward = (m.rewardBps ?? 0n) > 0n;
+  const rewardBps = m.rewardBps ?? 0n;
+  if (rewardBps < 0n || rewardBps > BPS_DEN) {
+    throw new RangeError(`createMarket: rewardBps (${rewardBps}) must be in 0..${BPS_DEN}`);
+  }
+  const useReward = rewardBps > 0n;
+  if (useReward && (!m.rewardRecipient || m.rewardRecipient.equals(PublicKey.default))) {
+    throw new Error("createMarket: rewardBps > 0 requires a non-zero rewardRecipient");
+  }
   const d = data(useReward ? 140 : 100, IX.CreateMarket); // ee69211: +rewardBps@100 +rewardRecipient@108
   d.writeUInt16LE(Number(m.maxFrontBps ?? 0n), 2); // a056eee: maxFrontBps u16 at offset 2
-  [m.initPrice, m.exitWindow, m.maxStaleness, m.warmupSlots, m.imBps, m.mmBps, m.liqFeeBps,
+  [m.initPrice, m.exitWindow, m.maxStaleness, m.warmupSlots ?? 0n, m.imBps, m.mmBps, m.liqFeeBps,
     m.tradeFeeBps, m.maxMoveBps, m.maxInsDrawBps, m.maxOi, m.minMm ?? 0n]
     .forEach((v, i) => d.writeBigUInt64LE(v, 4 + 8 * i));
   if (useReward) {
-    d.writeBigUInt64LE(m.rewardBps ?? 0n, 100);
-    (m.rewardRecipient ?? PublicKey.default).toBuffer().copy(d, 108);
+    d.writeBigUInt64LE(rewardBps, 100);
+    m.rewardRecipient!.toBuffer().copy(d, 108);
   }
   return ix(p, [
     w(a.dex), w(a.market), r(a.mint), r(a.oracleAuth), r(a.creator, true),
@@ -263,6 +270,121 @@ export function closeAccount(p: PublicKey, a: { account: PublicKey; authority: P
   return ix(p, [w(a.account), r(a.authority, true), w(a.destination)], Buffer.from([IX.CloseAccount]));
 }
 
+/** op 20. DEX admin sweeps protocol-owned surplus (`DexOff.totalSurplus`) to `feeVault`. `amount = 0n` sweeps all. */
+export function sweepSurplus(p: PublicKey, v: VaultAccounts, a: { admin: PublicKey; feeVault: PublicKey; amount?: bigint }) {
+  const d = data(9, IX.SweepSurplus);
+  d.writeBigUInt64LE(a.amount ?? 0n, 1);
+  return ix(p, [w(v.dex), r(a.admin, true), r(v.mint), w(v.vault), w(a.feeVault), r(tok(v))], d);
+}
+
+/** op 21. Market's immutable `rewardRecipient` claims accrued reward fees (`MktOff.rewardAccrued`). `amount = 0n` claims all. */
+export function claimReward(p: PublicKey, v: VaultAccounts, a: {
+  market: PublicKey; rewardRecipient: PublicKey; destToken: PublicKey; amount?: bigint;
+}) {
+  const d = data(9, IX.ClaimReward);
+  d.writeBigUInt64LE(a.amount ?? 0n, 1);
+  return ix(p, [w(v.dex), w(a.market), r(a.rewardRecipient, true), r(v.mint), w(v.vault), w(a.destToken), r(tok(v))], d);
+}
+
+/** op 22. LP owner binds an external CPI-Out PropAMM `matcherCtx` on their portfolio (omit `matcherCtx` to unbind). */
+export function setPortfolioMatcher(p: PublicKey, a: { portfolio: PublicKey; owner: PublicKey; matcherCtx?: PublicKey }) {
+  const keys = [w(a.portfolio), r(a.owner, true)];
+  if (a.matcherCtx) keys.push(r(a.matcherCtx));
+  return ix(p, keys, Buffer.from([IX.SetPortfolioMatcher]));
+}
+
+export interface MatcherOffer {
+  market: PublicKey;
+  mode: number;        // TRADE_MODE.OPEN (0), CLOSE (1), or FLIP (4)
+  takerIsLong: boolean;
+  maxQty: bigint;
+  limitPrice: bigint;  // 0n = no limit
+}
+
+/** op 23. Unified single- or multi-market (`1..8` offers) 0-signer CPI-Out trade against an external PropAMM. */
+export function tradeWithMatcher(p: PublicKey, a: {
+  dex: PublicKey; takerPortfolio: PublicKey; takerOwner: PublicKey; lpPortfolio: PublicKey;
+  matcherProg: PublicKey; matcherCtx: PublicKey; offers: MatcherOffer[]; extraAcc?: PublicKey;
+}) {
+  const k = a.offers.length;
+  if (k < 1 || k > MAX_LEGS) {
+    throw new RangeError(`tradeWithMatcher: offers length (${k}) must be in 1..${MAX_LEGS}`);
+  }
+  const d = data(2 + k * 18, IX.TradeWithMatcher);
+  d.writeUInt8(k, 1);
+  const keys: AccountMeta[] = [
+    w(a.dex), w(a.takerPortfolio), r(a.takerOwner, true),
+    w(a.lpPortfolio), r(a.matcherProg), w(a.matcherCtx),
+  ];
+  for (let i = 0; i < k; i++) {
+    const o = a.offers[i];
+    if (o.mode !== TRADE_MODE.OPEN && o.mode !== TRADE_MODE.CLOSE && o.mode !== TRADE_MODE.FLIP) {
+      throw new RangeError(`tradeWithMatcher: offer[${i}] mode (${o.mode}) must be OPEN(0), CLOSE(1), or FLIP(4)`);
+    }
+    if (o.maxQty <= 0n) {
+      throw new RangeError(`tradeWithMatcher: offer[${i}] maxQty must be > 0`);
+    }
+    const off = 2 + i * 18;
+    d.writeUInt8(o.mode, off);
+    d.writeUInt8(o.takerIsLong ? 1 : 0, off + 1);
+    d.writeBigUInt64LE(o.maxQty, off + 2);
+    d.writeBigUInt64LE(o.limitPrice, off + 10);
+    keys.push(w(o.market));
+  }
+  if (a.extraAcc) keys.push(r(a.extraAcc));
+  return ix(p, keys, d);
+}
+
+// ================================================================= PropAMM matcher (e189ef2 CPI-Out)
+/** PropAMM op 0 (`InitPropAmm`). Initializes a 272B `PropCtx` with an immutable `allowedMarkets` list (1..8 marketIds). */
+export function propAmmInit(m: PublicKey, a: {
+  ctx: PublicKey; owner: PublicKey; paused?: boolean;
+  halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint; allowedMarkets: bigint[];
+}) {
+  const n = a.allowedMarkets.length;
+  if (n < 1 || n > MAX_LEGS) {
+    throw new RangeError(`propAmmInit: allowedMarkets length (${n}) must be in 1..${MAX_LEGS}`);
+  }
+  if (a.halfSpreadBps < 0n || a.halfSpreadBps > BPS_DEN) {
+    throw new RangeError(`propAmmInit: halfSpreadBps (${a.halfSpreadBps}) must be in 0..${BPS_DEN}`);
+  }
+  if (a.maxFillQty <= 0n) {
+    throw new RangeError("propAmmInit: maxFillQty must be > 0");
+  }
+  const d = data(28 + n * 8, PROP_AMM_IX.Init);
+  d.writeUInt8(a.paused ? 1 : 0, 1);
+  d.writeUInt8(n, 2);
+  d.writeBigUInt64LE(a.halfSpreadBps, 4);
+  d.writeBigUInt64LE(a.impactBps, 12);
+  d.writeBigUInt64LE(a.maxFillQty, 20);
+  for (let i = 0; i < n; i++) {
+    if (a.allowedMarkets[i] <= 0n) {
+      throw new RangeError(`propAmmInit: allowedMarkets[${i}] must be > 0`);
+    }
+    d.writeBigUInt64LE(a.allowedMarkets[i], 28 + i * 8);
+  }
+  return ix(m, [w(a.ctx), r(a.owner, true)], d);
+}
+
+/** PropAMM op 1 (`UpdatePropAmm`). Owner updates quoting params or pauses quoting. */
+export function propAmmUpdate(m: PublicKey, a: {
+  ctx: PublicKey; owner: PublicKey; paused: boolean;
+  halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint;
+}) {
+  if (a.halfSpreadBps < 0n || a.halfSpreadBps > BPS_DEN) {
+    throw new RangeError(`propAmmUpdate: halfSpreadBps (${a.halfSpreadBps}) must be in 0..${BPS_DEN}`);
+  }
+  if (a.maxFillQty <= 0n) {
+    throw new RangeError("propAmmUpdate: maxFillQty must be > 0");
+  }
+  const d = data(28, PROP_AMM_IX.Update);
+  d.writeUInt8(a.paused ? 1 : 0, 1);
+  d.writeBigUInt64LE(a.halfSpreadBps, 4);
+  d.writeBigUInt64LE(a.impactBps, 12);
+  d.writeBigUInt64LE(a.maxFillQty, 20);
+  return ix(m, [w(a.ctx), r(a.owner, true)], d);
+}
+
 // ================================================================= matcher
 /** matcher op 0. `cfg` = fresh MATCHER_CFG_SIZE account owned by the matcher; `lpPortfolio` = fresh PORTFOLIO_SIZE account owned by percolator. */
 export function matcherInit(m: PublicKey, a: {
@@ -332,6 +454,9 @@ export function adapterInit(o: PublicKey, a: {
 }) {
   const [, bump] = deriveOracleAuth(o, a.cfg);
   // size: 28 base; +32 if feedId (pins base); +32 more if quoteFeedId
+  if (a.quoteFeedId && !a.quoteFeed) {
+    throw new Error("adapterInit: quoteFeedId requires quoteFeed");
+  }
   if (a.quoteFeedId && !a.feedId) {
     throw new Error("adapterInit: quoteFeedId requires feedId (cannot leave base feedId all-zero)");
   }
@@ -399,16 +524,19 @@ export function rewardInit(rm: PublicKey, a: {
   d.writeBigUInt64LE(a.epochSlots, 4);
   d.writeBigUInt64LE(a.minBatchQuote, 12);
   d.writeBigUInt64LE(a.reserveRateE6, 20);
+  if (a.quoteVault.equals(a.targetEscrow)) {
+    throw new Error("rewardInit: quoteVault and targetEscrow must be distinct");
+  }
   const keys: AccountMeta[] = [
     w(a.cfg), r(a.mktAdmin, true), r(a.percolator), r(a.dex), r(a.market), r(rewAuth),
-    r(a.quoteMint), w(a.quoteVault), r(a.quoteTokProg ?? TOKEN_PROGRAM_ID),
-    r(a.targetMint), w(a.targetEscrow), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
+    r(a.quoteMint), r(a.quoteVault), r(a.quoteTokProg ?? TOKEN_PROGRAM_ID),
+    r(a.targetMint), r(a.targetEscrow), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
   ];
   if (a.burnMode === 1) {
-    if (!a.burnSink || a.burnSink.equals(a.targetEscrow)) {
-      throw new Error("rewardInit: burnMode=1 requires a burnSink distinct from targetEscrow");
+    if (!a.burnSink || a.burnSink.equals(a.targetEscrow) || a.burnSink.equals(a.quoteVault)) {
+      throw new Error("rewardInit: burnMode=1 requires a burnSink distinct from targetEscrow and quoteVault");
     }
-    keys.push(w(a.burnSink));
+    keys.push(r(a.burnSink));
   }
   return ix(rm, keys, d);
 }

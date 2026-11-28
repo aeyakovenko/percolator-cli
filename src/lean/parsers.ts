@@ -3,9 +3,11 @@
  */
 import { PublicKey } from "@solana/web3.js";
 import {
-  MAGIC, DexOff, MktOff, PflOff, LegOff, InsOff, MatcherCfgOff, AdapterOff, FeedOff,
-  DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, MATCHER_CFG_SIZE, ADAPTER_CFG_SIZE,
-  FEED_SIZE, MAX_LEGS, SIDE, STATUS, K_ZERO, ADL_ONE,
+  MAGIC, DexOff, MktOff, PflOff, LegOff, InsOff, MatcherCfgOff, PropOff, AdapterOff, FeedOff,
+  RewOff, EpochOff, BidOff,
+  DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, MATCHER_CFG_SIZE, PROP_AMM_SIZE,
+  ADAPTER_CFG_SIZE, FEED_SIZE, REWARD_CFG_SIZE, EPOCH_SIZE, BIDDER_SIZE,
+  MAX_LEGS, SIDE, STATUS, K_ZERO, ADL_ONE,
 } from "./constants.js";
 
 const u8 = (b: Buffer, o: number) => b.readUInt8(o);
@@ -21,7 +23,9 @@ function expect(b: Buffer, magic: number, size: number, what: string) {
 }
 
 /** Which percolator-lean account type a buffer holds (strict magic + exact size), or null. */
-export function accountKind(b: Buffer): "dex" | "market" | "portfolio" | "insReceipt" | "matcherCfg" | "adapterCfg" | "feed" | null {
+export function accountKind(b: Buffer):
+  | "dex" | "market" | "portfolio" | "insReceipt" | "matcherCfg" | "propAmmCtx"
+  | "adapterCfg" | "feed" | "rewardCfg" | "epochState" | "bidReceipt" | null {
   if (b.length < 4) return null;
   switch (u32(b, 0)) {
     case MAGIC.DEX: return b.length === DEX_SIZE ? "dex" : null;
@@ -29,8 +33,12 @@ export function accountKind(b: Buffer): "dex" | "market" | "portfolio" | "insRec
     case MAGIC.PORTFOLIO: return b.length === PORTFOLIO_SIZE ? "portfolio" : null;
     case MAGIC.INSURANCE: return b.length === INS_RECEIPT_SIZE ? "insReceipt" : null;
     case MAGIC.MATCHER: return b.length === MATCHER_CFG_SIZE ? "matcherCfg" : null;
+    case MAGIC.MRET: return b.length === PROP_AMM_SIZE ? "propAmmCtx" : null;
     case MAGIC.ADAPTER: return b.length === ADAPTER_CFG_SIZE ? "adapterCfg" : null;
     case MAGIC.FEED: return b.length === FEED_SIZE ? "feed" : null;
+    case MAGIC.REWARD: return b.length === REWARD_CFG_SIZE ? "rewardCfg" : null;
+    case MAGIC.EPOCH: return b.length === EPOCH_SIZE ? "epochState" : null;
+    case MAGIC.BID: return b.length === BIDDER_SIZE ? "bidReceipt" : null;
     default: return null;
   }
 }
@@ -59,7 +67,11 @@ export interface Market {
   status: number; statusName: string; marketId: bigint; dex: PublicKey;
   oracleAuth: PublicKey; marketAdmin: PublicKey | null;
   markPrice: bigint; lastOracleSlot: bigint; windDownSlot: bigint;
-  exitWindow: bigint; maxStaleness: bigint; warmupSlots: bigint;
+  exitWindow: bigint; maxStaleness: bigint;
+  /** 71d38f0: slot of the last saturated oracle ramp (pauses I_m fronting for RAMP_FRONT_COOLDOWN slots). */
+  lastRampSlot: bigint;
+  /** @deprecated Retired parameter (CreateMarket requires 0); always 0n so cloned Market settings stay valid. */
+  warmupSlots: bigint;
   imBps: bigint; mmBps: bigint; liqFeeBps: bigint; tradeFeeBps: bigint; maxMoveBps: bigint;
   maxInsDrawBps: bigint; maxOi: bigint; minMm: bigint;
   realizedPool: bigint; insurance: bigint; insFronted: bigint; maxFrontBps: bigint; totalPosPnl: bigint; totalInsShares: bigint;
@@ -78,7 +90,8 @@ export function parseMarket(b: Buffer): Market {
     status, statusName: STATUS_NAMES[status] ?? `?${status}`, marketId: u64(b, O.marketId), dex: pk(b, O.dex),
     oracleAuth: pk(b, O.oracleAuth), marketAdmin: isZeroKey(b, O.marketAdmin) ? null : pk(b, O.marketAdmin),
     markPrice: u64(b, O.markPrice), lastOracleSlot: u64(b, O.lastOracleSlot), windDownSlot: u64(b, O.windDownSlot),
-    exitWindow: u64(b, O.exitWindow), maxStaleness: u64(b, O.maxStaleness), warmupSlots: u64(b, O.warmupSlots),
+    exitWindow: u64(b, O.exitWindow), maxStaleness: u64(b, O.maxStaleness),
+    lastRampSlot: u64(b, O.lastRampSlot), warmupSlots: 0n,
     imBps: u64(b, O.imBps), mmBps: u64(b, O.mmBps), liqFeeBps: u64(b, O.liqFeeBps), tradeFeeBps: u64(b, O.tradeFeeBps),
     maxMoveBps: u64(b, O.maxMoveBps), maxInsDrawBps: u64(b, O.maxInsDrawBps), maxOi: u64(b, O.maxOi), minMm: u64(b, O.minMm),
     realizedPool: u64(b, O.realizedPool), insurance: u64(b, O.insurance), insFronted: u64(b, O.insFronted),
@@ -181,6 +194,93 @@ export interface Feed { price: bigint; conf: bigint; publishSlot: bigint }
 export function parseFeed(b: Buffer): Feed {
   expect(b, MAGIC.FEED, FEED_SIZE, "Feed");
   return { price: u64(b, FeedOff.price), conf: u64(b, FeedOff.conf), publishSlot: u64(b, FeedOff.publishSlot) };
+}
+
+// ---------------------------------------------------------------- PropAMM (e189ef2 CPI-Out Matcher)
+export interface PropAmmQuoteSlot { execPrice: bigint; fillQty: bigint }
+export interface PropAmmCtx {
+  status: number; seq: bigint; quotes: PropAmmQuoteSlot[];
+  owner: PublicKey; halfSpreadBps: bigint; impactBps: bigint; maxFillQty: bigint;
+  paused: boolean; allowedCount: number; allowedMarkets: bigint[];
+}
+export function parsePropAmmCtx(b: Buffer): PropAmmCtx {
+  expect(b, MAGIC.MRET, PROP_AMM_SIZE, "PropAmmCtx");
+  const O = PropOff;
+  const quotes: PropAmmQuoteSlot[] = [];
+  for (let i = 0; i < MAX_LEGS; i++) {
+    const base = O.quotesBase + i * 16;
+    quotes.push({ execPrice: u64(b, base), fillQty: u64(b, base + 8) });
+  }
+  const allowedCount = u8(b, O.allowedCount);
+  const n = Math.min(allowedCount, MAX_LEGS);
+  const allowedMarkets: bigint[] = [];
+  for (let i = 0; i < n; i++) allowedMarkets.push(u64(b, O.allowedMarkets + i * 8));
+  return {
+    status: u32(b, O.status), seq: u64(b, O.seq), quotes,
+    owner: pk(b, O.owner), halfSpreadBps: u64(b, O.halfSpreadBps),
+    impactBps: u64(b, O.impactBps), maxFillQty: u64(b, O.maxFillQty),
+    paused: u8(b, O.paused) !== 0, allowedCount, allowedMarkets,
+  };
+}
+
+// ---------------------------------------------------------------- RewardModule (e189ef2)
+export interface RewardCfg {
+  pdaBump: number; burnMode: number; quoteDecimals: number; targetDecimals: number;
+  percolator: PublicKey; dex: PublicKey; market: PublicKey;
+  quoteMint: PublicKey; quoteVault: PublicKey; targetMint: PublicKey;
+  targetEscrow: PublicKey; targetTokProg: PublicKey;
+  burnSinkTok: PublicKey | null; activeEpochAcc: PublicKey | null;
+  epochSlots: bigint; minBatchQuote: bigint; reserveRateE6: bigint;
+  activeEpochId: bigint; activeQuote: bigint; rolloverQuote: bigint;
+  pendingClaims: bigint; totalQuoteSpent: bigint; totalTargetBurned: bigint;
+}
+export function parseRewardCfg(b: Buffer): RewardCfg {
+  expect(b, MAGIC.REWARD, REWARD_CFG_SIZE, "RewardCfg");
+  const O = RewOff;
+  return {
+    pdaBump: u8(b, O.pdaBump), burnMode: u8(b, O.burnMode),
+    quoteDecimals: u8(b, O.quoteDecimals), targetDecimals: u8(b, O.targetDecimals),
+    percolator: pk(b, O.percProg), dex: pk(b, O.dex), market: pk(b, O.market),
+    quoteMint: pk(b, O.quoteMint), quoteVault: pk(b, O.quoteVault),
+    targetMint: pk(b, O.targetMint), targetEscrow: pk(b, O.targetEscrow),
+    targetTokProg: pk(b, O.targetTokProg),
+    burnSinkTok: isZeroKey(b, O.burnSinkTok) ? null : pk(b, O.burnSinkTok),
+    activeEpochAcc: isZeroKey(b, O.activeEpochAcc) ? null : pk(b, O.activeEpochAcc),
+    epochSlots: u64(b, O.epochSlots), minBatchQuote: u64(b, O.minBatchQuote),
+    reserveRateE6: u64(b, O.reserveRateE6), activeEpochId: u64(b, O.activeEpochId),
+    activeQuote: u64(b, O.activeQuote), rolloverQuote: u64(b, O.rolloverQuote),
+    pendingClaims: u64(b, O.pendingClaims), totalQuoteSpent: u64(b, O.totalQuoteSpent),
+    totalTargetBurned: u64(b, O.totalTargetBurned),
+  };
+}
+
+export interface EpochState {
+  settled: boolean; cfg: PublicKey; epochId: bigint;
+  quotePot: bigint; virtBids: bigint; totalBids: bigint; quotePaid: bigint;
+  startSlot: bigint; endSlot: bigint; claimedQuote: bigint;
+}
+export function parseEpochState(b: Buffer): EpochState {
+  expect(b, MAGIC.EPOCH, EPOCH_SIZE, "EpochState");
+  const O = EpochOff;
+  return {
+    settled: u8(b, O.settled) !== 0, cfg: pk(b, O.cfg), epochId: u64(b, O.epochId),
+    quotePot: u64(b, O.quotePot), virtBids: u64(b, O.virtBids),
+    totalBids: u64(b, O.totalBids), quotePaid: u64(b, O.quotePaid),
+    startSlot: u64(b, O.startSlot), endSlot: u64(b, O.endSlot),
+    claimedQuote: u64(b, O.claimedQuote),
+  };
+}
+
+export interface BidReceipt {
+  cfg: PublicKey; epochAcc: PublicKey; bidder: PublicKey; epochId: bigint; amount: bigint;
+}
+export function parseBidReceipt(b: Buffer): BidReceipt {
+  expect(b, MAGIC.BID, BIDDER_SIZE, "BidReceipt");
+  const O = BidOff;
+  return {
+    cfg: pk(b, O.cfg), epochAcc: pk(b, O.epochAcc), bidder: pk(b, O.bidder),
+    epochId: u64(b, O.epochId), amount: u64(b, O.amount),
+  };
 }
 
 // ---------------------------------------------------------------- invariants

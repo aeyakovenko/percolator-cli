@@ -29,10 +29,11 @@ function mockPortfolioBuf(dex: PublicKey, owner: PublicKey, legs: Array<{ market
   return b;
 }
 
-function mockMarketBuf(status: number): Buffer {
+function mockMarketBuf(status: number, dex?: PublicKey): Buffer {
   const b = Buffer.alloc(MARKET_SIZE);
   b.writeUInt32LE(MAGIC.MARKET, 0);
   b.writeUInt8(status, 4);
+  if (dex) dex.toBuffer().copy(b, 16);
   return b;
 }
 
@@ -120,7 +121,7 @@ test("withLegRefresh skips victim portfolio on Liquidate and refreshes only take
 test("realizeFlatLegs infers mainnet program ID from portfolio account owner", async () => {
   const dex = pk(), mkt = pk(), pfl = pk();
   const pflBuf = mockPortfolioBuf(dex, pk(), [{ market: mkt, side: SIDE.FLAT, posPnl: 500n }]);
-  const mktBuf = mockMarketBuf(STATUS.ACTIVE);
+  const mktBuf = mockMarketBuf(STATUS.ACTIVE, dex);
   const conn = {
     getAccountInfo: async () => ({ owner: LEAN_MAINNET.percolator, data: pflBuf }),
     getMultipleAccountsInfo: async () => [{ owner: LEAN_MAINNET.percolator, data: mktBuf }],
