@@ -93,6 +93,14 @@ export function saveStateAtomic(stateFile: string, state: PendingBidState) {
   fs.renameSync(tmp, stateFile);
 }
 
+export function recordBidReceipt(stateFile: string, bidReceipt: PublicKey) {
+  const start = JSON.parse(fs.readFileSync(stateFile, "utf8")) as PendingBidState;
+  if (start.stage !== "started" || !start.startSig || start.startLastValidBlockHeight === undefined) {
+    throw new Error(`cannot record bid receipt without a signed StartEpoch journal at ${stateFile}`);
+  }
+  saveStateAtomic(stateFile, { ...start, stage: "bid", bidReceipt: bidReceipt.toBase58() });
+}
+
 function clearState(stateFile: string) {
   if (fs.existsSync(stateFile)) fs.unlinkSync(stateFile);
 }
@@ -342,8 +350,8 @@ export async function isReceiptFinalizedClosed(
  * Reconcile any saved pending epoch / bidReceipt from a prior run before starting a new epoch.
  * - Dry runs (`live: false`) are strictly read-only and NEVER delete or modify `stateFile`.
  * - Verifies cluster (`genesisHash`), `cfg`, and `bidder` before mutating or clearing the journal.
- * - For in-flight `stage === "started"`, checks `startSig` and waits for `startLastValidBlockHeight`
- *   expiry before clearing so a still-valid start tx can never be abandoned.
+ * - In either stage, a missing epoch must be absent at finalized after start failure or expiry,
+ *   together with any recorded receipt, before the journal can be cleared.
  * - Reads epoch + receipt together at `finalized` commitment before treating absence as closure.
  * - Idempotently creates `usdcAta` before `ClaimQuote` so fresh wallets cannot strand claims.
  */
@@ -406,23 +414,16 @@ export async function reconcileSavedState(
     ? await conn.getMultipleAccountsInfo([epochPk, bidReceiptPk], "confirmed")
     : [await conn.getAccountInfo(epochPk, "confirmed"), null];
 
-  const receiptPresentConfirmed =
-    !!receiptInfo && receiptInfo.owner.equals(p.rm) && accountKind(Buffer.from(receiptInfo.data)) === "bidReceipt";
-
   if (!epochInfo || !epochInfo.owner.equals(p.rm) || accountKind(Buffer.from(epochInfo.data)) !== "epochState") {
-    // RewardModule never closes EpochState accounts; if we reached stage="bid", have a receipt,
-    // or cfg still points at this epoch, RPC cannot prove what happened — retain the journal.
-    if (prev.stage === "bid" || bidReceiptPk || cfgParsed.activeEpochAcc?.equals(epochPk) || receiptPresentConfirmed) {
-      throw new Error(`refusing to delete ${stateFile}: epoch ${prev.epoch} missing on RPC despite stage=${prev.stage} (receipt=${prev.bidReceipt ?? "none"})`);
+    if (epochInfo || receiptInfo || cfgParsed.activeEpochAcc?.equals(epochPk)) {
+      throw new Error(`refusing to delete ${stateFile}: confirmed accounts still exist or cfg points to epoch ${prev.epoch}`);
     }
-    // For stage="started", ensure the recorded StartEpoch tx has definitively failed at finalized
-    // OR expired at finalized block height before deleting the journal.
-    if (!prev.startSig) {
-      throw new Error(`refusing to delete ${stateFile}: legacy stage=started journal has no startSig/expiry to prove StartEpoch did not land`);
+    if (!prev.startSig || (prev.stage === "bid" && !bidReceiptPk)) {
+      throw new Error(`refusing to delete ${stateFile}: missing recovery data for stage=${prev.stage} with absent epoch ${prev.epoch}`);
     }
     const st = (await conn.getSignatureStatuses([prev.startSig], { searchTransactionHistory: true })).value[0];
-    if (st && !st.err) {
-      throw new Error(`refusing to delete ${stateFile}: startSig ${prev.startSig} is confirmed/processing; retry reconciliation once epoch ${prev.epoch} is visible`);
+    if (st?.confirmationStatus === "finalized" && !st.err) {
+      throw new Error(`refusing to delete ${stateFile}: startSig ${prev.startSig} succeeded at finalized but epoch ${prev.epoch} is missing`);
     }
     const finalizedFailed = !!st && !!st.err && st.confirmationStatus === "finalized";
     let minSlot: number;
@@ -441,24 +442,26 @@ export async function reconcileSavedState(
       if (finEpochInfo.blockHeight === undefined || finEpochInfo.blockHeight <= prev.startLastValidBlockHeight) {
         throw new Error(`refusing to delete ${stateFile}: startSig ${prev.startSig} still valid (blockHeight ${finEpochInfo.blockHeight ?? "unknown"} <= ${prev.startLastValidBlockHeight})`);
       }
-      minSlot = finEpochInfo.absoluteSlot;
+      minSlot = Math.max(finEpochInfo.absoluteSlot, st?.slot ?? 0);
     }
-    const finRes = await conn.getMultipleAccountsInfoAndContext([p.cfg, epochPk], {
+    // A bid cannot land after its start expires without the epoch. Check the receipt in the same bank.
+    const accounts = bidReceiptPk ? [p.cfg, epochPk, bidReceiptPk] : [p.cfg, epochPk];
+    const finRes = await conn.getMultipleAccountsInfoAndContext(accounts, {
       commitment: "finalized",
       minContextSlot: minSlot,
     });
     if (finRes.context.slot < minSlot) {
       throw new Error(`refusing to delete ${stateFile}: finalized account snapshot slot ${finRes.context.slot} < required minSlot ${minSlot}`);
     }
-    const [finCfg, finEpoch] = finRes.value;
+    const [finCfg, finEpoch, finReceipt] = finRes.value;
     if (!finCfg || !finCfg.owner.equals(p.rm) || accountKind(Buffer.from(finCfg.data)) !== "rewardCfg") {
       throw new Error(`refusing to delete ${stateFile}: RewardCfg ${p.cfg.toBase58()} unavailable at finalized`);
     }
     if (parseRewardCfg(Buffer.from(finCfg.data)).activeEpochAcc?.equals(epochPk)) {
       throw new Error(`refusing to delete ${stateFile}: cfg points to epoch ${prev.epoch} at finalized; retry reconciliation`);
     }
-    if (finEpoch && finEpoch.owner.equals(p.rm) && accountKind(Buffer.from(finEpoch.data)) === "epochState") {
-      throw new Error(`refusing to delete ${stateFile}: epoch ${prev.epoch} appeared at finalized; retry reconciliation`);
+    if (finEpoch !== null || (bidReceiptPk && finReceipt !== null)) {
+      throw new Error(`refusing to delete ${stateFile}: finalized snapshot does not prove epoch and receipt absence; retry reconciliation`);
     }
     clearState(stateFile);
     return "reconciled";
@@ -723,7 +726,7 @@ async function main() {
     // 2) Atomically wrap SOL, create fresh bidReceipt, and SubmitBid in ONE tx (prevents duplicate-bid double debit)
     const bidReceipt = Keypair.generate();
     const rentB = await conn.getMinimumBalanceForRentExemption(BIDDER_SIZE);
-    saveStateAtomic(stateFile, { ...journalBase, bidReceipt: bidReceipt.publicKey.toBase58(), stage: "bid" });
+    recordBidReceipt(stateFile, bidReceipt.publicKey);
     const isBidLanded = async () => {
       const b = await acct(bidReceipt.publicKey);
       return !!b && accountKind(b) === "bidReceipt" && parseBidReceipt(b).amount > 0n;

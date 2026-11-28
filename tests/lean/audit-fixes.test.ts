@@ -22,7 +22,7 @@ import {
 import { computeClampedPush, crankOracleOnce } from "../../scripts/_lean-r3-crank.js";
 import {
   isRewardEpochActive, computeOptimalBid, shouldSubmitBid, sendIdempotent,
-  isReceiptFinalizedClosed, reconcileSavedState, withStateLock, saveStateAtomic,
+  isReceiptFinalizedClosed, reconcileSavedState, recordBidReceipt, withStateLock, saveStateAtomic,
   readInitialTokenBalance, isDirectEntrypoint, MIN_NET_USD, EPOCH_RENT_SOL,
 } from "../../scripts/_lean-r3-reward-bid.js";
 import { portfolioTotalCollateral, fetchMonitorSnapshot } from "../../scripts/_lean-oi-monitor.js";
@@ -409,7 +409,7 @@ test("sendIdempotent rebroadcasts same signed bytes until blockhash expiry and c
   assert.equal(neverSend, 0);
 });
 
-test("reconcileSavedState keeps dry runs read-only, validates cluster/wallet binding, creates USDC ATA on claim, and locks overlaps", async () => {
+test("reconcileSavedState keeps dry runs read-only, validates cluster/wallet binding, creates USDC ATA on claim, and locks overlaps", async (t) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "perc-rbid-"));
   const stateFile = path.join(tmpDir, "state.json");
   const funder = Keypair.generate();
@@ -476,7 +476,7 @@ test("reconcileSavedState keeps dry runs read-only, validates cluster/wallet bin
     getMultipleAccountsInfo: async (keys: PublicKey[]) =>
       keys.map((address) => (address.equals(cfg) ? { data: makeCfg(), owner: rm, lamports: 1, executable: false } : null)),
   } as unknown as Connection;
-  await assert.rejects(() => reconcileSavedState(missingBidEpochConn, stateFile, { ...baseParams, live: true }), /missing on RPC despite stage=bid/);
+  await assert.rejects(() => reconcileSavedState(missingBidEpochConn, stateFile, { ...baseParams, live: true }), /missing recovery data for stage=bid/);
   assert.equal(fs.existsSync(stateFile), true);
 
   // 3) Live run on matching cluster settles unsettled epoch, prepends idempotent USDC ATA create to ClaimQuote, and clears journal
@@ -723,14 +723,17 @@ test("reconcileSavedState keeps dry runs read-only, validates cluster/wallet bin
   assert.equal(fs.existsSync(stateFile), false);
 
   // 6) P2: In-flight stage="started" journal MUST NOT be deleted while startSig is valid, processing, or account snapshot lags expiry slot
-  saveStateAtomic(stateFile, {
+  const startedJournal = {
     genesisHash: mainnetGenesis, cfg: cfg.toBase58(), bidder: funder.publicKey.toBase58(),
-    epoch: epPk.toBase58(), startSig: "start-sig-1", startLastValidBlockHeight: 500, stage: "started",
-  });
+    epoch: epPk.toBase58(), startSig: "start-sig-1", startLastValidBlockHeight: 500, stage: "started" as const,
+  };
+  saveStateAtomic(stateFile, startedJournal);
   let finalizedHeight = 450;
   let finalizedSlot = 1000;
   let snapshotSlot = 1000;
   let observedMinContextSlot: number | undefined;
+  let snapshotKeys: PublicKey[] = [];
+  const finalizedAccounts = new Map<string, Buffer>([[cfg.toBase58(), makeCfg()]]);
   let startSigStatus: { err: unknown; confirmationStatus?: string; slot?: number } | null = null;
   const startConn = {
     getGenesisHash: async () => mainnetGenesis,
@@ -738,11 +741,21 @@ test("reconcileSavedState keeps dry runs read-only, validates cluster/wallet bin
     getSignatureStatuses: async () => ({ value: [startSigStatus] }),
     getAccountInfo: async (address: PublicKey) =>
       address.equals(cfg) ? { data: makeCfg(), owner: rm, lamports: 1, executable: false } : null,
+    getMultipleAccountsInfo: async (keys: PublicKey[], commitment: string) => {
+      assert.deepEqual(keys, [epPk, recPk]);
+      assert.equal(commitment, "confirmed");
+      return [null, null];
+    },
     getMultipleAccountsInfoAndContext: async (keys: PublicKey[], opts?: { commitment?: string; minContextSlot?: number }) => {
+      assert.equal(opts?.commitment, "finalized");
       observedMinContextSlot = opts?.minContextSlot;
+      snapshotKeys = keys;
       return {
         context: { slot: snapshotSlot },
-        value: keys.map((k) => (k.equals(cfg) ? { data: makeCfg(), owner: rm, lamports: 1, executable: false } : null)),
+        value: keys.map((k) => {
+          const data = finalizedAccounts.get(k.toBase58());
+          return data ? { data, owner: rm, lamports: 1, executable: false } : null;
+        }),
       };
     },
   } as unknown as Connection;
@@ -751,9 +764,9 @@ test("reconcileSavedState keeps dry runs read-only, validates cluster/wallet bin
   await assert.rejects(() => reconcileSavedState(startConn, stateFile, { ...baseParams, live: true }), /still valid/);
   assert.equal(fs.existsSync(stateFile), true);
 
-  // Signature is confirmed/processing (even past expiry) -> MUST reject & keep journal
+  // Signature is confirmed and still within its validity window.
   startSigStatus = { err: null, confirmationStatus: "confirmed" };
-  await assert.rejects(() => reconcileSavedState(startConn, stateFile, { ...baseParams, live: true }), /confirmed\/processing/);
+  await assert.rejects(() => reconcileSavedState(startConn, stateFile, { ...baseParams, live: true }), /still valid/);
   assert.equal(fs.existsSync(stateFile), true);
 
   // Past expiry height, but lagging replica returns account snapshot from BEFORE finalized expiry slot -> MUST reject & keep journal
@@ -769,6 +782,53 @@ test("reconcileSavedState keeps dry runs read-only, validates cluster/wallet bin
   snapshotSlot = 1200;
   assert.equal(await reconcileSavedState(startConn, stateFile, { ...baseParams, live: true }), "reconciled");
   assert.equal(fs.existsSync(stateFile), false);
+
+  await t.test("a bid journal survives rollback until finality proves the start and receipt are absent", async () => {
+    saveStateAtomic(stateFile, startedJournal);
+    recordBidReceipt(stateFile, recPk);
+    const promoted = { ...startedJournal, stage: "bid", bidReceipt: recPk.toBase58() };
+    const readJournal = () => JSON.parse(fs.readFileSync(stateFile, "utf8"));
+    const restart = () => reconcileSavedState(startConn, stateFile, { ...baseParams, live: true });
+    assert.deepEqual(readJournal(), promoted);
+
+    finalizedHeight = startedJournal.startLastValidBlockHeight;
+    startSigStatus = { err: null, confirmationStatus: "confirmed", slot: 1100 };
+    await assert.rejects(restart, /still valid/);
+    assert.deepEqual(readJournal(), promoted);
+
+    finalizedHeight++;
+    snapshotSlot = finalizedSlot - 1;
+    await assert.rejects(restart, /snapshot slot/);
+    assert.deepEqual(readJournal(), promoted);
+    snapshotSlot = finalizedSlot;
+
+    for (const [account, data] of [[epPk, makeEp(false)], [recPk, makeRec()]] as const) {
+      finalizedAccounts.set(account.toBase58(), data);
+      await assert.rejects(restart, /refusing to delete/);
+      assert.deepEqual(readJournal(), promoted);
+      finalizedAccounts.delete(account.toBase58());
+    }
+    const activeCfg = makeCfg();
+    epPk.toBuffer().copy(activeCfg, RewOff.activeEpochAcc);
+    finalizedAccounts.set(cfg.toBase58(), activeCfg);
+    await assert.rejects(restart, /cfg points to epoch/);
+    assert.deepEqual(readJournal(), promoted);
+    finalizedAccounts.set(cfg.toBase58(), makeCfg());
+
+    startSigStatus = { err: null, confirmationStatus: "finalized", slot: 1100 };
+    await assert.rejects(restart, /refusing to delete/);
+    assert.deepEqual(readJournal(), promoted);
+
+    const lastObservedSlot = finalizedSlot + 1;
+    startSigStatus = { err: null, confirmationStatus: "confirmed", slot: lastObservedSlot };
+    await assert.rejects(restart, /snapshot slot/);
+    assert.deepEqual(readJournal(), promoted);
+    snapshotSlot = lastObservedSlot;
+    assert.equal(await restart(), "reconciled");
+    assert.deepEqual(snapshotKeys, [cfg, epPk, recPk]);
+    assert.equal(observedMinContextSlot, snapshotSlot);
+    assert.equal(fs.existsSync(stateFile), false);
+  });
 
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
