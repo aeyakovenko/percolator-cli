@@ -1,37 +1,39 @@
-/** Poll the live mainnet bounty market; print a line whenever OI or the insurance prize changes. */
+/** Poll the live mainnet bounty market; print a line whenever one of the 3 prize surfaces or the status changes.
+ *  Output (grepped by a watcher): `HH:MM:SS [baseline|CHANGE] insurance=$.. | vaultPfl=$.. | userLong=$.. | status=.. | mark=$..`
+ *  - market + both prize portfolios are read in ONE getMultipleAccountsInfo call (same-slot snapshot);
+ *  - a prize portfolio's value = free capital + totalLockedMm, so opening/closing the prize position
+ *    (collateral moving between free and locked margin) is NOT a change;
+ *  - every account is validated (owner == manifest percolator program, size, magic); a mismatch or a
+ *    missing market prints a [CHANGE] line with ` | ALERT=<reason>` appended instead of decoding garbage.
+ *  Env: LEAN_MANIFEST (default lean-mainnet-r4.json), LEAN_RPC_URL (default mainnet Helius),
+ *  LEAN_MARKET_SIZE (default manifest.marketSize ?? 416; use 400 for the round-3 layout), LEAN_POLL_MS (30000). */
 import { Connection, PublicKey } from "@solana/web3.js";
 import * as fs from "fs";
-// NOTE: read raw offsets (not parseMarket) so this works on BOTH the old 352B mainnet market and
-// the new 400B ee69211 layout — status@4/mark@112/insurance@224/OI@256,264 are identical in both.
-const STATUS_NAMES = ["Active", "WindDown", "Resolved", "Tombstoned"];
+import { MARKET_SIZE } from "../src/lean/constants.js";
+import { decodePrizeSnapshot } from "../src/lean/prize-monitor.js";
 
-const key = fs.readFileSync(`${process.env.HOME}/.helius`, "utf8").trim();
-const conn = new Connection(`https://mainnet.helius-rpc.com/?api-key=${key}`, "confirmed");
+const rpc = process.env.LEAN_RPC_URL ?? `https://mainnet.helius-rpc.com/?api-key=${fs.readFileSync(`${process.env.HOME}/.helius`, "utf8").trim()}`;
+const conn = new Connection(rpc, "confirmed");
 const MANI = JSON.parse(fs.readFileSync(process.env.LEAN_MANIFEST ?? `${process.env.HOME}/percolator-cli/lean-mainnet-r4.json`, "utf8"));
+const PROGRAM = new PublicKey(MANI.percolator);
 const MARKET = new PublicKey(MANI.market);
 // The 3 prize surfaces — watch these, NOT the DEX-vault total (hunters cycle their own collateral,
-// which is noise). Theft = a prize actually shrinking: insurance, or either prize portfolio's capital.
+// which is noise). Theft = a prize actually shrinking: insurance, or either prize portfolio's capital+lockedMm.
 const VAULT_PFL = new PublicKey(MANI.prizes.vaultPortfolio); // prize 2 (loose collateral)
 const USER_LONG = new PublicKey(MANI.prizes.userLong); // prize 3 (long position)
-const u = (n: bigint) => (Number(n) / 1e6).toString();
+const MKT_SIZE = Number(process.env.LEAN_MARKET_SIZE ?? MANI.marketSize ?? MARKET_SIZE);
+const POLL_MS = Number(process.env.LEAN_POLL_MS ?? 30_000);
 const t = () => new Date().toISOString().slice(11, 19);
-const cap = async (p: PublicKey) => { const i = await conn.getAccountInfo(p, "confirmed"); return i ? Buffer.from(i.data).readBigUInt64LE(88) : -1n; };
 
 let last = ""; let errStreak = 0;
 async function tick() {
   try {
-    const info = await conn.getAccountInfo(MARKET, "confirmed");
-    if (!info) { console.log(`${t()} market account not found`); return; }
-    const b = Buffer.from(info.data);
-    const insurance = b.readBigUInt64LE(224), status = STATUS_NAMES[b.readUInt8(4)] ?? `?${b.readUInt8(4)}`;
-    const vCap = await cap(VAULT_PFL), uCap = await cap(USER_LONG);
+    const infos = await conn.getMultipleAccountsInfo([MARKET, VAULT_PFL, USER_LONG], "confirmed");
     errStreak = 0;
-    // key = the 3 prizes exactly (insurance + both prize portfolios' capital) + status. Fires only on a
-    // real prize move; the hunter's own deposits/withdrawals/trades no longer generate noise.
-    const c = (x: bigint) => (x < 0n ? -1n : x / 10_000n).toString(); // round to 0.01 USDC — ignore sub-cent dust
-    const key = `${c(insurance)}|${c(vCap)}|${c(uCap)}|${status}`;
-    const snap = `insurance=$${u(insurance)} | vaultPfl=$${vCap < 0n ? "CLOSED" : u(vCap)} | userLong=$${uCap < 0n ? "CLOSED" : u(uCap)} | status=${status} | mark=$${u(b.readBigUInt64LE(112))}`;
-    if (key !== last) { console.log(`${t()} ${last === "" ? "[baseline] " : "[CHANGE] "}${snap}`); last = key; }
-  } catch (e) { errStreak++; if (errStreak >= 4) console.log(`${t()} poll error x${errStreak} (persistent): ${String((e as Error).message ?? e).slice(0, 70)}`); } // ignore transient single hiccups
+    // key = the 3 prizes (insurance + both prize portfolios' capital+lockedMm, 0.01 USDC) + status + any
+    // validation problem. Fires only on a real prize move or a broken/replaced account.
+    const s = decodePrizeSnapshot(PROGRAM, infos, MKT_SIZE);
+    if (s.key !== last) { console.log(`${t()} ${last === "" && s.problems.length === 0 ? "[baseline] " : "[CHANGE] "}${s.line}`); last = s.key; }
+  } catch (e) { errStreak++; if (errStreak >= 4) console.log(`${t()} poll error x${errStreak} (persistent): ${String((e as Error).message ?? e).replace(/api-key=[^&\s"']+/g, "api-key=***").slice(0, 70)}`); } // ignore transient single hiccups
 }
-(async () => { for (;;) { await tick(); await new Promise(r => setTimeout(r, 30_000)); } })();
+(async () => { for (;;) { await tick(); await new Promise(r => setTimeout(r, POLL_MS)); } })();

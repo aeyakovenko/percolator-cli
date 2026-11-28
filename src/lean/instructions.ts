@@ -116,6 +116,10 @@ export function createMarket(p: PublicKey, a: {
     throw new RangeError(`createMarket: liqFeeBps (${m.liqFeeBps}) must be in 0..mmBps (${m.mmBps})`);
   }
   const useReward = (m.rewardBps ?? 0n) > 0n;
+  // On-chain: rewardBps > 0 requires a non-zero recipient (else invalidParams). Never silently encode the zero key.
+  if (useReward && (!m.rewardRecipient || m.rewardRecipient.equals(PublicKey.default))) {
+    throw new Error(`createMarket: rewardBps (${m.rewardBps}) > 0 requires a non-default rewardRecipient (the reward-module auth PDA, deriveRewAuth(rewardProg, rewardCfg))`);
+  }
   const d = data(useReward ? 140 : 100, IX.CreateMarket); // ee69211: +rewardBps@100 +rewardRecipient@108
   d.writeUInt16LE(Number(m.maxFrontBps ?? 0n), 2); // a056eee: maxFrontBps u16 at offset 2
   [m.initPrice, m.exitWindow, m.maxStaleness, m.fundingCfg ?? 0n, m.imBps, m.mmBps, m.liqFeeBps,
@@ -123,7 +127,7 @@ export function createMarket(p: PublicKey, a: {
     .forEach((v, i) => d.writeBigUInt64LE(v, 4 + 8 * i));
   if (useReward) {
     d.writeBigUInt64LE(m.rewardBps ?? 0n, 100);
-    (m.rewardRecipient ?? PublicKey.default).toBuffer().copy(d, 108);
+    m.rewardRecipient!.toBuffer().copy(d, 108);
   }
   return ix(p, [
     w(a.dex), w(a.market), r(a.mint), r(a.oracleAuth), r(a.creator, true),
@@ -344,11 +348,18 @@ export function adapterInit(o: PublicKey, a: {
   feedType: number; maxFeedAge: bigint; maxConfBps: bigint; fundingBpsPerStep: bigint;
   feedId?: Buffer; quoteFeed?: PublicKey; quoteFeedType?: number; quoteFeedId?: Buffer;
 }) {
-  const [, bump] = deriveOracleAuth(o, a.cfg);
   // size: 28 base; +32 if feedId (pins base); +32 more if quoteFeedId
   if (a.quoteFeedId && !a.feedId) {
     throw new Error("adapterInit: quoteFeedId requires feedId (cannot leave base feedId all-zero)");
   }
+  // The program only pins quoteFeedId inside the composite branch (6th account present); without a
+  // quoteFeed account it would be silently dropped and the adapter would be a single-leg feed.
+  if (a.quoteFeedId && !a.quoteFeed) {
+    throw new Error("adapterInit: quoteFeedId requires quoteFeed (a quote feed id is only meaningful for a 2-leg composite adapter)");
+  }
+  if (a.feedId && a.feedId.length !== 32) throw new Error("feedId must be 32 bytes");
+  if (a.quoteFeedId && a.quoteFeedId.length !== 32) throw new Error("quoteFeedId must be 32 bytes");
+  const [, bump] = deriveOracleAuth(o, a.cfg);
   let len = 28;
   if (a.feedId) len = 60;
   if (a.quoteFeedId) len = 92;
@@ -359,8 +370,8 @@ export function adapterInit(o: PublicKey, a: {
   d.writeBigUInt64LE(a.maxFeedAge, 4);
   d.writeBigUInt64LE(a.maxConfBps, 12);
   d.writeBigUInt64LE(a.fundingBpsPerStep, 20);
-  if (a.feedId) { if (a.feedId.length !== 32) throw new Error("feedId must be 32 bytes"); a.feedId.copy(d, 28); }
-  if (a.quoteFeedId) { if (a.quoteFeedId.length !== 32) throw new Error("quoteFeedId must be 32 bytes"); a.quoteFeedId.copy(d, 60); }
+  if (a.feedId) a.feedId.copy(d, 28);
+  if (a.quoteFeedId) a.quoteFeedId.copy(d, 60);
   const keys = [w(a.cfg), r(a.admin, true), r(a.percolator), r(a.market), r(a.feed)];
   if (a.quoteFeed) keys.push(r(a.quoteFeed)); // n>=6 → FLAG_HAS_QUOTE
   return ix(o, keys, d);
@@ -406,6 +417,19 @@ export function rewardInit(rm: PublicKey, a: {
   burnSink?: PublicKey; burnMode: 0 | 1; epochSlots: bigint; minBatchQuote: bigint; reserveRateE6: bigint;
   quoteTokProg?: PublicKey; targetTokProg?: PublicKey;
 }): TransactionInstruction {
+  // The three token accounts must be pairwise distinct (the program rejects quoteVault == targetEscrow as
+  // aliasedAccounts; a burnSink aliasing either would route the "burn" back into a live module account).
+  if (a.quoteVault.equals(a.targetEscrow)) {
+    throw new Error("rewardInit: quoteVault and targetEscrow must be distinct token accounts");
+  }
+  if (a.burnMode === 1) {
+    if (!a.burnSink || a.burnSink.equals(a.targetEscrow)) {
+      throw new Error("rewardInit: burnMode=1 requires a burnSink distinct from targetEscrow");
+    }
+    if (a.burnSink.equals(a.quoteVault)) {
+      throw new Error("rewardInit: burnMode=1 requires a burnSink distinct from quoteVault");
+    }
+  }
   const [rewAuth, bump] = deriveRewAuth(rm, a.cfg);
   const d = data(28, REWARD_IX.InitReward);
   d.writeUInt8(bump, 1); // InitReward reads the rewm-PDA bump from data byte 1
@@ -418,12 +442,7 @@ export function rewardInit(rm: PublicKey, a: {
     r(a.quoteMint), w(a.quoteVault), r(a.quoteTokProg ?? TOKEN_PROGRAM_ID),
     r(a.targetMint), w(a.targetEscrow), r(a.targetTokProg ?? TOKEN_PROGRAM_ID),
   ];
-  if (a.burnMode === 1) {
-    if (!a.burnSink || a.burnSink.equals(a.targetEscrow)) {
-      throw new Error("rewardInit: burnMode=1 requires a burnSink distinct from targetEscrow");
-    }
-    keys.push(w(a.burnSink));
-  }
+  if (a.burnMode === 1) keys.push(w(a.burnSink!));
   return ix(rm, keys, d);
 }
 

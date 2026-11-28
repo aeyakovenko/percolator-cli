@@ -8,3 +8,5 @@ export * from "./instructions.js";
 export * from "./discover.js";
 export * from "./refresh.js";
 export * from "./cluster.js";
+export * from "./oracle-clamp.js";
+export * from "./prize-monitor.js";
