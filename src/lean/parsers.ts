@@ -3,7 +3,7 @@
  */
 import { PublicKey } from "@solana/web3.js";
 import {
-  MAGIC, DexOff, MktOff, PflOff, LegOff, InsOff, MatcherCfgOff, AdapterOff, FeedOff,
+  MAGIC, INS_WITHDRAW_COOLDOWN_BUCKETS, INS_BUCKET_SHIFT, DexOff, MktOff, PflOff, LegOff, InsOff, MatcherCfgOff, AdapterOff, FeedOff,
   DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, MATCHER_CFG_SIZE, ADAPTER_CFG_SIZE,
   FEED_SIZE, MAX_LEGS, SIDE, STATUS, K_ZERO, ADL_ONE, PREM_ZERO,
   PropOff, PROP_CTX_SIZE, RewOff, EpochOff, BidOff, REWARD_CFG_SIZE, EPOCH_SIZE, BIDDER_SIZE,
@@ -150,10 +150,32 @@ export function parsePortfolio(b: Buffer): Portfolio {
 export const openLegs = (p: Portfolio) => p.legs.filter((l) => l.side !== SIDE.FLAT);
 
 // ---------------------------------------------------------------- InsReceipt
-export interface InsReceipt { marketId: bigint; owner: PublicKey; market: PublicKey; shares: bigint }
+export interface InsReceipt {
+  marketId: bigint; owner: PublicKey; market: PublicKey; shares: bigint;
+  /** 55c167f: (slot >> 4) of the last share-minting DepositInsurance into this receipt. 0 for a receipt that was only
+   *  deposited under an older program (bytes 4..7 were zero padding) => no cooldown left. */
+  lastDepositBucket: number;
+}
 export function parseInsReceipt(b: Buffer): InsReceipt {
   expect(b, MAGIC.INSURANCE, INS_RECEIPT_SIZE, "InsReceipt");
-  return { marketId: u64(b, InsOff.marketId), owner: pk(b, InsOff.owner), market: pk(b, InsOff.market), shares: u64(b, InsOff.shares) };
+  return { marketId: u64(b, InsOff.marketId), owner: pk(b, InsOff.owner), market: pk(b, InsOff.market), shares: u64(b, InsOff.shares),
+    lastDepositBucket: b.readUInt32LE(InsOff.lastDepositBucket) };
+}
+/**
+ * 55c167f (Issue #117) anti-JIT cooldown of WithdrawInsurance WHILE THE MARKET HAS OPEN INTEREST: the program
+ * requires (slot >> 4) - receipt.lastDepositBucket >= 10, i.e. the first allowed slot is
+ * `readySlot = (lastDepositBucket + 10) << 4` (between 145 and 160 slots after the deposit).
+ * Returns that slot, whether `curSlot` has reached it, and how many slots are left.
+ * NOT covered (read the Market): with OI > 0 the withdraw additionally needs insFronted == 0 and
+ * adlLong == adlShort == ADL_ONE (else nonzeroOi 118); an EMPTY market (no OI, no raw basis) has no cooldown at all.
+ */
+export function insWithdrawReadyAt(receipt: Pick<InsReceipt, "lastDepositBucket">, curSlot: bigint | number): { ready: boolean; readySlot: bigint; slotsLeft: bigint } {
+  const cur = BigInt(curSlot);
+  const readySlot = (BigInt(receipt.lastDepositBucket) + INS_WITHDRAW_COOLDOWN_BUCKETS) << INS_BUCKET_SHIFT;
+  // the program compares 32-bit buckets: mirror it exactly (cur bucket masked to u32, and it must not be behind)
+  const curBucket = (cur >> INS_BUCKET_SHIFT) & 0xffffffffn;
+  const ready = curBucket >= BigInt(receipt.lastDepositBucket) && curBucket - BigInt(receipt.lastDepositBucket) >= INS_WITHDRAW_COOLDOWN_BUCKETS;
+  return { ready, readySlot, slotsLeft: ready || readySlot <= cur ? 0n : readySlot - cur };
 }
 
 // ---------------------------------------------------------------- PropAMM ctx (Matcher.lean:31-50)

@@ -130,7 +130,12 @@ export const LegOff = { // a31a1f8: 104B stride (+per-leg lockedMm@96 isolated-M
   cachedMm: 72, cachedIm: 80, lastRefreshSlot: 88, lockedMm: 96,
 } as const;
 
-export const InsOff = { magic: 0, marketId: 8, owner: 16, market: 48, shares: 80 } as const;
+/** 55c167f: bytes 4..7 (zero padding before) = lastDepositBucket u32 = (slot >> 4) of the receipt's last share-minting deposit. */
+export const InsOff = { magic: 0, lastDepositBucket: 4, marketId: 8, owner: 16, market: 48, shares: 80 } as const;
+/** 55c167f (Issue #117): WithdrawInsurance while the market has OI needs insFronted == 0, adlLong == adlShort == ADL_ONE
+ *  and curBucket - receipt.lastDepositBucket >= 10 buckets of 16 slots (160 slots). An empty market has no cooldown. */
+export const INS_WITHDRAW_COOLDOWN_BUCKETS = 10n;
+export const INS_BUCKET_SHIFT = 4n;
 
 /** PropAMM ctx layout (Matcher.lean:31-50). Bytes 0..144 = MatcherReturn header + 8 quote slots (rewritten by every
  *  quote), 144..208 = owner-mutable params, 201 + 208..272 = IMMUTABLE marketId allowlist. */
