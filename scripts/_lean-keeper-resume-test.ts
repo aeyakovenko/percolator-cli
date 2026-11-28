@@ -175,7 +175,7 @@ async function main() {
   c0 = await cfgView(); usdc0 = await tokBal(bidderUsdc); const sinkA3 = await tokBal(burnSink);
   r = await keeper(["--live"], { KEEPER_CRASH_AFTER: "start" });
   ok(r.code === 1 && (await cfgView()).activeQuote > 0n && journal()?.stage === "started", "(a3) crashed after StartEpoch; epoch active + journaled");
-  r = await keeper(["--live"], { SOL_PRICE_USD: "1000000000000" });
+  r = await keeper(["--live"], { SOL_PRICE_USD: "5000" });
   c = await cfgView();
   ok(r.code === 0 && /NOT bidding: bid not EV\+/.test(r.out) && /totalBids=0\.000000.*SettleEpoch/.test(r.out) && !/escrowed|started epoch/.test(r.out), "(a3) resumed run declined to bid, waited, settled the empty epoch, started nothing new (EV gate)");
   ok(c.epochId === c0.epochId + 1n && (await tokBal(bidderUsdc)) === usdc0 && (await tokBal(burnSink)) === sinkA3 && c.rollover > 0n, `(a3) nothing burned, nothing claimed, the pot rolled over ($${U(c.rollover)})`);
