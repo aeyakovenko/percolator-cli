@@ -30,5 +30,20 @@
     "vaultPortfolio": "4oqFBi5VnGrUiwPEC8SZ9kJXHQi2QSucCBQE3TtGMMj7",
     "userLong": "9vtoSvrhv5vw7qt6oUdBw835B4pejrmbjWmie3uz2RMh"
   },
-  "launchCommit": "9b45ad1"
+  "launchCommit": "9b45ad1",
+  "ammVault": {
+    "kind": "PropAMM",
+    "matcherProgram": "GVN3LTDVGRstkxSYzg2Jw8YoguyvgHBTpewK8mEwBBtp",
+    "ctx": "6A7KGg4LgJhCr3qEGk6qNDPpEteTP3Svzovxa9pW6Te9",
+    "lpPortfolio": "FZ2C2kHZAumbmW4fSTgPbFbYYsHEwGEoBNDzVSW5UUCQ",
+    "ownerKey": "funder/id.json",
+    "halfSpreadBps": 20,
+    "impactBps": 5,
+    "maxFillQty": "200",
+    "lpCapitalUsd": 3,
+    "allowedMarketIds": [
+      "1"
+    ],
+    "createdAt": "2026-11-28T18:32:59.294Z"
+  }
 }

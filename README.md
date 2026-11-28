@@ -147,6 +147,8 @@ than you put in **from the live mainnet deployment**, or violating conservation
 (`V == SPL == C + I + R + S + totalRewards`) on mainnet.
 
 > **Rules — this is a live capture-the-flag, not a report-for-payout program.**
+> - **Everything is in scope:** the insurance fund, the vault portfolio, the user long, the AMM vault (its LP
+>   portfolio and quoting), and the reward module (`quoteVault` / burn auction). Any way to extract funds counts.
 > - **To claim the bounty you must actually execute the attack on mainnet**, against the addresses below.
 > - **The only prize is what your attack actually captures on-chain.** Nothing is paid out on top of
 >   that, and nothing is paid for reports, write-ups, PoCs, or devnet / localnet / LiteSVM reproductions.
@@ -165,6 +167,7 @@ than you put in **from the live mainnet deployment**, or violating conservation
 | **Prize 1 — insurance** | **$23** (market insurance pot) |
 | **Prize 2 — vault portfolio** | **$23** loose collateral — `4oqFBi5VnGrUiwPEC8SZ9kJXHQi2QSucCBQE3TtGMMj7` |
 | **Prize 3 — user long** | **~$23** (0.003 BTC long) — `9vtoSvrhv5vw7qt6oUdBw835B4pejrmbjWmie3uz2RMh` |
+| **Prize 4 — AMM vault** | **$3** LP capital in an always-on passive AMM (PropAMM, half-spread 20 bps, 0.0002 BTC per fill) — LP portfolio `FZ2C2kHZAumbmW4fSTgPbFbYYsHEwGEoBNDzVSW5UUCQ`, ctx `6A7KGg4LgJhCr3qEGk6qNDPpEteTP3Svzovxa9pW6Te9` |
 
 Also in [`lean-mainnet-r4.json`](lean-mainnet-r4.json). The market charges a **2 bps** trade fee,
 100% routed to a **wSOL buy-and-burn** reward module (permissionless `StartEpoch`/`SubmitBid`/
@@ -172,8 +175,9 @@ Also in [`lean-mainnet-r4.json`](lean-mainnet-r4.json). The market charges a **2
 steps the built-in funding.
 
 **How to play:** point the `percolator-cli/lean` client at a mainnet RPC + `LEAN_MAINNET`,
-create a portfolio, deposit USDC, trade, and find a way to drain the insurance, steal the vault
-portfolio's collateral or the user long, game the funding engine, or break the reward auction. The harnesses
+create a portfolio, deposit USDC, trade — against the AMM vault with a single signature via
+`tradeWithMatcherFresh` (see the CLI example above) — and find a way to drain the insurance, steal the vault
+portfolio's collateral or the user long, drain the AMM vault, game the funding engine, or break the reward auction. The harnesses
 `scripts/lean-attack.ts`, `scripts/_lean-exploit.ts`, `scripts/_lean-xmargin-drain.ts`,
 `scripts/_lean-builtin-funding.ts` and `scripts/_lean-e2e.ts` show what has already been tried and the
 normal-case flows.
