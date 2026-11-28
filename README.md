@@ -177,7 +177,7 @@ than you put in **from the live mainnet deployment**, or violating conservation
 
 Also in [`lean-mainnet-r4.json`](lean-mainnet-r4.json). The market charges a **2 bps** trade fee,
 100% routed to a **wSOL buy-and-burn** reward module (permissionless `StartEpoch`/`SubmitBid`/
-`SettleEpoch`/`ClaimQuote`). The BTC oracle is operator-pushed (a lazy keeper checks every 5 minutes and pushes only when needed); each push also
+`SettleEpoch`/`ClaimQuote`). The BTC oracle is operator-pushed by a price-watching keeper (`scripts/_lean-quote-keeper.ts`: polls Coinbase + Kraken every 2 s and pushes when spot moves ≥ 10 bps from the mark, plus a liveness heartbeat; the 5-minute cron keeper stays as a backup); each push also
 steps the built-in funding.
 
 **How to play:** point the `percolator-cli/lean` client at a mainnet RPC + `LEAN_MAINNET`,
