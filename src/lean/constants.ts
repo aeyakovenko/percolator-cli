@@ -1,13 +1,13 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `6fe70e8` (account layouts = 9b45ad1; 8774e86+ needs trailing leg markets) (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `8dc071b` (account layouts = 9b45ad1; 8774e86+ needs trailing leg markets) (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "6fe70e8";
+export const LEAN_SOURCE_COMMIT = "8dc071b";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {

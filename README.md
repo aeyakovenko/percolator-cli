@@ -35,8 +35,8 @@ pnpm build
 
 ## Deployments
 
-**Deployed on mainnet: `6fe70e8`** (= latest upstream, 2026-11-28; core `percolator.so` sha256 `18ebd75e…` = the `55c167f`
-build — `6fe70e8` only touched the undeployed PercolatorVault; matcher / oracle_adapter / reward_module byte-identical to
+**Deployed on mainnet: `8dc071b`** (= latest upstream, 2026-11-28; core `percolator.so` sha256 `18ebd75e…` = the `55c167f`
+build — `6fe70e8` and `8dc071b` only touched the undeployed PercolatorVault / OracleAmmMatcher; matcher / oracle_adapter / reward_module byte-identical to
 `887ba02`). Upgraded in place `887ba02` → `46969cd` → `6fe70e8`, each hop after a devnet proof (same path, fresh ids) that
 every pre-existing account (multi-leg, AMM LP with inventory, insurance, rewards, solvent/bankrupt/multi-leg liquidation,
 deficit mode, wind-down) still unwinds to zero — no funds stranded. Evidence: `lean-devnet/upgrade-proof/`.
@@ -53,13 +53,13 @@ immediately.
 > liquidation with an uncovered shortfall, new opens on that market are rejected (115) and winners' PnL is escrowed until
 > every leg is flat, then paid pro-rata.
 
-**Round 4 (LIVE, `6fe70e8`)** runs on **fresh mainnet program ids**
+**Round 4 (LIVE, `8dc071b`)** runs on **fresh mainnet program ids**
 (launched on `9b45ad1`, upgraded in place to `887ba02`, `46969cd`, then `6fe70e8` — no account-layout change since): `9b45ad1` changed the ABI (Market grew 400 → 416 bytes for the built-in funding engine), so it could not be
 upgraded in place without stranding open positions. The **round-3 programs (`6NeT5…`, `a31a1f8`) are deprecated
 but left running untouched** so the users who still hold positions there can refresh and close them (its oracle
 keeps being cranked). Round-2 programs (`GVV4HC…`) are deprecated and left as-is.
 
-| Program | Mainnet round 4 (`6fe70e8`) | Devnet (`887ba02`) |
+| Program | Mainnet round 4 (`8dc071b`) | Devnet (`887ba02`) |
 |---|---|---|
 | `percolator` (core DEX) | `EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB` | `4xw3wdbqbTXWKdxYkSYgfsk3GX2YTbKsiefKwFr9Q6TM` |
 | `reward_module` (wSOL buy-and-burn) | `CH9WNijiS9p6bKfSEgpHXujAJuxUJ29rgynZuZst9Utv` | `4vj8wK4HBsyxi5xMz7UXVpkKw1CqMBkrvRBmuM8YvHAi` |
@@ -148,7 +148,7 @@ Runnable end-to-end flows: market → positions → cross-margin → matcher
 smoke on devnet: `pnpm test` ([`tests/lean/devnet-smoke.ts`](tests/lean/devnet-smoke.ts)).
 Read-only invariant survey of every DEX: `pnpm lean:survey`.
 
-## Bug bounty — LIVE (round 4, ~$79 on BTC/USD) on percolator-lean `6fe70e8`
+## Bug bounty — LIVE (round 4, ~$79 on BTC/USD) on percolator-lean `8dc071b`
 
 > **History.** Round 1 was claimed via an insurance account-reuse bug (fixed in `bb54ac6`).
 > Round 2 (SOL/USD, 70 USDC) was claimed via a **cross-margin + hostile-oracle insurance drain**
@@ -159,7 +159,7 @@ Read-only invariant survey of every DEX: `pnpm lean:survey`.
 > claimed; it was retired for round 4 when `9b45ad1` changed the ABI. Its market is **deprecated but still
 > live** for the users who hold positions there (its insurance stays in place until their OI reaches 0).
 
-**Round 4** runs on fresh mainnet programs (`6fe70e8`) with three independent prize surfaces on a BTC/USD market
+**Round 4** runs on fresh mainnet programs (`8dc071b`) with three independent prize surfaces on a BTC/USD market
 with **built-in funding** (+0.01%/8h base, ±0.05% deadband, ±1%/8h cap). Winning = actually extracting more
 than you put in **from the live mainnet deployment**, or violating conservation
 (`V == SPL == C + I + R + S + totalRewards`) on mainnet.
