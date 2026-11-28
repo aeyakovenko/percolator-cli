@@ -1,0 +1,19 @@
+=== upgrade-proof UNWIND stage "final" on 51x97QVMHFLqh1LHEepBYxbGRQD2dDevpWUSMqehbqGo ===
+    MKT2: mark $151.884397 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.060000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+    MKT2 resolved: mark $151.884397 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Resolved
+    MKT3: mark $80.288273 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+  OK   before sweep: conservation @slot 527352075 V=$0.066080 C=$0.000000 I=$0.000000 R=$0.000004 S=$0.066076 Rew=$0.000000 
+  OK   SweepSurplus moved S = $0.066076 to the fee vault
+  OK   final: conservation @slot 527352079 V=$0.000004 C=$0.000000 I=$0.000000 R=$0.000004 S=$0.000000 Rew=$0.000000 
+    portfolios left: 0; receipts with shares: 0
+  OK   C == 0: every portfolio's collateral was withdrawn (C=$0.000000)
+  OK   I == 0: all insurance withdrawn / swept (I=$0.000000)
+  OK   S == 0 after the sweep
+    token accounting: funder $99998.898232 + feeVault $0.066076 + reward quoteVault $0.401121 + funder ATA (reward-keeper claim) $0.634567 + DEX vault $0.000004 = $100000.000000 (minted $100000.000000)
+  OK   no token created or lost: funder + feeVault + reward module + keeper claim + DEX vault == minted supply
+    what is still in the DEX vault: R=$0.000004 (rounding dust / unclaimed realized pool), Rew=$0.000000 (reward fees waiting for the reward-module epoch)
+    Eo4bFW: mark $59202.305000 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000004 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+    BBexi2: mark $151.884397 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Resolved
+    CKj3ep: mark $80.288273 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+
+UNWIND final: 7 ok, 0 failed

@@ -1,0 +1,64 @@
+{
+  "commit": "887ba02",
+  "round": "upgrade-proof",
+  "cluster": "devnet",
+  "percolator": "3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik",
+  "rewardModule": "HqCGzwmq9BvZdpFmxa8WREwZWvmZJtstkXJ7JpLR3Dky",
+  "matcher": "4W36LfnN9ZUqRdfpHE91aJbgv6dPaswaZn4GQSWky4t2",
+  "oracleAdapter": "4Q1RPm5iSJMoZonNgFyEk8XVv1kttyTHcVu1xEBdqEU3",
+  "initPrice": "59200795000",
+  "usdc": "A4spZC48Yag8KcgC3Mz2u7iEG7EMgiaNpVHKhXVRvyam",
+  "funderToken": "GocA3f62Udg1KAKJbmFSjfv2bjDRbD1MuW8KbJJUjLrD",
+  "minted": "100000000000",
+  "dex": "GX4nexqGbw4Pi2c4jwKNfL7Vz4H5BXGgjYbF64gqBntZ",
+  "market": "EESe4FfUD9PUSX3vp4yYuHygutNi5BBkV3dRe6LdBLGw",
+  "oracleAuth": "CT61oHTzVDaQNr1MWK85mdeYUV3rQPn5s4N3QhoTo2F8",
+  "feeVault": "2vFgSbrAJDNGXJoAtBwc3EDv23S1piEqfv5qM4qHKKmh",
+  "fundingCfg": {
+    "baseIntE6": 100,
+    "deadbandE6": 500,
+    "maxFund8hBps": 100,
+    "decaySlots": 1440,
+    "packed": "405324395992842340"
+  },
+  "rewardCfg": "4TWFFehJ6RYc91TBym545badw9Aw3PwBktUmy4UTMbot",
+  "rewAuth": "VT2DG7cm9FgfqDKUTKwccsyDKAXKi4qDCxuYnz33Jfs",
+  "quoteVault": "4EtXrshoA8PECsUTfY8Mt8LsbtHjksMHWt6WujDkd8Lj",
+  "targetEscrow": "j65N3USxrRPZxw2wKrEerAkva8McK51u5zU9RgEpPR4",
+  "burnSink": "65YXw7RnWTjB4NjiQkZNr4dF457Qrhn3MopZinCEj8TY",
+  "insReceipt": "D3mUSoSRzecGVXzwSGcn7Si1SbfrRkfH5rTBMEpcDj1R",
+  "ownersKey": "funder/id.json",
+  "counterpartyShort": "46NrRQy8v3jR2k2nc546GP2SNhxnPP68sqRhXm9TVduW",
+  "prizes": {
+    "insurance": "EESe4FfUD9PUSX3vp4yYuHygutNi5BBkV3dRe6LdBLGw",
+    "vaultPortfolio": "3rF9jpEGXjzU7M1RzXgWm5wFK2pQ4T3ZVGwZYcM8MyXL",
+    "userLong": "5RQXzcevxyFLNAGJzps4kEPnbC6oBmG6Xeieer3cCp6Q"
+  },
+  "ammVault": {
+    "kind": "PropAMM",
+    "matcherProgram": "4W36LfnN9ZUqRdfpHE91aJbgv6dPaswaZn4GQSWky4t2",
+    "ctx": "HfJKbtFG78gkzQksHZ2Ski1RBUFM5zTyA8k58Uo8roUW",
+    "lpPortfolio": "4FL8dLXoRgWUX5ykrk7SPsFvEYte7NhenT1USvokZcqg",
+    "ownerKey": "funder/id.json",
+    "halfSpreadBps": 20,
+    "impactBps": 5,
+    "maxFillQty": "200",
+    "lpCapitalUsd": 10,
+    "allowedMarketIds": [
+      "1"
+    ]
+  },
+  "extra": {
+    "market2": "3ezBc2UAkKXxjshRh1o2s5FSHt3LNsoni4afrwqR5DUv",
+    "market3": "5dq9oDzsevU4DUu7AuaNcBo4q8CdnXqNsP8nACxxzwAj",
+    "rew3": "E8cWiJPc8Q4pDwav3bxifowWE8E3pq9cbxndfNdV2doq",
+    "thirdParty": "CV2K4XA4GxKcMCPD8M19BUJj8EgkdZ4NAvvoKh54M6xi",
+    "counterparty2": "3mQhKacEUxEeZ643xMC1rMkfdSUNdqHq3k6mUFV2JkQn",
+    "takerK": "9Gmk8H1rccaD6qWzHu2QjjdiRyT8yujyp6NP4vJgWL47",
+    "victimA": "2rBLASZJ2BwYV4auQ89WCsRzgnfXeV268jkDPXMqVf1D",
+    "victimB": "E1MjRz8v8HCyMFFP8fN2EwHn5xuYh3TE2Xj1w68tcFjs",
+    "whale": "Djy4sGE2NfBxXucDEPvbAiQkXWxoqqGvnNBepWx88rcj",
+    "insReceipt3pre": "25yTF74Zof2mbPjJ57ELkDAxDDeFKwtr7n5DK6FPbnnq",
+    "insReceipt3": "GhqY9heSBzSNgefQsUTLwBt2FZXjZv3PBbYGjJUopYms"
+  }
+}

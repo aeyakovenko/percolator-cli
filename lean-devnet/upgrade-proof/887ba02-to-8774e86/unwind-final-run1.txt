@@ -1,0 +1,21 @@
+=== upgrade-proof UNWIND stage "final" on J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu ===
+    MKT2: mark $151.884397 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.060000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+    MKT2 resolved: mark $151.884397 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Resolved
+    MKT3: mark $80.490003 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+  OK   before sweep: conservation @slot 527331429 V=$0.066081 C=$0.000000 I=$0.000000 R=$0.000005 S=$0.066076 Rew=$0.000000 
+  OK   SweepSurplus moved S = $0.066076 to the fee vault
+  OK   final: conservation @slot 527331435 V=$0.000005 C=$0.000000 I=$0.000000 R=$0.000005 S=$0.000000 Rew=$0.000000 
+    portfolios left: 0; receipts with shares: 0
+  OK   C == 0: every portfolio's collateral was withdrawn (C=$0.000000)
+  OK   I == 0: all insurance withdrawn / swept (I=$0.000000)
+  OK   S == 0 after the sweep
+    token accounting: funder $99998.885671 + feeVault $0.066076 + reward quoteVault $0.405985 + DEX vault $0.000005 = $99999.357737 (minted $100000.000000)
+  FAIL no token created or lost: funder + feeVault + reward module + DEX vault == minted supply
+    what is still in the DEX vault: R=$0.000005 (rounding dust / unclaimed realized pool), Rew=$0.000000 (reward fees waiting for the reward-module epoch)
+    PfXrds: mark $59255.395000 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000005 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+    3JM5v5: mark $151.884397 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Resolved
+    6SuLTp: mark $80.490003 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+
+UNWIND final: 6 ok, 1 failed
+FAILED:
+  no token created or lost: funder + feeVault + reward module + DEX vault == minted supply

@@ -1,0 +1,40 @@
+=== upgrade-proof live [before] on 6jwVm11JK3nZdDx48SUi91K1xsGnSfxbQKdL1Lq7DrWn ===
+  OK   live[before] start: conservation V==SPL==C+I+R+S+Rew @slot 527355361 V=$1629.200000 C=$1605.038660 I=$23.060000 R=$0.000000 S=$0.000000 Rew=$1.101340 
+    | cranked BTC: mark $59360.92 -> $59250.01 (target $59250.01, age 35, step 110909513/593609245 maxMoveBps=100) 5KY78DaJPEug…
+  NOTE keeper script did not exit by itself within 45 s after its push landed (exit null); same on 887ba02 and 8774e86
+  OK   oracle keeper pushed: mark $59360.924513 -> $59250.015000 (lastOracleSlot 527355329 -> 527355368)
+  OK   built-in funding accrued so far (longs pay): 36056 E6 per 1.0 base (K_long lags the mark move by that much)
+  OK   after keeper push: conservation V==SPL==C+I+R+S+Rew @slot 527355556 V=$1629.200000 C=$1605.038660 I=$23.060000 R=$0.000000 S=$0.000000 Rew=$1.101340 
+  AMM vault inventory at start: -100 (HOLDS INVENTORY)
+  OK   buy below the ask rejected by the slippage guard — 130 execPriceClamp
+  OK   LONG round trip: taker bought 0.0001 vs the vault (taker 0 -> 100, vault -200) [2 ixs, 7623 CU]
+  OK     fee -> reward accrual +$0.002372 = 2 opening side(s) x 2 bps (rewardBps 10000), insurance unchanged $23.000000
+  OK   LONG round trip: taker sold 0.0001 vs the vault (taker 100 -> 0, vault -100) [3 ixs, 7687 CU]
+  OK     fee -> reward accrual +$0.000000 = 0 opening side(s) x 2 bps (rewardBps 10000), insurance unchanged $23.000000
+  OK   after LONG round trip: conservation V==SPL==C+I+R+S+Rew @slot 527355581 V=$1634.200000 C=$1610.035524 I=$23.060000 R=$0.000764 S=$0.000000 Rew=$1.103712 
+  OK   SHORT round trip: taker sold 0.0001 vs the vault (taker 0 -> -100, vault 0) [2 ixs, 6980 CU]
+  OK     fee -> reward accrual +$0.001186 = 1 opening side(s) x 2 bps (rewardBps 10000), insurance unchanged $23.000000
+  OK   SHORT round trip: taker bought 0.0001 vs the vault (taker -100 -> 0, vault -100) [2 ixs, 7060 CU]
+  OK     fee -> reward accrual +$0.001186 = 1 opening side(s) x 2 bps (rewardBps 10000), insurance unchanged $23.000000
+  OK   after SHORT round trip: conservation V==SPL==C+I+R+S+Rew @slot 527355593 V=$1634.200000 C=$1610.033152 I=$23.060000 R=$0.000764 S=$0.000000 Rew=$1.106084 
+  OK   vault inventory back to -100
+  OK   the vault did not lose principal over 2 round trips: $10.010664 -> $10.054932
+  OK   reward accrual over the 4 fills: +$0.004744
+  OK   taker is flat
+  OK   taker withdrew everything: $4.950224 of $5 (cost = spread + fees)
+  OK   taker portfolio closed (CloseAccount)
+  OK   after taker withdraw/close: conservation V==SPL==C+I+R+S+Rew @slot 527355609 V=$1629.249776 C=$1605.082928 I=$23.060000 R=$0.000764 S=$0.000000 Rew=$1.106084 
+  OK   flat prize-2 portfolio: deposit $1 + withdraw $1 round trip, still $23
+  OK   insurance deposit $2 into a new receipt: insurance $23.000000 -> $25.000000, shares 2000000 (insFronted 0)
+  OK   after insurance deposit: conservation V==SPL==C+I+R+S+Rew @slot 527355629 V=$1631.249776 C=$1605.082928 I=$25.060000 R=$0.000764 S=$0.000000 Rew=$1.106084 
+    | [reward-bid] DRY cfg=2o4Gb3FbC8u63U5oFwmYCjbqq1p6Pin4RruZz5Gidmh7 bidder=A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK
+    | [reward-bid] accrued=$1.026084 rollover=$0.000000 -> Q=$1.026084 | reserveRateE6=1000000 Bvirt=1026084 | SOL=$150.00 activeEpoch=false (lastEpochId=0)
+    | [reward-bid] optimal bid b*=0.001623 SOL -> claim $0.6287 | burn $0.2435 | net(after epoch rent) $0.1452
+    | [reward-bid] SKIP: net $0.1452 < MIN_NET $0.2. (waiting for a bigger pot / lower reserve)
+  OK   reward keeper dry run read the state without error
+    | 21:01:06 [baseline] insurance=$25 | vaultPfl=$23 | userLong=$22.964454 | status=Active | mark=$59250.015
+  OK   prize monitor printed a baseline and no ALERT
+  OK   live[before] end: conservation V==SPL==C+I+R+S+Rew @slot 527355692 V=$1631.249776 C=$1605.082928 I=$25.060000 R=$0.000764 S=$0.000000 Rew=$1.106084 
+  insurance $23.000000 -> $25.000000; prize-2 $23.000000; prize-3 value $22.964454
+
+LIVE [before]: 28 ok, 0 failed, 1 notes

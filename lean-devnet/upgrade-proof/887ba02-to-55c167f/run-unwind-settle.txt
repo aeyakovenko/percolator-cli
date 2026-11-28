@@ -1,0 +1,20 @@
+=== upgrade-proof UNWIND stage "settle" on 51x97QVMHFLqh1LHEepBYxbGRQD2dDevpWUSMqehbqGo ===
+  OK   settle start: conservation @slot 527350781 V=$1635.259742 C=$1605.083534 I=$29.070000 R=$0.000000 S=$0.000000 Rew=$1.106208 
+  OK   RefreshLeg userLong: pre-upgrade leg settled by 8774e86 (entryK 0 -> -35911351, equity $22.964450 -> $22.856715, postOracle byte 0 -> 0) [1520 CU]
+  OK   RefreshLeg cpty short: pre-upgrade leg settled by 8774e86 (entryK 0 -> 35911351, equity $24.964450 -> $25.072184, postOracle byte 0 -> 0) [1429 CU]
+  OK   RefreshLeg third party MKT1: pre-upgrade leg settled by 8774e86 (entryK 0 -> -35911351, equity $499.496001 -> $498.059546, postOracle byte 0 -> 0) [1514 CU]
+  OK   RefreshLeg third party MKT2: pre-upgrade leg settled by 8774e86 (entryK 0 -> 1884320, equity $498.059546 -> $499.943866, postOracle byte 0 -> 0) [1359 CU]
+  OK   RefreshLeg cpty2 MKT1: pre-upgrade leg settled by 8774e86 (entryK 0 -> 35911351, equity $499.496001 -> $500.932455, postOracle byte 0 -> 0) [1423 CU]
+  OK   RefreshLeg cpty2 MKT2: pre-upgrade leg settled by 8774e86 (entryK 0 -> -1884320, equity $500.932455 -> $499.048135, postOracle byte 0 -> 0) [1452 CU]
+  OK   RefreshLeg takerK: pre-upgrade leg settled by 8774e86 (entryK 0 -> -35911351, equity $4.986965 -> $4.983373, postOracle byte 0 -> 0) [1520 CU]
+  OK   RefreshLeg AMM LP: leg already at the live K (entryK 35911351 -> 35911351, equity $10.059258 -> $10.059258, postOracle byte 0 -> 0) [1425 CU]
+  OK   RefreshLeg victimA: pre-upgrade leg settled by 8774e86 (entryK 0 -> -400032, equity $10.080000 -> $9.679968, postOracle byte 0 -> 0) [1428 CU]
+  OK   RefreshLeg victimB: pre-upgrade leg settled by 8774e86 (entryK 0 -> -400032, equity $10.080000 -> $9.679968, postOracle byte 0 -> 0) [1428 CU]
+  OK   RefreshLeg whale: pre-upgrade leg settled by 8774e86 (entryK 0 -> 400032, equity $499.960000 -> $500.760064, postOracle byte 0 -> 0) [1438 CU]
+    MKT1: mark $59213.995000 oi 43100/43100 raw 43100/43100 adl 1000000000/1000000000 R $1.544191 P+ $1.544188 ins $25.010000 fronted 0 shares 25000000 rew $1.026208 deficitMode 0 Active
+    MKT2: mark $151.884397 oi 1000000/1000000 raw 1000000/1000000 adl 1000000000/1000000000 R $1.884320 P+ $1.884320 ins $0.060000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+    MKT3: mark $99.600000 oi 2000000/2000000 raw 2000000/2000000 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $4.000000 fronted 0 shares 4000000 rew $0.080000 deficitMode 0 Active
+  OK   settle end: conservation @slot 527350841 V=$1635.259742 C=$1601.655023 I=$29.070000 R=$3.428511 S=$0.000000 Rew=$1.106208 
+  OK   refreshing moved no tokens (V unchanged)
+
+UNWIND settle: 14 ok, 0 failed

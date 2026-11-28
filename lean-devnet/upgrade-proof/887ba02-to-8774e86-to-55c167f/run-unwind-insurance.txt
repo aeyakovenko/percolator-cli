@@ -1,0 +1,12 @@
+=== upgrade-proof UNWIND stage "insurance" on 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik ===
+    MKT1: mark $59250.005000 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000005 P+ $0.000000 ins $29.010000 fronted 0 shares 28999259 rew $1.039590 deficitMode 0 Active
+  OK   MKT1 has zero OI / raw basis (every position closed)
+  OK   insurance receipt 4P4trZHx… burned 2000000 shares -> $2.000740
+  OK   insurance receipt 8zhCzrqk… burned 1999259 shares -> $1.999999
+  OK   insurance receipt BLfXqA8S… burned 2000000 shares -> $2.000740
+  OK   insurance receipt D3mUSoSR… burned 23000000 shares -> $23.008521
+    MKT1 after: mark $59250.005000 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000005 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $1.039590 deficitMode 0 Active
+  OK   ALL MKT1 insurance withdrawn by its LPs: $29.010000 (deposited $23 prize + $2 test)
+  OK   after insurance withdraw: conservation @slot 527353573 V=$1.105671 C=$0.000000 I=$0.060000 R=$0.000005 S=$0.006076 Rew=$1.039590 
+
+UNWIND insurance: 7 ok, 0 failed

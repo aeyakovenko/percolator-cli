@@ -100,7 +100,7 @@ async function main() {
 
   const mani: any = {
     commit: "887ba02", round: "upgrade-proof", cluster: "devnet", percolator: P.toBase58(), rewardModule: RM.toBase58(), matcher: M.toBase58(), oracleAdapter: PROG.oracleAdapter.toBase58(),
-    usdc: mint.toBase58(), funderToken: fTok.toBase58(), minted: MINTED.toString(), dex: dex.toBase58(), market: mkt1.toBase58(), oracleAuth: oracle.publicKey.toBase58(), feeVault: feeVault.toBase58(),
+    initPrice: init.toString(), usdc: mint.toBase58(), funderToken: fTok.toBase58(), minted: MINTED.toString(), dex: dex.toBase58(), market: mkt1.toBase58(), oracleAuth: oracle.publicKey.toBase58(), feeVault: feeVault.toBase58(),
     fundingCfg: { baseIntE6: 100, deadbandE6: 500, maxFund8hBps: 100, decaySlots: 1440, packed: fundingCfg.toString() },
     rewardCfg: cfg.toBase58(), rewAuth: rewAuth.toBase58(), quoteVault: quoteVault.toBase58(), targetEscrow: targetEscrow.toBase58(), burnSink: burnSink.toBase58(),
     insReceipt: insReceipt.toBase58(), ownersKey: "funder/id.json", counterpartyShort: pflC.toBase58(),
@@ -126,7 +126,7 @@ async function main() {
   }
   const s = await snapshot(P, dex, V.vault);
   const a = s.markets.get(mkt1.toBase58())!;
-  console.log(`MKT1 mark $${U(a.markPrice)} kLong-K0=${a.kLong - K_ZERO} kShort-K0=${a.kShort - K_ZERO} (sum ${a.kLong + a.kShort - 2n * K_ZERO} != 0 => funding accrued) premiumE6=${a.premiumE6} rewardAccrued $${U(a.rewardAccrued)} insurance $${U(a.insurance)}`);
+  console.log(`MKT1 mark $${U(a.markPrice)} kLong-K0=${a.kLong - K_ZERO} kShort-K0=${a.kShort - K_ZERO} (funding accrued, longs pay: ${(a.markPrice - init) - (a.kLong - K_ZERO)} E6 per 1.0 base) premiumE6=${a.premiumE6} rewardAccrued $${U(a.rewardAccrued)} insurance $${U(a.insurance)}`);
   ok(s.conserved && s.inv.ok, `setup conservation V==SPL==C+I+R+S+Rew @slot ${s.slot} (V=$${U(s.dex.vaultBalance)}) ${s.inv.problems.join("; ")}`);
   ok(a.insurance === 23n * POS_SCALE && (await pfl(pflV)).capital === 23n * POS_SCALE, "prizes: insurance $23, vault portfolio $23");
   ok(a.rewardAccrued > 0n, `accrued reward fees $${U(a.rewardAccrued)}`);

@@ -140,6 +140,8 @@ function runScript(label: string, file: string, args: string[], env: Record<stri
   if (loadMani().percolator !== PROG.percolator.toBase58() || !RPC.includes("devnet")) throw new Error("refusing: manifest/RPC is not the fresh devnet deployment");
   const r = spawnSync("npx", ["-y", "tsx", file, ...args], { encoding: "utf8", timeout: timeoutMs,
     env: { ...process.env, LEAN_MANIFEST: MANI_PATH, LEAN_RPC_URL: RPC, SOLANA_RPC_URL: RPC, ORACLE_KEYPAIR: `${OUT_DIR}/oracle-keypair.json`, REWARD_BID_STATE_FILE: `${OUT_DIR}/reward-bid-state.json`, ...env } });
+  // a timed-out `npx tsx` leaves its node grandchild behind: reap OUR copy only (the pattern includes this worktree's path)
+  spawnSync("pkill", ["-f", `${process.cwd()}/node_modules/.bin/../tsx/dist/cli.mjs ${file}`]);
   const out = mask(`${r.stdout ?? ""}${r.stderr ?? ""}`).split("\n").filter((l) => l.trim() && !/npm warn/.test(l));
   console.log(out.map((l) => `    | ${l.slice(0, 260)}`).join("\n"));
   return { status: r.status, out: out.join("\n"), label };

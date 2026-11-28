@@ -1,0 +1,34 @@
+=== upgrade-proof UNWIND stage "deficit2" on J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu ===
+    MKT3: mark $89.648737 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+  OK   deficit2 positions opened: conservation @slot 527330977 V=$413.179202 C=$409.011083 I=$3.060000 R=$0.000005 S=$0.006076 Rew=$1.102038 
+  OK   thin long is bankrupt at mark $80.490003 (entry $89.648737)
+    MKT3 after bankrupt liquidation: mark $80.490003 oi 500000/500000 raw 500000/1500000 adl 1000000000/333333333 R $9.046943 P+ $0.000000 ins $3.000000 fronted 0 shares 3000000 rew $0.053790 deficitMode 1 Active
+  OK   deficit mode latched while OI is still open (oi 500000/500000, raw 500000/1500000)
+  OK   deficit2 after bankruptcy: conservation @slot 527331189 V=$413.179202 C=$399.964140 I=$3.060000 R=$9.046948 S=$0.006076 Rew=$1.102038 
+    winner before refresh: capital $291.904718 locked $8.068387 legs [short 1500000@m3 pnl 0]
+    winner after refresh: capital $297.558409 locked $2.414696 legs [short 1500000@m3 pnl 13738258]
+  OK   winner's PnL is ESCROWED while any leg is open: posPnl $13.738258 not paid to capital ($299.973105 -> $299.973105)
+  OK   bystander (open leg) can still withdraw free collateral while deficit mode is latched
+  OK   winner can withdraw its own free collateral (principal) while deficit mode is latched
+  OK   new opens are blocked while latched — 115 adlHaircutActive
+    RefreshLeg(winner) again while latched -> ok
+  FAIL bystander / winner (CLOSE while latched): closed 500000 (long 500000->0, short 1500000->0) [3 ixs, 5163 CU]
+    MKT3 after bilateral close: mark $80.490003 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $13.626363 P+ $13.738258 ins $3.000000 fronted 0 shares 3000000 rew $0.053790 deficitMode 1 Active
+    winner: capital $199.973105 locked $0.000000 legs [flat 0@m3 pnl 13738258]
+    MKT3 everyone flat: mark $80.490003 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $13.626363 P+ $13.738258 ins $3.000000 fronted 0 shares 3000000 rew $0.053790 deficitMode 1 Active
+  OK   thin long: withdrew ALL free capital $0.000000 to the owner's token account
+  OK   thin long: portfolio closed (CloseAccount, rent returned)
+  OK   bystander long: withdrew ALL free capital $75.411615 to the owner's token account
+  OK   bystander long: portfolio closed (CloseAccount, rent returned)
+  OK   winner short: withdrew ALL free capital $213.599468 to the owner's token account
+  OK   winner short: portfolio closed (CloseAccount, rent returned)
+    MKT3 drained: mark $80.490003 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $3.000000 fronted 0 shares 3000000 rew $0.053790 deficitMode 0 Active
+  OK   deficit mode cleared and no PnL claim left after the last winner realized (flag 1 -> 0)
+  OK   insurance LP withdrew $3.000000 of $3 after the bankruptcy
+    MKT3 end: mark $80.490003 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.053790 deficitMode 0 Active
+    deposits $409.064873 -> withdrawn $409.011083 (+ liquidation fee + reward fees paid out); MKT3 residue R $0.000000
+  OK   deficit2 end: conservation @slot 527331253 V=$1.114329 C=$0.000000 I=$0.060000 R=$0.000005 S=$0.006076 Rew=$1.048248 
+
+UNWIND deficit2: 17 ok, 1 failed
+FAILED:
+  bystander / winner (CLOSE while latched): closed 500000 (long 500000->0, short 1500000->0) [3 ixs, 5163 CU]

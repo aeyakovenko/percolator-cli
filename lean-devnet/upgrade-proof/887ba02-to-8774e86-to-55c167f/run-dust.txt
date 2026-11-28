@@ -1,0 +1,39 @@
+long XVi15v1SFJ9gYnpUT6gQSx1GHE63SoG8T6PxLqXfQ3u short 6vm9x9BCJe2RcHj9u92M9RJkjrTnogfnSHE4ZK2cwgdu
+market WindDown mark $71.905164 oi 1/1 raw 1/3 adl 1000000000/333333333 R 12304399 P+ 12574888 ins 3000000 deficit 1 activeLegs 2
+  long : capital 95800336 locked 5 legs long raw 1 pnl 0 mm 5 lockedMm 5
+  short: capital 52157151 locked 0 legs short raw 3 pnl 12574888 mm 0 lockedMm 0
+  sim ForceClosePair       -> ok
+  SENT ForceClosePair
+  sim ClearDeadLeg(long)   -> 125 legNotFound
+  sim ClearDeadLeg(short)  -> 121 invalidSide
+  sim Liquidate(long)      -> 101 invalidStatus
+  sim Liquidate(short)     -> 101 invalidStatus
+  sim RefreshLeg(long)     -> 125 legNotFound
+  sim RefreshLeg(short)    -> ok
+  sim ResolveMarket        -> ok
+market WindDown mark $71.905164 oi 0/0 raw 0/0 adl 1000000000/1000000000 R 12304399 P+ 12574888 ins 3000000 deficit 1 activeLegs 0
+  long : capital 95800341 locked 0 legs 
+  short: capital 52157151 locked 0 legs flat raw 0 pnl 12574888 mm 0 lockedMm 0
+  sim ForceClosePair       -> 125 legNotFound
+  sim ClearDeadLeg(long)   -> 125 legNotFound
+  sim ClearDeadLeg(short)  -> 121 invalidSide
+  sim Liquidate(long)      -> 101 invalidStatus
+  sim Liquidate(short)     -> 101 invalidStatus
+  sim RefreshLeg(long)     -> 125 legNotFound
+  sim RefreshLeg(short)    -> ok
+  sim ResolveMarket        -> ok
+  SENT ResolveMarket
+market Resolved mark $71.905164 oi 0/0 raw 0/0 adl 1000000000/1000000000 R 12304399 P+ 12574888 ins 3000000 deficit 1 activeLegs 0
+  long : capital 95800341 locked 0 legs 
+  short: capital 52157151 locked 0 legs flat raw 0 pnl 12574888 mm 0 lockedMm 0
+  sim ForceClosePair       -> 101 invalidStatus
+  sim ClearDeadLeg(long)   -> 101 invalidStatus
+  sim ClearDeadLeg(short)  -> 101 invalidStatus
+  sim Liquidate(long)      -> 101 invalidStatus
+  sim Liquidate(short)     -> 101 invalidStatus
+  sim RefreshLeg(long)     -> 101 invalidStatus
+  sim RefreshLeg(short)    -> 101 invalidStatus
+  sim ResolveMarket        -> 101 invalidStatus
+market Resolved mark $71.905164 oi 0/0 raw 0/0 adl 1000000000/1000000000 R 12304399 P+ 12574888 ins 3000000 deficit 1 activeLegs 0
+  long : capital 95800341 locked 0 legs 
+  short: capital 52157151 locked 0 legs flat raw 0 pnl 12574888 mm 0 lockedMm 0

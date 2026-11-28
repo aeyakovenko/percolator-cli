@@ -1,0 +1,9 @@
+BTC/USD init = $59200.795000  percolator 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik
+MKT1 mark $59319.291348 kLong-K0=118462792 kShort-K0=-118462792 (funding accrued, longs pay: 33556 E6 per 1.0 base) premiumE6=0 rewardAccrued $1.020626 insurance $23.000000
+  OK   setup conservation V==SPL==C+I+R+S+Rew @slot 527351741 (V=$1629.200000) 
+  OK   prizes: insurance $23, vault portfolio $23
+  OK   accrued reward fees $1.020626
+  OK   AMM vault holds inventory (100)
+  OK   third party is multi-leg (MKT1 + MKT2)
+manifest -> /home/ubuntu/percolator-cli/.claude/worktrees/agent-a89c20c489c7ac3ec/.upgrade-out3/manifest.json
+SETUP: 5 ok, 0 failed

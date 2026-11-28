@@ -1,0 +1,15 @@
+deploy percolator <- /home/ubuntu/build-tree/staging/8774e86/percolator.so (sha256 cdf0b6b910727db5…, 91104 B)
+===================================================================================
+Recover the intermediate account's ephemeral keypair file with
+===================================================================================
+===================================================================================
+To resume a deploy, pass the recovered keypair as the
+[BUFFER_SIGNER] to `solana program deploy` or `solana program write-buffer'.
+Or to recover the account's lamports, use:
+===================================================================================
+solana program close J3VtXvoiJZjJ1r2RhKd8WkE4E9tM8Yy1WRQmS9JqezV1
+===================================================================================
+Program Id: J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu
+
+Signature: 5RukeyYEiNX1HvagZrJ8ee14CBKo12peAELmqAECAeca68Fey3cbK7R2DgJDNJZoQWxSxzQHQL5MzThsjw5Sgbor
+

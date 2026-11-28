@@ -1,0 +1,21 @@
+=== upgrade-proof UNWIND stage "third" on 51x97QVMHFLqh1LHEepBYxbGRQD2dDevpWUSMqehbqGo ===
+    third party: capital $346.832894 locked $151.226652 legs [long 40000@m1 pnl 0, long 1000000@m2 pnl 1884320]
+    cpty2: capital $346.385029 locked $151.226652 legs [short 40000@m1 pnl 1436454, short 1000000@m2 pnl 0]
+  OK   MULTI-LEG third party withdrew $50 with open legs on 2 markets (fixed client) [5645 CU]
+  OK   after multi-leg withdraw: conservation @slot 527350849 V=$1585.259742 C=$1553.539343 I=$29.070000 R=$1.544191 S=$0.000000 Rew=$1.106208 
+  OK   MULTI-LEG bilateral OPEN +0.0001 on MKT1 (fixed client) [10179 CU]
+  OK   after multi-leg bilateral open: conservation @slot 527350855 V=$1585.259742 C=$1554.973427 I=$29.070000 R=$0.107737 S=$0.000000 Rew=$1.108578 
+  OK   MULTI-LEG third party bought 0.0001 vs the AMM vault with tradeWithMatcherFresh (3-account matcher CPI: ctx + trailing market + LP portfolio) [4 ixs, 11226 CU]
+  OK   MULTI-LEG third party sold 0.0001 vs the AMM vault with tradeWithMatcherFresh (3-account matcher CPI: ctx + trailing market + LP portfolio) [4 ixs, 10156 CU]
+  OK   after multi-leg AMM trades: conservation @slot 527350866 V=$1585.259742 C=$1554.971057 I=$29.070000 R=$0.107737 S=$0.000000 Rew=$1.110948 
+  OK   third party / cpty2 MKT1: closed 40100 (long 40100->0, short 40100->0) [5 ixs, 7641 CU]
+  OK   third party / cpty2 MKT2: closed 1000000 (long 1000000->0, short 1000000->0) [3 ixs, 5147 CU]
+  OK   after closing the multi-leg pair: conservation @slot 527350877 V=$1585.259742 C=$1554.971057 I=$29.070000 R=$0.107737 S=$0.000000 Rew=$1.110948 
+  OK   third party: withdrew ALL free capital $449.917810 to the owner's token account
+  OK   third party: portfolio closed (CloseAccount, rent returned)
+  OK   cpty2: withdrew ALL free capital $499.046950 to the owner's token account
+  OK   cpty2: portfolio closed (CloseAccount, rent returned)
+    third party got back $499.917810 of $500, cpty2 $499.046950 of $500 (PnL is zero-sum between them, minus fees/funding)
+  OK   after draining the multi-leg pair: conservation @slot 527350897 V=$636.294982 C=$606.006297 I=$29.070000 R=$0.107737 S=$0.000000 Rew=$1.110948 
+
+UNWIND third: 15 ok, 0 failed

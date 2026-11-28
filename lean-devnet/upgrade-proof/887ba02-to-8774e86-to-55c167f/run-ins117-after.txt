@@ -1,0 +1,17 @@
+=== ins117 after on 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik ===
+  OK   MKT1 has open interest 43100/43100, insFronted 0, ADL = 1 (healthy)
+  OK   pre-upgrade receipt: lastDepositBucket 0 -> insWithdrawReadyAt().ready
+  OK   pre-upgrade receipt: FULL withdraw (23000000 shares) with OI > 0 simulates ok [2364 CU]
+  OK   pre-upgrade receipt: really withdrew $1.000000 (1e6 shares) while OI > 0
+  OK   after pre-existing receipt partial withdraw: conservation @slot 527352519 V=$1636.299488 I=$30.060000 
+  OK   fresh deposit stamped lastDepositBucket 32959533 == depositSlot 527352528 >> 4
+  OK   fresh deposit: immediate withdraw with OI > 0 -> 118 nonzeroOi; client helper: ready=false, 159 slots left
+  OK   fresh deposit: still rejected mid-cooldown (118 nonzeroOi)
+  OK   fresh deposit: after readySlot 527352688 (deposit + 160 slots) the withdraw with OI > 0 simulates ok
+  OK   fresh deposit: withdrew the full $2.000000 with OI > 0 after the cooldown
+  OK   top-up of the pre-upgrade receipt stamps it (bucket 32959544) and re-arms the cooldown for all its shares -> 118 nonzeroOi
+  OK   a donation does not change lastDepositBucket
+    MKT1 insurance now $27.010000 (shares 27000000)
+  OK   ins117 after: conservation @slot 527352709 V=$1637.309488 I=$31.070000 
+
+INS117 after: 13 ok, 0 failed

@@ -6,7 +6,7 @@ import { createMint, createAccount, mintTo } from "@solana/spl-token";
 import * as fs from "fs";
 import {
   LEAN_DEVNET, DEX_SIZE, MARKET_SIZE, PORTFOLIO_SIZE, INS_RECEIPT_SIZE, POS_SCALE, TRADE_MODE,
-  initDex, createMarket, updateOracle, initPortfolio, depositCollateral, depositInsurance, trade, refreshLeg, liquidate,
+  initDex, createMarket, updateOracle, initPortfolio, depositCollateral, depositInsurance, trade, refreshLeg, liquidate, appendLegMarkets,
   deriveDexVault, parseDex, parseMarket, parsePortfolio, type MarketParams, type VaultAccounts,
 } from "../src/lean/index.js";
 
@@ -50,24 +50,38 @@ async function main() {
   // attacker opens: SHORT 8 on HONEST (vs pHon long 8), LONG 8 on ATTACKER market (vs pCp short 8)
   await send([trade(P, { dex, market: H, longPortfolio: pHon, longOwner: oHon.publicKey, shortPortfolio: pAtk, shortOwner: oAtk.publicKey, mode: TRADE_MODE.OPEN, qty: 8n * POS_SCALE })], [oHon, oAtk], false);
   // cross-leg freshness: pAtk already has an H-leg; refresh it in the same tx as opening the A-leg.
-  await send([refreshLeg(P, { dex, market: H, portfolio: pAtk }), trade(P, { dex, market: A, longPortfolio: pAtk, longOwner: oAtk.publicKey, shortPortfolio: pCp, shortOwner: oCp.publicKey, mode: TRADE_MODE.OPEN, qty: 8n * POS_SCALE })], [oAtk, oCp], false);
+  // (8774e86 verifyLegMktFresh: the other open leg's Market H must also ride along as a trailing read-only account.)
+  await send([refreshLeg(P, { dex, market: H, portfolio: pAtk }), appendLegMarkets(trade(P, { dex, market: A, longPortfolio: pAtk, longOwner: oAtk.publicKey, shortPortfolio: pCp, shortOwner: oCp.publicKey, mode: TRADE_MODE.OPEN, qty: 8n * POS_SCALE }), [H])], [oAtk, oCp], false);
   console.log(`attacker pAtk: SHORT 8 on H + LONG 8 on A (cross-margin, $300 capital)`);
 
   // CRASH the attacker market A (1%/step) to blow up pAtk's A-long; refresh/liquidate; watch H.insurance.
-  let priceA = 100n * POS_SCALE, drained = false;
+  let priceA = 100n * POS_SCALE, drained = false, liquidations = 0; const lastErr: Record<string, string> = {};
   for (let i = 0; i < 35; i++) {
     await waitSlot();
-    priceA = (priceA * 99n) / 100n; // -1%
-    try { await send([updateOracle(P, { market: A, oracleAuth: oA.publicKey, price: priceA })], [oA]); } catch { break; }
+    priceA = priceA - priceA / 100n; // -1% (diff = floor(1%), exactly the on-chain maxAllowed; `price*99/100` rounds the diff UP and gets oracleClamp 104 from step 5 on)
+    // a full 1% step needs dt >= 2 slots (dt == 1 is half-paced -> oracleClamp 104): retry instead of giving up, so the
+    // crash really reaches the attacker's liquidation / bankruptcy zone.
+    let pushed = false, pushErr = "";
+    for (let t = 0; t < 4 && !pushed; t++) { try { await send([updateOracle(P, { market: A, oracleAuth: oA.publicKey, price: priceA })], [oA]); pushed = true; } catch (e) { pushErr = String(e).replace(/api-key=[^&\s"]+/g, "api-key=***").replace(/\s+/g, " ").slice(0, 200); await waitSlot(); await waitSlot(); } }
+    if (!pushed) { console.log(`   oracle push to $${P6(priceA)} rejected: ${pushErr}`); break; }
     await send([refreshLeg(P, { dex, market: A, portfolio: pAtk })]).catch(() => {});
     await send([refreshLeg(P, { dex, market: H, portfolio: pAtk })]).catch(() => {});
     // try to liquidate the now-underwater attacker on BOTH markets (whichever the attack would use)
+    // Three shapes per market: bare; same-slot RefreshLeg of the OTHER leg + its Market trailing (what a real
+    // liquidator sends for a multi-leg victim); and the bankrupt-probe (RefreshLeg flag 2) of the other leg.
     for (const mk of [A, H]) {
-      try {
-        const tx = new Transaction().add(liquidate(P, V, { market: mk, portfolio: pAtk, liquidatorToken: fTok }));
-        tx.feePayer = funder.publicKey; tx.recentBlockhash = (await conn.getLatestBlockhash("confirmed")).blockhash; tx.sign(funder);
-        if (!(await conn.simulateTransaction(tx)).value.err) await send([liquidate(P, V, { market: mk, portfolio: pAtk, liquidatorToken: fTok })]);
-      } catch { /* */ }
+      const other = mk.equals(A) ? H : A;
+      const liq = appendLegMarkets(liquidate(P, V, { market: mk, portfolio: pAtk, liquidatorToken: fTok }), [other]);
+      const probe = refreshLeg(P, { dex, market: other, portfolio: pAtk }); probe.data = Buffer.from([probe.data[0], 2]);
+      for (const ixs of [[liquidate(P, V, { market: mk, portfolio: pAtk, liquidatorToken: fTok })], [refreshLeg(P, { dex, market: other, portfolio: pAtk }), liq], [probe, liq]]) {
+        try {
+          const tx = new Transaction().add(...ixs);
+          tx.feePayer = funder.publicKey; tx.recentBlockhash = (await conn.getLatestBlockhash("confirmed")).blockhash; tx.sign(funder);
+          const sr = (await conn.simulateTransaction(tx)).value;
+          if (!sr.err) { await send(ixs); liquidations++; break; }
+          lastErr[`${mk.equals(A) ? "A" : "H"}/${ixs.length}${ixs.length > 1 && ixs[0].data[1] === 2 ? "p" : ""}`] = JSON.stringify(sr.err);
+        } catch { /* */ }
+      }
     }
     const insNow = await insOf(H);
     if (insNow < ins0) { console.log(`   STEP ${i}: H.insurance $${P6(ins0)} -> $${P6(insNow)} at A=$${P6(priceA)}`); drained = true; break; }
@@ -77,6 +91,8 @@ async function main() {
   const d = parseDex(Buffer.from((await conn.getAccountInfo(dex))!.data));
   const spl = BigInt((await conn.getTokenAccountBalance(V.vault)).value.amount);
   const cons = d.vaultBalance === spl && d.vaultBalance === d.totalCapital + d.totalInsurance + d.totalResidual + d.totalSurplus + d.totalRewards;
+  console.log(`liquidations executed on the attacker: ${liquidations} (A ended at $${P6(priceA)}; last rejected attempts: ${JSON.stringify(lastErr)})`);
+  { const pa = parsePortfolio(Buffer.from((await conn.getAccountInfo(pAtk))!.data)); console.log(`attacker end: capital $${P6(pa.capital)} locked $${P6(pa.totalLockedMm)} legs ${pa.legs.map((l) => `${l.sideName} ${l.rawBasis} pnl ${l.posPnl}`).join(", ")}`); }
   console.log(`\nHONEST insurance: start $${P6(ins0)} -> end $${P6(insF)} | conservation V==SPL==C+I+R+S+Rew: ${cons}`);
   if (drained || insF < ins0) { console.log("DRAINED ❌ — honest market insurance was reduced by a cross-margin loss on the attacker's market. BUG PRESENT."); process.exit(2); }
   console.log("BLOCKED ✅ — honest market's insurance untouched through the cross-margin attack (isolation holds). Fixed.");

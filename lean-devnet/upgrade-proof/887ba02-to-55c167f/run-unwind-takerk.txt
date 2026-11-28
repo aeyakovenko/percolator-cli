@@ -1,0 +1,9 @@
+=== upgrade-proof UNWIND stage "takerk" on 51x97QVMHFLqh1LHEepBYxbGRQD2dDevpWUSMqehbqGo ===
+    takerK: capital $4.628089 locked $0.355284 legs [long 100@m1 pnl 0]
+    AMM LP: capital $9.726475 locked $0.355284 legs [short 100@m1 pnl 0]
+  OK   pre-upgrade taker K closed its long against the AMM vault -> taker AND vault flat [7781 CU]
+  OK   takerK: withdrew ALL free capital $4.971530 to the owner's token account
+  OK   takerK: portfolio closed (CloseAccount, rent returned)
+  OK   after takerK close-out: conservation @slot 527350929 V=$631.323452 C=$601.034767 I=$29.070000 R=$0.107737 S=$0.000000 Rew=$1.110948 
+
+UNWIND takerk: 4 ok, 0 failed

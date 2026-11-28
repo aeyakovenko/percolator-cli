@@ -1,0 +1,13 @@
+[reward-bid] LIVE cfg=4a2UyU6VWAXJEETbD2MrW1XUCavA8MHYcXeK38GoKXeP bidder=A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK
+[reward-bid] accrued=$1.048248 rollover=$0.000000 -> Q=$1.048248 | reserveRateE6=1000000 Bvirt=1048248 | SOL=$150.00 activeEpoch=false (lastEpochId=0)
+[reward-bid] optimal bid b*=0.001658 SOL -> claim $0.6423 | burn $0.2487 | net(after epoch rent) $0.1535
+[reward-bid] started epoch ByzopQT4GH8b2b4u9RMvVGmiWBBYuWgEPegWYd4nPAtZ: 5NdHdFKJoxPgGJF95rw7mSbzc6wDw5hBS3ahWMrmwgqMff8Kcv8rw1LNGZrYuDGDKqpjhJkHudXbtvr48onYAWx2
+[reward-bid] our epoch #1: Q=$1.048248 Bvirt=1048248 -> bid 0.001658 wSOL, expect claim $0.6423 burn $0.2487 (29 slots left)
+[reward-bid] bid 0.001658 wSOL escrowed (receipt B5UY8rgfM1jtgq78KXy93B3EksjzwRGmeVYsCTWrBuY): 3sjoU5zDRSDk6BzeY8grpH4oHHfVBCT1GaUNM82Yx7xtSMUQ5Kif93RTMMxD54oDbYNK7RLQJdrZsjYeXiVDaeYh
+[reward-bid] our epoch #1 is running with our bid of 0.001658 wSOL escrowed (22 slots left).
+[reward-bid] waiting 22 slots for the epoch to end (endSlot 527331382)...
+[reward-bid] our epoch #1 (ByzopQT4GH8b2b4u9RMvVGmiWBBYuWgEPegWYd4nPAtZ) ended at slot 527331382 (now 527331384), unsettled, totalBids=0.001658 wSOL -> SettleEpoch
+[reward-bid] settled epoch #1: 5Hw8JiunC92cL959hP8X7R83yKntVhihkbBrQJ5wKybsvhPotKDjQ41BGiB2nqEaPWFihYqRBYMCmSoSsAoqzhRH
+[reward-bid] DONE: claimed $0.642263 USDC (receipt B5UY8rgfM1jtgq78KXy93B3EksjzwRGmeVYsCTWrBuY closed, rent refunded) — buy-and-burn complete: 3CR6HHjxknHQDfLrU5gDXSr5FBWC5H7ugTNc3JhTQQb7Ymuhanz4pefLW1WMtrWDqiu8YTrHKUbNFqLd1ACXNRG1
+[reward-bid] journal cleared: epoch #1 complete (claimed)
+[reward-bid] epoch cycle complete for this run.

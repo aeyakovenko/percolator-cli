@@ -1,0 +1,63 @@
+{
+  "commit": "887ba02",
+  "round": "upgrade-proof",
+  "cluster": "devnet",
+  "percolator": "J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu",
+  "rewardModule": "HqCGzwmq9BvZdpFmxa8WREwZWvmZJtstkXJ7JpLR3Dky",
+  "matcher": "4W36LfnN9ZUqRdfpHE91aJbgv6dPaswaZn4GQSWky4t2",
+  "oracleAdapter": "4Q1RPm5iSJMoZonNgFyEk8XVv1kttyTHcVu1xEBdqEU3",
+  "usdc": "7vru6zVBwASk4qUf3mp3vsmcqXNZ9gzeC26toQyMCKJr",
+  "funderToken": "DoD3e6khMs9sZp1nhpRcfpap33UdxhpDrCmUidPztCaV",
+  "minted": "100000000000",
+  "dex": "24UR1DzFTi3EGSUgukDsKfi3JZXXqCPddZVRyZhbmoQn",
+  "market": "PfXrdsTHHuMhG7xcF72ea5tr7WdG7WH8Pt2Stqg5dwR",
+  "oracleAuth": "HyjPPaiyRUrDb5ffBMtuHMYKpznRietYrCAG7bs6mcQC",
+  "feeVault": "96e255GejTh8B7skinkBSSGMyL35MKf6hoEVy9rTDKrq",
+  "fundingCfg": {
+    "baseIntE6": 100,
+    "deadbandE6": 500,
+    "maxFund8hBps": 100,
+    "decaySlots": 1440,
+    "packed": "405324395992842340"
+  },
+  "rewardCfg": "4a2UyU6VWAXJEETbD2MrW1XUCavA8MHYcXeK38GoKXeP",
+  "rewAuth": "7pN2QzNH8agHJQL1JZBK7K4wW9BUpnSCADgo6r3aZkGh",
+  "quoteVault": "H2qjJXGQx8EQYUMnSBo86dUf1pduy3iHDddaXBN9Mh65",
+  "targetEscrow": "BUeaVqzLA2YfbXcjK773WEBYngy9Eo3ShhsdwM45f7mq",
+  "burnSink": "5xz5d5r4vXqQnn9jfqgpzzgUWySYQnsJYEygwaYoNbKb",
+  "insReceipt": "HCybSSNgySHZySnJpwRoyhsyh8vEhk6rcNqhngzQ6dBV",
+  "ownersKey": "funder/id.json",
+  "counterpartyShort": "CudXjkg4GMZt3MSJfKhYDqEP45pDi3gUBA9MGCrhA7Wg",
+  "prizes": {
+    "insurance": "PfXrdsTHHuMhG7xcF72ea5tr7WdG7WH8Pt2Stqg5dwR",
+    "vaultPortfolio": "5UfsphCMFPT1AcWaxkqzBfm7cFex66pVrtDTVPhREJqC",
+    "userLong": "Cy9UGwRvnviaitkQC1FADgpfaTJ7ipsSKkXwJ2s6TyrL"
+  },
+  "ammVault": {
+    "kind": "PropAMM",
+    "matcherProgram": "4W36LfnN9ZUqRdfpHE91aJbgv6dPaswaZn4GQSWky4t2",
+    "ctx": "2fMabRMfUKGWiKc7SthwVoer1jaXYCzQSPkzhBbkBNoH",
+    "lpPortfolio": "8hHUcSKF7uPTq3pahVFbFFsaDU7C6CoyWyZymaqHgiUj",
+    "ownerKey": "funder/id.json",
+    "halfSpreadBps": 20,
+    "impactBps": 5,
+    "maxFillQty": "200",
+    "lpCapitalUsd": 10,
+    "allowedMarketIds": [
+      "1"
+    ]
+  },
+  "extra": {
+    "market2": "3JM5v5MRQESkrqAvX3sZgzfy2ELmBomsFm7BkNjyAJvz",
+    "market3": "6SuLTprXUHkhHbH2nqfKV7TC2oquipBBoKKULgC3CkKC",
+    "rew3": "GmBbCTck9h6ZqA7dLwVV4iBt8aUzCQpsJs1yhfRhXdYS",
+    "thirdParty": "w8SREHCcCrUR5gEwAAa1hhZQ1suJyjxWBMQLmaoBsaR",
+    "counterparty2": "2afefcYR916j2QUAkvtqWTZh8wU9SYb56Cr68mMEvLXb",
+    "takerK": "HTH7GjfVHmLzHoc8VnDna88xMecwTvDVhbxdefA8zr14",
+    "victimA": "BzG5qMQqQpouqCGzXtvgrqoLr7EqRvx68wc4KRqBi2j1",
+    "victimB": "8Dm97rLg57KodPb1bwKjKiUqZ6cZLvWuFNAJ7n1gjZXy",
+    "whale": "12gLHEkekurKvFnGdYaRjJ8j24LcF5E9FkxzTMks1kDC",
+    "insReceipt3": "3sjafr5Tun7udhh2LgbhRdpdo7246rCB1ppLXqdXwiFj"
+  },
+  "initPrice": "59426585000"
+}

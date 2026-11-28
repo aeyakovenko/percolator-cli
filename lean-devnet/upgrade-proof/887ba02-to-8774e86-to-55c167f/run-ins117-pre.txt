@@ -1,0 +1,7 @@
+=== ins117 pre on 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik ===
+  OK   MKT1 prize receipt deposited under 887ba02: bytes 4..7 = 0, shares 23000000
+  OK   MKT3 receipt deposited under 887ba02: bytes 4..7 = 0, shares 4000000
+  OK   887ba02: WithdrawInsurance with OI > 0 -> 118 nonzeroOi
+  OK   ins117 pre: conservation @slot 527351753 V=$1633.200000 I=$27.060000 
+
+INS117 pre: 4 ok, 0 failed
