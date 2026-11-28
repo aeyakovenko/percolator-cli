@@ -35,6 +35,12 @@ pnpm build
 
 ## Deployments
 
+Current build: percolator-lean `887ba02`. **Latest upstream: `b3a4971`** (2026-11-28) — its core `percolator.so` is the
+`8774e86` build; matcher / oracle_adapter / reward_module binaries are byte-identical to the deployed `887ba02` ones. The
+in-place mainnet upgrade of the core program to it is **pending a devnet proof that no existing account is stranded**.
+It will need a **client update**: non-flat portfolios must pass their other legs' markets as trailing accounts on
+withdraw / trade / liquidate — pull the new `percolator-cli/lean` when the upgrade lands (this README will say so).
+
 Current build: percolator-lean `887ba02`. **Round 4 (LIVE, `887ba02`)** runs on **fresh mainnet program ids**
 (launched on `9b45ad1`, upgraded in place to `887ba02` — zero ABI change since): `9b45ad1` changed the ABI (Market grew 400 → 416 bytes for the built-in funding engine), so it could not be
 upgraded in place without stranding open positions. The **round-3 programs (`6NeT5…`, `a31a1f8`) are deprecated
