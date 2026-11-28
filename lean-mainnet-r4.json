@@ -40,7 +40,7 @@
     "halfSpreadBps": 20,
     "impactBps": 5,
     "maxFillQty": "200",
-    "lpCapitalUsd": 3,
+    "lpCapitalUsd": 10,
     "allowedMarketIds": [
       "1"
     ],

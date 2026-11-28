@@ -167,7 +167,7 @@ than you put in **from the live mainnet deployment**, or violating conservation
 | **Prize 1 — insurance** | **$23** (market insurance pot) |
 | **Prize 2 — vault portfolio** | **$23** loose collateral — `4oqFBi5VnGrUiwPEC8SZ9kJXHQi2QSucCBQE3TtGMMj7` |
 | **Prize 3 — user long** | **~$23** (0.003 BTC long) — `9vtoSvrhv5vw7qt6oUdBw835B4pejrmbjWmie3uz2RMh` |
-| **Prize 4 — AMM vault** | **$3** LP capital in an always-on passive AMM (PropAMM, half-spread 20 bps, 0.0002 BTC per fill) — LP portfolio `FZ2C2kHZAumbmW4fSTgPbFbYYsHEwGEoBNDzVSW5UUCQ`, ctx `6A7KGg4LgJhCr3qEGk6qNDPpEteTP3Svzovxa9pW6Te9` |
+| **Prize 4 — AMM vault** | **$10** LP capital in an always-on passive AMM (PropAMM, half-spread 20 bps, 0.0002 BTC per fill) — LP portfolio `FZ2C2kHZAumbmW4fSTgPbFbYYsHEwGEoBNDzVSW5UUCQ`, ctx `6A7KGg4LgJhCr3qEGk6qNDPpEteTP3Svzovxa9pW6Te9` |
 
 Also in [`lean-mainnet-r4.json`](lean-mainnet-r4.json). The market charges a **2 bps** trade fee,
 100% routed to a **wSOL buy-and-burn** reward module (permissionless `StartEpoch`/`SubmitBid`/
