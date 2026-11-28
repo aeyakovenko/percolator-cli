@@ -1,13 +1,13 @@
 /**
  * percolator-lean v2 constants, layouts, opcodes and error codes.
  *
- * PINNED to percolator-lean commit `9b45ad1` (Layout/Matcher/OracleAdapter.lean).
+ * PINNED to percolator-lean commit `887ba02` (ABI = 9b45ad1) (Layout/Matcher/OracleAdapter.lean).
  * Everything ABI-specific lives in this file and instructions.ts — re-pinning to a new
  * commit is an edit to these two files only.
  */
 import { PublicKey } from "@solana/web3.js";
 
-export const LEAN_SOURCE_COMMIT = "9b45ad1";
+export const LEAN_SOURCE_COMMIT = "887ba02";
 
 // ---------- deployed programs (devnet) ----------
 export const LEAN_DEVNET = {
@@ -21,7 +21,7 @@ export const LEAN_DEVNET = {
 } as const;
 
 // ---------- deployed programs (mainnet-beta) ----------
-// ROUND 4 (9b45ad1, built-in HL/Binance funding, Market = 416 B): FRESH program ids, deployed 2026-11-28
+// ROUND 4 (launched on 9b45ad1, upgraded in place to 887ba02; built-in HL/Binance funding, Market = 416 B): FRESH program ids, deployed 2026-11-28
 // via Agave CLI 4.4.1 (devnet-validated). Upgrade authority: A3Mu2nQdjJXhJkuUDBbF2BdvgDs5KodNE9XsetXNMrCK.
 export const LEAN_MAINNET = {
   percolator: new PublicKey("EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB"),

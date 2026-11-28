@@ -1,5 +1,5 @@
 {
-  "commit": "9b45ad1",
+  "commit": "887ba02",
   "round": 4,
   "percolator": "EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB",
   "rewardModule": "CH9WNijiS9p6bKfSEgpHXujAJuxUJ29rgynZuZst9Utv",
@@ -29,5 +29,6 @@
     "insurance": "4EWHoCLweWAbb1DZ2sUfLRLnL9xvNJEwhnekaV7qthAp",
     "vaultPortfolio": "4oqFBi5VnGrUiwPEC8SZ9kJXHQi2QSucCBQE3TtGMMj7",
     "userLong": "9vtoSvrhv5vw7qt6oUdBw835B4pejrmbjWmie3uz2RMh"
-  }
+  },
+  "launchCommit": "9b45ad1"
 }
