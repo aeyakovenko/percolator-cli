@@ -36,7 +36,9 @@ import {
 
 const RPC = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
 const conn = new Connection(RPC, "confirmed");
-const P = LEAN_DEVNET.percolator, M = LEAN_DEVNET.matcher;
+// env overrides (defaults unchanged) so the battery can run against another deployment (e.g. an upgrade rehearsal)
+const P = new PublicKey(process.env.LEAN_PROG ?? LEAN_DEVNET.percolator.toBase58()), M = new PublicKey(process.env.LEAN_MATCHER ?? LEAN_DEVNET.matcher.toBase58());
+const ORACLE_ADAPTER = new PublicKey(process.env.LEAN_ORACLE_ADAPTER ?? LEAN_DEVNET.oracleAdapter.toBase58()), REWARD_MODULE = new PublicKey(process.env.LEAN_REWARD_MODULE ?? LEAN_DEVNET.rewardModule.toBase58());
 const funder = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))));
 const mask = (s: string) => s.replace(/api-key=[^&"'\s]+/g, "api-key=***");
 
@@ -322,7 +324,7 @@ async function main() {
     propAmmInit(M, { ctx: evilKp.publicKey, owner: mallory.publicKey, halfSpreadBps: 0n, impactBps: 0n, maxFillQty: 1_000_000n * POS_SCALE, allowedMarketIds: [idA, idB, idC] }),
   ], [evilKp]);
   await expectErr("attacker's own zero-spread ctx against the LP portfolio", mallory, [CU, twm(t1, p1, [legA(TRADE_MODE.NETTED, false, Q)], { matcherCtx: evilKp.publicKey })], [t1], 131);
-  await expectErr("right ctx but a different matcher program", t1, [CU, twm(t1, p1, [legA(TRADE_MODE.NETTED, true, Q)], { matcherProgram: LEAN_DEVNET.oracleAdapter })], [], 131);
+  await expectErr("right ctx but a different matcher program", t1, [CU, twm(t1, p1, [legA(TRADE_MODE.NETTED, true, Q)], { matcherProgram: ORACLE_ADAPTER })], [], 131);
   // PropAmmQuote (matcher op 2) has NO signer / caller check: a stranger really sends it against the LP's ctx with
   // seq = 2^64-1 and an absurd mark, scribbling over the header + quote slots. The next real fill must be unaffected.
   await send(mallory, [propAmmQuoteIx(M, { ctx, seq: (1n << 64n) - 1n, offers: [{ mode: TRADE_MODE.NETTED, takerIsLong: false, marketId: idA, maxQty: 5n * POS_SCALE, markPrice: 1n, maxMoveBps: 10_000n }] })]);
@@ -476,7 +478,7 @@ async function main() {
   // ------------------------------------------------------------------ 11. reward-module parsers vs live devnet accounts (read-only)
   console.log("\n11. reward-module parsers on live devnet accounts (read-only)");
   try {
-    const accs = await conn.getProgramAccounts(LEAN_DEVNET.rewardModule, { commitment: "confirmed" });
+    const accs = await conn.getProgramAccounts(REWARD_MODULE, { commitment: "confirmed" });
     const n = { rewardCfg: 0, epochState: 0, bidReceipt: 0, other: 0 };
     let bad = 0, linked = 0, bidLinked = 0;
     const cfgs = new Map<string, ReturnType<typeof parseRewardCfg>>(), epochs = new Map<string, ReturnType<typeof parseEpochState>>();
