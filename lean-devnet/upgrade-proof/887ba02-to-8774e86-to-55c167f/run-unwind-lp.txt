@@ -1,0 +1,9 @@
+=== upgrade-proof UNWIND stage "lp" on 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik ===
+    AMM LP: capital $10.178524 locked $0.000000 legs []
+  OK   AMM LP unbound from its matcher ctx (SetPortfolioMatcher null)
+  OK   AMM LP portfolio: withdrew ALL free capital $10.178524 to the owner's token account
+  OK   AMM LP portfolio: portfolio closed (CloseAccount, rent returned)
+    AMM LP got back $10.178524 of $10 deposited
+  OK   after AMM LP withdraw: conservation @slot 527353533 V=$30.115671 C=$0.000000 I=$29.070000 R=$0.000005 S=$0.006076 Rew=$1.039590 
+
+UNWIND lp: 4 ok, 0 failed

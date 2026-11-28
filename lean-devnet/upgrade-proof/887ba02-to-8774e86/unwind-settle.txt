@@ -1,0 +1,22 @@
+=== upgrade-proof UNWIND stage "settle" on J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu ===
+  OK   settle start: conservation @slot 527329488 V=$1635.349490 C=$1605.167726 I=$29.060000 R=$0.003004 S=$0.000000 Rew=$1.118760 
+  OK   RefreshLeg userLong: pre-upgrade leg settled by 8774e86 (entryK 0 -> -175677327, equity $22.964344 -> $22.437312, postOracle byte 0 -> 0) [1520 CU]
+  OK   RefreshLeg cpty short: pre-upgrade leg settled by 8774e86 (entryK 0 -> 175677327, equity $24.964344 -> $25.491375, postOracle byte 0 -> 0) [1429 CU]
+  OK   RefreshLeg third party MKT1: pre-upgrade leg settled by 8774e86 (entryK 0 -> -175677327, equity $499.494587 -> $492.467493, postOracle byte 0 -> 0) [1514 CU]
+  OK   RefreshLeg third party MKT2: pre-upgrade leg settled by 8774e86 (entryK 0 -> 1884330, equity $492.467493 -> $494.351823, postOracle byte 0 -> 0) [1359 CU]
+  OK   RefreshLeg cpty2 MKT1: pre-upgrade leg settled by 8774e86 (entryK 0 -> 175677327, equity $499.494587 -> $506.521680, postOracle byte 0 -> 0) [1423 CU]
+  OK   RefreshLeg cpty2 MKT2: pre-upgrade leg settled by 8774e86 (entryK 0 -> -1884330, equity $506.521680 -> $504.637350, postOracle byte 0 -> 0) [1452 CU]
+  OK   RefreshLeg takerK: pre-upgrade leg settled by 8774e86 (entryK 0 -> -175677327, equity $4.986925 -> $4.969357, postOracle byte 0 -> 0) [1526 CU]
+  FAIL RefreshLeg AMM LP: pre-upgrade leg settled by 8774e86 (entryK 175677327 -> 175677327, equity $10.163509 -> $10.163509, postOracle byte 0 -> 0) [1431 CU]
+  OK   RefreshLeg victimA: pre-upgrade leg settled by 8774e86 (entryK 0 -> -400027, equity $10.080000 -> $9.679973, postOracle byte 0 -> 0) [1428 CU]
+  OK   RefreshLeg victimB: pre-upgrade leg settled by 8774e86 (entryK 0 -> -400027, equity $10.080000 -> $9.679973, postOracle byte 0 -> 0) [1428 CU]
+  OK   RefreshLeg whale: pre-upgrade leg settled by 8774e86 (entryK 0 -> 400027, equity $499.960000 -> $500.760054, postOracle byte 0 -> 0) [1438 CU]
+    MKT1: mark $59251.525000 oi 43100/43100 raw 43100/43100 adl 1000000000/1000000000 R $7.554128 P+ $7.554124 ins $29.000000 fronted 0 shares 29000000 rew $1.038760 deficitMode 0 Active
+    MKT2: mark $151.884397 oi 1000000/1000000 raw 1000000/1000000 adl 1000000000/1000000000 R $1.884330 P+ $1.884330 ins $0.060000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+    MKT3: mark $99.600000 oi 2000000/2000000 raw 2000000/2000000 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.080000 deficitMode 0 Active
+  OK   settle end: conservation @slot 527329543 V=$1635.349490 C=$1595.732272 I=$29.060000 R=$9.438458 S=$0.000000 Rew=$1.118760 
+  OK   refreshing moved no tokens (V unchanged)
+
+UNWIND settle: 13 ok, 1 failed
+FAILED:
+  RefreshLeg AMM LP: pre-upgrade leg settled by 8774e86 (entryK 175677327 -> 175677327, equity $10.163509 -> $10.163509, postOracle byte 0 -> 0) [1431 CU]

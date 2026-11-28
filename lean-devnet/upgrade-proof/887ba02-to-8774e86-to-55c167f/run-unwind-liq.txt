@@ -1,0 +1,54 @@
+=== upgrade-proof UNWIND stage "liq" on 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik ===
+    MKT3: mark $99.600000 oi 2000000/2000000 raw 2000000/2000000 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $9.000000 fronted 0 shares 9000000 rew $0.080000 deficitMode 0 Active
+    victimA: capital $3.703968 locked $5.976000 legs [long 1000000@m3 pnl 0]
+    victimB: capital $3.703968 locked $5.976000 legs [long 1000000@m3 pnl 0]
+    whale: capital $488.808064 locked $11.952000 legs [short 2000000@m3 pnl 0]
+    mark $99.102001: liquidate(victimA) sim -> 116 positionHealthy
+    mark $97.622895: liquidate(victimA) sim -> 116 positionHealthy
+    mark $96.165866: liquidate(victimA) sim -> 116 positionHealthy
+    mark $95.206614: liquidate(victimA) sim -> ok
+    victimA after: capital $4.860307 locked $0.000000 legs []
+  OK   LIQUIDATION of the under-margined pre-upgrade position at mark $95.206614 (liquidator fee $0.426045) [4431 CU]
+  OK   victim A was liquidated
+    MKT3: mark $95.206614 oi 1000000/1000000 raw 1000000/2000000 adl 1000000000/500000000 R $4.393616 P+ $0.000000 ins $9.000000 fronted 0 shares 9000000 rew $0.080000 deficitMode 0 Active
+  OK   insurance withdraw from the ADL'd market with OI > 0 (oi 1000000, adl 1000000000/500000000) is blocked — 118 nonzeroOi
+  OK   after solvent liquidation: conservation @slot 527353284 V=$639.991030 C=$596.362284 I=$38.070000 R=$4.439156 S=$0.000000 Rew=$1.119590 
+    mark $94.730582: RefreshLeg(victimB) sim -> ok
+    mark $92.850139: RefreshLeg(victimB) sim -> ok
+    mark $91.007024: RefreshLeg(victimB) sim -> ok
+    mark $89.648737: RefreshLeg(victimB) sim -> 107 insufficientMargin
+  OK   victim B is bankrupt (RefreshLeg rejects with insufficientMargin 107)
+    liquidate(victimB, bankrupt) sim -> ok
+    MKT3 before: mark $89.648737 oi 1000000/1000000 raw 1000000/2000000 adl 1000000000/500000000 R $4.393616 P+ $0.000000 ins $9.000000 fronted 0 shares 9000000 rew $0.080000 deficitMode 0 Active
+    MKT3 after : mark $89.648737 oi 0/0 raw 0/2000000 adl 1000000000/0 R $14.073584 P+ $0.000000 ins $9.000000 fronted 0 shares 9000000 rew $0.080000 deficitMode 1 Active
+    victimB after: capital $0.000000 locked $0.000000 legs []
+  OK   BANKRUPT liquidation of victim B executed [2946 CU]; insurance $9.000000 -> $9.000000, deficitMode 0 -> 1
+  OK   deficit mode latched: a NEW open on this market is rejected — 115 adlHaircutActive
+  OK   insurance withdraw from the bankrupt / deficit-mode market (winner leg still open) is blocked — 118 nonzeroOi
+  OK   after bankrupt liquidation: conservation @slot 527353397 V=$639.991030 C=$586.682316 I=$38.070000 R=$14.119124 S=$0.000000 Rew=$1.119590 
+    whale: capital $488.808064 locked $11.952000 legs [short 2000000@m3 pnl 0]
+    RefreshLeg(whale) sim -> ok
+    whale after refresh: capital $500.760064 locked $0.000000 legs [short 2000000@m3 pnl 14345104]
+    MKT3: mark $89.648737 oi 0/0 raw 0/2000000 adl 1000000000/0 R $14.073584 P+ $14.345104 ins $9.000000 fronted 0 shares 9000000 rew $0.080000 deficitMode 1 Active
+    ClearDeadLeg(whale) sim -> ok
+  OK   whale's fully-ADL'd short cleared with ClearDeadLeg (side OI is 0)
+    whale after clear: capital $500.760064 locked $0.000000 legs [flat 0@m3 pnl 14345104]
+    MKT3 after whale exit: mark $89.648737 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $14.073584 P+ $14.345104 ins $9.000000 fronted 0 shares 9000000 rew $0.080000 deficitMode 1 Active
+  OK   after whale exit: conservation @slot 527353409 V=$639.991030 C=$586.682316 I=$38.070000 R=$14.119124 S=$0.000000 Rew=$1.119590 
+  OK   victimA: withdrew ALL free capital $4.860307 to the owner's token account
+  OK   victimA: portfolio closed (CloseAccount, rent returned)
+  OK   victimB: withdrew ALL free capital $0.000000 to the owner's token account
+  OK   victimB: portfolio closed (CloseAccount, rent returned)
+  OK   whale: withdrew ALL free capital $514.833648 to the owner's token account
+  OK   whale: portfolio closed (CloseAccount, rent returned)
+    MKT3 all flat: mark $89.648737 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $9.000000 fronted 0 shares 9000000 rew $0.080000 deficitMode 0 Active
+  OK   deficit mode cleared once every leg is flat (was 1)
+  OK   MKT3: zero OI / raw basis
+    MKT3 after insurance withdraw: mark $89.648737 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $4.000000 fronted 0 shares 4000000 rew $0.080000 deficitMode 0 Active
+  OK   insurance LP of the sacrificial market withdrew everything left after the bankruptcy: $5.000000 of $5 deposited (the rest absorbed bad debt)
+  OK   the PRE-UPGRADE MKT3 insurance receipt withdrew its share once the market was flat: $4.000000
+  OK   ClaimReward (op 21) paid MKT3's accrued reward fees $0.080000
+    MKT3 final: mark $89.648737 oi 0/0 raw 0/0 adl 1000000000/1000000000 R $0.000000 P+ $0.000000 ins $0.000000 fronted 0 shares 0 rew $0.000000 deficitMode 0 Active
+  OK   after sacrificial-market unwind: conservation @slot 527353468 V=$111.217075 C=$81.061945 I=$29.070000 R=$0.045540 S=$0.000000 Rew=$1.039590 
+
+UNWIND liq: 23 ok, 0 failed

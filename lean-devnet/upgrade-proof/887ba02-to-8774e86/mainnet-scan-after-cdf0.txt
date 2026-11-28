@@ -1,0 +1,24 @@
+mainnet percolator EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB: 25 accounts @~slot 475092422; programdata 4CY94Z1nQZvTxuiHhTSXJyjPoF7uGMfWEcVkruhKkae6 160045 B (max program len 160000 B; candidate 8774e86 = 91104 B)
+  portfolio 12rWFEcEHHYCUqYeBjpVFBmUVaKqgTrt7eC8hNfbDXhS owner=7vMP8KnM… capital=$0.000000 locked=$0.000000 legs=-
+  portfolio GFSu8cfZTjsqTsDxduZ3xw4Vh9DKnPPtUvLRmQf5o1Z owner=9ytZ6Y4c… capital=$0.000000 locked=$0.000000 legs=-
+  portfolio giqJtk7J4YbYsmjemJwdwvhWSoN8kwP23rNc7v8xn2c owner=m2G8w8GR… capital=$0.000000 locked=$0.000000 legs=-
+  portfolio 2SdpZgReV4q84BzFhV5pYKGSxVwVYAMsnCw2BPyyPg3f owner=5XwPjdb6… capital=$0.000000 locked=$0.000000 legs=-
+  market 4EWHoCLweWAbb1DZ2sUfLRLnL9xvNJEwhnekaV7qthAp id=1 Active byte5=0 mark=$59237.962500 oracleAge=3136 insurance=$23.000000 insFronted=0 realizedPool=1475181 totalPosPnl=1516368 oiL/S=3800/3800 rawL/S=3800/3800 adlL/S=1000000000/1000000000 rewardBps=10000 rewardAccrued=$0.133360 funding={"baseIntE6":100,"deadbandE6":500,"maxFund8hBps":100,"decaySlots":1440} lastRampSlot=0
+  market 4JxEkrwXjrwCb3B7WzxpHbzMbXzPyEVR6iyFZAkz59H7 id=4 Active byte5=0 mark=$59288.872500 oracleAge=10063 insurance=$0.007116 insFronted=0 realizedPool=0 totalPosPnl=0 oiL/S=0/0 rawL/S=0/0 adlL/S=1000000000/1000000000 rewardBps=0 rewardAccrued=$0.000000 funding={"baseIntE6":100,"deadbandE6":500,"maxFund8hBps":100,"decaySlots":1440} lastRampSlot=0
+  portfolio 4oqFBi5VnGrUiwPEC8SZ9kJXHQi2QSucCBQE3TtGMMj7 owner=A3Mu2nQd… capital=$23.000000 locked=$0.000000 legs=-
+  portfolio 5F6xLtgs5bC2u4PBJAeSjBryRRyx6jctzieuu5QcMhPw owner=7vMP8KnM… capital=$0.000000 locked=$0.000000 legs=-
+  market 6QZX6hPquTFcb9Z96pZ416zstmVzVbUbD4RegZi2xntL id=2 Active byte5=0 mark=$59279.832500 oracleAge=16491 insurance=$0.000000 insFronted=0 realizedPool=0 totalPosPnl=0 oiL/S=0/0 rawL/S=0/0 adlL/S=1000000000/1000000000 rewardBps=0 rewardAccrued=$0.000000 funding={"baseIntE6":100,"deadbandE6":500,"maxFund8hBps":100,"decaySlots":1440} lastRampSlot=0
+  dex 6ogqEo6qbCY5dmjkBQNXntoESE4HDHwKQGnushbPysFn V=$128.245892 C=$103.611261 I=$23.026088 R=$1.475183 S=$0.000000 Rew=$0.133360 sumOK=true
+  portfolio 7uCHtLGWXp4C17E5QpbdDmXDCSsnyBsqfaWbJgtLtNH6 owner=ENmSgWCP… capital=$8.000000 locked=$2.845866 legs=long:800@mkt1(pnl 0)
+  market 81qkgF9xZNgQzw6HFiub1UjPNvZZ1GCJA7cpR3juT5Ne id=5 Active byte5=0 mark=$51417.179835 oracleAge=7577 insurance=$0.011858 insFronted=0 realizedPool=1 totalPosPnl=0 oiL/S=0/0 rawL/S=0/0 adlL/S=1000000000/1000000000 rewardBps=0 rewardAccrued=$0.000000 funding={"baseIntE6":100,"deadbandE6":500,"maxFund8hBps":100,"decaySlots":1440} lastRampSlot=0
+  portfolio 8xPkKhNPXMQU4Lafj3jbv85xFiqA1WKdTDKUeK1DqdGj owner=2LsNnvBx… capital=$0.000000 locked=$0.000000 legs=-
+  insReceipt 9LzCRhTBJX4dWydKXE9qiXPzn6W6Hu81X1nckj2nvmeJ owner=A3Mu2nQd… market=4EWHoCLw… shares=23000000 bytes4..7=0
+  portfolio 9vtoSvrhv5vw7qt6oUdBw835B4pejrmbjWmie3uz2RMh owner=A3Mu2nQd… capital=$10.826161 locked=$10.662834 legs=long:3000@mkt1(pnl 0)
+  portfolio Afz1UwaeMBDCJzbm1aTXpvjVbDTo9r2Y76ae4MRnVbb1 owner=A3Mu2nQd… capital=$14.301340 locked=$10.662834 legs=short:3000@mkt1(pnl 1475178)
+  portfolio EXv7RhZwxX2c2m66wLd9epSKkRVX3Xv7NX4W16o2HJMN owner=7vMP8KnM… capital=$0.000000 locked=$0.000000 legs=-
+  portfolio FZ2C2kHZAumbmW4fSTgPbFbYYsHEwGEoBNDzVSW5UUCQ owner=A3Mu2nQd… capital=$7.468803 locked=$2.843423 legs=short:800@mkt1(pnl 41190) [matcher-bound]
+  portfolio H8vWwJJWE7hEipBAnWhoupawFiEgnBSNPdHhCjiVsgfD owner=7vMP8KnM… capital=$0.000000 locked=$0.000000 legs=- [matcher-bound]
+  portfolio HDrUv5Fc91XjWn6AZPkwaYmFAducF5wPkxfUbkfHABAQ owner=2xmWCSAD… capital=$13.000000 locked=$0.000000 legs=-
+  market Hp2YuERw16LPSetg6eKGr1BDSxsKEQx5HnE52P55YegJ id=3 Active byte5=0 mark=$50474.274058 oracleAge=13531 insurance=$0.007114 insFronted=0 realizedPool=1 totalPosPnl=0 oiL/S=0/0 rawL/S=0/0 adlL/S=1000000000/1000000000 rewardBps=0 rewardAccrued=$0.000000 funding={"baseIntE6":100,"deadbandE6":500,"maxFund8hBps":100,"decaySlots":1440} lastRampSlot=475078891
+markets 5, portfolios 14 (non-flat 4, multi-leg 0, matcher-bound 2), other accounts 4
+MAINNET SCAN: no account carries an invalid value in the re-purposed padding (Market byte 5 / Leg byte 3 / InsReceipt bytes 4..7)

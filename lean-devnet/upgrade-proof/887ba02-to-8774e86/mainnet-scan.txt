@@ -1,0 +1,10 @@
+mainnet percolator EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB: 8 accounts @~slot 475060452; programdata 4CY94Z1nQZvTxuiHhTSXJyjPoF7uGMfWEcVkruhKkae6 160045 B (max program len 160000 B; candidate 8774e86 = 91104 B)
+  market 4EWHoCLweWAbb1DZ2sUfLRLnL9xvNJEwhnekaV7qthAp id=1 Active byte5=0 mark=$59426.315000 oracleAge=1463 insurance=$23.000000 insFronted=0 realizedPool=0 totalPosPnl=0 oiL/S=3000/3000 rawL/S=3000/3000 adlL/S=1000000000/1000000000 rewardBps=10000 rewardAccrued=$0.090680 funding={"baseIntE6":100,"deadbandE6":500,"maxFund8hBps":100,"decaySlots":1440} lastRampSlot=0
+  portfolio 4oqFBi5VnGrUiwPEC8SZ9kJXHQi2QSucCBQE3TtGMMj7 owner=A3Mu2nQd… capital=$23.000000 locked=$0.000000 legs=-
+  dex 6ogqEo6qbCY5dmjkBQNXntoESE4HDHwKQGnushbPysFn V=$104.019028 C=$80.928348 I=$23.000000 R=$0.000000 S=$0.000000 Rew=$0.090680 sumOK=true
+  portfolio 8xPkKhNPXMQU4Lafj3jbv85xFiqA1WKdTDKUeK1DqdGj owner=2LsNnvBx… capital=$0.000000 locked=$0.000000 legs=-
+  portfolio 9vtoSvrhv5vw7qt6oUdBw835B4pejrmbjWmie3uz2RMh owner=A3Mu2nQd… capital=$12.216641 locked=$10.747533 legs=long:3000@mkt1(pnl 0)
+  portfolio Afz1UwaeMBDCJzbm1aTXpvjVbDTo9r2Y76ae4MRnVbb1 owner=A3Mu2nQd… capital=$14.216641 locked=$10.747533 legs=short:3000@mkt1(pnl 0)
+  portfolio FZ2C2kHZAumbmW4fSTgPbFbYYsHEwGEoBNDzVSW5UUCQ owner=A3Mu2nQd… capital=$10.000000 locked=$0.000000 legs=- [matcher-bound]
+markets 1, portfolios 5 (non-flat 2, multi-leg 0, matcher-bound 1), other accounts 1
+MAINNET SCAN: no account carries a non-zero byte in the re-purposed padding (Market byte 5 / Leg byte 3)

@@ -1,0 +1,19 @@
+=== upgrade-proof UNWIND stage "pair" on 51x97QVMHFLqh1LHEepBYxbGRQD2dDevpWUSMqehbqGo ===
+    userLong: capital $12.198195 locked $10.658520 legs [long 3000@m1 pnl 0]
+    cpty short: capital $14.305930 locked $10.658520 legs [short 3000@m1 pnl 107734]
+  OK   fee routing on a funded market with rewardBps 0 (MKT2): trade fee +$0.006076 went to protocol SURPLUS, insurance +$0.000000 (887ba02 sent it to insurance)
+  OK   prize-3 portfolio is now MULTI-LEG (MKT1 + MKT2)
+  OK   prize pair MKT2: closed 100000 (long 100000->0, short 100000->0) [5 ixs, 7503 CU]
+  OK   prize-3 long / counterparty short: closed 3000 (long 3000->0, short 3000->0) [3 ixs, 5440 CU]
+  OK   after closing the prize pair: conservation @slot 527351573 V=$109.173186 C=$81.061418 I=$27.070000 R=$0.000004 S=$0.006076 Rew=$1.035688 
+  OK   userLong (prize 3): withdrew ALL free capital $22.818439 to the owner's token account
+  OK   userLong (prize 3): portfolio closed (CloseAccount, rent returned)
+  OK   counterparty short: withdrew ALL free capital $25.104383 to the owner's token account
+  OK   counterparty short: portfolio closed (CloseAccount, rent returned)
+  OK   vault portfolio (prize 2): withdrew ALL free capital $23.000000 to the owner's token account
+  OK   vault portfolio (prize 2): portfolio closed (CloseAccount, rent returned)
+    prize-3 $22.818439 of $23, counterparty $25.104383 of $25 (sum $47.922822 of $48), prize-2 $23.000000 of $23
+  OK   prize-2 loose collateral withdrawn in full: $23.000000
+  OK   after draining the prize portfolios: conservation @slot 527351603 V=$38.250364 C=$10.138596 I=$27.070000 R=$0.000004 S=$0.006076 Rew=$1.035688 
+
+UNWIND pair: 13 ok, 0 failed

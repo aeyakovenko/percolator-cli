@@ -30,7 +30,7 @@ async function main() {
     const magic = b.length >= 4 ? b.readUInt32LE(0) : 0;
     if (magic === MAGIC.MARKET && b.length === MARKET_SIZE) {
       nM++; const m = parseMarket(b);
-      need(b[5] === 0, `market ${k}: byte 5 = ${b[5]} (would be read as deficitMode)`);
+      need(b[5] <= 1, `market ${k}: byte 5 = ${b[5]} (deficitMode must be 0/1; must be 0 before the 8774e86 upgrade)`);
       console.log(`  market ${k} id=${m.marketId} ${m.statusName} byte5=${b[5]} mark=$${U(m.markPrice)} oracleAge=${BigInt(slot) - m.lastOracleSlot} insurance=$${U(m.insurance)} insFronted=${m.insFronted} realizedPool=${m.realizedPool} totalPosPnl=${m.totalPosPnl} oiL/S=${m.oiLong}/${m.oiShort} rawL/S=${m.rawBasisLong}/${m.rawBasisShort} adlL/S=${m.adlLong}/${m.adlShort} rewardBps=${m.rewardBps} rewardAccrued=$${U(m.rewardAccrued)} funding=${JSON.stringify(m.funding)} lastRampSlot=${m.lastRampSlot}`);
     } else if (magic === MAGIC.PORTFOLIO && b.length === PORTFOLIO_SIZE) {
       nP++; const p = parsePortfolio(b); const open = openLegs(p);
@@ -38,17 +38,23 @@ async function main() {
       for (let i = 0; i < MAX_LEGS; i++) {
         const base = PflOff.headerSize + i * PflOff.legStride;
         if (b[base] === 0) continue;
-        need(b[base + 3] === 0, `portfolio ${k} leg ${i}: byte 3 = ${b[base + 3]} (would be read as postOracle)`);
+        need(b[base + 3] <= 1, `portfolio ${k} leg ${i}: byte 3 = ${b[base + 3]} (postOracle must be 0/1; must be 0 before the 8774e86 upgrade)`);
         need(b[base + 2] === 0, `portfolio ${k} leg ${i}: bankruptMark = ${b[base + 2]}`);
       }
       console.log(`  portfolio ${k} owner=${p.owner.toBase58().slice(0, 8)}… capital=$${U(p.capital)} locked=$${U(p.totalLockedMm)} legs=${p.legs.map((l) => `${l.sideName}:${l.rawBasis}@mkt${l.marketId}(pnl ${l.posPnl})`).join(",") || "-"}${p.matcherCtx.equals(PublicKey.default) ? "" : " [matcher-bound]"}`);
     } else if (magic === MAGIC.DEX && b.length === DEX_SIZE) {
       const d = parseDex(b);
       console.log(`  dex ${k} V=$${U(d.vaultBalance)} C=$${U(d.totalCapital)} I=$${U(d.totalInsurance)} R=$${U(d.totalResidual)} S=$${U(d.totalSurplus)} Rew=$${U(d.totalRewards)} sumOK=${d.vaultBalance === d.totalCapital + d.totalInsurance + d.totalResidual + d.totalSurplus + d.totalRewards}`);
+    } else if (magic === MAGIC.INSURANCE && b.length === 88) {
+      // 55c167f: bytes 4..7 (zero padding) become lastDepositBucket; a non-zero value there would be read as a deposit
+      // bucket (a huge one would block WithdrawInsurance-with-OI until the market is empty).
+      const bucket = b.readUInt32LE(4);
+      need(bucket <= (slot >> 4), `insReceipt ${k}: bytes 4..7 = ${bucket} > current bucket ${slot >> 4}`);
+      console.log(`  insReceipt ${k} owner=${new PublicKey(b.subarray(16, 48)).toBase58().slice(0, 8)}… market=${new PublicKey(b.subarray(48, 80)).toBase58().slice(0, 8)}… shares=${b.readBigUInt64LE(80)} bytes4..7=${bucket}`);
     } else other++;
   }
   console.log(`markets ${nM}, portfolios ${nP} (non-flat ${nonFlat}, multi-leg ${multi}, matcher-bound ${bound}), other accounts ${other}`);
-  console.log(bad === 0 ? "MAINNET SCAN: no account carries a non-zero byte in the re-purposed padding (Market byte 5 / Leg byte 3)" : `MAINNET SCAN: ${bad} PROBLEM(S)`);
+  console.log(bad === 0 ? "MAINNET SCAN: no account carries an invalid value in the re-purposed padding (Market byte 5 / Leg byte 3 / InsReceipt bytes 4..7)" : `MAINNET SCAN: ${bad} PROBLEM(S)`);
   if (bad) process.exit(1);
 }
 main().then(() => process.exit(0)).catch((e) => { console.error("ERR", String(e).replace(/api-key=[^&\s"']+/g, "api-key=***").slice(0, 400)); process.exit(1); });

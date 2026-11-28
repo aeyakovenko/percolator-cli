@@ -1,0 +1,79 @@
+=== upgrade-proof probe [before] on 51x97QVMHFLqh1LHEepBYxbGRQD2dDevpWUSMqehbqGo ===
+  OK   probe[before] start: conservation V==SPL==C+I+R+S+Rew @slot 527350167 V=$1633.200000 C=$1605.038532 I=$27.060000 R=$0.000000 S=$0.000000 Rew=$1.101468 
+  Market byte5 (deficitMode) = 0; userLong leg0 byte3 (postOracle) = 0; accounts parsed: 3 markets, 10 portfolios, 2 receipts
+  OK   PropAMM ctx + reward cfg + insurance receipt parse; LP bound to ctx
+== WithdrawCollateral ==
+  withdraw $1 FLAT (prize-2 vault pfl)                 plain   ok                           2348 CU
+  withdraw $1 SINGLE-LEG (prize-3 userLong)            pub     ok                           3597 CU
+  withdraw $1 SINGLE-LEG (prize-3 userLong)            trail   ok                           3623 CU
+  withdraw $1 SINGLE-LEG (prize-3 userLong)            client  ok                           3623 CU
+  withdraw $1 MULTI-LEG (third party)                  pub     ok                           4768 CU
+  withdraw $1 MULTI-LEG (third party)                  trail   ok                           4820 CU
+  withdraw $1 MULTI-LEG (third party)                  client  ok                           4820 CU
+  withdraw $1 AMM LP (holds inventory)                 pub     ok                           3698 CU
+  withdraw $1 AMM LP (holds inventory)                 trail   ok                           3724 CU
+  withdraw $1 AMM LP (holds inventory)                 client  ok                           3724 CU
+== Trade (bilateral, op 11) ==
+  OPEN +0.00001 single-leg pair (userLong/cpty)        pub     ok                           6651 CU
+  OPEN +0.00001 single-leg pair (userLong/cpty)        trail   ok                           6651 CU
+  OPEN +0.00001 single-leg pair (userLong/cpty)        client  ok                           6651 CU
+  CLOSE 0.00001 single-leg pair at mark                pub     ok                           6054 CU
+  CLOSE 0.00001 single-leg pair at mark                trail   ok                           6054 CU
+  CLOSE 0.00001 single-leg pair at mark                client  ok                           6054 CU
+  CLOSE 0.00001 single-leg pair at mark                bare    ok                           3712 CU
+  OPEN +0.00001 MULTI-LEG pair on MKT1                 pub     ok                           9092 CU
+  OPEN +0.00001 MULTI-LEG pair on MKT1                 trail   ok                           9118 CU
+  OPEN +0.00001 MULTI-LEG pair on MKT1                 client  ok                           9118 CU
+  NETTED(4) +0.00001 MULTI-LEG pair on MKT1            pub     ok                           9312 CU
+  NETTED(4) +0.00001 MULTI-LEG pair on MKT1            trail   ok                           9338 CU
+  NETTED(4) +0.00001 MULTI-LEG pair on MKT1            client  ok                           9338 CU
+  CLOSE 0.00001 MULTI-LEG pair at mark                 pub     ok                           8475 CU
+  CLOSE 0.00001 MULTI-LEG pair at mark                 trail   ok                           8501 CU
+  CLOSE 0.00001 MULTI-LEG pair at mark                 client  ok                           8501 CU
+  CLOSE 0.00001 MULTI-LEG pair at mark                 bare    ok                           3712 CU
+  CLOSE 0.00001 MULTI-LEG pair OFF-mark (+0.1%)        pub     ok                           8669 CU
+  CLOSE 0.00001 MULTI-LEG pair OFF-mark (+0.1%)        trail   ok                           8695 CU
+  CLOSE 0.00001 MULTI-LEG pair OFF-mark (+0.1%)        client  ok                           8695 CU
+  CLOSE 0.00001 MULTI-LEG pair OFF-mark (+0.1%)        bare    122 stalePortfolioLeg        3694 CU
+== TradeWithMatcher (op 23) vs the PropAMM vault ==
+  FLAT taker buys 0.0001 (prize-2 pfl, sim only)       pub     ok                           7632 CU
+  FLAT taker buys 0.0001 (prize-2 pfl, sim only)       trail   ok                           7632 CU
+  FLAT taker buys 0.0001 (prize-2 pfl, sim only)       client  ok                           7632 CU
+  SINGLE-LEG taker K sells 0.0001 (closes)             pub     ok                           7911 CU
+  SINGLE-LEG taker K sells 0.0001 (closes)             trail   ok                           7911 CU
+  SINGLE-LEG taker K sells 0.0001 (closes)             client  ok                           7911 CU
+  SINGLE-LEG taker (userLong) buys 0.0001              pub     ok                           9012 CU
+  SINGLE-LEG taker (userLong) buys 0.0001              trail   ok                           9012 CU
+  SINGLE-LEG taker (userLong) buys 0.0001              client  ok                           9012 CU
+  MULTI-LEG taker (third party) buys 0.0001            pub     ok                           10183 CU
+  MULTI-LEG taker (third party) buys 0.0001            trail   ok                           10270 CU
+  MULTI-LEG taker (third party) buys 0.0001            client  ok                           10270 CU
+  MULTI-LEG taker (third party) sells 0.0001           pub     ok                           9236 CU
+  MULTI-LEG taker (third party) sells 0.0001           trail   ok                           9323 CU
+  MULTI-LEG taker (third party) sells 0.0001           client  ok                           9323 CU
+== Liquidate (op 12) on HEALTHY positions (must be rejected) ==
+  liquidate healthy single-leg (userLong)              bare    116 positionHealthy          1807 CU
+  liquidate healthy MULTI-LEG third party on MKT1      bare    122 stalePortfolioLeg        1725 CU
+  liquidate healthy MULTI-LEG third party on MKT1      pub     116 positionHealthy          2973 CU
+  liquidate healthy MULTI-LEG third party on MKT1      trail   116 positionHealthy          2999 CU
+  liquidate healthy MULTI-LEG third party on MKT1      client  116 positionHealthy          2999 CU
+== other instructions on pre-existing accounts ==
+  RefreshLeg userLong (settles pre-upgrade entryK)     bare    ok                           1389 CU
+  RefreshLeg third party MKT2                          bare    ok                           1311 CU
+  RefreshLeg AMM LP                                    bare    ok                           1490 CU
+  DepositCollateral $1 -> userLong                     bare    ok                           1969 CU
+  DepositInsurance $1 (existing receipt, mints shares) bare    ok                           2094 CU
+  DepositInsurance $1 donate                           bare    ok                           1935 CU
+  WithdrawInsurance 1 share with OI open (expect 118)  bare    118 nonzeroOi                725 CU
+  CloseAccount non-empty userLong (expect 119)         bare    119 nonzeroState             391 CU
+  UpdateOracle MKT1 (same price)                       bare    ok                           1098 CU
+  reward StartEpoch (CPI ClaimReward of accrued fees)  bare    ok                           4756 CU
+  CreateMarket mainnet cfg (funding + rewardBps 10000) bare    ok                           2585 CU
+  CreateMarket funding + rewardBps 0                   bare    ok                           2550 CU
+  CreateMarket funding + rewardBps 5000 (decay 720)    bare    ok                           2585 CU
+  CreateMarket no funding + rewardBps 10000            bare    ok                           2556 CU
+  OK   probe[before] end: conservation V==SPL==C+I+R+S+Rew @slot 527350189 V=$1633.200000 C=$1605.038532 I=$27.060000 R=$0.000000 S=$0.000000 Rew=$1.101468 
+  OK   probe mutated nothing (V and C unchanged)
+probe rows -> /home/ubuntu/percolator-cli/.claude/worktrees/agent-a89c20c489c7ac3ec/.upgrade-out2/probe-before.json
+
+PROBE [before]: 4 ok, 0 failed

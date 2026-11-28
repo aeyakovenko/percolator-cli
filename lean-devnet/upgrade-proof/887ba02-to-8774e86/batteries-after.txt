@@ -1,0 +1,6 @@
+batteries [after] on percolator J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu matcher 4W36LfnN9ZUqRdfpHE91aJbgv6dPaswaZn4GQSWky4t2
+[after] lean-attack: exit 0 | 70 checks passed, 0 failed (0 security) — spent 0.0450 SOL — dexA CLrgCkVrFKn1E3cWACXcoHDikDYEFnwBiLWP3p138X2d CLEAN — no theft, conservation held throughout. 
+[after] _lean-xmargin-drain: exit 1 | Error: Simulation failed.  Message: Transaction simulation failed: Error processing Instruction 1: custom program error: 0x7a.  
+[after] _lean-exploit: exit 0 | BLOCKED ✅ — account reuse rejected (Simulation failed.  Message: Transaction simulation failed: Error processing Instruction 2…). Exploit fixed. 
+[after] _lean-builtin-funding: exit 0 | 7 passed, 0 failed 
+[after] _lean-propamm-devnet: exit 1 |   "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: invalid account data for instruction",   "Program J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu failed: invalid account data for instruction" 307 passed, 0 failed (ABORTED) 

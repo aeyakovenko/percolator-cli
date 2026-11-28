@@ -1,0 +1,12 @@
+  ✓ wash-positive fundingCfg (decay 1441 > budget) rejected — ok
+  ✓ market stores fundingCfg {"baseIntE6":100,"deadbandE6":500,"maxFund8hBps":100,"decaySlots":1440}
+opened Long5/Short5 @ $100; premiumE6 after trade = 0
+  ✓ external fundE6 injection rejected (invalidParams) — ok
+dt=260 slots, price unchanged $100: long Δ=-180 short Δ=180 (E6 units), expected ≈ -180/+180
+  ✓ LONGS PAY base interest (+0.01%/8h) to shorts at zero premium
+  ✓ zero-sum within rounding (sum=0)
+  ✓ magnitude ≈ qty*price*0.01%*dt/72000 (got 180, exp 180)
+  ✓ conservation V==SPL==C+I+R+S+Rew
+
+7 passed, 0 failed
+BUILT-IN FUNDING WORKS

@@ -1,0 +1,9 @@
+HONEST market H insurance (prize) seeded = $50
+Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 1: custom program error: 0x7a. 
+Logs: 
+[
+  "Program J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu invoke [1]",
+  "Program J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu consumed 1064 of 400000 compute units",
+  "Program J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu success",
+  "Program J1E77SQ6Lgkyx45M3pTJm

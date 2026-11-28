@@ -1,0 +1,26 @@
+deploy percolator <- /home/ubuntu/build-tree/staging/887ba02-mainnet/percolator.so (sha256 eabb460606bae8be…, 98208 B)
+Program Id: 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik
+SETUP: 5 ok, 0 failed
+INS117 pre: 4 ok, 0 failed
+deploy percolator <- /home/ubuntu/build-tree/staging/8774e86/percolator.so (sha256 cdf0b6b910727db5…, 91104 B)
+Program Id: 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik
+devnet 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik: on-chain sha256(first 91104 B) cdf0b6b910727db5… vs file cdf0b6b910727db5… => IDENTICAL (+ zero padding); last deploy slot 527351781; max len 160000
+LIVE [hop1]: 28 ok, 0 failed, 1 notes
+[probe-before] ok=4 fail=0 | PROBE [before]: 4 ok, 0 failed 
+[upgrade] ok=0 fail=0 | Program Id: 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik 
+[verify] ok=0 fail=0 | devnet 3jYY2Y43qroAkXsSV2sNX5rBwP9qg5TEZdgTaPHW2Hik: on-chain sha256(first 91408 B) 18ebd75e6f698d21… vs file 18ebd75e6f698d21… => IDENTICAL (+ zero padding); last deploy slot 527352151; max len 160000 
+[probe-after] ok=4 fail=0 | PROBE [after]: 4 ok, 0 failed 
+[live-after-inventory] ok=28 fail=0 | LIVE [after-inventory]: 28 ok, 0 failed, 1 notes 
+[ins117-after] ok=13 fail=0 | INS117 after: 13 ok, 0 failed 
+[unwind-settle] ok=14 fail=0 | UNWIND settle: 14 ok, 0 failed 
+[unwind-third] ok=15 fail=0 | UNWIND third: 15 ok, 0 failed 
+[unwind-takerk] ok=4 fail=0 | UNWIND takerk: 4 ok, 0 failed 
+[live-after-flat] ok=28 fail=0 | LIVE [after-flat]: 28 ok, 0 failed, 1 notes 
+[unwind-liq] ok=23 fail=0 | UNWIND liq: 23 ok, 0 failed 
+[unwind-pair] ok=13 fail=0 | UNWIND pair: 13 ok, 0 failed 
+[unwind-lp] ok=4 fail=0 | UNWIND lp: 4 ok, 0 failed 
+[unwind-insurance] ok=7 fail=0 | UNWIND insurance: 7 ok, 0 failed 
+[unwind-deficit2] ok=18 fail=0 | UNWIND deficit2: 18 ok, 0 failed 
+[ins117-empty] ok=3 fail=0 | INS117 empty: 3 ok, 0 failed 
+[reward-live] ok=0 fail=0 | [reward-bid] DONE: claimed $0.636958 USDC (receipt D2TEp2c73RwjYa7GYonbBwR5cv5k7tkzKf78efLvCLz5 closed, rent refunded) — buy-and-burn complete: 5qsC5REF6kLEJR1yCYV2YtPE79BfFnaGT2SruBHJQ8sT6ks5ihSKDpFMKNbxCmUvjHN3rDg6SR7a4pahogy5vShn [reward-bid] epoch cycle 
+[unwind-final] ok=7 fail=0 | UNWIND final: 7 ok, 0 failed 

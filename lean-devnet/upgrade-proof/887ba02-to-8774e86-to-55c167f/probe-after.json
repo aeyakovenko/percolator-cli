@@ -1,0 +1,392 @@
+[
+ {
+  "label": "withdraw $1 FLAT (prize-2 vault pfl)",
+  "variant": "plain",
+  "result": "ok",
+  "cu": 2413
+ },
+ {
+  "label": "withdraw $1 SINGLE-LEG (prize-3 userLong)",
+  "variant": "pub",
+  "result": "122 stalePortfolioLeg",
+  "cu": 2181
+ },
+ {
+  "label": "withdraw $1 SINGLE-LEG (prize-3 userLong)",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 4072
+ },
+ {
+  "label": "withdraw $1 SINGLE-LEG (prize-3 userLong)",
+  "variant": "client",
+  "result": "ok",
+  "cu": 4072
+ },
+ {
+  "label": "withdraw $1 MULTI-LEG (third party)",
+  "variant": "pub",
+  "result": "122 stalePortfolioLeg",
+  "cu": 3384
+ },
+ {
+  "label": "withdraw $1 MULTI-LEG (third party)",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 5632
+ },
+ {
+  "label": "withdraw $1 MULTI-LEG (third party)",
+  "variant": "client",
+  "result": "ok",
+  "cu": 5632
+ },
+ {
+  "label": "withdraw $1 AMM LP (holds inventory)",
+  "variant": "pub",
+  "result": "122 stalePortfolioLeg",
+  "cu": 2060
+ },
+ {
+  "label": "withdraw $1 AMM LP (holds inventory)",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 3956
+ },
+ {
+  "label": "withdraw $1 AMM LP (holds inventory)",
+  "variant": "client",
+  "result": "ok",
+  "cu": 3956
+ },
+ {
+  "label": "OPEN +0.00001 single-leg pair (userLong/cpty)",
+  "variant": "pub",
+  "result": "ok",
+  "cu": 7541
+ },
+ {
+  "label": "OPEN +0.00001 single-leg pair (userLong/cpty)",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 7541
+ },
+ {
+  "label": "OPEN +0.00001 single-leg pair (userLong/cpty)",
+  "variant": "client",
+  "result": "ok",
+  "cu": 7541
+ },
+ {
+  "label": "CLOSE 0.00001 single-leg pair at mark",
+  "variant": "pub",
+  "result": "ok",
+  "cu": 6236
+ },
+ {
+  "label": "CLOSE 0.00001 single-leg pair at mark",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 6236
+ },
+ {
+  "label": "CLOSE 0.00001 single-leg pair at mark",
+  "variant": "client",
+  "result": "ok",
+  "cu": 6236
+ },
+ {
+  "label": "CLOSE 0.00001 single-leg pair at mark",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 3809
+ },
+ {
+  "label": "OPEN +0.00001 MULTI-LEG pair on MKT1",
+  "variant": "pub",
+  "result": "122 stalePortfolioLeg",
+  "cu": 9472
+ },
+ {
+  "label": "OPEN +0.00001 MULTI-LEG pair on MKT1",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 10750
+ },
+ {
+  "label": "OPEN +0.00001 MULTI-LEG pair on MKT1",
+  "variant": "client",
+  "result": "ok",
+  "cu": 10750
+ },
+ {
+  "label": "NETTED(4) +0.00001 MULTI-LEG pair on MKT1",
+  "variant": "pub",
+  "result": "122 stalePortfolioLeg",
+  "cu": 9696
+ },
+ {
+  "label": "NETTED(4) +0.00001 MULTI-LEG pair on MKT1",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 10974
+ },
+ {
+  "label": "NETTED(4) +0.00001 MULTI-LEG pair on MKT1",
+  "variant": "client",
+  "result": "ok",
+  "cu": 10974
+ },
+ {
+  "label": "CLOSE 0.00001 MULTI-LEG pair at mark",
+  "variant": "pub",
+  "result": "ok",
+  "cu": 8726
+ },
+ {
+  "label": "CLOSE 0.00001 MULTI-LEG pair at mark",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 8761
+ },
+ {
+  "label": "CLOSE 0.00001 MULTI-LEG pair at mark",
+  "variant": "client",
+  "result": "ok",
+  "cu": 8761
+ },
+ {
+  "label": "CLOSE 0.00001 MULTI-LEG pair at mark",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 3800
+ },
+ {
+  "label": "CLOSE 0.00001 MULTI-LEG pair OFF-mark (+0.1%)",
+  "variant": "pub",
+  "result": "122 stalePortfolioLeg",
+  "cu": 9131
+ },
+ {
+  "label": "CLOSE 0.00001 MULTI-LEG pair OFF-mark (+0.1%)",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 9635
+ },
+ {
+  "label": "CLOSE 0.00001 MULTI-LEG pair OFF-mark (+0.1%)",
+  "variant": "client",
+  "result": "ok",
+  "cu": 9635
+ },
+ {
+  "label": "CLOSE 0.00001 MULTI-LEG pair OFF-mark (+0.1%)",
+  "variant": "bare",
+  "result": "122 stalePortfolioLeg",
+  "cu": 4129
+ },
+ {
+  "label": "FLAT taker buys 0.0001 (prize-2 pfl, sim only)",
+  "variant": "pub",
+  "result": "ok",
+  "cu": 8250
+ },
+ {
+  "label": "FLAT taker buys 0.0001 (prize-2 pfl, sim only)",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 8250
+ },
+ {
+  "label": "FLAT taker buys 0.0001 (prize-2 pfl, sim only)",
+  "variant": "client",
+  "result": "ok",
+  "cu": 8250
+ },
+ {
+  "label": "SINGLE-LEG taker K sells 0.0001 (closes)",
+  "variant": "pub",
+  "result": "ok",
+  "cu": 7883
+ },
+ {
+  "label": "SINGLE-LEG taker K sells 0.0001 (closes)",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 7883
+ },
+ {
+  "label": "SINGLE-LEG taker K sells 0.0001 (closes)",
+  "variant": "client",
+  "result": "ok",
+  "cu": 7883
+ },
+ {
+  "label": "SINGLE-LEG taker (userLong) buys 0.0001",
+  "variant": "pub",
+  "result": "ok",
+  "cu": 9676
+ },
+ {
+  "label": "SINGLE-LEG taker (userLong) buys 0.0001",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 9676
+ },
+ {
+  "label": "SINGLE-LEG taker (userLong) buys 0.0001",
+  "variant": "client",
+  "result": "ok",
+  "cu": 9676
+ },
+ {
+  "label": "MULTI-LEG taker (third party) buys 0.0001",
+  "variant": "pub",
+  "result": "122 stalePortfolioLeg",
+  "cu": 10312
+ },
+ {
+  "label": "MULTI-LEG taker (third party) buys 0.0001",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 11362
+ },
+ {
+  "label": "MULTI-LEG taker (third party) buys 0.0001",
+  "variant": "client",
+  "result": "ok",
+  "cu": 11362
+ },
+ {
+  "label": "MULTI-LEG taker (third party) sells 0.0001",
+  "variant": "pub",
+  "result": "122 stalePortfolioLeg",
+  "cu": 9335
+ },
+ {
+  "label": "MULTI-LEG taker (third party) sells 0.0001",
+  "variant": "trail",
+  "result": "ok",
+  "cu": 10064
+ },
+ {
+  "label": "MULTI-LEG taker (third party) sells 0.0001",
+  "variant": "client",
+  "result": "ok",
+  "cu": 10064
+ },
+ {
+  "label": "liquidate healthy single-leg (userLong)",
+  "variant": "bare",
+  "result": "116 positionHealthy",
+  "cu": 2234
+ },
+ {
+  "label": "liquidate healthy MULTI-LEG third party on MKT1",
+  "variant": "bare",
+  "result": "122 stalePortfolioLeg",
+  "cu": 2147
+ },
+ {
+  "label": "liquidate healthy MULTI-LEG third party on MKT1",
+  "variant": "pub",
+  "result": "122 stalePortfolioLeg",
+  "cu": 3427
+ },
+ {
+  "label": "liquidate healthy MULTI-LEG third party on MKT1",
+  "variant": "trail",
+  "result": "116 positionHealthy",
+  "cu": 3807
+ },
+ {
+  "label": "liquidate healthy MULTI-LEG third party on MKT1",
+  "variant": "client",
+  "result": "116 positionHealthy",
+  "cu": 3807
+ },
+ {
+  "label": "RefreshLeg userLong (settles pre-upgrade entryK)",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 1431
+ },
+ {
+  "label": "RefreshLeg third party MKT2",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 1359
+ },
+ {
+  "label": "RefreshLeg AMM LP",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 1310
+ },
+ {
+  "label": "DepositCollateral $1 -> userLong",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 2007
+ },
+ {
+  "label": "DepositInsurance $1 (existing receipt, mints shares)",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 2306
+ },
+ {
+  "label": "DepositInsurance $1 donate",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 1966
+ },
+ {
+  "label": "WithdrawInsurance 1 share with OI open (expect 118)",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 2364
+ },
+ {
+  "label": "CloseAccount non-empty userLong (expect 119)",
+  "variant": "bare",
+  "result": "119 nonzeroState",
+  "cu": 410
+ },
+ {
+  "label": "UpdateOracle MKT1 (same price)",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 1118
+ },
+ {
+  "label": "reward StartEpoch (CPI ClaimReward of accrued fees)",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 4798
+ },
+ {
+  "label": "CreateMarket mainnet cfg (funding + rewardBps 10000)",
+  "variant": "bare",
+  "result": "103 invalidParams",
+  "cu": 857
+ },
+ {
+  "label": "CreateMarket funding + rewardBps 0",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 2564
+ },
+ {
+  "label": "CreateMarket funding + rewardBps 5000 (decay 720)",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 2599
+ },
+ {
+  "label": "CreateMarket no funding + rewardBps 10000",
+  "variant": "bare",
+  "result": "ok",
+  "cu": 2562
+ }
+]

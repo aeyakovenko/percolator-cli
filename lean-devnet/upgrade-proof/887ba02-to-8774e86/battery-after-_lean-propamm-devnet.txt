@@ -1,0 +1,362 @@
+PropAMM devnet proof — percolator J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu matcher 4W36LfnN9ZUqRdfpHE91aJbgv6dPaswaZn4GQSWky4t2 via https://devnet.helius-rpc.com/?api-key=***
+  ✓ [conservation @slot 527331507] after setup (LP 5000, takers 1000 each): V=7000.000000 == SPL == C 7000.000000 + I 0.000000 + R 0.000000 + S 0.000000 + Rew 0.000000
+market ids: A=1 (funding+reward) B=2 C=3 (NOT allowlisted) D=4 (maxStaleness 150 slots)
+
+1. InitPropAmm (ctx created + initialized in ONE tx) / SetPortfolioMatcher
+  ✓ [conservation @slot 527331513] InitPropAmm: V=7000.000000 == SPL == C 7000.000000 + I 0.000000 + R 0.000000 + S 0.000000 + Rew 0.000000
+  ✓ parsePropAmmCtx: owner=LP half=20bps impact=2bps/unit maxFill=5 allow=[1,2,4] seq=0
+  ✓ re-Init of a live ctx by another signer → rejected with AccountAlreadyInitialized [got AccountAlreadyInitialized at ix 1]
+  ✓ TradeWithMatcher before the LP bound the ctx → rejected with invalidMatcher(131) [got invalidMatcher(131) at ix 2]
+  ✓ SetPortfolioMatcher by NON-owner → rejected with ownerMismatch(111) [got ownerMismatch(111) at ix 1]
+  ✓ [conservation @slot 527331521] SetPortfolioMatcher: V=7000.000000 == SPL == C 7000.000000 + I 0.000000 + R 0.000000 + S 0.000000 + Rew 0.000000
+  ✓ LP portfolio.matcherCtx == ctx (bound by the LP owner)
+  ✓ quote inspection: propAmmQuote() == SIMULATED raw PropAmmQuote for a hedged basket [A buy 3 @100.160000, B sell 7→fill 5.000000 @99.800000] (half-spread halved: true)
+
+2.1 round trips (oracle unchanged at $100; half-spread 20 bps + impact 2 bps/unit, trade fee 2 bps)
+  ✓ [conservation @slot 527331521] round 1 start: V=7000.000000 == SPL == C 7000.000000 + I 0.000000 + R 0.000000 + S 0.000000 + Rew 0.000000
+  ✓ [conservation @slot 527331521] before r1 T1 OPEN long 1 A (mode 0): V=7000.000000 == SPL == C 7000.000000 + I 0.000000 + R 0.000000 + S 0.000000 + Rew 0.000000
+  ✓ [conservation @slot 527331527] r1 T1 OPEN long 1 A (mode 0): V=7000.000000 == SPL == C 6999.960000 + I 0.000000 + R 0.000000 + S 0.020000 + Rew 0.020000
+  ✓ r1 T1 OPEN long 1 A (mode 0): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r1 T1 OPEN long 1 A (mode 0): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 0→1
+  ✓ r1 T1 OPEN long 1 A (mode 0): buyer price >= mark / seller price <= mark
+  ✓ r1 T1 OPEN long 1 A (mode 0): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331527] before r1 T1 CLOSE long 1 A (mode 1): V=7000.000000 == SPL == C 6999.960000 + I 0.000000 + R 0.000000 + S 0.020000 + Rew 0.020000
+  ✓ [conservation @slot 527331531] r1 T1 CLOSE long 1 A (mode 1): V=7000.000000 == SPL == C 6999.960000 + I 0.000000 + R 0.000000 + S 0.020000 + Rew 0.020000
+  ✓ r1 T1 CLOSE long 1 A (mode 1): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r1 T1 CLOSE long 1 A (mode 1): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 1→2
+  ✓ r1 T1 CLOSE long 1 A (mode 1): buyer price >= mark / seller price <= mark
+  ✓ r1 T1 CLOSE long 1 A (mode 1): LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+  ✓ [conservation @slot 527331531] r1 after long round trip: V=7000.000000 == SPL == C 6999.960000 + I 0.000000 + R 0.000000 + S 0.020000 + Rew 0.020000
+  ✓ r1 LP P&L on taker long round trip = +0.420000 == 2×spread 0.220000 − 1×fee 0.020000 (earned the spread, principal intact)
+  ✓ [conservation @slot 527331531] before r1 T2 OPEN short 1 A (mode 0): V=7000.000000 == SPL == C 6999.960000 + I 0.000000 + R 0.000000 + S 0.020000 + Rew 0.020000
+  ✓ [conservation @slot 527331535] r1 T2 OPEN short 1 A (mode 0): V=7000.000000 == SPL == C 6999.920000 + I 0.000000 + R 0.000000 + S 0.040000 + Rew 0.040000
+  ✓ r1 T2 OPEN short 1 A (mode 0): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r1 T2 OPEN short 1 A (mode 0): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 2→3
+  ✓ r1 T2 OPEN short 1 A (mode 0): buyer price >= mark / seller price <= mark
+  ✓ r1 T2 OPEN short 1 A (mode 0): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331535] before r1 T2 CLOSE short 1 A (mode 1): V=7000.000000 == SPL == C 6999.920000 + I 0.000000 + R 0.000000 + S 0.040000 + Rew 0.040000
+  ✓ [conservation @slot 527331539] r1 T2 CLOSE short 1 A (mode 1): V=7000.000000 == SPL == C 6999.920000 + I 0.000000 + R 0.000000 + S 0.040000 + Rew 0.040000
+  ✓ r1 T2 CLOSE short 1 A (mode 1): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r1 T2 CLOSE short 1 A (mode 1): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 3→4
+  ✓ r1 T2 CLOSE short 1 A (mode 1): buyer price >= mark / seller price <= mark
+  ✓ r1 T2 CLOSE short 1 A (mode 1): LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+  ✓ [conservation @slot 527331539] r1 after short round trip: V=7000.000000 == SPL == C 6999.920000 + I 0.000000 + R 0.000000 + S 0.040000 + Rew 0.040000
+  ✓ r1 LP P&L on taker short round trip = +0.420000
+  ✓ [conservation @slot 527331539] before r1 T1 BUY 1 A (netted, LP flat→short): V=7000.000000 == SPL == C 6999.920000 + I 0.000000 + R 0.000000 + S 0.040000 + Rew 0.040000
+  ✓ [conservation @slot 527331543] r1 T1 BUY 1 A (netted, LP flat→short): V=7000.000000 == SPL == C 6999.880000 + I 0.000000 + R 0.000000 + S 0.060000 + Rew 0.060000
+  ✓ r1 T1 BUY 1 A (netted, LP flat→short): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r1 T1 BUY 1 A (netted, LP flat→short): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 4→5
+  ✓ r1 T1 BUY 1 A (netted, LP flat→short): buyer price >= mark / seller price <= mark
+  ✓ r1 T1 BUY 1 A (netted, LP flat→short): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ T2 OPEN short (mode 0) while the LP is SHORT → rejected with invalidSide(121) [got invalidSide(121) at ix 2]
+  ✓ T2 CLOSE (mode 1) with no position → rejected with legNotFound(125) [got legNotFound(125) at ix 2]
+  ✓ [conservation @slot 527331545] before r1 T2 SELL 1 A (netted, LP short handed off → LP flat): V=7000.000000 == SPL == C 6999.880000 + I 0.000000 + R 0.000000 + S 0.060000 + Rew 0.060000
+  ✓ [conservation @slot 527331549] r1 T2 SELL 1 A (netted, LP short handed off → LP flat): V=7000.000000 == SPL == C 6999.860000 + I 0.000000 + R 0.000000 + S 0.070000 + Rew 0.070000
+  ✓ r1 T2 SELL 1 A (netted, LP short handed off → LP flat): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r1 T2 SELL 1 A (netted, LP short handed off → LP flat): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 5→6
+  ✓ r1 T2 SELL 1 A (netted, LP short handed off → LP flat): buyer price >= mark / seller price <= mark
+  ✓ r1 T2 SELL 1 A (netted, LP short handed off → LP flat): LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.240000, protocol fees +0.020000
+  ✓ [conservation @slot 527331549] before r1 T1 SELL 1 A (netted, LP takes T1's long): V=7000.000000 == SPL == C 6999.860000 + I 0.000000 + R 0.000000 + S 0.070000 + Rew 0.070000
+  ✓ [conservation @slot 527331555] r1 T1 SELL 1 A (netted, LP takes T1's long): V=7000.000000 == SPL == C 6999.840000 + I 0.000000 + R 0.000000 + S 0.080000 + Rew 0.080000
+  ✓ r1 T1 SELL 1 A (netted, LP takes T1's long): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r1 T1 SELL 1 A (netted, LP takes T1's long): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 6→7
+  ✓ r1 T1 SELL 1 A (netted, LP takes T1's long): buyer price >= mark / seller price <= mark
+  ✓ r1 T1 SELL 1 A (netted, LP takes T1's long): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.220000, protocol fees +0.020000
+  ✓ [conservation @slot 527331555] before r1 T2 BUY 1 A (netted, closes vs LP long): V=7000.000000 == SPL == C 6999.840000 + I 0.000000 + R 0.000000 + S 0.080000 + Rew 0.080000
+  ✓ [conservation @slot 527331559] r1 T2 BUY 1 A (netted, closes vs LP long): V=7000.000000 == SPL == C 6999.840000 + I 0.000000 + R 0.000000 + S 0.080000 + Rew 0.080000
+  ✓ r1 T2 BUY 1 A (netted, closes vs LP long): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r1 T2 BUY 1 A (netted, closes vs LP long): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 7→8
+  ✓ r1 T2 BUY 1 A (netted, closes vs LP long): buyer price >= mark / seller price <= mark
+  ✓ r1 T2 BUY 1 A (netted, closes vs LP long): LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+  ✓ [conservation @slot 527331559] r1 after netted 4-trade cycle: V=7000.000000 == SPL == C 6999.840000 + I 0.000000 + R 0.000000 + S 0.080000 + Rew 0.080000
+  ✓ r1 LP P&L on netted cycle = +0.840000 == 4×spread − 2×fee; everyone flat, OI 0
+  LP P&L round 1: +1.680000 on 8 fills of 1.0 @ $100 (capital 5001.680000)
+
+2.2 round trips (oracle unchanged at $100; half-spread 20 bps + impact 2 bps/unit, trade fee 2 bps)
+  ✓ [conservation @slot 527331559] round 2 start: V=7000.000000 == SPL == C 6999.840000 + I 0.000000 + R 0.000000 + S 0.080000 + Rew 0.080000
+  ✓ [conservation @slot 527331560] before r2 T1 OPEN long 1 A (mode 0): V=7000.000000 == SPL == C 6999.840000 + I 0.000000 + R 0.000000 + S 0.080000 + Rew 0.080000
+  ✓ [conservation @slot 527331565] r2 T1 OPEN long 1 A (mode 0): V=7000.000000 == SPL == C 6999.800000 + I 0.000000 + R 0.000000 + S 0.100000 + Rew 0.100000
+  ✓ r2 T1 OPEN long 1 A (mode 0): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r2 T1 OPEN long 1 A (mode 0): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 8→9
+  ✓ r2 T1 OPEN long 1 A (mode 0): buyer price >= mark / seller price <= mark
+  ✓ r2 T1 OPEN long 1 A (mode 0): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331565] before r2 T1 CLOSE long 1 A (mode 1): V=7000.000000 == SPL == C 6999.800000 + I 0.000000 + R 0.000000 + S 0.100000 + Rew 0.100000
+  ✓ [conservation @slot 527331568] r2 T1 CLOSE long 1 A (mode 1): V=7000.000000 == SPL == C 6999.800000 + I 0.000000 + R 0.000000 + S 0.100000 + Rew 0.100000
+  ✓ r2 T1 CLOSE long 1 A (mode 1): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r2 T1 CLOSE long 1 A (mode 1): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 9→10
+  ✓ r2 T1 CLOSE long 1 A (mode 1): buyer price >= mark / seller price <= mark
+  ✓ r2 T1 CLOSE long 1 A (mode 1): LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+  ✓ [conservation @slot 527331568] r2 after long round trip: V=7000.000000 == SPL == C 6999.800000 + I 0.000000 + R 0.000000 + S 0.100000 + Rew 0.100000
+  ✓ r2 LP P&L on taker long round trip = +0.420000 == 2×spread 0.220000 − 1×fee 0.020000 (earned the spread, principal intact)
+  ✓ [conservation @slot 527331568] before r2 T2 OPEN short 1 A (mode 0): V=7000.000000 == SPL == C 6999.800000 + I 0.000000 + R 0.000000 + S 0.100000 + Rew 0.100000
+  ✓ [conservation @slot 527331573] r2 T2 OPEN short 1 A (mode 0): V=7000.000000 == SPL == C 6999.760000 + I 0.000000 + R 0.000000 + S 0.120000 + Rew 0.120000
+  ✓ r2 T2 OPEN short 1 A (mode 0): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r2 T2 OPEN short 1 A (mode 0): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 10→11
+  ✓ r2 T2 OPEN short 1 A (mode 0): buyer price >= mark / seller price <= mark
+  ✓ r2 T2 OPEN short 1 A (mode 0): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331573] before r2 T2 CLOSE short 1 A (mode 1): V=7000.000000 == SPL == C 6999.760000 + I 0.000000 + R 0.000000 + S 0.120000 + Rew 0.120000
+  ✓ [conservation @slot 527331577] r2 T2 CLOSE short 1 A (mode 1): V=7000.000000 == SPL == C 6999.760000 + I 0.000000 + R 0.000000 + S 0.120000 + Rew 0.120000
+  ✓ r2 T2 CLOSE short 1 A (mode 1): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r2 T2 CLOSE short 1 A (mode 1): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 11→12
+  ✓ r2 T2 CLOSE short 1 A (mode 1): buyer price >= mark / seller price <= mark
+  ✓ r2 T2 CLOSE short 1 A (mode 1): LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+  ✓ [conservation @slot 527331577] r2 after short round trip: V=7000.000000 == SPL == C 6999.760000 + I 0.000000 + R 0.000000 + S 0.120000 + Rew 0.120000
+  ✓ r2 LP P&L on taker short round trip = +0.420000
+  ✓ [conservation @slot 527331577] before r2 T1 BUY 1 A (netted, LP flat→short): V=7000.000000 == SPL == C 6999.760000 + I 0.000000 + R 0.000000 + S 0.120000 + Rew 0.120000
+  ✓ [conservation @slot 527331581] r2 T1 BUY 1 A (netted, LP flat→short): V=7000.000000 == SPL == C 6999.720000 + I 0.000000 + R 0.000000 + S 0.140000 + Rew 0.140000
+  ✓ r2 T1 BUY 1 A (netted, LP flat→short): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r2 T1 BUY 1 A (netted, LP flat→short): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 12→13
+  ✓ r2 T1 BUY 1 A (netted, LP flat→short): buyer price >= mark / seller price <= mark
+  ✓ r2 T1 BUY 1 A (netted, LP flat→short): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331581] before r2 T2 SELL 1 A (netted, LP short handed off → LP flat): V=7000.000000 == SPL == C 6999.720000 + I 0.000000 + R 0.000000 + S 0.140000 + Rew 0.140000
+  ✓ [conservation @slot 527331587] r2 T2 SELL 1 A (netted, LP short handed off → LP flat): V=7000.000000 == SPL == C 6999.700000 + I 0.000000 + R 0.000000 + S 0.150000 + Rew 0.150000
+  ✓ r2 T2 SELL 1 A (netted, LP short handed off → LP flat): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r2 T2 SELL 1 A (netted, LP short handed off → LP flat): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 13→14
+  ✓ r2 T2 SELL 1 A (netted, LP short handed off → LP flat): buyer price >= mark / seller price <= mark
+  ✓ r2 T2 SELL 1 A (netted, LP short handed off → LP flat): LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.240000, protocol fees +0.020000
+  ✓ [conservation @slot 527331587] before r2 T1 SELL 1 A (netted, LP takes T1's long): V=7000.000000 == SPL == C 6999.700000 + I 0.000000 + R 0.000000 + S 0.150000 + Rew 0.150000
+  ✓ [conservation @slot 527331593] r2 T1 SELL 1 A (netted, LP takes T1's long): V=7000.000000 == SPL == C 6999.680000 + I 0.000000 + R 0.000000 + S 0.160000 + Rew 0.160000
+  ✓ r2 T1 SELL 1 A (netted, LP takes T1's long): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r2 T1 SELL 1 A (netted, LP takes T1's long): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 14→15
+  ✓ r2 T1 SELL 1 A (netted, LP takes T1's long): buyer price >= mark / seller price <= mark
+  ✓ r2 T1 SELL 1 A (netted, LP takes T1's long): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.220000, protocol fees +0.020000
+  ✓ [conservation @slot 527331593] before r2 T2 BUY 1 A (netted, closes vs LP long): V=7000.000000 == SPL == C 6999.680000 + I 0.000000 + R 0.000000 + S 0.160000 + Rew 0.160000
+  ✓ [conservation @slot 527331599] r2 T2 BUY 1 A (netted, closes vs LP long): V=7000.000000 == SPL == C 6999.680000 + I 0.000000 + R 0.000000 + S 0.160000 + Rew 0.160000
+  ✓ r2 T2 BUY 1 A (netted, closes vs LP long): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ r2 T2 BUY 1 A (netted, closes vs LP long): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 15→16
+  ✓ r2 T2 BUY 1 A (netted, closes vs LP long): buyer price >= mark / seller price <= mark
+  ✓ r2 T2 BUY 1 A (netted, closes vs LP long): LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+  ✓ [conservation @slot 527331599] r2 after netted 4-trade cycle: V=7000.000000 == SPL == C 6999.680000 + I 0.000000 + R 0.000000 + S 0.160000 + Rew 0.160000
+  ✓ r2 LP P&L on netted cycle = +0.840000 == 4×spread − 2×fee; everyone flat, OI 0
+  LP P&L round 2: +1.680000 on 8 fills of 1.0 @ $100 (capital 5003.360000)
+
+3. taker limit price (slippage protection is enforced by CORE: execPriceClamp 130)
+  ✓ [conservation @slot 527331599] before limit tests: V=7000.000000 == SPL == C 6999.680000 + I 0.000000 + R 0.000000 + S 0.160000 + Rew 0.160000
+  ✓ BUY with limit 100.219999 < ask 100.220000 → rejected with execPriceClamp(130) [got execPriceClamp(130) at ix 2]
+  ✓ SELL with limit 99.780001 > bid 99.780000 → rejected with execPriceClamp(130) [got execPriceClamp(130) at ix 2]
+  ✓ [conservation @slot 527331599] before T1 BUY 1 A with limit == ask (fills): V=7000.000000 == SPL == C 6999.680000 + I 0.000000 + R 0.000000 + S 0.160000 + Rew 0.160000
+  ✓ [conservation @slot 527331603] T1 BUY 1 A with limit == ask (fills): V=7000.000000 == SPL == C 6999.640000 + I 0.000000 + R 0.000000 + S 0.180000 + Rew 0.180000
+  ✓ T1 BUY 1 A with limit == ask (fills): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 BUY 1 A with limit == ask (fills): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 16→17
+  ✓ T1 BUY 1 A with limit == ask (fills): buyer price >= mark / seller price <= mark
+  ✓ T1 BUY 1 A with limit == ask (fills): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331603] before T1 SELL 1 A with limit == bid (fills, flat again): V=7000.000000 == SPL == C 6999.640000 + I 0.000000 + R 0.000000 + S 0.180000 + Rew 0.180000
+  ✓ [conservation @slot 527331608] T1 SELL 1 A with limit == bid (fills, flat again): V=7000.000000 == SPL == C 6999.640000 + I 0.000000 + R 0.000000 + S 0.180000 + Rew 0.180000
+  ✓ T1 SELL 1 A with limit == bid (fills, flat again): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 SELL 1 A with limit == bid (fills, flat again): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 17→18
+  ✓ T1 SELL 1 A with limit == bid (fills, flat again): buyer price >= mark / seller price <= mark
+  ✓ T1 SELL 1 A with limit == bid (fills, flat again): LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+
+4. UpdatePropAmm: owner-gated; maxFillQty is a CLAMP (partial fill), not a rejection
+  ✓ UpdatePropAmm by NON-owner → rejected with ownerMismatch(111) [got ownerMismatch(111) at ix 1]
+  ✓ [conservation @slot 527331615] UpdatePropAmm(half=40, impact=10, maxFill=0.5): V=7000.000000 == SPL == C 6999.640000 + I 0.000000 + R 0.000000 + S 0.180000 + Rew 0.180000
+  ✓ owner update applied; allowlist unchanged
+  ✓ [conservation @slot 527331615] before T1 BUY maxQty 2 A with maxFillQty 0.5: V=7000.000000 == SPL == C 6999.640000 + I 0.000000 + R 0.000000 + S 0.180000 + Rew 0.180000
+  ✓ [conservation @slot 527331621] T1 BUY maxQty 2 A with maxFillQty 0.5: V=7000.000000 == SPL == C 6999.620000 + I 0.000000 + R 0.000000 + S 0.190000 + Rew 0.190000
+  ✓ T1 BUY maxQty 2 A with maxFillQty 0.5: landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 BUY maxQty 2 A with maxFillQty 0.5: BUY 0.500000 A @100.450000 (mark 100.000000, 45bps) == propAmmQuote(), seq 18→19
+  ✓ T1 BUY maxQty 2 A with maxFillQty 0.5: buyer price >= mark / seller price <= mark
+  ✓ T1 BUY maxQty 2 A with maxFillQty 0.5: LP equity +0.215000 (spread 0.225000 − LP fee 0.010000), taker -0.235000, protocol fees +0.020000
+  ✓ request 2.0 was PARTIALLY filled: fillQty 0.500000, OI +0.500000 (no error; the taker has no min-fill field)
+  ✓ new params priced in: 40 + floor(0.5 × 10) = 45 bps
+
+5. pause blocks EVERYTHING (opens and closes), unpause restores
+  ✓ [conservation @slot 527331625] pause: V=7000.000000 == SPL == C 6999.620000 + I 0.000000 + R 0.000000 + S 0.190000 + Rew 0.190000
+  ✓ ctx.paused = true
+  ✓ T2 BUY while paused → rejected with matcher.paused(200) [got matcher.paused(200) at ix 2]
+  ✓ T1 CLOSE its open long while paused → rejected with matcher.paused(200) [got matcher.paused(200) at ix 2]
+  ✓ [conservation @slot 527331633] unpause + restore params: V=7000.000000 == SPL == C 6999.620000 + I 0.000000 + R 0.000000 + S 0.190000 + Rew 0.190000
+  ✓ ctx.paused = false, maxFill back to 5
+  ✓ [conservation @slot 527331633] before T1 SELL 0.5 A after unpause (flat again): V=7000.000000 == SPL == C 6999.620000 + I 0.000000 + R 0.000000 + S 0.190000 + Rew 0.190000
+  ✓ [conservation @slot 527331637] T1 SELL 0.5 A after unpause (flat again): V=7000.000000 == SPL == C 6999.620000 + I 0.000000 + R 0.000000 + S 0.190000 + Rew 0.190000
+  ✓ T1 SELL 0.5 A after unpause (flat again): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 SELL 0.5 A after unpause (flat again): SELL 0.500000 A @99.790000 (mark 100.000000, 21bps) == propAmmQuote(), seq 19→20
+  ✓ T1 SELL 0.5 A after unpause (flat again): buyer price >= mark / seller price <= mark
+  ✓ T1 SELL 0.5 A after unpause (flat again): LP equity +0.105000 (spread 0.105000 − LP fee 0.000000), taker -0.105000, protocol fees +0.000000
+
+6. immutable allowlist + ctx binding
+  ✓ trade on market C (not in allowlist) → rejected with matcher.marketNotAllowed(201) [got matcher.marketNotAllowed(201) at ix 2]
+  ✓ basket [A, C] (one leg not in allowlist) → rejected with matcher.marketNotAllowed(201) [got matcher.marketNotAllowed(201) at ix 2]
+  ✓ attacker's own zero-spread ctx against the LP portfolio → rejected with invalidMatcher(131) [got invalidMatcher(131) at ix 2]
+  ✓ right ctx but a different matcher program → rejected with invalidMatcher(131) [got invalidMatcher(131) at ix 2]
+  ✓ [conservation @slot 527331655] stranger sent a raw PropAmmQuote to the LP's ctx: V=7000.000000 == SPL == C 6999.620000 + I 0.000000 + R 0.000000 + S 0.190000 + Rew 0.190000
+  ✓ ctx header/quote slots were overwritten by a stranger (seq=2^64-1, slot0 price 1) but owner/params/allowlist are intact
+  ✓ [conservation @slot 527331655] before T1 BUY 1 A right after the scribble (seq wraps to 0, correct price): V=7000.000000 == SPL == C 6999.620000 + I 0.000000 + R 0.000000 + S 0.190000 + Rew 0.190000
+  ✓ [conservation @slot 527331660] T1 BUY 1 A right after the scribble (seq wraps to 0, correct price): V=7000.000000 == SPL == C 6999.580000 + I 0.000000 + R 0.000000 + S 0.210000 + Rew 0.210000
+  ✓ T1 BUY 1 A right after the scribble (seq wraps to 0, correct price): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 BUY 1 A right after the scribble (seq wraps to 0, correct price): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 18446744073709551615→0
+  ✓ T1 BUY 1 A right after the scribble (seq wraps to 0, correct price): buyer price >= mark / seller price <= mark
+  ✓ T1 BUY 1 A right after the scribble (seq wraps to 0, correct price): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331660] before T1 SELL 1 A: V=7000.000000 == SPL == C 6999.580000 + I 0.000000 + R 0.000000 + S 0.210000 + Rew 0.210000
+  ✓ [conservation @slot 527331664] T1 SELL 1 A: V=7000.000000 == SPL == C 6999.580000 + I 0.000000 + R 0.000000 + S 0.210000 + Rew 0.210000
+  ✓ T1 SELL 1 A: landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 SELL 1 A: SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 0→1
+  ✓ T1 SELL 1 A: buyer price >= mark / seller price <= mark
+  ✓ T1 SELL 1 A: LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+  ✓ [conservation @slot 527331669] SetPortfolioMatcher(null) = unbind: V=7000.000000 == SPL == C 6999.580000 + I 0.000000 + R 0.000000 + S 0.210000 + Rew 0.210000
+  ✓ LP unbound the matcher (matcherCtx = 0)
+  ✓ trade after the LP revoked the matcher → rejected with invalidMatcher(131) [got invalidMatcher(131) at ix 2]
+  ✓ [conservation @slot 527331675] re-bind: V=7000.000000 == SPL == C 6999.580000 + I 0.000000 + R 0.000000 + S 0.210000 + Rew 0.210000
+
+7. multi-market basket (k=2) in ONE instruction, one taker signature
+  ✓ [conservation @slot 527331675] before T1 basket BUY 1 A + SELL 1 B (hedged): V=7000.000000 == SPL == C 6999.580000 + I 0.000000 + R 0.000000 + S 0.210000 + Rew 0.210000
+  ✓ [conservation @slot 527331680] T1 basket BUY 1 A + SELL 1 B (hedged): V=7000.000000 == SPL == C 6999.500000 + I 0.040000 + R 0.000000 + S 0.230000 + Rew 0.230000
+  ✓ T1 basket BUY 1 A + SELL 1 B (hedged): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 basket BUY 1 A + SELL 1 B (hedged): BUY 1.000000 A @100.120000 (mark 100.000000, 12bps hedged) + SELL 1.000000 B @99.880000 (mark 100.000000, 12bps hedged) == propAmmQuote(), seq 1→2
+  ✓ T1 basket BUY 1 A + SELL 1 B (hedged): buyer price >= mark / seller price <= mark
+  ✓ T1 basket BUY 1 A + SELL 1 B (hedged): LP equity +0.200000 (spread 0.240000 − LP fee 0.040000), taker -0.280000, protocol fees +0.080000
+  ✓ hedged basket discount: half-spread 20→10 bps (+2 impact) = 12 bps per leg
+  ✓ T1 basket unwind WITHOUT refreshing first (its own B leg is stale when the A leg settles) → rejected with stalePortfolioLeg(122) [got stalePortfolioLeg(122) at ix 2]
+  ✓ T2 BUY A while the LP's B leg is not refreshed/present → rejected with stalePortfolioLeg(122) [got stalePortfolioLeg(122) at ix 2]
+  ✓ [conservation @slot 527331683] before T2 BUY 1 A via withLegRefresh (refreshes LP's B leg + appends market B): V=7000.000000 == SPL == C 6999.500000 + I 0.040000 + R 0.000000 + S 0.230000 + Rew 0.230000
+  ✓ [conservation @slot 527331687] T2 BUY 1 A via withLegRefresh (refreshes LP's B leg + appends market B): V=7000.000000 == SPL == C 6999.460000 + I 0.040000 + R 0.000000 + S 0.250000 + Rew 0.250000
+  ✓ T2 BUY 1 A via withLegRefresh (refreshes LP's B leg + appends market B): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T2 BUY 1 A via withLegRefresh (refreshes LP's B leg + appends market B): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 2→3
+  ✓ T2 BUY 1 A via withLegRefresh (refreshes LP's B leg + appends market B): buyer price >= mark / seller price <= mark
+  ✓ T2 BUY 1 A via withLegRefresh (refreshes LP's B leg + appends market B): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331687] before T2 SELL 1 A via withLegRefresh: V=7000.000000 == SPL == C 6999.460000 + I 0.040000 + R 0.000000 + S 0.250000 + Rew 0.250000
+  ✓ [conservation @slot 527331691] T2 SELL 1 A via withLegRefresh: V=7000.000000 == SPL == C 6999.460000 + I 0.040000 + R 0.000000 + S 0.250000 + Rew 0.250000
+  ✓ T2 SELL 1 A via withLegRefresh: landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T2 SELL 1 A via withLegRefresh: SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 3→4
+  ✓ T2 SELL 1 A via withLegRefresh: buyer price >= mark / seller price <= mark
+  ✓ T2 SELL 1 A via withLegRefresh: LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+  ✓ [conservation @slot 527331691] before T1 basket SELL 1 A + BUY 1 B (hedged unwind): V=7000.000000 == SPL == C 6999.460000 + I 0.040000 + R 0.000000 + S 0.250000 + Rew 0.250000
+  ✓ [conservation @slot 527331695] T1 basket SELL 1 A + BUY 1 B (hedged unwind): V=7000.000000 == SPL == C 6999.460000 + I 0.040000 + R 0.000000 + S 0.250000 + Rew 0.250000
+  ✓ T1 basket SELL 1 A + BUY 1 B (hedged unwind): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 basket SELL 1 A + BUY 1 B (hedged unwind): SELL 1.000000 A @99.880000 (mark 100.000000, 12bps hedged) + BUY 1.000000 B @100.120000 (mark 100.000000, 12bps hedged) == propAmmQuote(), seq 4→5
+  ✓ T1 basket SELL 1 A + BUY 1 B (hedged unwind): buyer price >= mark / seller price <= mark
+  ✓ T1 basket SELL 1 A + BUY 1 B (hedged unwind): LP equity +0.240000 (spread 0.240000 − LP fee 0.000000), taker -0.240000, protocol fees +0.000000
+  ✓ [conservation @slot 527331695] before T2 basket BUY 1 A + BUY 1 B (same direction: no discount): V=7000.000000 == SPL == C 6999.460000 + I 0.040000 + R 0.000000 + S 0.250000 + Rew 0.250000
+  ✓ [conservation @slot 527331699] T2 basket BUY 1 A + BUY 1 B (same direction: no discount): V=7000.000000 == SPL == C 6999.380000 + I 0.080000 + R 0.000000 + S 0.270000 + Rew 0.270000
+  ✓ T2 basket BUY 1 A + BUY 1 B (same direction: no discount): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T2 basket BUY 1 A + BUY 1 B (same direction: no discount): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) + BUY 1.000000 B @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 5→6
+  ✓ T2 basket BUY 1 A + BUY 1 B (same direction: no discount): buyer price >= mark / seller price <= mark
+  ✓ T2 basket BUY 1 A + BUY 1 B (same direction: no discount): LP equity +0.400000 (spread 0.440000 − LP fee 0.040000), taker -0.480000, protocol fees +0.080000
+  ✓ same-direction basket pays the full 22 bps
+  ✓ [conservation @slot 527331699] before T2 basket SELL 1 A + SELL 1 B (unwind): V=7000.000000 == SPL == C 6999.380000 + I 0.080000 + R 0.000000 + S 0.270000 + Rew 0.270000
+  ✓ [conservation @slot 527331705] T2 basket SELL 1 A + SELL 1 B (unwind): V=7000.000000 == SPL == C 6999.380000 + I 0.080000 + R 0.000000 + S 0.270000 + Rew 0.270000
+  ✓ T2 basket SELL 1 A + SELL 1 B (unwind): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T2 basket SELL 1 A + SELL 1 B (unwind): SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) + SELL 1.000000 B @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 6→7
+  ✓ T2 basket SELL 1 A + SELL 1 B (unwind): buyer price >= mark / seller price <= mark
+  ✓ T2 basket SELL 1 A + SELL 1 B (unwind): LP equity +0.440000 (spread 0.440000 − LP fee 0.000000), taker -0.440000, protocol fees +0.000000
+  ✓ [conservation @slot 527331705] after baskets: V=7000.000000 == SPL == C 6999.380000 + I 0.080000 + R 0.000000 + S 0.270000 + Rew 0.270000
+  ✓ everyone flat again, OI 0 on A and B
+  LP total P&L at an UNCHANGED oracle so far: +6.220000 (deposit 5000.000000 → equity 5006.220000)
+  ✓ LP never lost principal at an unchanged oracle: equity > deposit, all of it free capital
+
+8. ClaimReward (op 21)
+  ✓ market A accrued reward 0.270000 (rewardBps 5000 = 50% of its trade fees; the rest went to I 0.000000 / S 0.270000)
+  ✓ ClaimReward signed by a non-recipient → rejected with unauthorized(102) [got unauthorized(102) at ix 1]
+  ✓ ClaimReward more than accrued → rejected with invalidParams(103) [got invalidParams(103) at ix 1]
+  ✓ [conservation @slot 527331717] ClaimReward (1 unit, then all): V=6999.730000 == SPL == C 6999.380000 + I 0.080000 + R 0.000000 + S 0.270000 + Rew 0.000000
+  ✓ recipient received exactly 0.270000; market.rewardAccrued = 0, Dex.totalRewards = 0
+
+9. availability: an oracle tick >= half the clamp makes the PropAMM refuse ALL quotes for 150 slots
+  ✓ [conservation @slot 527331717] before T1 BUY 1 B (LP short B): V=6999.730000 == SPL == C 6999.380000 + I 0.080000 + R 0.000000 + S 0.270000 + Rew 0.000000
+  ✓ [conservation @slot 527331721] T1 BUY 1 B (LP short B): V=6999.730000 == SPL == C 6999.340000 + I 0.120000 + R 0.000000 + S 0.270000 + Rew 0.000000
+  ✓ T1 BUY 1 B (LP short B): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 BUY 1 B (LP short B): BUY 1.000000 B @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 7→8
+  ✓ T1 BUY 1 B (LP short B): buyer price >= mark / seller price <= mark
+  ✓ T1 BUY 1 B (LP short B): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331733] oracle B +0.6%: V=6999.730000 == SPL == C 6999.340000 + I 0.120000 + R 0.000000 + S 0.270000 + Rew 0.000000
+  ✓ mark B = 100.600000, lastRampSlot = 527331732
+  ✓ propAmmQuote(isRamping) throws PropAmmQuoteError(200)
+  ✓ T1 CLOSE its long on B during the ramp cooldown → rejected with matcher.paused(200) [got matcher.paused(200) at ix 2]
+  ✓ T2 SELL B (would REDUCE LP risk) during the ramp cooldown → rejected with matcher.paused(200) [got matcher.paused(200) at ix 2]
+  ✓ [conservation @slot 527331739] before market A still trades during B's cooldown (T2 BUY 1 A, LP's B leg refreshed): V=6999.730000 == SPL == C 6999.340000 + I 0.120000 + R 0.000000 + S 0.270000 + Rew 0.000000
+  ✓ [conservation @slot 527331743] market A still trades during B's cooldown (T2 BUY 1 A, LP's B leg refreshed): V=6999.730000 == SPL == C 6999.300000 + I 0.120000 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ market A still trades during B's cooldown (T2 BUY 1 A, LP's B leg refreshed): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ market A still trades during B's cooldown (T2 BUY 1 A, LP's B leg refreshed): BUY 1.000000 A @100.220000 (mark 100.000000, 22bps) == propAmmQuote(), seq 8→9
+  ✓ market A still trades during B's cooldown (T2 BUY 1 A, LP's B leg refreshed): buyer price >= mark / seller price <= mark
+  ✓ market A still trades during B's cooldown (T2 BUY 1 A, LP's B leg refreshed): LP equity +0.200000 (spread 0.220000 − LP fee 0.020000), taker -0.240000, protocol fees +0.040000
+  ✓ [conservation @slot 527331743] before T2 SELL 1 A: V=6999.730000 == SPL == C 6999.300000 + I 0.120000 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ [conservation @slot 527331747] T2 SELL 1 A: V=6999.730000 == SPL == C 6999.300000 + I 0.120000 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ T2 SELL 1 A: landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T2 SELL 1 A: SELL 1.000000 A @99.780000 (mark 100.000000, 22bps) == propAmmQuote(), seq 9→10
+  ✓ T2 SELL 1 A: buyer price >= mark / seller price <= mark
+  ✓ T2 SELL 1 A: LP equity +0.220000 (spread 0.220000 − LP fee 0.000000), taker -0.220000, protocol fees +0.000000
+  waiting out the 150-slot cooldown.......
+  ✓ [conservation @slot 527331896] cooldown over: V=6999.730000 == SPL == C 6999.300000 + I 0.120000 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ [conservation @slot 527331901] T1 SELL 1 B after cooldown (closes vs LP): V=6999.730000 == SPL == C 6999.300000 + I 0.120000 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ PropAMM quotes again after the cooldown; all flat. LP equity 5006.240000 → 5006.461320 (inventory loss from the +0.6% move while short 1 B, as expected)
+
+9b. staleness: oracle older than maxStaleness (150 slots) ⇒ oracleStale; fresh push ⇒ trades at the NEW mark; open legs need RefreshLeg
+  ✓ [conservation @slot 527331901] before stale-oracle test: V=6999.730000 == SPL == C 6999.300000 + I 0.120000 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ market D oracle age 430 slots > maxStaleness 150
+  ✓ T1 BUY D vs the vault with a STALE oracle → rejected with oracleStale(106) [got oracleStale(106) at ix 2]
+  ✓ same via the one-call helper (refresh cannot cure a stale ORACLE) → rejected with oracleStale(106) [got oracleStale(106) at ix 2]
+  ✓ [conservation @slot 527331909] before T1 BUY 1 D right after a fresh oracle push: V=6999.730000 == SPL == C 6999.300000 + I 0.120000 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ [conservation @slot 527331913] T1 BUY 1 D right after a fresh oracle push: V=6999.730000 == SPL == C 6999.259840 + I 0.160160 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ T1 BUY 1 D right after a fresh oracle push: landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 BUY 1 D right after a fresh oracle push: BUY 1.000000 D @100.620880 (mark 100.400000, 22bps) == propAmmQuote(), seq 11→12
+  ✓ T1 BUY 1 D right after a fresh oracle push: buyer price >= mark / seller price <= mark
+  ✓ T1 BUY 1 D right after a fresh oracle push: LP equity +0.200800 (spread 0.220880 − LP fee 0.020080), taker -0.240960, protocol fees +0.040160
+  ✓ fill used the NEW mark 100.400000: ask 100.620880 = new mark + 22 bps (not the old $100 mark)
+  ✓ [conservation @slot 527331913] LP holds an open D position: V=6999.730000 == SPL == C 6999.259840 + I 0.160160 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ T1 BUY B, NO RefreshLeg at all → rejected with stalePortfolioLeg(122) [got stalePortfolioLeg(122) at ix 2]
+  ✓ T1 BUY B, taker's D leg refreshed but the LP's D leg NOT → rejected with stalePortfolioLeg(122) [got stalePortfolioLeg(122) at ix 3]
+  ✓ T1 BUY B, LP's D leg refreshed but the taker's NOT → rejected with stalePortfolioLeg(122) [got stalePortfolioLeg(122) at ix 3]
+  ✓ tradeWithMatcherFresh built [RefreshLeg(D, taker), RefreshLeg(D, LP), TradeWithMatcher] in one call
+  ✓ [conservation @slot 527331915] before T1 BUY 1 B with the one-call bundle (LP + taker D legs refreshed): V=6999.730000 == SPL == C 6999.259840 + I 0.160160 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ [conservation @slot 527331921] T1 BUY 1 B with the one-call bundle (LP + taker D legs refreshed): V=6999.730000 == SPL == C 6999.219600 + I 0.200400 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ T1 BUY 1 B with the one-call bundle (LP + taker D legs refreshed): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 BUY 1 B with the one-call bundle (LP + taker D legs refreshed): BUY 1.000000 B @100.821320 (mark 100.600000, 22bps) == propAmmQuote(), seq 12→13
+  ✓ T1 BUY 1 B with the one-call bundle (LP + taker D legs refreshed): buyer price >= mark / seller price <= mark
+  ✓ T1 BUY 1 B with the one-call bundle (LP + taker D legs refreshed): LP equity +0.201200 (spread 0.221320 − LP fee 0.020120), taker -0.241440, protocol fees +0.040240
+  ✓ [conservation @slot 527331925] before T2 BUY 1 D after the oracle moved +0.2% (loaded market): V=6999.730000 == SPL == C 6999.219600 + I 0.200400 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ [conservation @slot 527331931] T2 BUY 1 D after the oracle moved +0.2% (loaded market): V=6999.730000 == SPL == C 6998.978558 + I 0.240642 + R 0.200800 + S 0.290000 + Rew 0.020000
+  ✓ T2 BUY 1 D after the oracle moved +0.2% (loaded market): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T2 BUY 1 D after the oracle moved +0.2% (loaded market): BUY 1.000000 D @100.822121 (mark 100.600800, 22bps) == propAmmQuote(), seq 13→14
+  ✓ T2 BUY 1 D after the oracle moved +0.2% (loaded market): buyer price >= mark / seller price <= mark
+    (P&L not asserted here: the bundled RefreshLeg also settles oracle-move PnL) LP 0.000400, taker -0.241442
+  ✓ mark 100.400000 → 100.600800 (no ramp cooldown): next ask 100.822121 = NEW mark + 22 bps
+  ✓ [conservation @slot 527331931] before T2 SELL 1 D (bid <= new mark): V=6999.730000 == SPL == C 6998.978558 + I 0.240642 + R 0.200800 + S 0.290000 + Rew 0.020000
+  ✓ [conservation @slot 527331934] T2 SELL 1 D (bid <= new mark): V=6999.730000 == SPL == C 6998.978558 + I 0.240642 + R 0.200800 + S 0.290000 + Rew 0.020000
+  ✓ T2 SELL 1 D (bid <= new mark): landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T2 SELL 1 D (bid <= new mark): SELL 1.000000 D @100.379479 (mark 100.600800, 22bps) == propAmmQuote(), seq 14→15
+  ✓ T2 SELL 1 D (bid <= new mark): buyer price >= mark / seller price <= mark
+    (P&L not asserted here: the bundled RefreshLeg also settles oracle-move PnL) LP 0.221321, taker -0.221321
+  letting market D's oracle go stale again (150 slots) with LP inventory open........
+  ✓ [conservation @slot 527332103] D oracle stale again, LP holds D + B legs: V=6999.730000 == SPL == C 6998.978558 + I 0.240642 + R 0.200800 + S 0.290000 + Rew 0.020000
+  ✓ D oracle age 179 > 150 with the LP short D and short B
+  ✓ T2 OPEN (BUY) D on the stale oracle → rejected with oracleStale(106) [got oracleStale(106) at ix 4]
+  ✓ T1 CLOSE (mode 1) its D long on the STALE oracle — risk-reducing fills stay available → would SUCCEED (simulated at slot 527332104)
+  ✓ T2 BUY B (fresh market) while the LP's D leg sits on a stale oracle — RefreshLeg(D) needs no fresh oracle, other markets keep trading → would SUCCEED (simulated at slot 527332104)
+  ✓ [conservation @slot 527332104] before T1 SELL 1 D (netted = pure close) REALLY SENT on the stale oracle: V=6999.730000 == SPL == C 6998.978558 + I 0.240642 + R 0.200800 + S 0.290000 + Rew 0.020000
+  ✓ [conservation @slot 527332109] T1 SELL 1 D (netted = pure close) REALLY SENT on the stale oracle: V=6999.730000 == SPL == C 6999.179358 + I 0.240642 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ T1 SELL 1 D (netted = pure close) REALLY SENT on the stale oracle: landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 SELL 1 D (netted = pure close) REALLY SENT on the stale oracle: SELL 1.000000 D @100.379479 (mark 100.600800, 22bps) == propAmmQuote(), seq 15→16
+  ✓ T1 SELL 1 D (netted = pure close) REALLY SENT on the stale oracle: buyer price >= mark / seller price <= mark
+    (P&L not asserted here: the bundled RefreshLeg also settles oracle-move PnL) LP 0.221321, taker -0.020521
+  ✓ the close filled at the STALE mark 100.600800 − 22 bps = 100.379479 (185 slots old)
+  ✓ [conservation @slot 527332109] before T1 SELL 1 B: V=6999.730000 == SPL == C 6999.179358 + I 0.240642 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ [conservation @slot 527332114] T1 SELL 1 B: V=6999.730000 == SPL == C 6999.179358 + I 0.240642 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ T1 SELL 1 B: landed with exactly 1 signature (taker only; LP did not sign)
+  ✓ T1 SELL 1 B: SELL 1.000000 B @100.378680 (mark 100.600000, 22bps) == propAmmQuote(), seq 16→17
+  ✓ T1 SELL 1 B: buyer price >= mark / seller price <= mark
+    (P&L not asserted here: the bundled RefreshLeg also settles oracle-move PnL) LP 0.221320, taker -0.221320
+  ✓ [conservation @slot 527332114] after staleness section: V=6999.730000 == SPL == C 6999.179358 + I 0.240642 + R 0.000000 + S 0.290000 + Rew 0.020000
+  ✓ everyone flat again (A, B, D)
+
+10. LP owner keeps custody: withdraw everything
+  ✓ withdraw from the LP portfolio by a non-owner → rejected with ownerMismatch(111) [got ownerMismatch(111) at ix 1]
+Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 1: invalid account data for instruction. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu invoke [1]",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+  "Program log: Error: InvalidAccountData",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 220 of 200893 compute units",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: invalid account data for instruction",
+  "Program J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu consumed 2177 of 202850 compute units",
+  "Program J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu failed: invalid account data for instruction"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at send (/home/ubuntu/percolator-cli/.claude/worktrees/agent-a89c20c489c7ac3ec/scripts/_lean-propamm-devnet.ts:73:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/home/ubuntu/percolator-cli/.claude/worktrees/agent-a89c20c489c7ac3ec/scripts/_lean-propamm-devnet.ts:453:3)
+
+307 passed, 0 failed (ABORTED)

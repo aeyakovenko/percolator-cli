@@ -1,0 +1,6 @@
+batteries [before] on percolator J1E77SQ6Lgkyx45M3pTJmDoqmiJax6LQqHrEcbv15WDu matcher 4W36LfnN9ZUqRdfpHE91aJbgv6dPaswaZn4GQSWky4t2
+[before] lean-attack: exit 0 | 70 checks passed, 0 failed (0 security) — spent 0.0383 SOL — dexA G2hJJrpi59oEX1Mo8B5is2h2MwYdFUiMMqrjbUoB5KAc CLEAN — no theft, conservation held throughout. 
+[before] _lean-xmargin-drain: exit 0 | 
+[before] _lean-exploit: exit 0 | BLOCKED ✅ — account reuse rejected (Simulation failed.  Message: Transaction simulation failed: Error processing Instruction 2…). Exploit fixed. 
+[before] _lean-builtin-funding: exit 0 | 7 passed, 0 failed 
+[before] _lean-propamm-devnet: exit 1 |   ✗ parsed 1 RewardCfg, 0 EpochState, 0 BidReceipt (0 closed/other); cross-links consistent (0 active cfg→epoch, 0 bid→epoch), 0 bad 318 passed, 1 failed — dex 7E8zMMEFwgmQQBCqVZT65wt81oRhQDQbJirLH6ro8gSb ctx CEZ9gzd9ZvvsDcNw1Ts2QGDRCf4GRDwf9dmyGJb8oJG4 lpPortfolio Gh5TZQ7sbcbLTKVoW5XF6CvfxCscLBYuBq77Y3YinMF FAILURES: 

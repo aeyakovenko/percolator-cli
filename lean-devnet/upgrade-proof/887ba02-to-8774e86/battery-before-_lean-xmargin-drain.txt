@@ -1,0 +1,5 @@
+HONEST market H insurance (prize) seeded = $50
+attacker pAtk: SHORT 8 on H + LONG 8 on A (cross-margin, $300 capital)
+
+HONEST insurance: start $50 -> end $50 | conservation V==SPL==C+I+R+S+Rew: true
+BLOCKED ✅ — honest market's insurance untouched through the cross-margin attack (isolation holds). Fixed.

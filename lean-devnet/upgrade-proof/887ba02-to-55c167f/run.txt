@@ -1,0 +1,18 @@
+[probe-before] ok=4 fail=0 | PROBE [before]: 4 ok, 0 failed 
+[upgrade] ok=0 fail=0 | Program Id: 51x97QVMHFLqh1LHEepBYxbGRQD2dDevpWUSMqehbqGo 
+[verify] ok=0 fail=0 | devnet 51x97QVMHFLqh1LHEepBYxbGRQD2dDevpWUSMqehbqGo: on-chain sha256(first 91408 B) 18ebd75e6f698d21… vs file 18ebd75e6f698d21… => IDENTICAL (+ zero padding); last deploy slot 527350218; max len 160000 
+[probe-after] ok=4 fail=0 | PROBE [after]: 4 ok, 0 failed 
+[live-after-inventory] ok=28 fail=0 | LIVE [after-inventory]: 28 ok, 0 failed, 1 notes 
+[ins117-after] ok=13 fail=0 | INS117 after: 13 ok, 0 failed 
+[unwind-settle] ok=14 fail=0 | UNWIND settle: 14 ok, 0 failed 
+[unwind-third] ok=15 fail=0 | UNWIND third: 15 ok, 0 failed 
+[unwind-takerk] ok=4 fail=0 | UNWIND takerk: 4 ok, 0 failed 
+[live-after-flat] ok=28 fail=0 | LIVE [after-flat]: 28 ok, 0 failed, 1 notes 
+[unwind-liq] ok=23 fail=0 | UNWIND liq: 23 ok, 0 failed 
+[unwind-pair] ok=13 fail=0 | UNWIND pair: 13 ok, 0 failed 
+[unwind-lp] ok=4 fail=0 | UNWIND lp: 4 ok, 0 failed 
+[unwind-insurance] ok=6 fail=0 | UNWIND insurance: 6 ok, 0 failed 
+[unwind-deficit2] ok=18 fail=0 | UNWIND deficit2: 18 ok, 0 failed 
+[ins117-empty] ok=3 fail=0 | INS117 empty: 3 ok, 0 failed 
+[reward-live] ok=0 fail=0 | [reward-bid] DONE: claimed $0.634567 USDC (receipt Gcwtz89Gb7H9HWF1XEfrfwJNLXLWZkdVGewWHNd4w2N4 closed, rent refunded) — buy-and-burn complete: 2HbzxxFQL9bi9QqEz5uDTGDgoWEC6Vm4hYT42GGgb9XitUDYX6iVJoVZenDeWjk7W9kJUeUTE1thSJ8rrCkgSitx [reward-bid] epoch cycle 
+[unwind-final] ok=7 fail=0 | UNWIND final: 7 ok, 0 failed 
