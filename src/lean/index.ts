@@ -10,3 +10,6 @@ export * from "./refresh.js";
 export * from "./cluster.js";
 export * from "./oracle-clamp.js";
 export * from "./prize-monitor.js";
+export * from "./quote-trigger.js";
+export * from "./spot-source.js";
+export * from "./quote-keeper.js";
